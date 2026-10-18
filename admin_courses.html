@@ -248,7 +248,13 @@
             let formattedExpiry = '';
             if (course.expires_at) {
                 const d = new Date(course.expires_at);
-                formattedExpiry = d.toISOString().slice(0, 16);
+                // แปลงค่า UTC ในฐานข้อมูลกลับเป็นเวลาท้องถิ่นสำหรับแสดงใน datetime-local
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                formattedExpiry = `${year}-${month}-${day}T${hours}:${minutes}`;
             }
 
             const isDark = document.documentElement.classList.contains('dark');
@@ -299,7 +305,7 @@
                 preConfirm: async () => {
                     const code = document.getElementById('swalCode').value.trim();
                     const title = document.getElementById('swalTitle').value.trim();
-                    const expires = document.getElementById('swalExpires').value;
+                    const expiresVal = document.getElementById('swalExpires').value;
                     const desc = document.getElementById('swalDesc').value.trim();
                     const fileInput = document.getElementById('swalImageFile');
                     let imageUrl = document.getElementById('swalImageUrl').value.trim();
@@ -309,6 +315,13 @@
                         errBox.textContent = '⚠️ กรุณากรอกรหัสคอร์สและชื่อคอร์สให้ครบถ้วน';
                         errBox.classList.remove('hidden');
                         return false;
+                    }
+
+                    // ปรับแก้เวลาหมดอายุให้ถูกต้องตามเวลาท้องถิ่น ไม่ให้ถูกหักลบ 8 ชั่วโมง
+                    let expiresIso = null;
+                    if (expiresVal) {
+                        const localDate = new Date(expiresVal);
+                        expiresIso = localDate.toISOString();
                     }
 
                     if (fileInput.files && fileInput.files[0]) {
@@ -344,7 +357,7 @@
                     return { 
                         course_code: code, 
                         title: title, 
-                        expires_at: expires ? new Date(expires).toISOString() : null,
+                        expires_at: expiresIso,
                         image_url: imageUrl, 
                         description: desc 
                     };
