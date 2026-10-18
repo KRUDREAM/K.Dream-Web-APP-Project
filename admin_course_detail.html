@@ -1029,9 +1029,13 @@
                 }
 
                 let enrolledMap = {};
+                let enrollTimeMap = {};
                 enrolledList.forEach(en => {
                     const sId = String(en.student_id || en.user_id || en.id);
                     enrolledMap[sId] = en.id;
+                    if (en.created_at) {
+                        enrollTimeMap[sId] = en.created_at;
+                    }
                 });
 
                 window.globalAllStudents = profiles.map(p => {
@@ -1041,7 +1045,10 @@
                     const nickname = p.nickname || '-';
                     const gradeLevel = p.grade_level || p.grade || p.level || '-';
                     const school = p.school || '-';
-                    const createdAt = p.created_at || p.registered_at || '1970-01-01T00:00:00Z';
+                    
+                    // ดึงวันเวลาสมัครจากตารางลงทะเบียนเรียน (enrollments) ก่อน ถ้าไม่มีค่อยไปดึงจาก profiles
+                    const createdAt = enrollTimeMap[sId] || p.created_at || p.registered_at || '1970-01-01T00:00:00Z';
+                    
                     const isEnrolled = !!enrolledMap[sId];
                     return { studentId: sId, fullName, username, nickname, gradeLevel, school, createdAt, isEnrolled, enrollId: enrolledMap[sId] || null };
                 });
@@ -1054,7 +1061,7 @@
             }
         }
 
-        // ตั้งค่าให้ Sort เริ่มต้น ตามวันเวลาสมัคร (created_at) จากสมัครก่อนไปหลัง (ascending: 'asc')
+        // ตั้งค่า Sort default ตามวันเวลาสมัคร จากสมัครก่อนไปหลัง (Ascending)
         let currentStudentSortField = 'created_at';
         let currentStudentSortOrder = 'asc';
 
@@ -1063,7 +1070,7 @@
                 currentStudentSortOrder = currentStudentSortOrder === 'asc' ? 'desc' : 'asc';
             } else {
                 currentStudentSortField = field;
-                currentStudentSortOrder = field === 'created_at' ? 'asc' : 'desc';
+                currentStudentSortOrder = field === 'created_at' ? 'asc' : 'asc';
             }
             renderStudentListModalUI();
         }
