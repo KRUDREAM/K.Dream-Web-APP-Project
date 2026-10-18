@@ -42,6 +42,8 @@
         .dark .glass-nav { background: rgba(2, 6, 23, 0.88); border-bottom: 1px solid rgba(30, 58, 138, 0.4); }
         .hitech-card { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(186, 230, 253, 0.8); box-shadow: 0 10px 30px -10px rgba(2, 132, 199, 0.08); transition: all 0.25s ease; }
         .dark .hitech-card { background: rgba(9, 13, 22, 0.95); border: 1px solid rgba(30, 58, 138, 0.5); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); }
+        .sortable-th { cursor: pointer; transition: color 0.15s ease; user-select: none; }
+        .sortable-th:hover { color: #0284c7; }
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
     </style>
@@ -94,7 +96,7 @@
         <div class="hitech-card p-6 rounded-3xl space-y-4">
             <div class="flex justify-between items-center text-xs text-slate-400 border-b border-sky-500/20 pb-3">
                 <span id="studentCountLabel">แสดง 0 รายการ</span>
-                <span class="text-sky-600 dark:text-sky-400 font-bold"><i class="fas fa-circle-info mr-1"></i> ใช้ Username ในการเข้าสู่ระบบ</span>
+                <span class="text-sky-600 dark:text-sky-400 font-bold"><i class="fas fa-circle-info mr-1"></i> คลิกที่หัวตารางเพื่อเรียงลำดับข้อมูล</span>
             </div>
 
             <div class="overflow-x-auto">
@@ -102,16 +104,27 @@
                     <thead>
                         <tr class="bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
                             <th class="p-3">ลำดับ</th>
-                            <th class="p-3">Username / รหัสนักเรียน</th>
-                            <th class="p-3">ชื่อ - นามสกุล</th>
-                            <th class="p-3">ชื่อเล่น</th>
-                            <th class="p-3">ระดับชั้น / โรงเรียน</th>
+                            <th class="p-3 sortable-th" onclick="setSort('username')">
+                                Username / รหัสนักเรียน <i id="sortIcon-username" class="fas fa-sort ml-1 text-slate-400"></i>
+                            </th>
+                            <th class="p-3 sortable-th" onclick="setSort('full_name')">
+                                ชื่อ - นามสกุล <i id="sortIcon-full_name" class="fas fa-sort ml-1 text-slate-400"></i>
+                            </th>
+                            <th class="p-3 sortable-th" onclick="setSort('nickname')">
+                                ชื่อเล่น <i id="sortIcon-nickname" class="fas fa-sort ml-1 text-slate-400"></i>
+                            </th>
+                            <th class="p-3 sortable-th" onclick="setSort('grade_level')">
+                                ระดับชั้น / โรงเรียน <i id="sortIcon-grade_level" class="fas fa-sort ml-1 text-slate-400"></i>
+                            </th>
+                            <th class="p-3 sortable-th" onclick="setSort('created_at')">
+                                วันเวลาสมัคร <i id="sortIcon-created_at" class="fas fa-sort-down ml-1 text-sky-500"></i>
+                            </th>
                             <th class="p-3">LINE ID</th>
                             <th class="p-3 text-center">จัดการข้อมูล</th>
                         </tr>
                     </thead>
                     <tbody id="studentsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
-                        <tr><td colspan="7" class="text-center py-8 text-slate-400">กำลังโหลดข้อมูลบัญชีผู้ใช้...</td></tr>
+                        <tr><td colspan="8" class="text-center py-8 text-slate-400">กำลังโหลดข้อมูลบัญชีผู้ใช้...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -125,6 +138,8 @@
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let studentsList = [];
+        let currentSortField = 'created_at';
+        let currentSortAsc = false; // ค่าเริ่มต้นเรียงจากใหม่ -> เก่า
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -167,6 +182,28 @@
             renderStudentsTable();
         }
 
+        function setSort(field) {
+            if (currentSortField === field) {
+                currentSortAsc = !currentSortAsc;
+            } else {
+                currentSortField = field;
+                currentSortAsc = true; // เริ่มต้นจากน้อยไปมากสำหรับข้อความ/วันที่เก่าไปใหม่
+            }
+
+            // อัปเดตไอคอนหัวตาราง
+            ['username', 'full_name', 'nickname', 'grade_level', 'created_at'].forEach(f => {
+                const icon = document.getElementById(`sortIcon-${f}`);
+                if (!icon) return;
+                if (f === currentSortField) {
+                    icon.className = currentSortAsc ? 'fas fa-sort-up ml-1 text-sky-500' : 'fas fa-sort-down ml-1 text-sky-500';
+                } else {
+                    icon.className = 'fas fa-sort ml-1 text-slate-400';
+                }
+            });
+
+            renderStudentsTable();
+        }
+
         function renderStudentsTable() {
             const tbody = document.getElementById('studentsTableBody');
             const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -182,10 +219,28 @@
                 return username.includes(keyword) || fullName.includes(keyword) || nickname.includes(keyword) || studentId.includes(keyword) || grade.includes(keyword) || school.includes(keyword);
             });
 
+            // จัดเรียงข้อมูล (Sorting)
+            filtered.sort((a, b) => {
+                let valA = a[currentSortField] || '';
+                let valB = b[currentSortField] || '';
+
+                if (currentSortField === 'created_at') {
+                    valA = valA ? new Date(valA).getTime() : 0;
+                    valB = valB ? new Date(valB).getTime() : 0;
+                } else {
+                    valA = String(valA).toLowerCase();
+                    valB = String(valB).toLowerCase();
+                }
+
+                if (valA < valB) return currentSortAsc ? -1 : 1;
+                if (valA > valB) return currentSortAsc ? 1 : -1;
+                return 0;
+            });
+
             document.getElementById('studentCountLabel').textContent = `แสดง ${filtered.length} รายการ (จากทั้งหมด ${studentsList.length} คน)`;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400">ไม่พบรายชื่อนักเรียนที่ค้นหา</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">ไม่พบรายชื่อนักเรียนที่ค้นหา</td></tr>`;
                 return;
             }
 
@@ -197,6 +252,7 @@
                 const gradeLevel = s.grade_level || s.grade || '-';
                 const school = s.school || '-';
                 const lineId = s.line_id || '-';
+                const createdAtStr = s.created_at ? new Date(s.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-';
 
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
@@ -208,6 +264,7 @@
                             <div class="font-bold text-indigo-600 dark:text-indigo-400">${gradeLevel}</div>
                             <div class="text-[10px] text-slate-400">${school}</div>
                         </td>
+                        <td class="p-3 font-mono text-slate-500 text-[11px]">${createdAtStr}</td>
                         <td class="p-3 font-mono text-slate-700 dark:text-slate-300">${lineId}</td>
                         <td class="p-3 text-center">
                             <button onclick="openEditStudentModal('${sId}')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs shadow transition-all flex items-center gap-1 mx-auto" title="แก้ไขข้อมูลและรีเซ็ตรหัสผ่าน">
@@ -229,7 +286,6 @@
             if (pwdInput) pwdInput.value = password;
         }
 
-        // 🎲 ฟังก์ชันสุ่มรหัสผ่านใหม่เฉพาะสำหรับตอนรีเซ็ตใน Modal แก้ไข
         function generateResetPassword() {
             let password = '';
             for (let i = 0; i < 6; i++) {
@@ -239,7 +295,6 @@
             if (pwdInput) pwdInput.value = password;
         }
 
-        // 🔑 ฟังก์ชันรีเซ็ตรหัสผ่านใหม่แบบบันทึกจริงผ่าน Supabase Auth (ผ่าน SQL Function หรืออัปเดตผ่านระบบ)
         async function triggerResetPassword(studentId, username) {
             let newPwd = '';
             for (let i = 0; i < 6; i++) {
@@ -277,11 +332,6 @@
             if (confirmedPwd) {
                 Swal.fire({ title: 'กำลังเปลี่ยนรหัสผ่าน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-                // อัปเดตรหัสผ่านผ่าน Supabase RPC function สำหรับเปลี่ยนรหัสผ่านผู้ใช้อื่น (หรือใช้การอัปเดตผ่านตาราง Auth หากตั้งค่าไว้)
-                // หากต้องการวิธีที่ง่ายที่สุดในฝั่ง Client สามารถใช้การเรียกฟังก์ชัน RPC หรืออัปเดตผ่านอีเมลจำลองได้
-                // ในที่นี้เราจะเรียกใช้ Supabase Admin ผ่านฟังก์ชันอัปเดต ถ้ามีฟังก์ชัน หรือใช้วิธีอัปเดตผ่านตาราง profiles เก็บ raw password ชั่วคราว (ถ้าโครงสร้างโปรเจกต์เก็บบน profiles)
-                // หรือหากใช้ Supabase Auth แนะนำให้สร้างฟังก์ชัน SQL สำหรับรีเซ็ตพาสเวิร์ดด้านล่างนี้ใน Supabase ครับ:
-                
                 const { error } = await mySupabase.rpc('admin_update_user_password', { 
                     target_user_id: studentId, 
                     new_password: confirmedPwd 
@@ -295,7 +345,6 @@
                         confirmButtonColor: '#0284c7'
                     });
                 } else {
-                    // หากยังไม่ได้สร้าง Function SQL ใน Supabase ให้แจ้งเตือนคำแนะนำวิธีสร้าง
                     Swal.fire({
                         icon: 'error',
                         title: 'รีเซ็ตไม่สำเร็จ',
@@ -306,7 +355,6 @@
             }
         }
 
-        // 🗑️ ฟังก์ชันลบบัญชีนักเรียน
         async function triggerDeleteStudent(studentId, username) {
             const isDark = document.documentElement.classList.contains('dark');
 
@@ -343,7 +391,6 @@
             }
         }
 
-        // ➕ ฟังก์ชันเปิด Modal สร้างบัญชีนักเรียนใหม่
         async function openCreateStudentModal(savedData = {}) {
             const isDark = document.documentElement.classList.contains('dark');
 
@@ -501,7 +548,6 @@
             }
         }
 
-        // ✏️ ฟังก์ชันเปิด Modal แก้ไขข้อมูล
         async function openEditStudentModal(studentId) {
             const student = studentsList.find(s => String(s.id) === String(studentId));
             if (!student) return;
@@ -516,7 +562,6 @@
                     <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/20 border border-rose-500 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-bold text-center"></div>
                     <div class="space-y-3 text-left text-xs">
                         
-                        <!-- แผงจัดการรหัสผ่านและลบบัญชี -->
                         <div class="grid grid-cols-2 gap-2 bg-sky-50 dark:bg-darkinput p-3 rounded-2xl border border-sky-500/20">
                             <div>
                                 <span class="text-[10px] text-slate-400 block font-bold mb-1">จัดการรหัสผ่าน</span>
