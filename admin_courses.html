@@ -311,11 +311,10 @@
                         return false;
                     }
 
-                    // อัปโหลดไฟล์รูปภาพถ้ามีการเลือกไฟล์ใหม่
                     if (fileInput.files && fileInput.files[0]) {
                         const file = fileInput.files[0];
                         const fileExt = file.name.split('.').pop();
-                        const fileName = `course_${Date.now()}_${Math.random().toString(36.substring(2, 7))}.${fileExt}`;
+                        const fileName = `course_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
                         const filePath = `covers/${fileName}`;
 
                         Swal.showLoading();
@@ -324,7 +323,6 @@
                             .upload(filePath, file);
 
                         if (uploadError) {
-                            // ลอง fallback ไปที่ bucket อื่น เช่น 'public' หรือแจ้งเตือน
                             const { data: fallbackData, error: fallbackError } = await mySupabase.storage
                                 .from('public')
                                 .upload(filePath, file);
@@ -379,9 +377,11 @@
                 reader.onload = function(e) {
                     const preview = document.getElementById('swalCoverPreview');
                     const placeholder = document.getElementById('swalCoverPlaceholder');
-                    preview.src = e.target.result;
-                    preview.classList.remove('hidden');
-                    placeholder.classList.add('hidden');
+                    if (preview && placeholder) {
+                        preview.src = e.target.result;
+                        preview.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                    }
                 }
                 reader.readAsDataURL(input.files[0]);
             }
