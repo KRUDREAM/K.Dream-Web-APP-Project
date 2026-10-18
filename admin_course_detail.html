@@ -119,7 +119,7 @@
                     <i class="fas fa-video text-sm"></i> เพิ่มวิดีโอ
                 </button>
                 <button onclick="openAddLessonModal('pdf')" class="flex-1 lg:flex-none px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-2">
-                    <i class="fas fa-file-arrow-up text-sm"></i> อัปโหลดไฟล์เอกสาร
+                    <i class="fas fa-link text-sm"></i> เพิ่มลิงก์เอกสาร PDF
                 </button>
                 <button onclick="window.location.href=`admin_exams.html?course_id=${courseId}`" class="w-full lg:w-auto px-4 py-3 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 border border-slate-700">
                     <i class="fas fa-file-signature text-emerald-400 text-sm"></i> จัดการข้อสอบในคอร์ส
@@ -160,7 +160,7 @@
                         </div>
                         <div>
                             <h3 class="font-extrabold text-sm text-slate-900 dark:text-white">เอกสารประกอบการเรียน</h3>
-                            <p class="text-[11px] text-slate-400">ไฟล์ PDF และเอกสารดาวน์โหลด</p>
+                            <p class="text-[11px] text-slate-400">ลิงก์ PDF และเอกสารออนไลน์</p>
                         </div>
                     </div>
                     <span class="px-3 py-1 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs font-mono" id="fileCountBadge">0 รายการ</span>
@@ -876,9 +876,9 @@
                 container.innerHTML = `
                     <div class="text-center py-12 px-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                         <div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-lg"><i class="fas fa-file-slash"></i></div>
-                        <h4 class="font-bold text-xs text-slate-700 dark:text-slate-300 mb-1">ยังไม่มีไฟล์เอกสาร</h4>
-                        <p class="text-[11px] text-slate-400 mb-4">อัปโหลดเอกสารประกอบการเรียนหรือสไลด์</p>
-                        <button onclick="openAddLessonModal('pdf')" class="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 font-bold text-xs rounded-xl transition-all"><i class="fas fa-plus mr-1"></i> อัปโหลดไฟล์แรก</button>
+                        <h4 class="font-bold text-xs text-slate-700 dark:text-slate-300 mb-1">ยังไม่มีลิงก์เอกสาร</h4>
+                        <p class="text-[11px] text-slate-400 mb-4">เพิ่มลิงก์เอกสาร PDF หรือสไลด์ออนไลน์</p>
+                        <button onclick="openAddLessonModal('pdf')" class="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 font-bold text-xs rounded-xl transition-all"><i class="fas fa-plus mr-1"></i> เพิ่มลิงก์แรก</button>
                     </div>`;
                 return;
             }
@@ -889,11 +889,11 @@
                         <div class="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform"><i class="fas fa-file-lines text-sm"></i></div>
                         <div class="min-w-0">
                             <h4 class="font-bold text-xs text-slate-900 dark:text-white truncate">${f.title}</h4>
-                            <p class="text-[10px] text-slate-400 mt-0.5"><i class="far fa-clock mr-1"></i>อัปโหลดเมื่อ: ${new Date(f.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5"><i class="far fa-clock mr-1"></i>เพิ่มเมื่อ: ${new Date(f.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <a href="${f.pdf_url || f.file_url || '#'}" target="_blank" class="px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1"><i class="fas fa-download text-[10px]"></i> ดาวน์โหลด</a>
+                        <a href="${f.pdf_url || f.file_url || '#'}" target="_blank" class="px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1"><i class="fas fa-external-link-alt text-[10px]"></i> เปิดลิงก์</a>
                         <button onclick="deleteLesson('${f.id}')" class="w-9 h-9 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center" title="ลบไฟล์"><i class="fas fa-trash-can text-xs"></i></button>
                     </div>
                 </div>
@@ -903,73 +903,35 @@
         async function openAddLessonModal(type) {
             const isVideo = type === 'video';
             const { value: formValues } = await Swal.fire({
-                title: isVideo ? '📹 เพิ่มวิดีโอย้อนหลัง' : '📁 อัปโหลดเอกสารประกอบการเรียน',
+                title: isVideo ? '📹 เพิ่มวิดีโอย้อนหลัง' : '🔗 เพิ่มลิงก์เอกสาร PDF',
                 html: `
                     <div id="swalLessonErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold text-center"></div>
                     <div class="space-y-4 text-left text-xs">
                         <div>
-                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">ชื่อ${isVideo ? 'หัวข้อวิดีโอ' : 'เอกสาร / ไฟล์'} <span class="text-red-500">*</span></label>
-                            <input id="swalLessonTitle" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold" placeholder="${isVideo ? 'เช่น ครั้งที่ 1: ตะลุยโจทย์อัลกอริทึม' : 'เช่น สไลด์บรรยายบทที่ 1'}">
+                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">ชื่อ${isVideo ? 'หัวข้อวิดีโอ' : 'เอกสาร / หัวข้อ PDF'} <span class="text-red-500">*</span></label>
+                            <input id="swalLessonTitle" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold" placeholder="${isVideo ? 'เช่น ครั้งที่ 1: ตะลุยโจทย์อัลกอริทึม' : 'เช่น สไลด์บรรยายบทที่ 1 (PDF)'}">
                         </div>
-                        ${isVideo ? `
                         <div>
-                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">ลิงก์วิดีโอ (YouTube / URL) <span class="text-red-500">*</span></label>
-                            <input id="swalLessonUrl" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-mono" placeholder="https://youtube.com/...">
+                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">${isVideo ? 'ลิงก์วิดีโอ (YouTube / URL)' : 'ลิงก์ไฟล์ PDF (Google Drive / URL)'} <span class="text-red-500">*</span></label>
+                            <input id="swalLessonUrl" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-mono" placeholder="${isVideo ? 'https://youtube.com/...' : 'https://drive.google.com/...'}">
                         </div>
-                        ` : `
-                        <div>
-                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">เลือกไฟล์เอกสารจากเครื่อง (PDF, Word, รูปภาพ ฯลฯ) <span class="text-red-500">*</span></label>
-                            <input type="file" id="swalLessonFile" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl">
-                        </div>
-                        `}
                     </div>
                 `,
                 showCancelButton: true,
                 confirmButtonText: 'บันทึกข้อมูล',
                 cancelButtonText: 'ยกเลิก',
                 confirmButtonColor: '#9333ea',
-                preConfirm: async () => {
+                preConfirm: () => {
                     const title = document.getElementById('swalLessonTitle').value.trim();
+                    const url = document.getElementById('swalLessonUrl').value.trim();
                     const errBox = document.getElementById('swalLessonErrorMsg');
 
-                    if (!title) {
-                        errBox.textContent = '⚠️ กรุณากรอกชื่อให้ครบถ้วน';
+                    if (!title || !url) {
+                        errBox.textContent = '⚠️ กรุณากรอกชื่อและลิงก์ให้ครบถ้วน';
                         errBox.classList.remove('hidden');
                         return false;
                     }
-
-                    if (isVideo) {
-                        const url = document.getElementById('swalLessonUrl').value.trim();
-                        if (!url) {
-                            errBox.textContent = '⚠️ กรุณากรอกลิงก์วิดีโอ';
-                            errBox.classList.remove('hidden');
-                            return false;
-                        }
-                        return { title, url, isVideo: true };
-                    } else {
-                        const fileInput = document.getElementById('swalLessonFile');
-                        if (!fileInput.files || !fileInput.files[0]) {
-                            errBox.textContent = '⚠️ กรุณาเลือกไฟล์เอกสารจากเครื่อง';
-                            errBox.classList.remove('hidden');
-                            return false;
-                        }
-
-                        const file = fileInput.files[0];
-                        Swal.showLoading();
-
-                        return new Promise((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                resolve({ title, url: e.target.result, isVideo: false });
-                            };
-                            reader.onerror = function() {
-                                errBox.textContent = '⚠️ ไม่สามารถอ่านไฟล์ได้';
-                                errBox.classList.remove('hidden');
-                                resolve(false);
-                            };
-                            reader.readAsDataURL(file);
-                        });
-                    }
+                    return { title, url, isVideo };
                 }
             });
 
@@ -1005,7 +967,6 @@
             Swal.fire({ title: 'กำลังโหลดรายชื่อนักเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             try {
-                // 1. โหลดข้อมูลนักเรียนผ่าน RPC (get_students_with_auth_created) เหมือนหน้า admin_users.html
                 let studentsList = [];
                 const { data: profiles, error } = await mySupabase.rpc('get_students_with_auth_created');
                 if (error) {
@@ -1017,7 +978,6 @@
                     studentsList = profiles.filter(p => !isUserAdmin(p));
                 }
 
-                // 2. โหลดข้อมูลการลงทะเบียนในคอร์ส
                 let enrollsRes = await mySupabase.from('enrollments').select('*').eq('course_id', courseId);
                 let enrolledList = enrollsRes.data || [];
                 if (enrolledList.length === 0) {
@@ -1038,8 +998,6 @@
                     const nickname = p.nickname || '-';
                     const gradeLevel = p.grade_level || p.grade || p.level || '-';
                     const school = p.school || '-';
-                    
-                    // ดึงค่า created_at ที่ได้จาก Auth RPC หรือ profiles โดยตรง
                     const createdAt = p.created_at || p.registered_at || '1970-01-01T00:00:00Z';
                     
                     const isEnrolled = !!enrolledMap[sId];
@@ -1054,7 +1012,6 @@
             }
         }
 
-        // ตั้งค่า Sort default ตามวันเวลาสมัคร จากสมัครก่อนไปหลัง (Ascending)
         let currentStudentSortField = 'created_at';
         let currentStudentSortOrder = 'asc';
 
@@ -1063,7 +1020,7 @@
                 currentStudentSortOrder = currentStudentSortOrder === 'asc' ? 'desc' : 'asc';
             } else {
                 currentStudentSortField = field;
-                currentStudentSortOrder = field === 'created_at' ? 'asc' : 'asc';
+                currentStudentSortOrder = 'asc';
             }
             renderStudentListModalUI();
         }
