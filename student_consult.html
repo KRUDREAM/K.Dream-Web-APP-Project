@@ -145,9 +145,9 @@
             <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-rose-500/10 text-rose-500 flex items-center justify-center text-xl sm:text-2xl mx-auto shadow-inner">
                 <i class="fas fa-ban"></i>
             </div>
-            <h3 class="font-extrabold text-sm sm:text-xl text-slate-900 dark:text-white">คอร์สของท่านไม่มีการจองคิว Consult ขออภัยในความไม่สะดวก</h3>
-            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-                ระบบตรวจสอบพบว่าบัญชีของคุณยังไม่ได้ลงทะเบียนในรายวิชาที่เปิดให้มีการจอง Consult ในรอบนี้ หากมีข้อสงสัยหรือต้องการความช่วยเหลือกรุณาติดต่ออาจารย์ผู้สอน
+            <h3 class="font-extrabold text-sm sm:text-xl text-slate-900 dark:text-white">คอร์สเรียนของคุณไม่มีสิทธิ์จองคิว Consult</h3>
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed" id="accessDeniedReasonText">
+                ระบบตรวจสอบพบว่าบัญชีของคุณไม่ได้ลงทะเบียนในรายวิชาที่แอดมินกำหนดให้เปิดจอง Consult ในรอบนี้
             </p>
         </div>
 
@@ -172,8 +172,8 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-3 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 pt-2.5 border-t border-slate-200/60 dark:border-slate-800">
-                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span> ว่าง (&gt; 2 ช่วง)</span>
-                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span> ใกล้เต็ม (&le; 2 ช่วง)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span> ว่าง (> 2 ช่วง)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span> ใกล้เต็ม (≤ 2 ช่วง)</span>
                     <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700"></span> เต็ม / ไม่มีคิว</span>
                 </div>
 
@@ -380,6 +380,8 @@
         async function checkStudentCourseAccess() {
             try {
                 const allowedCoursesSetting = systemSettings?.allowed_courses || [];
+                
+                // หากแอดมินไม่ได้เลือกคอร์สใดๆ ไว้เลย (ปล่อยว่าง) ให้ถือว่าอนุญาตทุกคน หรือถ้าตั้งค่าไว้ ต้องเช็คว่านักเรียนลงทะเบียนคอร์สไหนที่ตรงกับที่แอดมินอนุญาต
                 if (!allowedCoursesSetting || allowedCoursesSetting.length === 0) {
                     hasValidCourseAccess = true;
                     return;
@@ -392,10 +394,21 @@
                 const { data: en2 } = await mySupabase.from('course_enrollments').select('course_id').eq('user_id', currentStudentId);
                 if (en2) enrolledCourseIds = enrolledCourseIds.concat(en2.map(e => String(e.course_id)));
 
+                const { data: en3 } = await mySupabase.from('enrollments').select('course_id').eq('student_id', currentStudentId);
+                if (en3) enrolledCourseIds = enrolledCourseIds.concat(en3.map(e => String(e.course_id)));
+
                 enrolledCourseIds = [...new Set(enrolledCourseIds)];
-                hasValidCourseAccess = enrolledCourseIds.length === 0 || enrolledCourseIds.some(courseId => allowedCoursesSetting.includes(courseId));
+
+                // ตรวจสอบว่าคอร์สที่นักเรียนลงทะเบียน มีคอร์สใดคอร์สหนึ่งที่ตรงกับรายการ allowed_courses ที่แอดมินตั้งค่าไว้หรือไม่
+                hasValidCourseAccess = enrolledCourseIds.some(courseId => allowedCoursesSetting.includes(String(courseId)));
+
+                if (!hasValidCourseAccess) {
+                    document.getElementById('accessDeniedReasonText').textContent = 
+                        `ระบบตรวจสอบพบว่าคุณลงทะเบียนเรียนในคอร์สที่ไม่มีสิทธิ์จอง Consult รอบนี้ (ต้องเป็นคอร์สที่อาจารย์เปิดให้จองเท่านั้น)`;
+                }
             } catch (err) {
-                hasValidCourseAccess = true;
+                console.warn("Course access check warning:", err);
+                hasValidCourseAccess = true; // Fallback ป้องกันติดขัดกรณี query พลาด
             }
         }
 
