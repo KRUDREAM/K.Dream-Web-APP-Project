@@ -1012,8 +1012,8 @@
                 profiles = profiles.filter(p => {
                     const role = String(p.role || p.user_role || '').toLowerCase();
                     const isAdm = role === 'admin' || p.is_admin === true;
-                    const sCode = String(p.student_id || p.code || '').trim();
-                    const isDashOrEmpty = sCode === '' || sCode === '-';
+                    const usernameVal = String(p.username || '').trim();
+                    const isDashOrEmpty = usernameVal === '' || usernameVal === '-';
                     if (isAdm) return false;
                     if (isDashOrEmpty && (p.username === 'admin' || (p.full_name && p.full_name.toLowerCase().includes('admin')))) return false;
                     return true;
@@ -1035,12 +1035,14 @@
                 window.globalAllStudents = profiles.map(p => {
                     const sId = String(p.id || p.user_id || p.student_id);
                     const fullName = p.full_name || p.name || p.username || `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.display_name || 'ไม่ระบุชื่อ';
-                    const studentCode = p.student_id || p.code || '-';
+                    const username = p.username || p.student_id || p.code || '-';
+                    const gradeLevel = p.grade_level || p.grade || p.level || '-';
+                    const createdAt = p.created_at || p.registered_at || '1970-01-01';
                     const isEnrolled = !!enrolledMap[sId];
-                    return { studentId: sId, fullName, studentCode, isEnrolled, enrollId: enrolledMap[sId] || null };
+                    return { studentId: sId, fullName, username, gradeLevel, createdAt, isEnrolled, enrollId: enrolledMap[sId] || null };
                 });
 
-                renderStudentListModalUI('');
+                renderStudentListModalUI();
 
             } catch (err) {
                 console.error("Manage Students Error:", err);
@@ -1048,25 +1050,56 @@
             }
         }
 
-        function renderStudentListModalUI(searchKeyword) {
+        let currentStudentSortField = 'created_at';
+        let currentStudentSortOrder = 'desc';
+
+        function setStudentSort(field) {
+            if (currentStudentSortField === field) {
+                currentStudentSortOrder = currentStudentSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentStudentSortField = field;
+                currentStudentSortOrder = 'asc';
+            }
+            renderStudentListModalUI();
+        }
+
+        function renderStudentListModalUI() {
             const list = window.globalAllStudents || [];
-            const keyword = (searchKeyword || '').trim().toLowerCase();
-            const filtered = list.filter(item => item.fullName.toLowerCase().includes(keyword) || item.studentCode.toLowerCase().includes(keyword));
+            const searchBox = document.getElementById('studentSearchBox');
+            const keyword = (searchBox ? searchBox.value : '').trim().toLowerCase();
+
+            let filtered = list.filter(item => item.fullName.toLowerCase().includes(keyword) || item.username.toLowerCase().includes(keyword) || item.gradeLevel.toLowerCase().includes(keyword));
+
+            filtered.sort((a, b) => {
+                let valA = a[currentStudentSortField] || '';
+                let valB = b[currentStudentSortField] || '';
+                if (currentStudentSortField === 'created_at') {
+                    valA = new Date(valA).getTime();
+                    valB = new Date(valB).getTime();
+                } else {
+                    valA = String(valA).toLowerCase();
+                    valB = String(valB).toLowerCase();
+                }
+                if (valA < valB) return currentStudentSortOrder === 'asc' ? -1 : 1;
+                if (valA > valB) return currentStudentSortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
 
             const rowsHtml = filtered.length === 0
-                ? `<tr><td colspan="3" class="text-center py-12 text-slate-400">ไม่พบรายชื่อนักเรียน</td></tr>`
+                ? `<tr><td colspan="4" class="text-center py-12 text-slate-400">ไม่พบรายชื่อนักเรียน</td></tr>`
                 : filtered.map((item) => `
                     <tr class="hover:bg-slate-50/85 dark:hover:bg-slate-800/40 transition-colors border-b dark:border-slate-800/60 cursor-pointer" onclick="toggleCheckbox('${item.studentId}')">
                         <td class="p-3.5 text-center" onclick="event.stopPropagation()">
                             <input type="checkbox" id="chk_student_${item.studentId}" ${item.isEnrolled ? 'checked' : ''} class="w-4 h-4 text-purple-600 rounded border-slate-300 dark:border-slate-700 focus:ring-purple-500 cursor-pointer">
                         </td>
-                        <td class="p-3.5 font-mono text-purple-600 dark:text-purple-400 font-bold">${item.studentCode}</td>
+                        <td class="p-3.5 font-mono text-purple-600 dark:text-purple-400 font-bold">${item.username}</td>
                         <td class="p-3.5 font-bold text-slate-800 dark:text-slate-200">${item.fullName}</td>
+                        <td class="p-3.5 font-semibold text-slate-600 dark:text-slate-400">${item.gradeLevel}</td>
                     </tr>
                 `).join('');
 
             const isDark = document.documentElement.classList.contains('dark');
-            if (Swal.isVisible() && document.getElementById('studentSearchBox')) {
+            if (Swal.isVisible() && document.getElementById('studentSearchBox') && document.getElementById('studentTableBody')) {
                 document.getElementById('studentTableBody').innerHTML = rowsHtml;
                 return;
             }
@@ -1078,7 +1111,7 @@
                         <div class="flex flex-col sm:flex-row gap-2.5 justify-between items-center">
                             <div class="relative flex-1 w-full">
                                 <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400"><i class="fas fa-search text-xs"></i></span>
-                                <input type="text" id="studentSearchBox" oninput="renderStudentListModalUI(this.value)" placeholder="พิมพ์ค้นหาชื่อ หรือรหัสนักเรียน..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500">
+                                <input type="text" id="studentSearchBox" oninput="renderStudentListModalUI()" placeholder="พิมพ์ค้นหา Username, ชื่อ หรือระดับชั้น..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500">
                             </div>
                             <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                                 <button type="button" onclick="massCheckCheckboxes(true)" class="flex-1 sm:flex-none px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-purple-600 hover:text-white text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-all shadow-sm">
@@ -1092,10 +1125,17 @@
                         <div class="max-h-[48vh] overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
                             <table class="w-full text-left border-collapse">
                                 <thead class="sticky top-0 bg-slate-100 dark:bg-slate-900 z-10">
-                                    <tr class="font-bold border-b dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                                    <tr class="font-bold border-b dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs">
                                         <th class="p-3.5 text-center w-12">เลือก</th>
-                                        <th class="p-3.5">รหัสนักเรียน</th>
-                                        <th class="p-3.5">ชื่อ-นามสกุล</th>
+                                        <th class="p-3.5 cursor-pointer hover:text-purple-600 transition-colors" onclick="setStudentSort('username')">
+                                            Username <i class="fas fa-sort text-[10px] ml-1"></i>
+                                        </th>
+                                        <th class="p-3.5 cursor-pointer hover:text-purple-600 transition-colors" onclick="setStudentSort('fullName')">
+                                            ชื่อ-นามสกุล <i class="fas fa-sort text-[10px] ml-1"></i>
+                                        </th>
+                                        <th class="p-3.5 cursor-pointer hover:text-purple-600 transition-colors" onclick="setStudentSort('gradeLevel')">
+                                            ระดับชั้นโรงเรียน <i class="fas fa-sort text-[10px] ml-1"></i>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody id="studentTableBody">${rowsHtml}</tbody>
@@ -1103,7 +1143,7 @@
                         </div>
                     </div>
                 `,
-                width: '780px',
+                width: '820px',
                 showCancelButton: true,
                 confirmButtonText: '💾 ยืนยันการบันทึก',
                 cancelButtonText: 'ปิด',
