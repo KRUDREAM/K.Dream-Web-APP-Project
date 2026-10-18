@@ -117,7 +117,7 @@
                     <i class="fas fa-video text-sm"></i> เพิ่มวิดีโอ
                 </button>
                 <button onclick="openAddLessonModal('pdf')" class="flex-1 lg:flex-none px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-2">
-                    <i class="fas fa-file-arrow-up text-sm"></i> อัปโหลดไฟล์
+                    <i class="fas fa-file-arrow-up text-sm"></i> อัปโหลดไฟล์เอกสาร
                 </button>
                 <button onclick="window.location.href=`admin_exams.html?course_id=${courseId}`" class="w-full lg:w-auto px-4 py-3 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 border border-slate-700">
                     <i class="fas fa-file-signature text-emerald-400 text-sm"></i> จัดการข้อสอบในคอร์ส
@@ -218,7 +218,7 @@
                 </div>
             </div>
 
-            <!-- 5 Advanced Charts Layout (รวมกราฟใยแมงมุมแยกตามหมวดหมู่) -->
+            <!-- 5 Advanced Charts Layout -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <!-- Chart 1 -->
                 <div class="lg:col-span-12 hitech-card p-6 rounded-3xl space-y-4">
@@ -233,7 +233,7 @@
                     </div>
                 </div>
 
-                <!-- Chart 2: Radar Chart (ใยแมงมุมแยกตามหมวดหมู่ข้อสอบ) -->
+                <!-- Chart 2: Radar Chart -->
                 <div class="lg:col-span-6 hitech-card p-6 rounded-3xl space-y-4">
                     <div class="flex justify-between items-center">
                         <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
@@ -394,7 +394,6 @@
             Swal.fire({ title: 'กำลังโหลดข้อมูลและสถิติ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             try {
-                // 1. Fetch Course Info
                 const { data: courseData, error: courseErr } = await mySupabase.from('courses').select('*').eq('id', courseId).single();
                 if (courseErr || !courseData) {
                     Swal.fire('ไม่พบคอร์สเรียน', 'คอร์สนี้อาจถูกลบไปแล้ว', 'error').then(() => window.location.replace('admin_courses.html'));
@@ -406,19 +405,14 @@
                 document.getElementById('headerCourseTitle').textContent = currentCourse.title;
                 document.getElementById('headerCourseDesc').textContent = currentCourse.description || 'ไม่มีรายละเอียดคำอธิบายคอร์ส';
 
-                // 2. Load Lessons & Files
                 await loadLessons();
-
-                // 3. Load Enrolled Students for this course
                 await loadEnrolledStudents();
 
-                // 4. Load Categories
                 const { data: cats } = await mySupabase.from('exam_categories').select('*').order('name');
                 if (cats) {
                     cats.forEach(c => categoriesMap[c.id] = c.name);
                 }
 
-                // 5. Load Profiles
                 const { data: profiles } = await mySupabase.from('profiles').select('*');
                 if (profiles) {
                     profiles.forEach(p => {
@@ -427,7 +421,6 @@
                     });
                 }
 
-                // 6. Load Exams assigned to this course
                 const { data: exams } = await mySupabase.from('exams').select('*').order('created_at', { ascending: false });
                 let rawExams = exams || [];
                 rawExams = rawExams.filter(e => {
@@ -442,7 +435,6 @@
                 document.getElementById('courseTotalExams').textContent = `${activeExams.length} ชุด`;
                 document.getElementById('examCountBadge').textContent = `${activeExams.length} ชุดข้อสอบ`;
 
-                // 7. Load Questions count map
                 const { data: allQuestions } = await mySupabase.from('questions').select('id, exam_id');
                 if (allQuestions) {
                     allQuestions.forEach(q => {
@@ -451,14 +443,12 @@
                     });
                 }
 
-                // 8. Load Attempts for active exams in this course
                 const activeExamIds = new Set(activeExams.map(e => String(e.id)));
                 const { data: attempts } = await mySupabase.from('exam_attempts').select('*');
                 allAttempts = (attempts || []).filter(a => activeExamIds.has(String(a.exam_id)));
 
                 Swal.close();
 
-                // Render Analytics Dashboard Components
                 calculateCourseKPIs();
                 renderCourseCharts(activeExams);
                 renderLeaderboardAndAtRisk();
@@ -553,7 +543,6 @@
                 return allAttempts.filter(a => String(a.exam_id) === String(e.id)).length;
             });
 
-            // Chart 1: Trend Bar Chart
             const ctx1 = document.getElementById('courseTrendChart').getContext('2d');
             if (chart1) chart1.destroy();
             chart1 = new Chart(ctx1, {
@@ -581,7 +570,6 @@
                 }
             });
 
-            // Chart 2: Radar Chart (แยกคะแนนตามหมวดหมู่ข้อสอบ)
             let catStats = {};
             activeExams.forEach(exam => {
                 const catId = exam.category_id || 'uncategorized';
@@ -641,7 +629,6 @@
                 }
             });
 
-            // Chart 3: Submission Rate Bar Chart
             const ctx2 = document.getElementById('courseSubmissionRateChart').getContext('2d');
             if (chart2) chart2.destroy();
             chart2 = new Chart(ctx2, {
@@ -653,7 +640,6 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, suggestedMax: courseEnrolledStudentIds.length || 10 } } }
             });
 
-            // Chart 4: Grade Distribution Doughnut
             let gradeRanges = [0, 0, 0, 0]; 
             allAttempts.forEach(a => {
                 const score = getAttemptScore(a);
@@ -676,7 +662,6 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
             });
 
-            // Chart 5: Progress Trend Line Chart
             const ctx4 = document.getElementById('courseProgressTrendLineChart').getContext('2d');
             if (chart4) chart4.destroy();
             chart4 = new Chart(ctx4, {
@@ -917,31 +902,74 @@
         async function openAddLessonModal(type) {
             const isVideo = type === 'video';
             const { value: formValues } = await Swal.fire({
-                title: isVideo ? '📹 เพิ่มวิดีโอย้อนหลัง' : '📁 เพิ่มเอกสาร / ไฟล์ประกอบ',
+                title: isVideo ? '📹 เพิ่มวิดีโอย้อนหลัง' : '📁 อัปโหลดเอกสารประกอบการเรียน',
                 html: `
+                    <div id="swalLessonErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold text-center"></div>
                     <div class="space-y-4 text-left text-xs">
                         <div>
                             <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">ชื่อ${isVideo ? 'หัวข้อวิดีโอ' : 'เอกสาร / ไฟล์'} <span class="text-red-500">*</span></label>
-                            <input id="swalLessonTitle" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold" placeholder="${isVideo ? 'เช่น ครั้งที่ 1: ตะลุยโจทย์อัลกอริทึม' : 'เช่น สไลด์บรรยายบทที่ 1.pdf'}">
+                            <input id="swalLessonTitle" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold" placeholder="${isVideo ? 'เช่น ครั้งที่ 1: ตะลุยโจทย์อัลกอริทึม' : 'เช่น สไลด์บรรยายบทที่ 1'}">
                         </div>
+                        ${isVideo ? `
                         <div>
-                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">ลิงก์${isVideo ? 'วิดีโอ (YouTube / URL)' : 'ดาวน์โหลดไฟล์ (Google Drive / URL)'} <span class="text-red-500">*</span></label>
-                            <input id="swalLessonUrl" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-mono" placeholder="${isVideo ? 'https://youtube.com/...' : 'https://drive.google.com/...'}">
+                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">ลิงก์วิดีโอ (YouTube / URL) <span class="text-red-500">*</span></label>
+                            <input id="swalLessonUrl" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-mono" placeholder="https://youtube.com/...">
                         </div>
+                        ` : `
+                        <div>
+                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">เลือกไฟล์เอกสารจากเครื่อง (PDF, Word, รูปภาพ ฯลฯ) <span class="text-red-500">*</span></label>
+                            <input type="file" id="swalLessonFile" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl">
+                        </div>
+                        `}
                     </div>
                 `,
                 showCancelButton: true,
                 confirmButtonText: 'บันทึกข้อมูล',
                 cancelButtonText: 'ยกเลิก',
                 confirmButtonColor: '#9333ea',
-                preConfirm: () => {
+                preConfirm: async () => {
                     const title = document.getElementById('swalLessonTitle').value.trim();
-                    const url = document.getElementById('swalLessonUrl').value.trim();
-                    if (!title || !url) {
-                        Swal.showValidationMessage('กรุณากรอกชื่อและลิงก์ให้ครบถ้วน');
+                    const errBox = document.getElementById('swalLessonErrorMsg');
+
+                    if (!title) {
+                        errBox.textContent = '⚠️ กรุณากรอกชื่อให้ครบถ้วน';
+                        errBox.classList.remove('hidden');
                         return false;
                     }
-                    return { title, url };
+
+                    if (isVideo) {
+                        const url = document.getElementById('swalLessonUrl').value.trim();
+                        if (!url) {
+                            errBox.textContent = '⚠️ กรุณากรอกลิงก์วิดีโอ';
+                            errBox.classList.remove('hidden');
+                            return false;
+                        }
+                        return { title, url, isVideo: true };
+                    } else {
+                        const fileInput = document.getElementById('swalLessonFile');
+                        if (!fileInput.files || !fileInput.files[0]) {
+                            errBox.textContent = '⚠️ กรุณาเลือกไฟล์เอกสารจากเครื่อง';
+                            errBox.classList.remove('hidden');
+                            return false;
+                        }
+
+                        const file = fileInput.files[0];
+                        Swal.showLoading();
+
+                        // แปลงไฟล์เป็น Base64 Data URL เพื่อความเสถียรสูงสุดและไม่ต้องพึ่งพา Storage Bucket RLS Policy
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                resolve({ title, url: e.target.result, isVideo: false });
+                            };
+                            reader.onerror = function() {
+                                errBox.textContent = '⚠️ ไม่สามารถอ่านไฟล์ได้';
+                                errBox.classList.remove('hidden');
+                                resolve(false);
+                            };
+                            reader.readAsDataURL(file);
+                        });
+                    }
                 }
             });
 
@@ -950,8 +978,8 @@
                 const payload = {
                     course_id: courseId,
                     title: formValues.title,
-                    video_url: isVideo ? formValues.url : null,
-                    pdf_url: !isVideo ? formValues.url : null,
+                    video_url: formValues.isVideo ? formValues.url : null,
+                    pdf_url: !formValues.isVideo ? formValues.url : null,
                     created_at: new Date().toISOString()
                 };
                 const { error } = await mySupabase.from('course_lessons').insert([payload]);
