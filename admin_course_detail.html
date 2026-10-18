@@ -58,6 +58,8 @@
             border-color: rgba(2, 132, 199, 0.8);
             box-shadow: 0 20px 40px -15px rgba(2, 132, 199, 0.25);
         }
+        .sortable-th { cursor: pointer; transition: color 0.15s ease; user-select: none; }
+        .sortable-th:hover { color: #9333ea; }
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
     </style>
@@ -1037,9 +1039,10 @@
                     const fullName = p.full_name || p.name || p.username || `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.display_name || 'ไม่ระบุชื่อ';
                     const username = p.username || p.student_id || p.code || '-';
                     const gradeLevel = p.grade_level || p.grade || p.level || '-';
+                    const school = p.school || '-';
                     const createdAt = p.created_at || p.registered_at || '1970-01-01';
                     const isEnrolled = !!enrolledMap[sId];
-                    return { studentId: sId, fullName, username, gradeLevel, createdAt, isEnrolled, enrollId: enrolledMap[sId] || null };
+                    return { studentId: sId, fullName, username, gradeLevel, school, createdAt, isEnrolled, enrollId: enrolledMap[sId] || null };
                 });
 
                 renderStudentListModalUI();
@@ -1068,7 +1071,12 @@
             const searchBox = document.getElementById('studentSearchBox');
             const keyword = (searchBox ? searchBox.value : '').trim().toLowerCase();
 
-            let filtered = list.filter(item => item.fullName.toLowerCase().includes(keyword) || item.username.toLowerCase().includes(keyword) || item.gradeLevel.toLowerCase().includes(keyword));
+            let filtered = list.filter(item => 
+                item.fullName.toLowerCase().includes(keyword) || 
+                item.username.toLowerCase().includes(keyword) || 
+                item.gradeLevel.toLowerCase().includes(keyword) ||
+                item.school.toLowerCase().includes(keyword)
+            );
 
             filtered.sort((a, b) => {
                 let valA = a[currentStudentSortField] || '';
@@ -1094,7 +1102,10 @@
                         </td>
                         <td class="p-3.5 font-mono text-purple-600 dark:text-purple-400 font-bold">${item.username}</td>
                         <td class="p-3.5 font-bold text-slate-800 dark:text-slate-200">${item.fullName}</td>
-                        <td class="p-3.5 font-semibold text-slate-600 dark:text-slate-400">${item.gradeLevel}</td>
+                        <td class="p-3.5">
+                            <div class="font-bold text-indigo-600 dark:text-indigo-400">${item.gradeLevel}</div>
+                            <div class="text-[10px] text-slate-400">${item.school}</div>
+                        </td>
                     </tr>
                 `).join('');
 
@@ -1111,7 +1122,7 @@
                         <div class="flex flex-col sm:flex-row gap-2.5 justify-between items-center">
                             <div class="relative flex-1 w-full">
                                 <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400"><i class="fas fa-search text-xs"></i></span>
-                                <input type="text" id="studentSearchBox" oninput="renderStudentListModalUI()" placeholder="พิมพ์ค้นหา Username, ชื่อ หรือระดับชั้น..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500">
+                                <input type="text" id="studentSearchBox" oninput="renderStudentListModalUI()" placeholder="พิมพ์ค้นหา Username, ชื่อ, ระดับชั้น หรือโรงเรียน..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold">
                             </div>
                             <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                                 <button type="button" onclick="massCheckCheckboxes(true)" class="flex-1 sm:flex-none px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-purple-600 hover:text-white text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-all shadow-sm">
@@ -1127,14 +1138,14 @@
                                 <thead class="sticky top-0 bg-slate-100 dark:bg-slate-900 z-10">
                                     <tr class="font-bold border-b dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs">
                                         <th class="p-3.5 text-center w-12">เลือก</th>
-                                        <th class="p-3.5 cursor-pointer hover:text-purple-600 transition-colors" onclick="setStudentSort('username')">
-                                            Username <i class="fas fa-sort text-[10px] ml-1"></i>
+                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('username')">
+                                            Username <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i>
                                         </th>
-                                        <th class="p-3.5 cursor-pointer hover:text-purple-600 transition-colors" onclick="setStudentSort('fullName')">
-                                            ชื่อ-นามสกุล <i class="fas fa-sort text-[10px] ml-1"></i>
+                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('fullName')">
+                                            ชื่อ - นามสกุล <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i>
                                         </th>
-                                        <th class="p-3.5 cursor-pointer hover:text-purple-600 transition-colors" onclick="setStudentSort('gradeLevel')">
-                                            ระดับชั้นโรงเรียน <i class="fas fa-sort text-[10px] ml-1"></i>
+                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('gradeLevel')">
+                                            ระดับชั้น / โรงเรียน <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i>
                                         </th>
                                     </tr>
                                 </thead>
