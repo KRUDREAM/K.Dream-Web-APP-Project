@@ -85,9 +85,8 @@
     <nav class="glass-nav fixed w-full top-0 z-50">
         <div class="max-w-7xl mx-auto px-2.5 sm:px-6 h-16 sm:h-18 flex justify-between items-center gap-1.5">
             <div class="flex items-center gap-2 min-w-0">
-                <div id="navAvatarContainer" class="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-700 text-white flex items-center justify-center font-extrabold text-sm sm:text-lg shadow-md shadow-sky-500/20 overflow-hidden shrink-0">
-                    <i class="fas fa-graduation-cap" id="navAvatarIcon"></i>
-                    <img id="navAvatarImg" src="" class="w-full h-full object-cover hidden">
+                <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-700 text-white flex items-center justify-center font-extrabold text-sm sm:text-lg shadow-md shadow-sky-500/25 overflow-hidden shrink-0">
+                    <i class="fas fa-graduation-cap"></i>
                 </div>
                 <div class="min-w-0">
                     <div class="flex items-center gap-1.5">
@@ -480,22 +479,8 @@
             document.getElementById('studentNavName').textContent = currentStudentName;
             document.getElementById('studentWelcomeBanner').textContent = `ยินดีต้อนรับ, ${currentStudentName}`;
             document.getElementById('navTokenBalance').textContent = `${studentTokenBalance.toLocaleString()}`;
-            updateNavAvatar(currentStudentData?.avatar_url);
             loadStudentNotificationsCount();
             return true;
-        }
-
-        function updateNavAvatar(avatarUrl) {
-            const imgEl = document.getElementById('navAvatarImg');
-            const iconEl = document.getElementById('navAvatarIcon');
-            if (avatarUrl && avatarUrl.trim() !== '') {
-                imgEl.src = avatarUrl.trim();
-                imgEl.classList.remove('hidden');
-                iconEl.classList.add('hidden');
-            } else {
-                imgEl.classList.add('hidden');
-                iconEl.classList.remove('hidden');
-            }
         }
 
         async function logoutStudent() {
@@ -630,52 +615,71 @@
             const isDark = document.documentElement.classList.contains('dark');
 
             const { value: formValues } = await Swal.fire({
-                title: '⚙️ ตั้งค่าโปรไฟล์',
+                title: '⚙️ ตั้งค่าข้อมูลส่วนตัว',
                 width: '550px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
-                        <div class="flex items-center gap-3 p-3 bg-sky-50 dark:bg-darkinput rounded-2xl border border-sky-500/20">
-                            <div class="w-12 h-12 rounded-full bg-sky-500/20 overflow-hidden flex items-center justify-center shrink-0 border border-sky-500/40">
-                                <img id="swalAvatarPreview" src="${currentStudentData.avatar_url || ''}" class="w-full h-full object-cover ${currentStudentData.avatar_url ? '' : 'hidden'}">
-                                <i class="fas fa-user text-sky-500 text-base ${currentStudentData.avatar_url ? 'hidden' : ''}" id="swalAvatarPlaceholder"></i>
+                        <div>
+                            <label class="block font-bold mb-1">ชื่อ - นามสกุล <span class="text-red-500">*</span></label>
+                            <input id="swalFullName" value="${currentStudentData.full_name || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น นายสมชาย ใจดี">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold mb-1">ชื่อเล่น <span class="text-red-500">*</span></label>
+                                <input id="swalNickname" value="${currentStudentData.nickname || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น ดรีม">
                             </div>
-                            <div class="flex-1 min-w-0">
-                                <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">ลิงก์รูปโปรไฟล์ (Avatar URL)</label>
-                                <input id="swalAvatarInput" value="${currentStudentData.avatar_url || ''}" oninput="document.getElementById('swalAvatarPreview').src=this.value; document.getElementById('swalAvatarPreview').classList.remove('hidden'); document.getElementById('swalAvatarPlaceholder').classList.add('hidden');" class="w-full px-3 py-2 bg-white dark:bg-darkinput border rounded-xl outline-none font-mono text-[11px]" placeholder="https://...">
+                            <div>
+                                <label class="block font-bold mb-1">ระดับชั้น <span class="text-red-500">*</span></label>
+                                <input id="swalGradeLevel" value="${currentStudentData.grade_level || currentStudentData.grade || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น ม.3/1">
                             </div>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div><label class="block font-bold mb-1">ชื่อ-นามสกุล *</label><input id="swalFullName" value="${currentStudentData.full_name || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-darkinput border rounded-xl outline-none font-bold"></div>
-                            <div><label class="block font-bold mb-1">ชื่อเล่น</label><input id="swalNickname" value="${currentStudentData.nickname || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-darkinput border rounded-xl outline-none"></div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold mb-1">โรงเรียน <span class="text-red-500">*</span></label>
+                                <input id="swalSchool" value="${currentStudentData.school || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น สวนกุหลาบวิทยาลัย">
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1">LINE ID <span class="text-red-500">*</span></label>
+                                <input id="swalLineId" value="${currentStudentData.line_id || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น @line_id">
+                            </div>
                         </div>
                     </div>
                 `,
                 showCancelButton: true,
-                confirmButtonText: 'บันทึก',
+                confirmButtonText: 'บันทึกการแก้ไข',
                 cancelButtonText: 'ยกเลิก',
                 confirmButtonColor: '#0284c7',
                 background: isDark ? '#090d16' : '#ffffff',
                 color: isDark ? '#f1f5f9' : '#1e293b',
                 preConfirm: () => {
                     const fullName = document.getElementById('swalFullName').value.trim();
-                    if (!fullName) { Swal.showValidationMessage('กรุณากรอกชื่อ-นามสกุล'); return false; }
+                    const nickname = document.getElementById('swalNickname').value.trim();
+                    const gradeLevel = document.getElementById('swalGradeLevel').value.trim();
+                    const school = document.getElementById('swalSchool').value.trim();
+                    const lineId = document.getElementById('swalLineId').value.trim();
+
+                    if (!fullName || !nickname || !gradeLevel || !school || !lineId) {
+                        Swal.showValidationMessage('⚠️ กรุณากรอกข้อมูลให้ครบทุกช่อง');
+                        return false;
+                    }
                     return {
                         full_name: fullName,
-                        nickname: document.getElementById('swalNickname').value.trim(),
-                        avatar_url: document.getElementById('swalAvatarInput').value.trim()
+                        nickname: nickname,
+                        grade_level: gradeLevel,
+                        school: school,
+                        line_id: lineId
                     };
                 }
             });
 
             if (formValues) {
-                Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 const { error } = await mySupabase.from('profiles').update(formValues).eq('id', currentStudentId);
                 if (!error) {
                     currentStudentData = { ...currentStudentData, ...formValues };
                     currentStudentName = formValues.full_name;
                     document.getElementById('studentNavName').textContent = currentStudentName;
                     document.getElementById('studentWelcomeBanner').textContent = `ยินดีต้อนรับ, ${currentStudentName}`;
-                    updateNavAvatar(formValues.avatar_url);
                     Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1200, showConfirmButton: false });
                 } else {
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
@@ -836,7 +840,6 @@
 
         function updateCountdownsLive() {
             const now = Date.now();
-            
             document.querySelectorAll('.exam-countdown-timer').forEach(el => {
                 const startTime = parseInt(el.getAttribute('data-start-time'));
                 const diff = startTime - now;
