@@ -373,7 +373,7 @@
 
         function getStudentName(profileObj, studentId) {
             if (!profileObj) return `นักเรียน (${String(studentId).substring(0, 6)}...)`;
-            return profileObj.full_name || profileObj.name || profileObj.username || profileObj.display_name || `นักเรียน (${String(studentId).substring(0, 6)}...)`;
+            return profileObj.full_name || profileObj.name || profileObj.username || profileObj.display_name || `${profileObj.first_name || ''} ${profileObj.last_name || ''}`.trim() || `นักเรียน (${String(studentId).substring(0, 6)}...)`;
         }
 
         function isUserAdmin(profileObj) {
@@ -838,7 +838,6 @@
             document.body.removeChild(link);
         }
 
-        // Render Videos & Files UI
         function renderVideos(videos) {
             const container = document.getElementById('videosContainer');
             if (videos.length === 0) {
@@ -956,7 +955,6 @@
                         const file = fileInput.files[0];
                         Swal.showLoading();
 
-                        // แปลงไฟล์เป็น Base64 Data URL เพื่อความเสถียรสูงสุดและไม่ต้องพึ่งพา Storage Bucket RLS Policy
                         return new Promise((resolve) => {
                             const reader = new FileReader();
                             reader.onload = function(e) {
@@ -1036,7 +1034,7 @@
 
                 window.globalAllStudents = profiles.map(p => {
                     const sId = String(p.id || p.user_id || p.student_id);
-                    const fullName = `${p.first_name || p.name || '-'} ${p.last_name || ''}`.trim() || p.full_name || p.username || 'ไม่ระบุชื่อ';
+                    const fullName = p.full_name || p.name || p.username || `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.display_name || 'ไม่ระบุชื่อ';
                     const studentCode = p.student_id || p.code || '-';
                     const isEnrolled = !!enrolledMap[sId];
                     return { studentId: sId, fullName, studentCode, isEnrolled, enrollId: enrolledMap[sId] || null };
@@ -1085,9 +1083,19 @@
                 title: '👥 จัดการนักเรียนในคอร์ส',
                 html: `
                     <div class="space-y-4 text-xs text-left">
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400"><i class="fas fa-search text-xs"></i></span>
-                            <input type="text" id="studentSearchBox" oninput="renderStudentListModalUI(this.value)" placeholder="พิมพ์ค้นหาชื่อ หรือรหัสนักเรียน..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500">
+                        <div class="flex flex-col sm:flex-row gap-2.5 justify-between items-center">
+                            <div class="relative flex-1 w-full">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400"><i class="fas fa-search text-xs"></i></span>
+                                <input type="text" id="studentSearchBox" oninput="renderStudentListModalUI(this.value)" placeholder="พิมพ์ค้นหาชื่อ หรือรหัสนักเรียน..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500">
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                                <button onclick="massToggleEnroll(true)" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5">
+                                    <i class="fas fa-check-double text-[11px]"></i> เลือกทั้งหมด (เพิ่มเข้าคอร์ส)
+                                </button>
+                                <button onclick="massToggleEnroll(false)" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5">
+                                    <i class="fas fa-times text-[11px]"></i> ยกเลิกทั้งหมด (เอาออก)
+                                </button>
+                            </div>
                         </div>
                         <div class="max-h-[50vh] overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
                             <table class="w-full text-left border-collapse">
@@ -1104,7 +1112,7 @@
                         </div>
                     </div>
                 `,
-                width: '720px',
+                width: '850px',
                 confirmButtonText: 'เสร็จสิ้น',
                 confirmButtonColor: '#9333ea',
                 background: isDark ? '#090d16' : '#ffffff',
@@ -1140,6 +1148,54 @@
             } catch (err) {
                 console.error("Toggle Enroll Error:", err);
                 Swal.fire('เกิดข้อผิดพลาด', `ไม่สามารถบันทึกข้อมูลได้: ${err.message}`, 'error');
+            }
+        }
+
+        async function massToggleEnroll(enrollAll) {
+            const actionText = enrollAll ? 'เพิ่มนักเรียนทุกคนเข้าคอร์สนี้' : 'เอาออกนักเรียนทั้งหมดจากคอร์สนี้';
+            const { isConfirmed } = await Swal.fire({
+                title: `ยืนยันการ${actionText}?`,
+                text: 'การดำเนินการนี้จะมีผลกับรายชื่อนักเรียนทั้งหมดในระบบ',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'ยืนยัน',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: enrollAll ? '#10b981' : '#ef4444'
+            });
+
+            if (!isConfirmed) return;
+
+            Swal.fire({ title: 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                if (enrollAll) {
+                    for (const s of window.globalAllStudents) {
+                        if (!s.isEnrolled) {
+                            let insRes = await mySupabase.from('enrollments').insert([{ course_id: courseId, student_id: s.studentId, created_at: new Date().toISOString() }]).select();
+                            if (insRes.error) {
+                                insRes = await mySupabase.from('course_enrollments').insert([{ course_id: courseId, student_id: s.studentId, created_at: new Date().toISOString() }]).select();
+                            }
+                            if (insRes.data && insRes.data[0]) {
+                                s.enrollId = insRes.data[0].id;
+                            }
+                            s.isEnrolled = true;
+                        }
+                    }
+                } else {
+                    await mySupabase.from('enrollments').delete().eq('course_id', courseId);
+                    await mySupabase.from('course_enrollments').delete().eq('course_id', courseId);
+                    window.globalAllStudents.forEach(s => {
+                        s.isEnrolled = false;
+                        s.enrollId = null;
+                    });
+                }
+
+                Swal.fire({ icon: 'success', title: 'ดำเนินการสำเร็จ!', timer: 1000, showConfirmButton: false });
+                const searchVal = document.getElementById('studentSearchBox')?.value || '';
+                renderStudentListModalUI(searchVal);
+            } catch (err) {
+                console.error("Mass Toggle Error:", err);
+                Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
             }
         }
 
