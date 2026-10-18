@@ -170,7 +170,8 @@
                 return `
                     <div class="hitech-card rounded-3xl overflow-hidden flex flex-col justify-between group border border-purple-500/20">
                         <div>
-                            <div class="h-44 w-full relative overflow-hidden bg-slate-200 dark:bg-slate-800">
+                            <!-- ปรับสัดส่วนรูปภาพปกคอร์สเป็น 1920x1080 (Aspect Ratio 16:9) -->
+                            <div class="aspect-video w-full relative overflow-hidden bg-slate-200 dark:bg-slate-800">
                                 <img src="${coverImg}" alt="${c.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                                 <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white font-mono font-bold text-[10px] px-3 py-1 rounded-full border border-white/10">
                                     ${c.course_code || 'COURSE'}
@@ -248,7 +249,6 @@
             let formattedExpiry = '';
             if (course.expires_at) {
                 const d = new Date(course.expires_at);
-                // แปลงค่า UTC ในฐานข้อมูลกลับเป็นเวลาท้องถิ่นสำหรับแสดงใน datetime-local
                 const year = d.getFullYear();
                 const month = String(d.getMonth() + 1).padStart(2, '0');
                 const day = String(d.getDate()).padStart(2, '0');
@@ -278,9 +278,10 @@
                             <input type="datetime-local" id="swalExpires" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono" value="${formattedExpiry}">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1">รูปภาพปกคอร์ส (อัปโหลดไฟล์จากเครื่อง)</label>
+                            <label class="block font-bold mb-1">รูปภาพปกคอร์ส (แนะนำสัดส่วน 1920x1080 หรือ 16:9)</label>
                             <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                                <div class="w-16 h-12 rounded-xl bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center shrink-0 border">
+                                <!-- ปรับตัวอย่างพรีวิวใน Modal เป็น 16:9 ด้วยเช่นกัน -->
+                                <div class="w-20 aspect-video rounded-xl bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center shrink-0 border">
                                     <img id="swalCoverPreview" src="${course.image_url || ''}" class="w-full h-full object-cover ${course.image_url ? '' : 'hidden'}">
                                     <i class="fas fa-image text-slate-400 text-base ${course.image_url ? 'hidden' : ''}" id="swalCoverPlaceholder"></i>
                                 </div>
@@ -317,7 +318,6 @@
                         return false;
                     }
 
-                    // ปรับแก้เวลาหมดอายุให้ถูกต้องตามเวลาท้องถิ่น ไม่ให้ถูกหักลบ 8 ชั่วโมง
                     let expiresIso = null;
                     if (expiresVal) {
                         const localDate = new Date(expiresVal);
