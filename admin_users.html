@@ -166,16 +166,18 @@
         async function initPage() {
             Swal.fire({ title: 'กำลังโหลดบัญชีผู้ใช้...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             
-            const { data: profiles, error } = await mySupabase.from('profiles').select('*');
+            // ดึงข้อมูลผ่าน RPC function ที่ดึง created_at จาก auth.users โดยตรง
+            const { data: profiles, error } = await mySupabase.rpc('get_students_with_auth_created');
             Swal.close();
 
             if (error) {
-                console.error("Error loading profiles:", error);
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลผู้ใช้งานได้', 'error');
-                return;
-            }
-
-            if (profiles) {
+                console.error("Error loading profiles via RPC:", error);
+                // Fallback เผื่อยังไม่ได้รัน SQL Function ให้ดึงจาก profiles ปกติก่อน
+                const { data: fallbackProfiles } = await mySupabase.from('profiles').select('*');
+                if (fallbackProfiles) {
+                    studentsList = fallbackProfiles.filter(p => !isUserAdmin(p));
+                }
+            } else if (profiles) {
                 studentsList = profiles.filter(p => !isUserAdmin(p));
             }
 
@@ -187,10 +189,9 @@
                 currentSortAsc = !currentSortAsc;
             } else {
                 currentSortField = field;
-                currentSortAsc = true; // เริ่มต้นจากน้อยไปมากสำหรับข้อความ/วันที่เก่าไปใหม่
+                currentSortAsc = true;
             }
 
-            // อัปเดตไอคอนหัวตาราง
             ['username', 'full_name', 'nickname', 'grade_level', 'created_at'].forEach(f => {
                 const icon = document.getElementById(`sortIcon-${f}`);
                 if (!icon) return;
@@ -219,7 +220,6 @@
                 return username.includes(keyword) || fullName.includes(keyword) || nickname.includes(keyword) || studentId.includes(keyword) || grade.includes(keyword) || school.includes(keyword);
             });
 
-            // จัดเรียงข้อมูล (Sorting)
             filtered.sort((a, b) => {
                 let valA = a[currentSortField] || '';
                 let valB = b[currentSortField] || '';
@@ -252,7 +252,9 @@
                 const gradeLevel = s.grade_level || s.grade || '-';
                 const school = s.school || '-';
                 const lineId = s.line_id || '-';
-                const createdAtStr = s.created_at ? new Date(s.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+                
+                const rawDate = s.created_at;
+                const createdAtStr = rawDate ? new Date(rawDate).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-';
 
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
@@ -276,7 +278,6 @@
             }).join('');
         }
 
-        // 🎲 ฟังก์ชันสุ่มรหัสผ่านตัวเลขล้วน 6 หลักสำหรับตอนสร้างใหม่
         function generateRandomPassword() {
             let password = '';
             for (let i = 0; i < 6; i++) {
