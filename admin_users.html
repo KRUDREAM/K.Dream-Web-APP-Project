@@ -78,7 +78,7 @@
                 <h2 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                     <i class="fas fa-address-book text-sky-500"></i> รายชื่อบัญชีนักเรียนในระบบ
                 </h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">จัดการสร้างบัญชีผู้ใช้ใหม่, แก้ไขข้อมูลส่วนตัว, และรีเซ็ตรหัสผ่านนักเรียน</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">จัดการสร้างบัญชีผู้ใช้ใหม่, แก้ไขข้อมูลส่วนตัว, ตรวจสอบคอร์สที่ลงทะเบียน และรีเซ็ตรหัสผ่านนักเรียน</p>
             </div>
             
             <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
@@ -87,7 +87,7 @@
                 </button>
                 <div class="relative flex-1 md:w-64">
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fas fa-search text-xs"></i></span>
-                    <input type="text" id="searchInput" oninput="renderStudentsTable()" placeholder="🔍 ค้นหา Username, ชื่อ, โรงเรียน..." class="w-full pl-9 pr-3 py-2.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-500 font-bold">
+                    <input type="text" id="searchInput" oninput="renderStudentsTable()" placeholder="🔍 ค้นหา Username, ชื่อ, คอร์ส..." class="w-full pl-9 pr-3 py-2.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-500 font-bold">
                 </div>
             </div>
         </div>
@@ -116,6 +116,7 @@
                             <th class="p-3 sortable-th" onclick="setSort('grade_level')">
                                 ระดับชั้น / โรงเรียน <i id="sortIcon-grade_level" class="fas fa-sort ml-1 text-slate-400"></i>
                             </th>
+                            <th class="p-3">คอร์สที่ลงทะเบียน</th>
                             <th class="p-3 sortable-th" onclick="setSort('created_at')">
                                 วันเวลาสมัคร <i id="sortIcon-created_at" class="fas fa-sort-down ml-1 text-sky-500"></i>
                             </th>
@@ -124,7 +125,7 @@
                         </tr>
                     </thead>
                     <tbody id="studentsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
-                        <tr><td colspan="8" class="text-center py-8 text-slate-400">กำลังโหลดข้อมูลบัญชีผู้ใช้...</td></tr>
+                        <tr><td colspan="9" class="text-center py-8 text-slate-400">กำลังโหลดข้อมูลบัญชีผู้ใช้...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -138,8 +139,10 @@
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let studentsList = [];
+        let coursesMap = {}; // เก็บข้อมูลคอร์สทั้งหมด id -> title/code
+        let studentEnrollmentsMap = {}; // studentId -> array of course objects
         let currentSortField = 'created_at';
-        let currentSortAsc = false; // ค่าเริ่มต้นเรียงจากใหม่ -> เก่า
+        let currentSortAsc = false;
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -166,21 +169,52 @@
         async function initPage() {
             Swal.fire({ title: 'กำลังโหลดบัญชีผู้ใช้...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             
-            // ดึงข้อมูลผ่าน RPC function ที่ดึง created_at จาก auth.users โดยตรง
-            const { data: profiles, error } = await mySupabase.rpc('get_students_with_auth_created');
-            Swal.close();
-
-            if (error) {
-                console.error("Error loading profiles via RPC:", error);
-                // Fallback เผื่อยังไม่ได้รัน SQL Function ให้ดึงจาก profiles ปกติก่อน
-                const { data: fallbackProfiles } = await mySupabase.from('profiles').select('*');
-                if (fallbackProfiles) {
-                    studentsList = fallbackProfiles.filter(p => !isUserAdmin(p));
+            try {
+                // 1. โหลดข้อมูลคอร์สทั้งหมดก่อน เพื่อเอามาจับคู่ชื่อคอร์ส
+                const { data: coursesData } = await mySupabase.from('courses').select('id, title, course_code');
+                if (coursesData) {
+                    coursesData.forEach(c => {
+                        coursesMap[String(c.id)] = c;
+                    });
                 }
-            } else if (profiles) {
-                studentsList = profiles.filter(p => !isUserAdmin(p));
+
+                // 2. โหลดข้อมูลการลงทะเบียน (enrollments / course_enrollments)
+                let enrollsData = [];
+                const eRes1 = await mySupabase.from('enrollments').select('*');
+                if (eRes1.data) enrollsData = [...enrollsData, ...eRes1.data];
+                const eRes2 = await mySupabase.from('course_enrollments').select('*');
+                if (eRes2.data) enrollsData = [...enrollsData, ...eRes2.data];
+
+                // จัดกลุ่มคอร์สตาม student_id
+                studentEnrollmentsMap = {};
+                enrollsData.forEach(en => {
+                    const sId = String(en.student_id || en.user_id || '');
+                    const cId = String(en.course_id || '');
+                    if (sId && cId) {
+                        if (!studentEnrollmentsMap[sId]) studentEnrollmentsMap[sId] = [];
+                        // ป้องกันการใส่ซ้ำ
+                        if (!studentEnrollmentsMap[sId].includes(cId)) {
+                            studentEnrollmentsMap[sId].push(cId);
+                        }
+                    }
+                });
+
+                // 3. โหลดโปรไฟล์นักเรียนผ่าน RPC หรือ fallback
+                const { data: profiles, error } = await mySupabase.rpc('get_students_with_auth_created');
+                if (error) {
+                    const { data: fallbackProfiles } = await mySupabase.from('profiles').select('*');
+                    if (fallbackProfiles) {
+                        studentsList = fallbackProfiles.filter(p => !isUserAdmin(p));
+                    }
+                } else if (profiles) {
+                    studentsList = profiles.filter(p => !isUserAdmin(p));
+                }
+
+            } catch (err) {
+                console.error("Init Error:", err);
             }
 
+            Swal.close();
             renderStudentsTable();
         }
 
@@ -217,7 +251,21 @@
                 const studentId = String(s.student_id || '').toLowerCase();
                 const grade = String(s.grade_level || s.grade || '').toLowerCase();
                 const school = String(s.school || '').toLowerCase();
-                return username.includes(keyword) || fullName.includes(keyword) || nickname.includes(keyword) || studentId.includes(keyword) || grade.includes(keyword) || school.includes(keyword);
+
+                // ค้นหาจากชื่อคอร์สที่นักเรียนลงทะเบียนด้วย
+                const sId = String(s.id);
+                const enrolledCIds = studentEnrollmentsMap[sId] || [];
+                let courseMatch = false;
+                enrolledCIds.forEach(cId => {
+                    const cObj = coursesMap[cId];
+                    if (cObj) {
+                        if (cObj.title.toLowerCase().includes(keyword) || (cObj.course_code && cObj.course_code.toLowerCase().includes(keyword))) {
+                            courseMatch = true;
+                        }
+                    }
+                });
+
+                return username.includes(keyword) || fullName.includes(keyword) || nickname.includes(keyword) || studentId.includes(keyword) || grade.includes(keyword) || school.includes(keyword) || courseMatch;
             });
 
             filtered.sort((a, b) => {
@@ -240,12 +288,12 @@
             document.getElementById('studentCountLabel').textContent = `แสดง ${filtered.length} รายการ (จากทั้งหมด ${studentsList.length} คน)`;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">ไม่พบรายชื่อนักเรียนที่ค้นหา</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400">ไม่พบรายชื่อนักเรียนที่ค้นหา</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = filtered.map((s, idx) => {
-                const sId = s.id;
+                const sId = String(s.id);
                 const username = s.username || s.student_id || '-';
                 const fullName = s.full_name || (s.first_name ? `${s.first_name} ${s.last_name || ''}` : '-');
                 const nickname = s.nickname || '-';
@@ -255,6 +303,19 @@
                 
                 const rawDate = s.created_at;
                 const createdAtStr = rawDate ? new Date(rawDate).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+
+                // ดึงรายการคอร์สที่ลงทะเบียน
+                const enrolledCIds = studentEnrollmentsMap[sId] || [];
+                let coursesHtml = '';
+                if (enrolledCIds.length === 0) {
+                    coursesHtml = `<span class="text-[11px] text-slate-400 italic">ยังไม่ได้ลงทะเบียนคอร์ส</span>`;
+                } else {
+                    coursesHtml = `<div class="flex flex-wrap gap-1 max-w-xs">` + enrolledCIds.map(cId => {
+                        const cObj = coursesMap[cId];
+                        const title = cObj ? (cObj.course_code ? `[${cObj.course_code}] ${cObj.title}` : cObj.title) : 'คอร์สไม่ทราบชื่อ';
+                        return `<span class="px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 rounded-md font-bold text-[10px] truncate max-w-[200px]" title="${title}">${title}</span>`;
+                    }).join('') + `</div>`;
+                }
 
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
@@ -266,10 +327,11 @@
                             <div class="font-bold text-indigo-600 dark:text-indigo-400">${gradeLevel}</div>
                             <div class="text-[10px] text-slate-400">${school}</div>
                         </td>
+                        <td class="p-3">${coursesHtml}</td>
                         <td class="p-3 font-mono text-slate-500 text-[11px]">${createdAtStr}</td>
                         <td class="p-3 font-mono text-slate-700 dark:text-slate-300">${lineId}</td>
                         <td class="p-3 text-center">
-                            <button onclick="openEditStudentModal('${sId}')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs shadow transition-all flex items-center gap-1 mx-auto" title="แก้ไขข้อมูลและรีเซ็ตรหัสผ่าน">
+                            <button onclick="openEditStudentModal('${s.id}')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs shadow transition-all flex items-center gap-1 mx-auto" title="แก้ไขข้อมูลและรีเซ็ตรหัสผ่าน">
                                 <i class="fas fa-user-pen"></i> แก้ไขข้อมูล
                             </button>
                         </td>
