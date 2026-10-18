@@ -12,7 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- 🔒 ปรับปรุงระบบตรวจสอบสิทธิ์ ป้องกัน Loop และรองรับ URL Param -->
     <script>
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -81,7 +80,7 @@
 </head>
 <body class="bg-slate-50/70 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-24">
 
-    <!-- Navbar (Optimized for Mobile) -->
+    <!-- Navbar -->
     <nav class="glass-nav fixed w-full top-0 z-50">
         <div class="max-w-7xl mx-auto px-2.5 sm:px-6 h-16 sm:h-18 flex justify-between items-center gap-1.5">
             <div class="flex items-center gap-2 min-w-0">
@@ -98,7 +97,6 @@
             </div>
             
             <div class="flex items-center gap-1 sm:gap-2 shrink-0">
-                <!-- 🪙 Token Balance Badge -->
                 <button onclick="goToShopPage()" class="px-2 sm:px-3.5 py-1.5 sm:py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all flex items-center gap-1 border border-amber-500/30 shadow-sm" title="คลังของรางวัล">
                     <i class="fas fa-coins text-amber-500 animate-pulse"></i> 
                     <span id="navTokenBalance">--</span>
@@ -162,7 +160,7 @@
             </div>
         </div>
 
-        <!-- Feature Shortcuts Grid (Responsive for Mobile) -->
+        <!-- Feature Shortcuts Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <div onclick="goToShopPage()" class="feature-box hitech-card p-4 sm:p-5 rounded-2xl flex items-center justify-between cursor-pointer group border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-transparent to-transparent">
                 <div class="flex items-center gap-3.5">
@@ -519,26 +517,35 @@
             if (enrolledCoursesList.length === 0) {
                 htmlList = `<div class="py-8 text-center text-slate-400 space-y-2"><i class="fas fa-book-open text-3xl text-sky-500"></i><p class="text-xs">คุณยังไม่ได้ลงทะเบียนในคอร์สเรียนใดๆ</p></div>`;
             } else {
-                htmlList = `<div class="space-y-3 max-h-[60vh] overflow-y-auto pr-1 text-left">`;
+                htmlList = `<div class="space-y-4 max-h-[65vh] overflow-y-auto pr-1 text-left">`;
                 enrolledCoursesList.forEach((c, idx) => {
                     const hasExpiry = c.expires_at ? true : false;
                     const expiryTimeMs = hasExpiry ? new Date(c.expires_at).getTime() : 0;
                     const isExpired = hasExpiry && expiryTimeMs < Date.now();
                     const expiryText = hasExpiry ? new Date(c.expires_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : 'ไม่จำกัดเวลา';
+                    const coverImg = c.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80';
 
                     htmlList += `
-                        <div class="p-3.5 rounded-2xl bg-white dark:bg-darkinput border ${isExpired ? 'border-rose-500/40 bg-rose-500/5' : 'border-slate-200 dark:border-slate-800'} flex items-center justify-between shadow-sm gap-2">
-                            <div class="space-y-1 min-w-0">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="px-2 py-0.5 bg-sky-500/15 text-sky-600 rounded-md text-[10px] font-extrabold font-mono">${c.course_code || 'COURSE #' + (idx + 1)}</span>
-                                    ${isExpired ? '<span class="px-2 py-0.5 bg-rose-500/20 text-rose-500 rounded-md text-[10px] font-bold">❌ หมดอายุ</span>' : `<span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-600 rounded-md text-[10px] font-bold">🟢 ปกติ</span>`}
+                        <div class="hitech-card rounded-2xl overflow-hidden border ${isExpired ? 'border-rose-500/40 bg-rose-500/5' : 'border-slate-200 dark:border-slate-800'} shadow-sm flex flex-col">
+                            <div class="aspect-video w-full relative overflow-hidden bg-slate-200 dark:bg-slate-800">
+                                <img src="${coverImg}" alt="${c.title || c.name}" class="w-full h-full object-cover">
+                                <div class="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur-md text-white font-mono font-bold text-[10px] px-2.5 py-0.5 rounded-full border border-white/10">
+                                    ${c.course_code || 'COURSE'}
                                 </div>
-                                <h4 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">${c.title || c.name || 'คอร์สเรียน'}</h4>
-                                <div class="text-[11px] text-slate-500 dark:text-slate-400 font-light">
-                                    <p>หมดเขต: ${expiryText}</p>
+                                <div class="absolute top-2.5 right-2.5">
+                                    ${isExpired ? '<span class="px-2.5 py-0.5 bg-rose-500 text-white rounded-md text-[10px] font-bold shadow-md">❌ หมดอายุ</span>' : '<span class="px-2.5 py-0.5 bg-emerald-500 text-white rounded-md text-[10px] font-bold shadow-md">🟢 ปกติ</span>'}
                                 </div>
                             </div>
-                            ${!isExpired ? `<button onclick="Swal.close(); document.getElementById('globalCourseSelect').value='${c.id}'; onGlobalCourseChange();" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition-all shrink-0">เลือก</button>` : `<span class="text-[11px] text-slate-400 font-bold px-2 py-1">หมดสิทธิ์</span>`}
+                            <div class="p-4 space-y-2.5">
+                                <div>
+                                    <h4 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white line-clamp-1">${c.title || c.name || 'คอร์สเรียน'}</h4>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">${c.description || 'ไม่มีรายละเอียดคอร์ส'}</p>
+                                </div>
+                                <div class="flex items-center justify-between text-[11px] pt-2 border-t border-slate-100 dark:border-slate-800">
+                                    <span class="text-slate-400"><i class="fas fa-clock mr-1 text-sky-500"></i> หมดเขต: ${expiryText}</span>
+                                    ${!isExpired ? `<button onclick="Swal.close(); document.getElementById('globalCourseSelect').value='${c.id}'; onGlobalCourseChange();" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm">เลือกคอร์สนี้</button>` : `<span class="text-rose-500 font-bold">หมดสิทธิ์เข้าเรียน</span>`}
+                                </div>
+                            </div>
                         </div>
                     `;
                 });
@@ -546,9 +553,9 @@
             }
 
             Swal.fire({
-                title: `<span class="text-base font-extrabold text-sky-700 dark:text-sky-400">📖 คอร์สที่ลงทะเบียน (${enrolledCoursesList.length})</span>`,
+                title: `<span class="text-base font-extrabold text-sky-700 dark:text-sky-400">📖 คอร์สของฉัน (${enrolledCoursesList.length})</span>`,
                 html: htmlList,
-                width: '550px',
+                width: '600px',
                 confirmButtonText: 'ปิดหน้าต่าง',
                 confirmButtonColor: '#0284c7',
                 background: isDark ? '#090d16' : '#ffffff',
