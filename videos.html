@@ -306,7 +306,6 @@
             const isValid = await verifyStudentAccess();
             if (!isValid) return;
 
-            // ตรวจสอบขนาดหน้าจออัตโนมัติ: ถือว่าถ้าหน้าจอแคบกว่า 768px (มือถือ) ให้ซ่อน Sidebar ไว้ก่อนเพื่อความสบายตา
             if (window.innerWidth < 1024) {
                 isSidebarOpen = false;
                 const sidebar = document.getElementById('sidebarPanel');
@@ -331,17 +330,13 @@
 
                 const { data: allCoursesData } = await mySupabase.from('courses').select('*').order('title');
                 
-                // 🛑 กรองเฉพาะคอร์สที่ยังไม่หมดอายุ (Active Courses) เท่านั้น
+                // 🛑 กรองเฉพาะคอร์สที่ผู้ใช้ลงทะเบียนจริงๆ และยังไม่หมดอายุเท่านั้น
                 const now = Date.now();
                 let myCourses = (allCoursesData || []).filter(c => {
                     const isEnrolled = enrolledCourseIds.includes(String(c.id));
                     const isNotExpired = !c.expires_at || new Date(c.expires_at).getTime() >= now;
                     return isEnrolled && isNotExpired;
                 });
-
-                if (myCourses.length === 0 && enrolledCourseIds.length === 0) {
-                    myCourses = (allCoursesData || []).filter(c => !c.expires_at || new Date(c.expires_at).getTime() >= now);
-                }
 
                 enrolledCourses = myCourses;
 
@@ -400,9 +395,9 @@
             if (!selector) return;
 
             if (enrolledCourses.length === 0) {
-                selector.innerHTML = '<option value="">⚠️ ไม่มีคอร์สที่ยังใช้งานได้ (อาจหมดอายุทั้งหมด)</option>';
+                selector.innerHTML = '<option value="">⚠️ คุณยังไม่ได้ลงทะเบียนคอร์สเรียนใดๆ หรือคอร์สหมดอายุแล้ว</option>';
                 resetPlayerToEmpty();
-                document.getElementById('videoListContainer').innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">ไม่พบเทปเรียนในคอร์สที่ยังใช้งานได้</div>`;
+                document.getElementById('videoListContainer').innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">ไม่พบเทปเรียน (กรุณาลงทะเบียนคอร์สเรียนก่อน)</div>`;
                 return;
             }
 
@@ -517,7 +512,6 @@
 
             wrapper.innerHTML = embedHtml;
 
-            // บนมือถือ เมื่อคลิกเลือกวิดีโอ ให้ซ่อน Sidebar อัตโนมัติเพื่อให้พื้นที่แสดงวิดีโอกว้างเต็มจอ
             if (window.innerWidth < 1024) {
                 isSidebarOpen = false;
                 const sidebar = document.getElementById('sidebarPanel');
