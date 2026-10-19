@@ -233,21 +233,24 @@
         }
 
         async function fetchCoursesAndStudents() {
-            // โหลดคอร์สเรียน
-            const { data: courses } = await mySupabase.from('courses').select('id, title, name');
+            // โหลดคอร์สเรียนจากตาราง courses
+            const { data: courses } = await mySupabase.from('courses').select('id, title, course_code');
             if (courses) {
                 allCoursesList = courses;
                 const container = document.getElementById('courseCheckboxes');
-                container.innerHTML = courses.map(c => `
-                    <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded">
-                        <input type="checkbox" name="courseCheckbox" value="${c.title || c.name || c.id}" class="rounded text-sky-600 focus:ring-sky-500">
-                        <span class="dark:text-slate-200">${c.title || c.name || 'คอร์สไม่มีชื่อ'}</span>
-                    </label>
-                `).join('') || '<span class="text-xs text-slate-400">ไม่พบข้อมูลคอร์สเรียน</span>';
+                container.innerHTML = courses.map(c => {
+                    const cTitle = c.title || c.course_code || 'คอร์สเรียน';
+                    return `
+                        <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded">
+                            <input type="checkbox" name="courseCheckbox" value="${cTitle}" class="rounded text-sky-600 focus:ring-sky-500">
+                            <span class="dark:text-slate-200">${cTitle}</span>
+                        </label>
+                    `;
+                }).join('') || '<span class="text-xs text-slate-400">ไม่พบข้อมูลคอร์สเรียน</span>';
             }
 
-            // โหลดรายชื่อนักเรียน
-            const { data: students } = await mySupabase.from('students').select('id, student_id, name, fullname, username');
+            // โหลดรายชื่อนักเรียนจากตาราง profiles
+            const { data: students } = await mySupabase.from('profiles').select('id, student_id, username, full_name, first_name, nickname');
             if (students) {
                 allStudentsList = students;
                 renderStudentCheckboxes(students);
@@ -257,12 +260,13 @@
         function renderStudentCheckboxes(students) {
             const container = document.getElementById('studentCheckboxes');
             container.innerHTML = students.map(s => {
-                const sName = s.fullname || s.name || s.username || 'นักเรียน';
-                const sId = s.student_id || s.id;
+                const sName = s.full_name || (s.first_name ? `${s.first_name} ${s.last_name || ''}` : '') || s.username || 'นักเรียน';
+                const sId = s.id || s.student_id;
+                const sUser = s.username || s.student_id || '-';
                 return `
                     <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded student-item">
                         <input type="checkbox" name="studentCheckbox" value="${sId}" class="rounded text-sky-600 focus:ring-sky-500">
-                        <span class="dark:text-slate-200">${sName} (${sId})</span>
+                        <span class="dark:text-slate-200">${sName} (${sUser})</span>
                     </label>
                 `;
             }).join('') || '<span class="text-xs text-slate-400">ไม่พบรายชื่อนักเรียน</span>';
@@ -271,7 +275,7 @@
         function filterStudentCheckboxes() {
             const keyword = document.getElementById('searchStudentInput').value.toLowerCase();
             const filtered = allStudentsList.filter(s => {
-                const text = `${s.fullname || ''} ${s.name || ''} ${s.student_id || ''}`.toLowerCase();
+                const text = `${s.full_name || ''} ${s.first_name || ''} ${s.username || ''} ${s.student_id || ''}`.toLowerCase();
                 return text.includes(keyword);
             });
             renderStudentCheckboxes(filtered);
@@ -327,7 +331,7 @@
                     targetBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-globe mr-1"></i> ทุกคน</span>`;
                 }
 
-                // จัดการเรนเดอร์รูปภาพและไฟล์แนบให้ออกมาชัดเจน
+                // เรนเดอร์รูปภาพและไฟล์แนบให้ออกมาเป็นพรีวิวรูปภาพทันที
                 let attachmentsHtml = '';
                 if (a.attachments && Array.isArray(a.attachments) && a.attachments.length > 0) {
                     let filesList = a.attachments.map((url, idx) => {
