@@ -64,6 +64,13 @@
         .action-btn-edit:hover { background-color: #0284c7; color: #ffffff; }
         .action-btn-delete { background-color: rgba(239, 68, 68, 0.1); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.2); }
         .action-btn-delete:hover { background-color: #dc2626; color: #ffffff; }
+        
+        /* กำหนดสัดส่วน 16:9 (1920x1080) สำหรับภาพพรีวิวในฟีด */
+        .preview-image-container {
+            aspect-ratio: 16 / 9;
+            width: 100%;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
@@ -118,7 +125,7 @@
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">แนบไฟล์ / รูปภาพ (สูงสุด 5 ไฟล์)</label>
                         <input type="file" id="annFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-600 hover:file:bg-sky-100 dark:file:bg-slate-800 dark:file:text-sky-400 cursor-pointer">
-                        <p class="text-[11px] text-slate-400 mt-1">รองรับรูปภาพพรีวิวทันที, PDF, เอกสาร</p>
+                        <p class="text-[11px] text-slate-400 mt-1">แนะนำรูปภาพสัดส่วน 16:9 (ความละเอียดสูง)</p>
                     </div>
 
                     <div class="flex gap-3 pt-2">
@@ -153,9 +160,9 @@
         </div>
     </main>
 
-    <!-- Modal สำหรับขยายดูรูปภาพ -->
+    <!-- Modal สำหรับขยายดูรูปภาพขนาดเต็ม -->
     <div id="imageModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4" onclick="closeImageModal()">
-        <div class="relative max-w-4xl max-h-[90vh]">
+        <div class="relative max-w-5xl max-h-[90vh]">
             <button class="absolute -top-10 right-0 text-white text-2xl font-bold hover:text-sky-400" onclick="closeImageModal()"><i class="fas fa-xmark"></i></button>
             <img id="modalImg" src="" class="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain">
         </div>
@@ -198,7 +205,6 @@
                     const { data: sData } = await mySupabase.from('profiles').select('*').eq('id', studentId).maybeSingle();
                     currentStudentData = sData;
 
-                    // โหลดคอร์สที่นักเรียนลงทะเบียนไว้เพื่อใช้กรองประกาศตามคอร์ส
                     const { data: en1 } = await mySupabase.from('course_enrollments').select('course_id').eq('student_id', studentId);
                     if (en1) {
                         for (let e of en1) {
@@ -239,9 +245,8 @@
                 return;
             }
 
-            // กรองประกาศตามเงื่อนไขกลุ่มเป้าหมาย (หากเป็นนักเรียน)
             let filteredAnns = anns.filter(a => {
-                if (userRole !== 'student') return true; // แอดมินเห็นทั้งหมด
+                if (userRole !== 'student') return true;
                 const tType = a.target_type || 'all';
                 const tVal = a.target_value || '';
                 const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
@@ -299,17 +304,17 @@
                         const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
                         if (isImage) {
                             return `
-                                <div class="relative group/img overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-darkinput cursor-pointer shadow-sm col-span-full" onclick="openImageModal('${url}')">
-                                    <img src="${url}" class="w-full max-h-72 object-cover group-hover/img:scale-[1.02] transition-transform duration-300">
+                                <div class="preview-image-container relative group/img overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-darkinput cursor-pointer shadow-sm col-span-full" onclick="openImageModal('${url}')">
+                                    <img src="${url}" class="w-full h-full object-cover group-hover/img:scale-[1.02] transition-transform duration-300">
                                     <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
-                                        <i class="fas fa-magnifying-glass-plus text-base"></i> คลิกเพื่อดูรูปขนาดเต็ม
+                                        <i class="fas fa-magnifying-glass-plus text-base"></i> คลิกเพื่อดูรูปขนาดเต็ม (1920x1080)
                                     </div>
                                 </div>`;
                         } else {
                             return `<a href="${url}" target="_blank" class="flex items-center gap-2 p-3.5 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-sky-600 hover:underline shadow-sm"><i class="fas fa-file-arrow-down text-base text-sky-500"></i> ไฟล์แนบ ${idx + 1}</a>`;
                         }
                     }).join('');
-                    attachmentsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">${filesList}</div>`;
+                    attachmentsHtml = `<div class="mt-4 grid grid-cols-1 gap-3">${filesList}</div>`;
                 }
 
                 const safeTitle = (a.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
