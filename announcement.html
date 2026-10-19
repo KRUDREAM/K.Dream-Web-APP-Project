@@ -93,7 +93,7 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            <!-- ฝั่งซ้าย: ฟอร์มสร้าง/แก้ไขประกาศ (จะถูกซ่อนอัตโนมัติสำหรับนักเรียน) -->
+            <!-- ฝั่งซ้าย: ฟอร์มสร้าง/แก้ไขประกาศ (ซ่อนอัตโนมัติสำหรับนักเรียน) -->
             <div id="creatorSection" class="lg:col-span-5 modern-card p-8 rounded-3xl sticky top-28">
                 <div class="flex items-center gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div class="w-14 h-14 bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-sky-500/30">
@@ -118,7 +118,7 @@
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">แนบไฟล์ / รูปภาพ (สูงสุด 5 ไฟล์)</label>
                         <input type="file" id="annFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-600 hover:file:bg-sky-100 dark:file:bg-slate-800 dark:file:text-sky-400 cursor-pointer">
-                        <p class="text-[11px] text-slate-400 mt-1">รองรับรูปภาพ, PDF, เอกสาร (เลือกหลายไฟล์ได้)</p>
+                        <p class="text-[11px] text-slate-400 mt-1">รองรับรูปภาพพรีวิวทันที, PDF, เอกสาร</p>
                     </div>
 
                     <div class="flex gap-3 pt-2">
@@ -153,12 +153,22 @@
         </div>
     </main>
 
+    <!-- Modal สำหรับขยายดูรูปภาพ -->
+    <div id="imageModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4" onclick="closeImageModal()">
+        <div class="relative max-w-4xl max-h-[90vh]">
+            <button class="absolute -top-10 right-0 text-white text-2xl font-bold hover:text-sky-400" onclick="closeImageModal()"><i class="fas fa-xmark"></i></button>
+            <img id="modalImg" src="" class="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain">
+        </div>
+    </div>
+
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let userRole = 'admin';
+        let currentStudentData = null;
+        let studentEnrolledCourses = [];
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -177,13 +187,26 @@
             userRole = localStorage.getItem('role') || localStorage.getItem('user_role') || 'admin';
             const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
 
-            // ถ้าเป็นนักเรียน หรือเปิดผ่านหน้า Student Portal ให้ซ่อนฟอร์มสร้างประกาศทันที
             if (userRole === 'student' || studentId) {
                 userRole = 'student';
                 const creator = document.getElementById('creatorSection');
                 if (creator) creator.style.display = 'none';
                 const feed = document.getElementById('feedSection');
                 if (feed) feed.className = 'lg:col-span-12 space-y-5';
+
+                if (studentId) {
+                    const { data: sData } = await mySupabase.from('profiles').select('*').eq('id', studentId).maybeSingle();
+                    currentStudentData = sData;
+
+                    // โหลดคอร์สที่นักเรียนลงทะเบียนไว้เพื่อใช้กรองประกาศตามคอร์ส
+                    const { data: en1 } = await mySupabase.from('course_enrollments').select('course_id').eq('student_id', studentId);
+                    if (en1) {
+                        for (let e of en1) {
+                            const { data: cData } = await mySupabase.from('courses').select('title, course_code').eq('id', e.course_id).maybeSingle();
+                            if (cData) studentEnrolledCourses.push(cData.title || cData.course_code);
+                        }
+                    }
+                }
             }
 
             loadAnnouncements();
@@ -216,37 +239,96 @@
                 return;
             }
 
-            document.getElementById('annCount').textContent = `${anns.length} รายการ`;
+            // กรองประกาศตามเงื่อนไขกลุ่มเป้าหมาย (หากเป็นนักเรียน)
+            let filteredAnns = anns.filter(a => {
+                if (userRole !== 'student') return true; // แอดมินเห็นทั้งหมด
+                const tType = a.target_type || 'all';
+                const tVal = a.target_value || '';
+                const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
+
+                if (tType === 'all' || !tType) return true;
+                if (tType === 'level') {
+                    const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
+                    return studentGrade && tVal.toLowerCase().includes(studentGrade.toLowerCase());
+                }
+                if (tType === 'course') {
+                    const targetCourses = tVal.split(',').map(c => c.trim());
+                    return studentEnrolledCourses.some(c => targetCourses.includes(c));
+                }
+                if (tType === 'specific') {
+                    const targetStudents = tVal.split(',').map(s => s.trim());
+                    return targetStudents.includes(String(studentId)) || (currentStudentData && targetStudents.includes(String(currentStudentData.username)));
+                }
+                return true;
+            });
+
+            document.getElementById('annCount').textContent = `${filteredAnns.length} รายการ`;
             const isStaff = userRole !== 'student';
 
-            feed.innerHTML = anns.map(a => {
+            if (filteredAnns.length === 0) {
+                feed.innerHTML = `
+                    <div class="modern-card p-12 rounded-3xl text-center text-slate-400">
+                        <div class="w-16 h-16 bg-sky-50 dark:bg-slate-800 text-sky-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ไม่มีประกาศสำหรับคุณในขณะนี้</h4>
+                        <p class="text-xs text-slate-400">คุณจะเห็นประกาศที่เกี่ยวข้องกับคุณที่นี่</p>
+                    </div>
+                `;
+                return;
+            }
+
+            feed.innerHTML = filteredAnns.map(a => {
                 const dateStr = new Date(a.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
                 const titleText = a.title || 'ประกาศจากทางโรงเรียน';
 
+                let targetBadge = '';
+                if (a.target_type === 'level') {
+                    targetBadge = `<span class="bg-purple-50 dark:bg-purple-950/80 text-purple-600 dark:text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-purple-200 dark:border-purple-900"><i class="fas fa-layer-group mr-1"></i> ชั้น: ${a.target_value || '-'}</span>`;
+                } else if (a.target_type === 'course') {
+                    targetBadge = `<span class="bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-900"><i class="fas fa-book mr-1"></i> คอร์ส: ${a.target_value || '-'}</span>`;
+                } else if (a.target_type === 'specific') {
+                    targetBadge = `<span class="bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900"><i class="fas fa-user mr-1"></i> รายบุคคล</span>`;
+                } else {
+                    targetBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-globe mr-1"></i> ทุกคน</span>`;
+                }
+
                 let attachmentsHtml = '';
-                if (a.attachments && a.attachments.length > 0) {
+                if (a.attachments && Array.isArray(a.attachments) && a.attachments.length > 0) {
                     let filesList = a.attachments.map((url, idx) => {
-                        const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+                        const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
                         if (isImage) {
-                            return `<a href="${url}" target="_blank" class="block overflow-hidden rounded-xl border hover:opacity-90 transition-opacity"><img src="${url}" class="w-full h-32 object-cover"></a>`;
+                            return `
+                                <div class="relative group/img overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-darkinput cursor-pointer shadow-sm col-span-full" onclick="openImageModal('${url}')">
+                                    <img src="${url}" class="w-full max-h-72 object-cover group-hover/img:scale-[1.02] transition-transform duration-300">
+                                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                                        <i class="fas fa-magnifying-glass-plus text-base"></i> คลิกเพื่อดูรูปขนาดเต็ม
+                                    </div>
+                                </div>`;
                         } else {
-                            return `<a href="${url}" target="_blank" class="flex items-center gap-2 p-3 bg-slate-50 dark:bg-darkinput rounded-xl border text-xs font-semibold text-sky-600 hover:underline"><i class="fas fa-file-arrow-down text-base"></i> ไฟล์แนบ ${idx + 1}</a>`;
+                            return `<a href="${url}" target="_blank" class="flex items-center gap-2 p-3.5 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-sky-600 hover:underline shadow-sm"><i class="fas fa-file-arrow-down text-base text-sky-500"></i> ไฟล์แนบ ${idx + 1}</a>`;
                         }
                     }).join('');
-                    attachmentsHtml = `<div class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">${filesList}</div>`;
+                    attachmentsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">${filesList}</div>`;
                 }
+
+                const safeTitle = (a.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safeContent = (a.content || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\r?\n/g, '\\n');
 
                 return `
                     <div class="modern-card p-7 rounded-3xl relative overflow-hidden group">
                         <div class="absolute top-0 left-0 w-2.5 h-full bg-gradient-to-b from-sky-500 to-indigo-600"></div>
                         <div class="flex justify-between items-start mb-4 pl-3">
                             <div>
-                                <h4 class="font-bold text-lg text-slate-900 dark:text-white">${titleText}</h4>
-                                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5 mt-0.5"><i class="far fa-clock"></i> ${dateStr}</span>
+                                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                    <h4 class="font-bold text-lg text-slate-900 dark:text-white">${titleText}</h4>
+                                    ${targetBadge}
+                                </div>
+                                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5"><i class="far fa-clock"></i> ${dateStr}</span>
                             </div>
                             ${isStaff ? `
                                 <div class="flex gap-2">
-                                    <button onclick="prepareEdit('${a.id}', \`${a.title || ''}\`, \`${a.content}\`)" class="action-btn-edit px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                                    <button onclick="prepareEdit('${a.id}', '${safeTitle}', '${safeContent}')" class="action-btn-edit px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
                                         <i class="fas fa-pen-to-square"></i> แก้ไข
                                     </button>
                                     <button onclick="deleteAnnouncement('${a.id}')" class="action-btn-delete px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
@@ -262,6 +344,15 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        function openImageModal(url) {
+            document.getElementById('modalImg').src = url;
+            document.getElementById('imageModal').classList.remove('hidden');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
         }
 
         async function handleFormSubmit(e) {
@@ -282,11 +373,13 @@
             if (fileInput.files.length > 0) {
                 for (let i = 0; i < fileInput.files.length; i++) {
                     const file = fileInput.files[i];
-                    const fileName = `ann_${Date.now()}_${i}_${file.name}`;
+                    const cleanFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+                    const fileName = `ann_${Date.now()}_${i}_${cleanFileName}`;
+                    
                     const { error: uploadError } = await mySupabase.storage.from('announcement_files').upload(fileName, file);
                     if (!uploadError) {
                         const { data } = mySupabase.storage.from('announcement_files').getPublicUrl(fileName);
-                        if (data) attachmentUrls.push(data.publicUrl);
+                        if (data && data.publicUrl) attachmentUrls.push(data.publicUrl);
                     }
                 }
             }
@@ -295,6 +388,7 @@
             if (attachmentUrls.length > 0) payload.attachments = attachmentUrls;
 
             if (editId) {
+                if (attachmentUrls.length === 0) delete payload.attachments;
                 await mySupabase.from('announcements').update(payload).eq('id', editId);
                 Swal.fire({ icon: 'success', title: 'แก้ไขประกาศสำเร็จ', timer: 1500, showConfirmButton: false });
             } else {
@@ -310,7 +404,7 @@
         function prepareEdit(id, title, content) {
             document.getElementById('editAnnouncementId').value = id;
             document.getElementById('annTitle').value = title;
-            document.getElementById('annContent').value = content;
+            document.getElementById('annContent').value = content.replace(/\\n/g, '\n');
             document.getElementById('formTitle').textContent = 'แก้ไขประกาศ';
             document.getElementById('cancelEditBtn').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'smooth' });
