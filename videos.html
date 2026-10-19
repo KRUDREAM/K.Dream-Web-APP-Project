@@ -41,25 +41,20 @@
             position: absolute; top: 0; right: 0; width: 140px; height: 65px; z-index: 50; background: transparent; cursor: not-allowed;
         }
 
-        /* 🌊 สไตล์ลายน้ำวิ่งสลับตำแหน่งป้องกันการแคปจอ */
-        @keyframes floatWatermark {
-            0% { top: 15%; left: 10%; opacity: 0.35; transform: rotate(-10deg); }
-            25% { top: 65%; left: 60%; opacity: 0.25; transform: rotate(5deg); }
-            50% { top: 35%; left: 75%; opacity: 0.35; transform: rotate(-5deg); }
-            75% { top: 75%; left: 20%; opacity: 0.25; transform: rotate(10deg); }
-            100% { top: 15%; left: 10%; opacity: 0.35; transform: rotate(-10deg); }
-        }
+        /* 🌊 ลายน้ำแบบอยู่นิ่งมุมขวาล่าง โปร่งแสง ไม่รบกวนสมาธิ */
         .watermark-layer {
             position: absolute;
+            bottom: 16px;
+            right: 20px;
             z-index: 45;
             pointer-events: none; /* เพื่อให้เมาส์คลิกทะลุผ่านไปโดนปุ่มวิดีโอได้ปกติ */
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 13px;
-            font-weight: 700;
-            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);
-            animation: floatWatermark 22s infinite linear;
+            color: rgba(255, 255, 255, 0.25);
+            font-size: 11px;
+            font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
             white-space: nowrap;
             letter-spacing: 0.5px;
+            user-select: none;
         }
 
         .hide-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -214,15 +209,15 @@
                         </div>
                     </div>
                     
-                    <!-- 🛡️ ลายน้ำชื่อนักเรียนลอยเคลื่อนไหวอัตโนมัติ -->
-                    <div id="watermarkElement" class="watermark-layer">KRUDREAM LAND | กำลังโหลดชื่อ...</div>
+                    <!-- 🛡️ ลายน้ำประจำตัวนักเรียนแบบอยู่นิ่งมุมขวาล่าง โปร่งแสง ไม่กวนสายตา -->
+                    <div id="watermarkElement" class="watermark-layer">KRUDREAM LAND | กำลังโหลด...</div>
 
                     <!-- 🛡️ แผ่นบล็อกมุมขวาบน (Drive & YouTube) -->
                     <div class="popout-blocker" onclick="alertPopoutBlocked()" title="ระบบป้องกันการเปิดหน้าต่างภายนอกและการดาวน์โหลด"></div>
                 </div>
 
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-1 text-[11px] text-slate-400 gap-1">
-                    <span><i class="fas fa-shield-alt text-emerald-500 mr-1"></i> ป้องกันการดาวน์โหลด • ฝังลายน้ำความปลอดภัยสูง</span>
+                    <span><i class="fas fa-shield-alt text-emerald-500 mr-1"></i> ป้องกันการดาวน์โหลด • ลายน้ำปลอดภัยไม่รบกวนการเรียน</span>
                     <span id="videoPublishDate">--</span>
                 </div>
             </div>
@@ -342,10 +337,10 @@
                 console.warn("Could not fetch student name for watermark:", err);
             }
 
-            // อัปเดตข้อความในลายน้ำ
+            // อัปเดตข้อความในลายน้ำ (มุมขวาล่าง แบบนิ่งเรียบร้อย)
             const wmEl = document.getElementById('watermarkElement');
             if (wmEl) {
-                wmEl.textContent = `ผู้เรียน: ${currentStudentName} (ID: ${currentStudentId.slice(0, 6)}) - KRUDREAM LAND`;
+                wmEl.textContent = `${currentStudentName} (${currentStudentId.slice(0, 6)}) • KRUDREAM LAND`;
             }
 
             return true;
