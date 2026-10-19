@@ -76,7 +76,7 @@
                     </h1>
                 </div>
                 <div class="flex items-center gap-3">
-                    <!-- Dropdown เลือกคอร์ส (แสดงเฉพาะเมื่อเข้าผ่านหน้า Admin หลัก) -->
+                    <!-- Dropdown เลือกคอร์ส -->
                     <div id="courseSelectorWrapper" class="hidden">
                         <select id="headerCourseSelect" onchange="onCourseFilterChange(this.value)" class="px-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-100 font-bold outline-none">
                             <option value="">📚 ทุกคอร์ส (ภาพรวมระบบ)</option>
@@ -96,7 +96,7 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-24 space-y-8">
         
-        <!-- Course Filter Info Banner (แสดงเมื่อถูกกรองด้วยคอร์สใดคอร์สหนึ่ง) -->
+        <!-- Course Filter Info Banner -->
         <div id="courseFilterBanner" class="hidden hitech-card p-4 rounded-2xl bg-purple-500/10 border-l-4 border-l-purple-500 flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-purple-500 text-white flex items-center justify-center font-bold"><i class="fas fa-chalkboard"></i></div>
@@ -205,7 +205,7 @@
             </div>
         </div>
 
-        <!-- SECTION 3: Insights & Alerts (Top Performers & At-Risk Students) -->
+        <!-- SECTION 3: Insights & Alerts -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Widget A: Top Performers -->
             <div class="hitech-card p-6 rounded-3xl space-y-4 border-l-4 border-l-amber-500">
@@ -242,7 +242,6 @@
                 </h2>
                 
                 <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                    <!-- Dropdown Sort -->
                     <select id="studentSortDropdown" onchange="renderAllStudentsTable()" class="px-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-500 font-bold">
                         <option value="default">-- เรียงลำดับทั่วไป --</option>
                         <option value="id_asc">เลขประจำตัว (ID) น้อย -> มาก</option>
@@ -250,7 +249,6 @@
                         <option value="score_asc">คะแนนสะสม: น้อย -> มาก</option>
                     </select>
 
-                    <!-- Live Student Search -->
                     <div class="relative flex-1 md:w-60">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fas fa-search text-xs"></i></span>
                         <input type="text" id="globalStudentSearchInput" oninput="renderAllStudentsTable()" placeholder="ค้นหาชื่อ หรือ รหัส นร..." class="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-500">
@@ -282,7 +280,7 @@
             </div>
         </div>
 
-        <!-- 🌟 SECTION 5: Exam Catalog Grid -->
+        <!-- SECTION 5: Exam Catalog Grid -->
         <div class="space-y-4 pt-2">
             <div class="flex justify-between items-center bg-gradient-to-r from-sky-500/10 via-indigo-500/10 to-transparent p-4 rounded-2xl border border-sky-500/20">
                 <h2 class="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
@@ -454,12 +452,31 @@
                 }
             }
 
+            // 🌟 กรองรายชื่อนักเรียนเฉพาะที่ลงทะเบียนในคอร์ส (ถ้ามีการเลือกคอร์ส)
+            let validStudentIds = null;
+            if (filterCourseId) {
+                let enrollments = [];
+                const { data: en1 } = await mySupabase.from('course_enrollments').select('*').eq('course_id', filterCourseId);
+                if (en1) enrollments = enrollments.concat(en1);
+                const { data: en2 } = await mySupabase.from('enrollments').select('*').eq('course_id', filterCourseId);
+                if (en2) enrollments = enrollments.concat(en2);
+
+                validStudentIds = new Set(enrollments.map(e => String(e.student_id || e.user_id)).filter(Boolean));
+            }
+
             const { data: profiles, error: profileErr } = await mySupabase.from('profiles').select('*');
             if (profileErr) console.error("Error loading profiles:", profileErr);
             
             if (profiles) {
-                allProfilesList = profiles.filter(p => !isUserAdmin(p));
-                totalRegisteredStudents = allProfilesList.length; // แสดงจำนวนตามจริง (0 หากไม่มี)
+                let filteredProfiles = profiles.filter(p => !isUserAdmin(p));
+                if (filterCourseId && validStudentIds) {
+                    filteredProfiles = filteredProfiles.filter(p => {
+                        const sId = String(p.id || p.user_id || p.student_id);
+                        return validStudentIds.has(sId);
+                    });
+                }
+                allProfilesList = filteredProfiles;
+                totalRegisteredStudents = allProfilesList.length;
                 profiles.forEach(p => {
                     const identifier = p.id || p.user_id || p.student_id;
                     if (identifier) allProfilesMap[String(identifier)] = p;
@@ -501,10 +518,16 @@
             const { data: attempts } = await mySupabase.from('exam_attempts').select('*');
             let rawAttempts = attempts || [];
 
-            if (filterCourseId) {
-                const activeExamIds = new Set(activeExams.map(e => String(e.id)));
-                rawAttempts = rawAttempts.filter(a => activeExamIds.has(String(a.exam_id)));
+            const activeExamIds = new Set(activeExams.map(e => String(e.id)));
+            rawAttempts = rawAttempts.filter(a => activeExamIds.has(String(a.exam_id)));
+
+            if (filterCourseId && validStudentIds) {
+                rawAttempts = rawAttempts.filter(a => {
+                    const sId = String(a.student_id || a.user_id);
+                    return validStudentIds.has(sId);
+                });
             }
+
             allAttempts = rawAttempts;
 
             Swal.close();
