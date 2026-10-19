@@ -232,6 +232,16 @@
             window.location.href = 'admin.html';
         }
 
+        // ฟังก์ชันตรวจสอบว่าบัญชีนี้เป็น Admin หรือไม่
+        function isUserAdmin(profileObj) {
+            if (!profileObj) return false;
+            const role = String(profileObj.role || profileObj.user_role || '').toLowerCase();
+            const email = String(profileObj.email || '').toLowerCase();
+            if (role === 'admin' || role === 'teacher' || role === 'instructor') return true;
+            if (email.includes('admin') || email.includes('teacher')) return true;
+            return false;
+        }
+
         async function fetchCoursesAndStudents() {
             // โหลดคอร์สเรียนจากตาราง courses
             const { data: courses } = await mySupabase.from('courses').select('id, title, course_code');
@@ -249,33 +259,39 @@
                 }).join('') || '<span class="text-xs text-slate-400">ไม่พบข้อมูลคอร์สเรียน</span>';
             }
 
-            // โหลดรายชื่อนักเรียนจากตาราง profiles
-            const { data: students } = await mySupabase.from('profiles').select('id, student_id, username, full_name, first_name, nickname');
+            // โหลดรายชื่อนักเรียนจากตาราง profiles และกรองเฉพาะนักเรียน (ตัด admin ออก)
+            const { data: students } = await mySupabase.from('profiles').select('*');
             if (students) {
-                allStudentsList = students;
-                renderStudentCheckboxes(students);
+                allStudentsList = students.filter(s => !isUserAdmin(s));
+                renderStudentCheckboxes(allStudentsList);
             }
         }
 
         function renderStudentCheckboxes(students) {
             const container = document.getElementById('studentCheckboxes');
+            if (!students || students.length === 0) {
+                container.innerHTML = '<span class="text-xs text-slate-400">ไม่พบรายชื่อนักเรียน</span>';
+                return;
+            }
+
             container.innerHTML = students.map(s => {
                 const sName = s.full_name || (s.first_name ? `${s.first_name} ${s.last_name || ''}` : '') || s.username || 'นักเรียน';
                 const sId = s.id || s.student_id;
                 const sUser = s.username || s.student_id || '-';
+                const sGrade = s.grade_level || s.grade ? ` (${s.grade_level || s.grade})` : '';
                 return `
                     <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded student-item">
                         <input type="checkbox" name="studentCheckbox" value="${sId}" class="rounded text-sky-600 focus:ring-sky-500">
-                        <span class="dark:text-slate-200">${sName} (${sUser})</span>
+                        <span class="dark:text-slate-200">${sName}${sGrade} [${sUser}]</span>
                     </label>
                 `;
-            }).join('') || '<span class="text-xs text-slate-400">ไม่พบรายชื่อนักเรียน</span>';
+            }).join('');
         }
 
         function filterStudentCheckboxes() {
             const keyword = document.getElementById('searchStudentInput').value.toLowerCase();
             const filtered = allStudentsList.filter(s => {
-                const text = `${s.full_name || ''} ${s.first_name || ''} ${s.username || ''} ${s.student_id || ''}`.toLowerCase();
+                const text = `${s.full_name || ''} ${s.first_name || ''} ${s.username || ''} ${s.student_id || ''} ${s.grade_level || ''}`.toLowerCase();
                 return text.includes(keyword);
             });
             renderStudentCheckboxes(filtered);
