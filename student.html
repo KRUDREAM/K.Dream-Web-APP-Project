@@ -121,9 +121,10 @@
                     <span id="notifBadge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center shadow-md hidden animate-pulse">0</span>
                 </button>
 
-                <!-- ปุ่มไปหน้าศูนย์รวมประกาศข่าวสาร -->
-                <button onclick="goToAnnouncementPage()" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="ศูนย์รวมประกาศและข่าวสาร">
+                <!-- ปุ่มไปหน้าศูนย์รวมประกาศและข่าวสาร (เพิ่มปุ่มแดงแจ้งเตือนอัตโนมัติ) -->
+                <button onclick="goToAnnouncementPage()" class="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="ศูนย์รวมประกาศและข่าวสาร">
                     <i class="fas fa-bullhorn text-xs"></i>
+                    <span id="announcementBadge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center shadow-md hidden animate-pulse">0</span>
                 </button>
 
                 <button onclick="openProfileSettingsModal()" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="ตั้งค่าโปรไฟล์">
@@ -514,11 +515,19 @@
             try {
                 const { data } = await mySupabase.from('notifications').select('*').eq('is_read', false);
                 const badge = document.getElementById('notifBadge');
+                const announcementBadge = document.getElementById('announcementBadge');
+                
                 if (data && data.length > 0) {
                     badge.textContent = data.length;
                     badge.classList.remove('hidden');
+
+                    if (announcementBadge) {
+                        announcementBadge.textContent = data.length;
+                        announcementBadge.classList.remove('hidden');
+                    }
                 } else {
                     badge.classList.add('hidden');
+                    if (announcementBadge) announcementBadge.classList.add('hidden');
                 }
             } catch (err) {
                 console.warn("Notification count warning:", err);
