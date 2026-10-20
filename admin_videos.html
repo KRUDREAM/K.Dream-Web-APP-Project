@@ -4,7 +4,7 @@
     <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMS | จัดการวิดีโอบทเรียน</title>
+    <title>LMS | ศูนย์จัดการเทปเรียน Bunny.net</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -58,7 +58,7 @@
                     </button>
                     <h1 class="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
                         <span class="w-7 h-7 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-600 text-white flex items-center justify-center text-xs shadow-md"><i class="fas fa-video"></i></span>
-                        ศูนย์จัดการเทปเรียนย้อนหลัง
+                        ศูนย์จัดการเทปเรียน Bunny.net
                     </h1>
                 </div>
                 <div class="flex items-center gap-3">
@@ -75,8 +75,8 @@
         <!-- Header & Course Filter Bar -->
         <div class="hitech-card p-6 sm:p-8 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-l-8 border-l-sky-500">
             <div class="space-y-1">
-                <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">จัดการวิดีโอบทเรียน</h2>
-                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">เลือกคอร์สเพื่อกรองดูวิดีโอ หรือเพิ่มวิดีโอใหม่ (ระบบเข้ารหัส Base64 ป้องกันลิงก์รั่วไหล)</p>
+                <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">จัดการวิดีโอบทเรียนผ่าน Bunny Stream</h2>
+                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">เลือกคอร์สเพื่อกรองดูวิดีโอ หรือเพิ่ม Video ID จาก Bunny.net ป้องกันการดูดคลิป 100%</p>
             </div>
             <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 <div class="flex items-center gap-2 bg-slate-100 dark:bg-darkinput px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 w-full md:w-auto">
@@ -87,7 +87,7 @@
                     </select>
                 </div>
                 <button onclick="openAddVideoModal()" class="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl text-xs shadow transition-all flex items-center gap-1.5 shrink-0">
-                    <i class="fas fa-plus"></i> เพิ่มวิดีโอใหม่
+                    <i class="fas fa-plus"></i> เพิ่มวิดีโอ Bunny ใหม่
                 </button>
             </div>
         </div>
@@ -129,6 +129,7 @@
                         <tr class="bg-slate-100 dark:bg-slate-800/80 font-bold border-b dark:border-slate-700">
                             <th class="p-3">ลำดับ</th>
                             <th class="p-3">ชื่อวิดีโอ / บทเรียน</th>
+                            <th class="p-3">Bunny Video ID</th>
                             <th class="p-3">คอร์สที่สังกัด</th>
                             <th class="p-3 text-center">วันที่สร้าง</th>
                             <th class="p-3 text-center">จัดการ</th>
@@ -175,18 +176,6 @@
             }
         }
 
-        // 🛡️ ฟังก์ชันแปลงลิงก์ YouTube ให้เป็นรหัส Base64 ลับก่อนบันทึก
-        function encryptYoutubeUrl(rawUrl) {
-            if (!rawUrl) return '';
-            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-            const match = rawUrl.match(regExp);
-            const ytId = (match && match[2].length === 11) ? match[2] : '';
-            if (ytId) {
-                return btoa(ytId); // แปลงรหัส 11 หลักเป็น Base64
-            }
-            return btoa(rawUrl);
-        }
-
         async function initVideoManagement() {
             Swal.fire({ title: 'กำลังโหลดข้อมูลวิดีโอ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -204,7 +193,7 @@
                     }
                 }
 
-                // ดึงข้อมูลจากตาราง course_lessons โดยตรง
+                // ดึงข้อมูลจากตาราง course_lessons (รองรับ bunny_video_id และ video_url เผื่อข้อมูลเก่า)
                 const lessonRes = await mySupabase.from('course_lessons').select('*');
                 let fetchedVideos = lessonRes.data || [];
 
@@ -212,7 +201,7 @@
                     id: v.id,
                     title: v.title || 'ไม่มีชื่อวิดีโอ',
                     course_id: String(v.course_id || ''),
-                    video_url: v.video_url || '',
+                    bunny_video_id: v.bunny_video_id || v.video_url || '', // รองรับทั้งฟิลด์ใหม่และเก่า
                     created_at: v.created_at || new Date().toISOString()
                 }));
 
@@ -271,7 +260,7 @@
             if (countLabel) countLabel.textContent = `แสดง ${filtered.length} รายการ`;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-slate-400">ไม่พบข้อมูลวิดีโอในเงื่อนไขนี้</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400">ไม่พบข้อมูลวิดีโอในเงื่อนไขนี้</td></tr>`;
                 return;
             }
 
@@ -284,9 +273,10 @@
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-3 font-mono font-bold">${idx + 1}</td>
                         <td class="p-3 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <i class="fab fa-youtube text-rose-500 text-sm"></i>
+                            <i class="fas fa-play-circle text-sky-500 text-sm"></i>
                             <span class="line-clamp-1">${v.title}</span>
                         </td>
+                        <td class="p-3 font-mono text-indigo-600 dark:text-indigo-400 text-[11px]">${v.bunny_video_id || '-'}</td>
                         <td class="p-3">${courseName}</td>
                         <td class="p-3 text-center text-slate-400 text-[11px]">${dateStr}</td>
                         <td class="p-3 text-center flex items-center justify-center gap-1.5">
@@ -308,7 +298,7 @@
             let courseOptionsHtml = allCourses.map(c => `<option value="${c.id}" ${String(c.id) === String(defaultId) ? 'selected' : ''}>[${c.course_code || 'CRS'}] ${c.title}</option>`).join('');
 
             const { value: formValues } = await Swal.fire({
-                title: '🎬 เพิ่มวิดีโอประกอบคอร์สใหม่',
+                title: '🎬 เพิ่มวิดีโอ Bunny.net ใหม่',
                 width: '550px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
@@ -320,11 +310,11 @@
                         </div>
                         <div>
                             <label class="block font-bold mb-1">ชื่อหัวข้อวิดีโอ / บทเรียน <span class="text-red-500">*</span></label>
-                            <input id="swalVideoTitle" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น EP.1 แนะนำพื้นฐาน Python">
+                            <input id="swalVideoTitle" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น EP.1 แนะนำพื้นฐานอัลกอริทึม">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1">ลิงก์ YouTube (ระบบจะเข้ารหัสซ่อนลิงก์ให้อัตโนมัติ) <span class="text-red-500">*</span></label>
-                            <input id="swalVideoUrl" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono" placeholder="https://youtu.be/...">
+                            <label class="block font-bold mb-1">Bunny Video ID (รหัสวิดีโอยาวๆ จาก Bunny Stream) <span class="text-red-500">*</span></label>
+                            <input id="swalVideoBunnyId" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono" placeholder="เช่น a1b2c3d4-e5f6-...">
                         </div>
                     </div>
                 `,
@@ -337,13 +327,12 @@
                 preConfirm: () => {
                     const cId = document.getElementById('swalVideoCourse').value;
                     const title = document.getElementById('swalVideoTitle').value.trim();
-                    const rawUrl = document.getElementById('swalVideoUrl').value.trim();
-                    if (!title || !rawUrl) {
-                        Swal.showValidationMessage('กรุณากรอกชื่อหัวข้อและลิงก์วิดีโอให้ครบถ้วน');
+                    const bunnyId = document.getElementById('swalVideoBunnyId').value.trim();
+                    if (!title || !bunnyId) {
+                        Swal.showValidationMessage('กรุณากรอกชื่อหัวข้อและ Bunny Video ID ให้ครบถ้วน');
                         return false;
                     }
-                    const secureEncodedUrl = encryptYoutubeUrl(rawUrl);
-                    return { course_id: cId, title, video_url: secureEncodedUrl };
+                    return { course_id: cId, title, bunny_video_id: bunnyId, video_url: bunnyId };
                 }
             });
 
@@ -367,16 +356,8 @@
             const isDark = document.documentElement.classList.contains('dark');
             let courseOptionsHtml = allCourses.map(c => `<option value="${c.id}" ${String(c.id) === video.course_id ? 'selected' : ''}>[${c.course_code || 'CRS'}] ${c.title}</option>`).join('');
 
-            // พยายามแปลง Base64 กลับมาแสดงผลให้แอดมินดูง่าย (ถ้าถอดไม่ได้ให้แสดงค่าดิบเดิม)
-            let displayUrl = video.video_url;
-            try {
-                if (video.video_url.length < 30 && !video.video_url.includes('http')) {
-                    displayUrl = `https://youtu.be/${atob(video.video_url)}`;
-                }
-            } catch(e) {}
-
             const { value: formValues } = await Swal.fire({
-                title: '✏️ แก้ไขคอร์สและข้อมูลวิดีโอ',
+                title: '✏️ แก้ไขข้อมูลวิดีโอ Bunny',
                 width: '550px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
@@ -391,8 +372,8 @@
                             <input id="swalEditTitle" value="${video.title}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1">ลิงก์ YouTube <span class="text-red-500">*</span></label>
-                            <input id="swalEditUrl" value="${displayUrl}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono">
+                            <label class="block font-bold mb-1">Bunny Video ID <span class="text-red-500">*</span></label>
+                            <input id="swalEditBunnyId" value="${video.bunny_video_id}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono">
                         </div>
                     </div>
                 `,
@@ -405,13 +386,12 @@
                 preConfirm: () => {
                     const cId = document.getElementById('swalEditCourse').value;
                     const title = document.getElementById('swalEditTitle').value.trim();
-                    const rawUrl = document.getElementById('swalEditUrl').value.trim();
-                    if (!title || !rawUrl) {
+                    const bunnyId = document.getElementById('swalEditBunnyId').value.trim();
+                    if (!title || !bunnyId) {
                         Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบถ้วน');
                         return false;
                     }
-                    const secureEncodedUrl = encryptYoutubeUrl(rawUrl);
-                    return { course_id: cId, title, video_url: secureEncodedUrl };
+                    return { course_id: cId, title, bunny_video_id: bunnyId, video_url: bunnyId };
                 }
             });
 
