@@ -138,7 +138,7 @@
                         </div>
                         <div>
                             <h3 class="font-extrabold text-sm text-slate-900 dark:text-white">วิดีโอบทเรียนย้อนหลัง</h3>
-                            <p class="text-[11px] text-slate-400">รายการวิดีโอทั้งหมดในคอร์สนี้</p>
+                            <p class="text-[11px] text-slate-400">รายการวิดีโอทั้งหมดในคอร์สนี้ (ป้องกันลิงก์ออกนอกเว็บ)</p>
                         </div>
                     </div>
                     <span class="px-3 py-1 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold text-xs font-mono" id="videoCountBadge">0 รายการ</span>
@@ -385,6 +385,20 @@
             if (role === 'admin' || role === 'teacher' || role === 'instructor') return true;
             if (email.includes('admin') || email.includes('teacher')) return true;
             return false;
+        }
+
+        // 🛡️ ฟังก์ชันแปลงลิงก์ YouTube ให้ปลอดภัย ป้องกันลิงก์ออกนอกเว็บอัตโนมัติ
+        function sanitizeVideoUrl(url) {
+            if (!url) return '';
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                const match = url.match(regExp);
+                const ytId = (match && match[2].length === 11) ? match[2] : '';
+                if (ytId) {
+                    return `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&modestbranding=1&rel=0&iv_load_policy=3`;
+                }
+            }
+            return url;
         }
 
         async function initCourseDetail() {
@@ -912,7 +926,7 @@
                             <input id="swalLessonTitle" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold" placeholder="${isVideo ? 'เช่น ครั้งที่ 1: ตะลุยโจทย์อัลกอริทึม' : 'เช่น สไลด์บรรยายบทที่ 1 (PDF)'}">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">${isVideo ? 'ลิงก์วิดีโอ (YouTube / URL)' : 'ลิงก์ไฟล์ PDF (Google Drive / URL)'} <span class="text-red-500">*</span></label>
+                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">${isVideo ? 'ลิงก์วิดีโอ (วางลิงก์ YouTube ปกติได้เลย ระบบจะบล็อกให้อัตโนมัติ)' : 'ลิงก์ไฟล์ PDF (Google Drive / URL)'} <span class="text-red-500">*</span></label>
                             <input id="swalLessonUrl" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-mono" placeholder="${isVideo ? 'https://youtube.com/...' : 'https://drive.google.com/...'}">
                         </div>
                     </div>
@@ -923,15 +937,18 @@
                 confirmButtonColor: '#9333ea',
                 preConfirm: () => {
                     const title = document.getElementById('swalLessonTitle').value.trim();
-                    const url = document.getElementById('swalLessonUrl').value.trim();
+                    const rawUrl = document.getElementById('swalLessonUrl').value.trim();
                     const errBox = document.getElementById('swalLessonErrorMsg');
 
-                    if (!title || !url) {
+                    if (!title || !rawUrl) {
                         errBox.textContent = '⚠️ กรุณากรอกชื่อและลิงก์ให้ครบถ้วน';
                         errBox.classList.remove('hidden');
                         return false;
                     }
-                    return { title, url, isVideo };
+
+                    // แปลงลิงก์ YouTube ให้อัตโนมัติทันที
+                    const finalUrl = isVideo ? sanitizeVideoUrl(rawUrl) : rawUrl;
+                    return { title, url: finalUrl, isVideo };
                 }
             });
 
