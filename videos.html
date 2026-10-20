@@ -36,16 +36,21 @@
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
         
-        /* 🛡️ แผ่นฟิล์มใสบล็อกมุมขวาบน (ป้องกันการกด Pop-out และปุ่มดาวน์โหลดของ Google Drive) */
+        /* 🛡️ แผ่นฟิล์มใสบล็อกมุมขวาบน (ป้องกันปุ่ม Pop-out / Drive) */
         .popout-blocker {
             position: absolute; top: 0; right: 0; width: 140px; height: 65px; z-index: 50; background: transparent; cursor: not-allowed;
+        }
+
+        /* 🛡️ แผ่นฟิล์มใสบล็อกมุมขวาล่าง (ป้องกันปุ่ม Watch on YouTube และโลโก้ลิงก์ออกนอกเว็บ) */
+        .youtube-link-blocker {
+            position: absolute; bottom: 0; right: 0; width: 150px; height: 60px; z-index: 50; background: transparent; cursor: not-allowed;
         }
 
         /* 🌊 ลายน้ำแบบอยู่นิ่งมุมขวาล่าง โปร่งแสง ไม่รบกวนสมาธิ */
         .watermark-layer {
             position: absolute;
             bottom: 16px;
-            right: 20px;
+            right: 160px; /* ขยับหลบตัวบล็อกมุมขวาล่างเล็กน้อย */
             z-index: 45;
             pointer-events: none; /* เพื่อให้เมาส์คลิกทะลุผ่านไปโดนปุ่มวิดีโอได้ปกติ */
             color: rgba(255, 255, 255, 0.25);
@@ -212,12 +217,15 @@
                     <!-- 🛡️ ลายน้ำประจำตัวนักเรียนแบบอยู่นิ่งมุมขวาล่าง โปร่งแสง ไม่กวนสายตา -->
                     <div id="watermarkElement" class="watermark-layer">KRUDREAM LAND | กำลังโหลด...</div>
 
-                    <!-- 🛡️ แผ่นบล็อกมุมขวาบน (Drive & YouTube) -->
-                    <div class="popout-blocker" onclick="alertPopoutBlocked()" title="ระบบป้องกันการเปิดหน้าต่างภายนอกและการดาวน์โหลด"></div>
+                    <!-- 🛡️ แผ่นบล็อกมุมขวาบน (Drive & YouTube Pop-out) -->
+                    <div class="popout-blocker" onclick="alertPopoutBlocked()" title="ระบบปิดกั้นการเปิดหน้าต่างภายนอก"></div>
+
+                    <!-- 🛡️ แผ่นบล็อกมุมขวาล่าง (YouTube Watch on / Logo link) -->
+                    <div class="youtube-link-blocker" onclick="alertPopoutBlocked()" title="ระบบปิดกั้นการลิงก์ออกไป YouTube ภายนอก"></div>
                 </div>
 
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-1 text-[11px] text-slate-400 gap-1">
-                    <span><i class="fas fa-shield-alt text-emerald-500 mr-1"></i> ป้องกันการดาวน์โหลด • ลายน้ำปลอดภัยไม่รบกวนการเรียน</span>
+                    <span><i class="fas fa-shield-alt text-emerald-500 mr-1"></i> ป้องกันการดาวน์โหลดและลิงก์ออกนอกเว็บ • ปลอดภัยสูงสุด</span>
                     <span id="videoPublishDate">--</span>
                 </div>
             </div>
@@ -584,7 +592,7 @@
                 toast: true,
                 position: 'top-end',
                 icon: 'info',
-                title: '🔒 ปิดการใช้งานปุ่มเปิดหน้าต่างภายนอกเรียบร้อย',
+                title: '🔒 ระบบปิดกั้นการเปิดหน้าต่างภายนอกเรียบร้อย',
                 showConfirmButton: false,
                 timer: 1500
             });
