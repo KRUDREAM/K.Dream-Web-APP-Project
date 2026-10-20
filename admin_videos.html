@@ -76,7 +76,7 @@
         <div class="hitech-card p-6 sm:p-8 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-l-8 border-l-sky-500">
             <div class="space-y-1">
                 <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">จัดการวิดีโอบทเรียน</h2>
-                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">เลือกคอร์สเพื่อกรองดูวิดีโอ หรือเพิ่มวิดีโอใหม่เข้าสู่บทเรียน (รองรับระบบป้องกันลิงก์ YouTube ออกนอกเว็บ)</p>
+                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">เลือกคอร์สเพื่อกรองดูวิดีโอ หรือเพิ่มวิดีโอใหม่ (ระบบเข้ารหัส Base64 ป้องกันลิงก์รั่วไหล)</p>
             </div>
             <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 <div class="flex items-center gap-2 bg-slate-100 dark:bg-darkinput px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 w-full md:w-auto">
@@ -175,19 +175,16 @@
             }
         }
 
-        // 🛡️ ฟังก์ชันแปลงลิงก์ YouTube ให้อัตโนมัติ ป้องกันลิงก์ออกนอกเว็บ
-        function sanitizeVideoUrl(url) {
-            if (!url) return '';
-            // ถ้าเป็น YouTube ให้แปลงเป็นแบบ nocookie embed ปลอดภัยสูงสุด
-            if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                const match = url.match(regExp);
-                const ytId = (match && match[2].length === 11) ? match[2] : '';
-                if (ytId) {
-                    return `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&modestbranding=1&rel=0&iv_load_policy=3`;
-                }
+        // 🛡️ ฟังก์ชันแปลงลิงก์ YouTube ให้เป็นรหัส Base64 ลับก่อนบันทึก
+        function encryptYoutubeUrl(rawUrl) {
+            if (!rawUrl) return '';
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = rawUrl.match(regExp);
+            const ytId = (match && match[2].length === 11) ? match[2] : '';
+            if (ytId) {
+                return btoa(ytId); // แปลงรหัส 11 หลักเป็น Base64
             }
-            return url;
+            return btoa(rawUrl);
         }
 
         async function initVideoManagement() {
@@ -207,24 +204,15 @@
                     }
                 }
 
-                let fetchedVideos = [];
+                // ดึงข้อมูลจากตาราง course_lessons โดยตรง
                 const lessonRes = await mySupabase.from('course_lessons').select('*');
-                if (lessonRes.data) {
-                    fetchedVideos = lessonRes.data.filter(l => l.video_url || l.video || l.url || l.youtube_id);
-                }
-
-                if (fetchedVideos.length === 0) {
-                    const videoRes = await mySupabase.from('videos').select('*');
-                    if (videoRes.data) {
-                        fetchedVideos = videoRes.data;
-                    }
-                }
+                let fetchedVideos = lessonRes.data || [];
 
                 allVideos = fetchedVideos.map(v => ({
                     id: v.id,
-                    title: v.title || v.name || 'ไม่มีชื่อวิดีโอ',
-                    course_id: String(v.course_id || v.courseid || v.course || ''),
-                    video_url: v.video_url || v.video || v.url || '',
+                    title: v.title || 'ไม่มีชื่อวิดีโอ',
+                    course_id: String(v.course_id || ''),
+                    video_url: v.video_url || '',
                     created_at: v.created_at || new Date().toISOString()
                 }));
 
@@ -302,9 +290,6 @@
                         <td class="p-3">${courseName}</td>
                         <td class="p-3 text-center text-slate-400 text-[11px]">${dateStr}</td>
                         <td class="p-3 text-center flex items-center justify-center gap-1.5">
-                            <a href="${v.video_url}" target="_blank" class="px-2.5 py-1 bg-sky-500/10 text-sky-600 hover:bg-sky-500 hover:text-white rounded-lg font-bold text-[11px] transition-all" title="ดูคลิป">
-                                <i class="fas fa-play"></i>
-                            </a>
                             <button onclick="openEditVideoModal('${v.id}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-600 hover:bg-amber-500 hover:text-white rounded-lg font-bold text-[11px] transition-all" title="แก้ไขข้อมูล">
                                 <i class="fas fa-edit"></i>
                             </button>
@@ -338,7 +323,7 @@
                             <input id="swalVideoTitle" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น EP.1 แนะนำพื้นฐาน Python">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1">ลิงก์วิดีโอ (วางลิงก์ YouTube ปกติได้เลย ระบบจะบล็อกให้อัตโนมัติ) <span class="text-red-500">*</span></label>
+                            <label class="block font-bold mb-1">ลิงก์ YouTube (ระบบจะเข้ารหัสซ่อนลิงก์ให้อัตโนมัติ) <span class="text-red-500">*</span></label>
                             <input id="swalVideoUrl" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono" placeholder="https://youtu.be/...">
                         </div>
                     </div>
@@ -357,23 +342,18 @@
                         Swal.showValidationMessage('กรุณากรอกชื่อหัวข้อและลิงก์วิดีโอให้ครบถ้วน');
                         return false;
                     }
-                    // แปลงลิงก์ให้ปลอดภัยทันที
-                    const sanitizedUrl = sanitizeVideoUrl(rawUrl);
-                    return { course_id: cId, title, video_url: sanitizedUrl };
+                    const secureEncodedUrl = encryptYoutubeUrl(rawUrl);
+                    return { course_id: cId, title, video_url: secureEncodedUrl };
                 }
             });
 
             if (formValues) {
                 Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 
-                const { error } = await mySupabase.from('course_lessons').insert([{
-                    course_id: formValues.course_id,
-                    title: formValues.title,
-                    video_url: formValues.video_url
-                }]);
-
+                const { error } = await mySupabase.from('course_lessons').insert([formValues]);
                 if (error) {
-                    await mySupabase.from('videos').insert([formValues]);
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                    return;
                 }
 
                 Swal.fire({ icon: 'success', title: 'เพิ่มวิดีโอสำเร็จ!', timer: 1200, showConfirmButton: false });
@@ -386,6 +366,14 @@
             if (!video) return;
             const isDark = document.documentElement.classList.contains('dark');
             let courseOptionsHtml = allCourses.map(c => `<option value="${c.id}" ${String(c.id) === video.course_id ? 'selected' : ''}>[${c.course_code || 'CRS'}] ${c.title}</option>`).join('');
+
+            // พยายามแปลง Base64 กลับมาแสดงผลให้แอดมินดูง่าย (ถ้าถอดไม่ได้ให้แสดงค่าดิบเดิม)
+            let displayUrl = video.video_url;
+            try {
+                if (video.video_url.length < 30 && !video.video_url.includes('http')) {
+                    displayUrl = `https://youtu.be/${atob(video.video_url)}`;
+                }
+            } catch(e) {}
 
             const { value: formValues } = await Swal.fire({
                 title: '✏️ แก้ไขคอร์สและข้อมูลวิดีโอ',
@@ -403,8 +391,8 @@
                             <input id="swalEditTitle" value="${video.title}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1">ลิงก์วิดีโอ <span class="text-red-500">*</span></label>
-                            <input id="swalEditUrl" value="${video.video_url}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono">
+                            <label class="block font-bold mb-1">ลิงก์ YouTube <span class="text-red-500">*</span></label>
+                            <input id="swalEditUrl" value="${displayUrl}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono">
                         </div>
                     </div>
                 `,
@@ -422,22 +410,18 @@
                         Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบถ้วน');
                         return false;
                     }
-                    const sanitizedUrl = sanitizeVideoUrl(rawUrl);
-                    return { course_id: cId, title, video_url: sanitizedUrl };
+                    const secureEncodedUrl = encryptYoutubeUrl(rawUrl);
+                    return { course_id: cId, title, video_url: secureEncodedUrl };
                 }
             });
 
             if (formValues) {
                 Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 
-                const { error: err1 } = await mySupabase.from('course_lessons').update({
-                    course_id: formValues.course_id,
-                    title: formValues.title,
-                    video_url: formValues.video_url
-                }).eq('id', videoId);
-
-                if (err1) {
-                    await mySupabase.from('videos').update(formValues).eq('id', videoId);
+                const { error } = await mySupabase.from('course_lessons').update(formValues).eq('id', videoId);
+                if (error) {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                    return;
                 }
 
                 Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลสำเร็จ!', timer: 1200, showConfirmButton: false });
@@ -458,7 +442,6 @@
 
             if (isConfirmed) {
                 await mySupabase.from('course_lessons').delete().eq('id', videoId);
-                await mySupabase.from('videos').delete().eq('id', videoId);
                 initVideoManagement();
                 Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1000, showConfirmButton: false });
             }
