@@ -4,7 +4,7 @@
     <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMS | ศูนย์จัดการเทปเรียน Bunny.net</title>
+    <title>LMS | รายละเอียดคอร์สเรียน & จัดการวิดีโอ</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -53,12 +53,12 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6">
             <div class="flex justify-between h-16 items-center">
                 <div class="flex items-center gap-3">
-                    <button id="backBtn" onclick="goBackToCourse()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm">
+                    <button onclick="window.location.href='admin_courses.html'" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm">
                         <i class="fas fa-arrow-left text-sm"></i>
                     </button>
                     <h1 class="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
-                        <span class="w-7 h-7 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-600 text-white flex items-center justify-center text-xs shadow-md"><i class="fas fa-video"></i></span>
-                        ศูนย์จัดการเทปเรียน Bunny.net
+                        <span class="w-7 h-7 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-600 text-white flex items-center justify-center text-xs shadow-md"><i class="fas fa-book-open"></i></span>
+                        รายละเอียดคอร์สเรียน & จัดการบทเรียน
                     </h1>
                 </div>
                 <div class="flex items-center gap-3">
@@ -72,55 +72,34 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-24 space-y-6">
         
-        <!-- Header & Course Filter Bar -->
+        <!-- Course Header Info Card -->
         <div class="hitech-card p-6 sm:p-8 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-l-8 border-l-sky-500">
             <div class="space-y-1">
-                <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">จัดการวิดีโอบทเรียนผ่าน Bunny Stream</h2>
-                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">เลือกคอร์สเพื่อกรองดูวิดีโอ หรือเพิ่ม Video ID จาก Bunny.net ป้องกันการดูดคลิป 100%</p>
+                <span id="courseCodeBadge" class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-extrabold text-xs rounded-xl">--</span>
+                <h2 id="courseTitleDisplay" class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">กำลังโหลดข้อมูลคอร์ส...</h2>
+                <p id="courseDescDisplay" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">--</p>
             </div>
-            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <div class="flex items-center gap-2 bg-slate-100 dark:bg-darkinput px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 w-full md:w-auto">
-                    <i class="fas fa-filter text-sky-500 text-xs"></i>
-                    <span class="text-xs font-bold text-slate-500">คอร์ส:</span>
-                    <select id="globalCourseFilter" onchange="onCourseFilterChanged()" class="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer pr-2">
-                        <option value="all">-- ทุกคอร์สทั้งหมด --</option>
-                    </select>
+            <div class="flex items-center gap-4 bg-slate-100 dark:bg-darkinput px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 shrink-0">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-lg"><i class="fas fa-users"></i></div>
+                <div>
+                    <span class="text-[10px] text-slate-400 font-bold block">นักเรียนที่ลงทะเบียน</span>
+                    <span id="statStudentCount" class="text-base font-extrabold text-emerald-600 dark:text-emerald-400">0 คน</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Management Section -->
+        <div class="hitech-card p-6 rounded-3xl space-y-4">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-4 border-b border-sky-500/20">
+                <div>
+                    <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-film text-sky-500"></i> รายการวิดีโอบทเรียน Bunny Stream (ในคอร์สนี้)
+                    </h3>
+                    <span id="videoCountLabel" class="text-xs text-slate-400">แสดง 0 รายการ</span>
                 </div>
                 <button onclick="openAddVideoModal()" class="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl text-xs shadow transition-all flex items-center gap-1.5 shrink-0">
                     <i class="fas fa-plus"></i> เพิ่มวิดีโอ Bunny ใหม่
                 </button>
-            </div>
-        </div>
-
-        <!-- Statistics Summary Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="hitech-card p-5 rounded-2xl flex items-center gap-4 border-l-4 border-l-sky-500">
-                <div class="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-xl"><i class="fas fa-film"></i></div>
-                <div>
-                    <span class="text-xs text-slate-400 font-bold block">วิดีโอทั้งหมดในระบบ</span>
-                    <span id="statTotalVideos" class="text-xl font-extrabold text-slate-900 dark:text-white">0 คลิป</span>
-                </div>
-            </div>
-            <div class="hitech-card p-5 rounded-2xl flex items-center gap-4 border-l-4 border-l-emerald-500">
-                <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-xl"><i class="fas fa-chalkboard-user"></i></div>
-                <div>
-                    <span class="text-xs text-slate-400 font-bold block">คอร์สที่มีวิดีโอบทเรียน</span>
-                    <span id="statActiveCourses" class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">0 คอร์ส</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Video Management Main Section -->
-        <div class="hitech-card p-6 rounded-3xl space-y-4">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-4 border-b border-sky-500/20">
-                <div>
-                    <h3 id="tableTitle" class="font-extrabold text-sm text-slate-900 dark:text-white">รายการวิดีโอทั้งหมด</h3>
-                    <span id="videoCountLabel" class="text-xs text-slate-400">แสดง 0 รายการ</span>
-                </div>
-                <div class="relative w-full md:w-64">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fas fa-search text-xs"></i></span>
-                    <input type="text" id="videoSearchInput" oninput="renderVideoList()" placeholder="ค้นหาชื่อวิดีโอ..." class="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none">
-                </div>
             </div>
 
             <div class="overflow-x-auto">
@@ -130,7 +109,6 @@
                             <th class="p-3">ลำดับ</th>
                             <th class="p-3">ชื่อวิดีโอ / บทเรียน</th>
                             <th class="p-3">Bunny Video ID</th>
-                            <th class="p-3">คอร์สที่สังกัด</th>
                             <th class="p-3 text-center">วันที่สร้าง</th>
                             <th class="p-3 text-center">จัดการ</th>
                         </tr>
@@ -150,10 +128,14 @@
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const urlParams = new URLSearchParams(window.location.search);
-        let selectedCourseId = urlParams.get('course_id') || urlParams.get('id') || 'all';
+        const courseId = urlParams.get('id') || urlParams.get('course_id');
 
-        let allCourses = [];
-        let allVideos = [];
+        if (!courseId) {
+            window.location.href = 'admin_courses.html';
+        }
+
+        let currentCourse = null;
+        let courseLessons = [];
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -168,108 +150,65 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        function goBackToCourse() {
-            if (selectedCourseId && selectedCourseId !== 'all') {
-                window.location.href = `admin_course_detail.html?id=${selectedCourseId}`;
-            } else {
-                window.location.href = 'admin_courses.html';
-            }
-        }
-
-        async function initVideoManagement() {
-            Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        async function initCourseDetail() {
+            Swal.fire({ title: 'กำลังโหลดข้อมูลคอร์ส...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             try {
-                // ดึงข้อมูลคอร์สทั้งหมด
-                const courseRes = await mySupabase.from('courses').select('id, title, course_code').order('title');
-                allCourses = courseRes.data || [];
-
-                const filterSelect = document.getElementById('globalCourseFilter');
-                if (filterSelect) {
-                    filterSelect.innerHTML = '<option value="all">-- ทุกคอร์สทั้งหมด --</option>' + 
-                        allCourses.map(c => `<option value="${c.id}">[${c.course_code || 'CRS'}] ${c.title}</option>`).join('');
-                    
-                    if (selectedCourseId !== 'all') {
-                        filterSelect.value = selectedCourseId;
-                    }
+                // 1. ดึงข้อมูลคอร์สปัจจุบัน
+                const { data: courseData, error: courseErr } = await mySupabase.from('courses').select('*').eq('id', courseId).maybeSingle();
+                if (courseErr || !courseData) {
+                    Swal.fire('ไม่พบคอร์สนี้', 'อาจถูกลบหรือไม่มีอยู่จริง', 'error').then(() => window.location.href = 'admin_courses.html');
+                    return;
                 }
+                currentCourse = courseData;
 
-                // ดึงข้อมูลบทเรียนทั้งหมด
-                const lessonRes = await mySupabase.from('course_lessons').select('*');
-                let fetchedVideos = lessonRes.data || [];
+                document.getElementById('courseCodeBadge').textContent = currentCourse.course_code || 'CRS';
+                document.getElementById('courseTitleDisplay').textContent = currentCourse.title || 'ไม่มีชื่อคอร์ส';
+                document.getElementById('courseDescDisplay').textContent = currentCourse.description || 'ไม่มีคำอธิบายคอร์ส';
 
-                allVideos = fetchedVideos.map(v => ({
-                    id: v.id,
-                    title: v.title || 'ไม่มีชื่อวิดีโอ',
-                    course_id: String(v.course_id || ''),
-                    bunny_video_id: v.bunny_video_id || v.video_url || '',
-                    created_at: v.created_at || new Date().toISOString()
+                // 2. ดึงจำนวนนักเรียนที่ลงทะเบียน (รวมจากทั้งตาราง course_enrollments และ enrollments เพื่อความแม่นยำ)
+                let totalStudents = new Set();
+                const { data: en1 } = await mySupabase.from('course_enrollments').select('student_id').eq('course_id', courseId);
+                if (en1) en1.forEach(e => totalStudents.add(e.student_id));
+
+                const { data: en2 } = await mySupabase.from('enrollments').select('student_id').eq('course_id', courseId);
+                if (en2) en2.forEach(e => totalStudents.add(e.student_id));
+
+                document.getElementById('statStudentCount').textContent = `${totalStudents.size} คน`;
+
+                // 3. ดึงข้อมูลบทเรียน/วิดีโอเฉพาะคอร์สนี้
+                const { data: lessonData } = await mySupabase.from('course_lessons').select('*').eq('course_id', courseId);
+                courseLessons = (lessonData || []).map(l => ({
+                    id: l.id,
+                    title: l.title || 'ไม่มีชื่อหัวข้อ',
+                    course_id: String(l.course_id || ''),
+                    bunny_video_id: l.bunny_video_id || l.video_url || '',
+                    created_at: l.created_at || new Date().toISOString()
                 }));
 
             } catch (err) {
-                console.error("Error loading videos:", err);
+                console.error("Error loading detail:", err);
             } finally {
                 Swal.close();
             }
 
-            updateDashboardStats();
             renderVideoList();
-        }
-
-        function onCourseFilterChanged() {
-            const select = document.getElementById('globalCourseFilter');
-            selectedCourseId = select.value;
-            updateDashboardStats();
-            renderVideoList();
-        }
-
-        function updateDashboardStats() {
-            const totalVideosEl = document.getElementById('statTotalVideos');
-            const activeCoursesEl = document.getElementById('statActiveCourses');
-            if (!totalVideosEl) return;
-
-            let filteredVideos = selectedCourseId === 'all' ? allVideos : allVideos.filter(v => v.course_id === String(selectedCourseId));
-
-            totalVideosEl.textContent = `${filteredVideos.length} คลิป`;
-            const uniqueCourses = new Set(filteredVideos.map(v => v.course_id).filter(Boolean));
-            activeCoursesEl.textContent = `${uniqueCourses.size} คอร์ส`;
         }
 
         function renderVideoList() {
             const tbody = document.getElementById('videoTableBody');
             const countLabel = document.getElementById('videoCountLabel');
-            const tableTitle = document.getElementById('tableTitle');
             if (!tbody) return;
 
-            const keyword = (document.getElementById('videoSearchInput')?.value || '').trim().toLowerCase();
+            countLabel.textContent = `แสดง ${courseLessons.length} รายการ`;
 
-            let filtered = selectedCourseId === 'all' ? allVideos : allVideos.filter(v => v.course_id === String(selectedCourseId));
-
-            if (keyword) {
-                filtered = filtered.filter(v => v.title.toLowerCase().includes(keyword));
-            }
-
-            if (tableTitle) {
-                if (selectedCourseId === 'all') {
-                    tableTitle.textContent = 'รายการวิดีโอทั้งหมดในระบบ';
-                } else {
-                    const cObj = allCourses.find(c => String(c.id) === String(selectedCourseId));
-                    tableTitle.textContent = `รายการวิดีโอในคอร์ส: ${cObj ? cObj.title : selectedCourseId}`;
-                }
-            }
-
-            if (countLabel) countLabel.textContent = `แสดง ${filtered.length} รายการ`;
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400">ไม่พบข้อมูลวิดีโอในเงื่อนไขนี้</td></tr>`;
+            if (courseLessons.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-slate-400">ยังไม่มีวิดีโอบทเรียนในคอร์สนี้</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = filtered.map((v, idx) => {
-                const cObj = allCourses.find(c => String(c.id) === v.course_id);
-                const courseName = cObj ? cObj.title : '<span class="text-amber-500 italic">⚠️ ยังไม่ระบุคอร์ส</span>';
+            tbody.innerHTML = courseLessons.map((v, idx) => {
                 const dateStr = v.created_at ? new Date(v.created_at).toLocaleDateString('th-TH') : '-';
-
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-3 font-mono font-bold">${idx + 1}</td>
@@ -278,7 +217,6 @@
                             <span class="line-clamp-1">${v.title}</span>
                         </td>
                         <td class="p-3 font-mono text-indigo-600 dark:text-indigo-400 text-[11px]">${v.bunny_video_id || '-'}</td>
-                        <td class="p-3">${courseName}</td>
                         <td class="p-3 text-center text-slate-400 text-[11px]">${dateStr}</td>
                         <td class="p-3 text-center flex items-center justify-center gap-1.5">
                             <button onclick="openEditVideoModal('${v.id}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-600 hover:bg-amber-500 hover:text-white rounded-lg font-bold text-[11px] transition-all" title="แก้ไขข้อมูล">
@@ -295,8 +233,6 @@
 
         async function openAddVideoModal() {
             const isDark = document.documentElement.classList.contains('dark');
-            let defaultId = (selectedCourseId !== 'all') ? selectedCourseId : (allCourses[0]?.id || '');
-            let courseOptionsHtml = allCourses.map(c => `<option value="${c.id}" ${String(c.id) === String(defaultId) ? 'selected' : ''}>[${c.course_code || 'CRS'}] ${c.title}</option>`).join('');
 
             const { value: formValues } = await Swal.fire({
                 title: '🎬 เพิ่มวิดีโอ Bunny.net ใหม่',
@@ -304,10 +240,8 @@
                 html: `
                     <div class="space-y-3 text-left text-xs">
                         <div>
-                            <label class="block font-bold mb-1">เลือกคอร์สที่ต้องการผูกวิดีโอ <span class="text-red-500">*</span></label>
-                            <select id="swalVideoCourse" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
-                                ${courseOptionsHtml}
-                            </select>
+                            <label class="block font-bold mb-1">คอร์สปัจจุบัน</label>
+                            <input class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="[${currentCourse.course_code || 'CRS'}] ${currentCourse.title}" disabled>
                         </div>
                         <div>
                             <label class="block font-bold mb-1">ชื่อหัวข้อวิดีโอ / บทเรียน <span class="text-red-500">*</span></label>
@@ -326,14 +260,13 @@
                 background: isDark ? '#090d16' : '#ffffff',
                 color: isDark ? '#f1f5f9' : '#1e293b',
                 preConfirm: () => {
-                    const cId = document.getElementById('swalVideoCourse').value;
                     const title = document.getElementById('swalVideoTitle').value.trim();
                     const bunnyId = document.getElementById('swalVideoBunnyId').value.trim();
                     if (!title || !bunnyId) {
                         Swal.showValidationMessage('กรุณากรอกชื่อหัวข้อและ Bunny Video ID ให้ครบถ้วน');
                         return false;
                     }
-                    return { course_id: cId, title, bunny_video_id: bunnyId, video_url: bunnyId };
+                    return { course_id: courseId, title, bunny_video_id: bunnyId, video_url: bunnyId };
                 }
             });
 
@@ -347,27 +280,20 @@
                 }
 
                 Swal.fire({ icon: 'success', title: 'เพิ่มวิดีโอสำเร็จ!', timer: 1200, showConfirmButton: false });
-                initVideoManagement();
+                initCourseDetail();
             }
         }
 
         async function openEditVideoModal(videoId) {
-            const video = allVideos.find(v => String(v.id) === String(videoId));
+            const video = courseLessons.find(v => String(v.id) === String(videoId));
             if (!video) return;
             const isDark = document.documentElement.classList.contains('dark');
-            let courseOptionsHtml = allCourses.map(c => `<option value="${c.id}" ${String(c.id) === video.course_id ? 'selected' : ''}>[${c.course_code || 'CRS'}] ${c.title}</option>`).join('');
 
             const { value: formValues } = await Swal.fire({
                 title: '✏️ แก้ไขข้อมูลวิดีโอ Bunny',
                 width: '550px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
-                        <div>
-                            <label class="block font-bold mb-1">เลือกคอร์สที่สังกัด <span class="text-red-500">*</span></label>
-                            <select id="swalEditCourse" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
-                                ${courseOptionsHtml}
-                            </select>
-                        </div>
                         <div>
                             <label class="block font-bold mb-1">ชื่อหัวข้อวิดีโอ <span class="text-red-500">*</span></label>
                             <input id="swalEditTitle" value="${video.title}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
@@ -385,14 +311,13 @@
                 background: isDark ? '#090d16' : '#ffffff',
                 color: isDark ? '#f1f5f9' : '#1e293b',
                 preConfirm: () => {
-                    const cId = document.getElementById('swalEditCourse').value;
                     const title = document.getElementById('swalEditTitle').value.trim();
                     const bunnyId = document.getElementById('swalEditBunnyId').value.trim();
                     if (!title || !bunnyId) {
                         Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบถ้วน');
                         return false;
                     }
-                    return { course_id: cId, title, bunny_video_id: bunnyId, video_url: bunnyId };
+                    return { title, bunny_video_id: bunnyId, video_url: bunnyId };
                 }
             });
 
@@ -406,7 +331,7 @@
                 }
 
                 Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลสำเร็จ!', timer: 1200, showConfirmButton: false });
-                initVideoManagement();
+                initCourseDetail();
             }
         }
 
@@ -423,12 +348,12 @@
 
             if (isConfirmed) {
                 await mySupabase.from('course_lessons').delete().eq('id', videoId);
-                initVideoManagement();
+                initCourseDetail();
                 Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1000, showConfirmButton: false });
             }
         }
 
-        initVideoManagement();
+        initCourseDetail();
     </script>
 </body>
 </html>
