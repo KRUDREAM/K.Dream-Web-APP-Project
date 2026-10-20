@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMS | เทปเรียนย้อนหลัง & เอกสารประกอบ</title>
+    <title>LMS | เทปเรียนย้อนหลัง Bunny.net & เอกสารประกอบ</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -36,20 +36,10 @@
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
         
-        /* 🛡️ แผ่นฟิล์มใสบล็อกมุมขวาบน */
-        .popout-blocker {
-            position: absolute; top: 0; right: 0; width: 140px; height: 65px; z-index: 50; background: transparent; cursor: not-allowed;
-        }
-
-        /* 🛡️ แผ่นฟิล์มใสบล็อกมุมขวาล่าง */
-        .youtube-link-blocker {
-            position: absolute; bottom: 0; right: 0; width: 150px; height: 60px; z-index: 50; background: transparent; cursor: not-allowed;
-        }
-
         .watermark-layer {
-            position: absolute; bottom: 16px; right: 160px; z-index: 45; pointer-events: none;
-            color: rgba(255, 255, 255, 0.25); font-size: 11px; font-weight: 600;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8); white-space: nowrap; letter-spacing: 0.5px; user-select: none;
+            position: absolute; bottom: 20px; right: 20px; z-index: 45; pointer-events: none;
+            color: rgba(255, 255, 255, 0.35); font-size: 11px; font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9); white-space: nowrap; user-select: none;
         }
 
         .hide-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -69,7 +59,7 @@
         <div class="max-w-7xl mx-auto px-2.5 sm:px-6">
             <div class="flex justify-between h-16 items-center gap-2">
                 <div class="flex items-center gap-2.5 min-w-0">
-                    <button onclick="goBackToStudentPortal()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm shrink-0">
+                    <button onclick="goBackToStudentPortal()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm shrink-0">
                         <i class="fas fa-arrow-left text-sm"></i>
                     </button>
                     <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-sky-500/30 shrink-0">
@@ -77,7 +67,7 @@
                     </div>
                     <div class="min-w-0">
                         <h1 class="font-extrabold text-xs sm:text-base text-slate-900 dark:text-white leading-tight truncate">Video & Materials</h1>
-                        <span class="text-[9px] sm:text-[10px] text-sky-600 dark:text-sky-400 font-bold tracking-wider uppercase truncate block">เทปเรียน & เอกสาร</span>
+                        <span class="text-[9px] sm:text-[10px] text-sky-600 dark:text-sky-400 font-bold tracking-wider uppercase truncate block">เทปเรียน Bunny.net & เอกสาร</span>
                     </div>
                 </div>
 
@@ -109,7 +99,7 @@
             </div>
             <div class="w-full md:w-80">
                 <div class="relative">
-                    <select id="courseSelector" onchange="onCourseChanged()" class="w-full pl-9 pr-9 py-2.5 sm:py-3 bg-white dark:bg-darkinput border-2 border-sky-400 dark:border-sky-600 rounded-2xl text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer shadow-md appearance-none">
+                    <select id="courseSelector" onchange="onCourseChanged()" class="w-full pl-4 pr-9 py-2.5 sm:py-3 bg-white dark:bg-darkinput border-2 border-sky-400 dark:border-sky-600 rounded-2xl text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer shadow-md appearance-none">
                         <option value="">-- กำลังตรวจสอบคอร์สของคุณ --</option>
                     </select>
                 </div>
@@ -153,7 +143,7 @@
                 </div>
 
                 <div id="playerWrapperContainer" class="player-container landscape shadow-inner">
-                    <div id="iframePlayerWrapper" class="w-full h-full relative flex items-center justify-center text-slate-500 text-xs bg-slate-900">
+                    <div id="bunnyPlayerWrapper" class="w-full h-full relative flex items-center justify-center text-slate-500 text-xs bg-slate-900">
                         <div class="text-center space-y-2 p-4">
                             <i class="fas fa-film text-3xl text-slate-600 animate-pulse"></i>
                             <p>ยังไม่ได้เลือกวิดีโอ</p>
@@ -161,12 +151,10 @@
                     </div>
                     
                     <div id="watermarkElement" class="watermark-layer">KRUDREAM LAND | กำลังโหลด...</div>
-                    <div class="popout-blocker" onclick="alertBlocked()"></div>
-                    <div class="youtube-link-blocker" onclick="alertBlocked()"></div>
                 </div>
 
                 <div class="flex justify-between items-center pt-1 text-[11px] text-slate-400">
-                    <span><i class="fas fa-shield-alt text-emerald-500 mr-1"></i> ป้องกันการดาวน์โหลดและลิงก์ออกนอกเว็บ • ปลอดภัยสูงสุด</span>
+                    <span><i class="fas fa-shield-alt text-emerald-500 mr-1"></i> ขับเคลื่อนด้วย Bunny Stream • ปลอดภัยสูงสุด 100%</span>
                     <span id="videoPublishDate">--</span>
                 </div>
             </div>
@@ -177,6 +165,9 @@
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // ⚙️ ตั้งค่า Bunny Library ID ของคุณ AP ตรงนี้ (เปลี่ยนเป็น Library ID จริงจากหน้า Bunny Dashboard)
+        const BUNNY_LIBRARY_ID = 'YOUR_BUNNY_LIBRARY_ID'; 
 
         let currentStudentId = null;
         let currentStudentName = 'นักเรียน';
@@ -281,14 +272,12 @@
                     return isEnrolled && isNotExpired;
                 });
 
-                // ดึงข้อมูลจาก course_lessons โดยตรง
                 const { data: fetchedLessons } = await mySupabase.from('course_lessons').select('*');
                 allLessons = (fetchedLessons || []).map(l => ({
                     id: l.id,
                     title: l.title || 'ไม่มีชื่อหัวข้อ',
                     course_id: String(l.course_id || ''),
-                    content_type: l.video_url ? 'video' : 'pdf',
-                    video_url: l.video_url || '',
+                    bunny_video_id: l.bunny_video_id || l.video_url || '',
                     pdf_url: l.pdf_url || '',
                     created_at: l.created_at || new Date().toISOString()
                 }));
@@ -331,7 +320,7 @@
             if (!currentCourseId) return;
             const courseItems = allLessons.filter(l => l.course_id === String(currentCourseId));
 
-            let videos = courseItems.filter(l => l.video_url);
+            let videos = courseItems.filter(l => l.bunny_video_id);
             let files = courseItems.filter(l => l.pdf_url);
 
             if (searchQuery) {
@@ -348,7 +337,7 @@
                 videoContainer.innerHTML = videos.map(v => {
                     const isActive = activeVideoId === v.id;
                     return `
-                        <div onclick="playSecureVideo('${v.id}', '${encodeURIComponent(v.title)}', '${v.created_at}', '${v.video_url}')" class="p-3 rounded-2xl cursor-pointer transition-all border ${isActive ? 'bg-sky-500/10 border-sky-500 shadow-sm' : 'bg-white dark:bg-darkinput border-slate-200 dark:border-slate-800'} flex items-center justify-between gap-2.5">
+                        <div onclick="playBunnyVideo('${v.id}', '${encodeURIComponent(v.title)}', '${v.created_at}', '${v.bunny_video_id}')" class="p-3 rounded-2xl cursor-pointer transition-all border ${isActive ? 'bg-sky-500/10 border-sky-500 shadow-sm' : 'bg-white dark:bg-darkinput border-slate-200 dark:border-slate-800'} flex items-center justify-between gap-2.5">
                             <div class="flex items-center gap-2.5 min-w-0">
                                 <div class="w-8 h-8 rounded-xl ${isActive ? 'bg-sky-600 text-white' : 'bg-sky-500/10 text-sky-500'} flex items-center justify-center font-bold text-xs shrink-0">
                                     <i class="fas ${isActive ? 'fa-play' : 'fa-video'} text-[10px]"></i>
@@ -363,7 +352,7 @@
                 }).join('');
 
                 if (!videos.some(v => v.id === activeVideoId)) {
-                    playSecureVideo(videos[0].id, encodeURIComponent(videos[0].title), videos[0].created_at, videos[0].video_url);
+                    playBunnyVideo(videos[0].id, encodeURIComponent(videos[0].title), videos[0].created_at, videos[0].bunny_video_id);
                 }
             }
 
@@ -384,49 +373,27 @@
             }
         }
 
-        // 🛡️ ฟังก์ชันถอดรหัส Base64 สดๆ และเปิดเล่นวิดีโออย่างปลอดภัย
-// 🛡️ ฟังก์ชันถอดรหัสและประกอบร่างลิงก์ YouTube แบบปลอดภัย 100% (รองรับทุกลักษณะลิงก์)
-function playSecureVideo(id, encodedTitle, createdAt, base64Key) {
-    activeVideoId = id;
-    document.getElementById('currentPlayingTitle').innerHTML = `<i class="fas fa-play-circle text-sky-500 shrink-0"></i> <span class="truncate">${decodeURIComponent(encodedTitle)}</span>`;
-    document.getElementById('videoPublishDate').textContent = `เผยแพร่เมื่อ: ${new Date(createdAt).toLocaleString('th-TH')}`;
+        // 🛡️ ฟังก์ชันเล่นวิดีโอผ่าน Bunny Stream Iframe Player อย่างปลอดภัย
+        function playBunnyVideo(id, encodedTitle, createdAt, bunnyVideoId) {
+            activeVideoId = id;
+            document.getElementById('currentPlayingTitle').innerHTML = `<i class="fas fa-play-circle text-sky-500 shrink-0"></i> <span class="truncate">${decodeURIComponent(encodedTitle)}</span>`;
+            document.getElementById('videoPublishDate').textContent = `เผยแพร่เมื่อ: ${new Date(createdAt).toLocaleString('th-TH')}`;
 
-    let rawValue = '';
-    try {
-        // ลองถอดรหัส Base64 ดูก่อน
-        rawValue = atob(base64Key);
-    } catch (e) {
-        rawValue = base64Key; // ถ้าถอดไม่ได้ให้ใช้ค่าตรงๆ
-    }
+            const wrapper = document.getElementById('bunnyPlayerWrapper');
+            
+            // ลิงก์ Embed อย่างเป็นทางการจาก Bunny Stream
+            const embedUrl = `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${bunnyVideoId}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
 
-    // ดึงเฉพาะรหัส YouTube 11 หลักที่ถูกต้องเสมอ ป้องกัน Error Playback ID
-    let ytId = rawValue;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = rawValue.match(regExp);
-    if (match && match[2].length === 11) {
-        ytId = match[2];
-    } else if (rawValue.length > 11) {
-        // เผื่อกรณีติดพารามิเตอร์ส่วนเกินมา ตัดเอา 11 ตัวแรกหรือตัวท้ายตามโครงสร้าง YouTube
-        ytId = rawValue.trim().slice(-11);
-    }
+            wrapper.innerHTML = `
+                <iframe src="${embedUrl}" loading="lazy" style="border:none;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
+            `;
 
-    const wrapper = document.getElementById('iframePlayerWrapper');
-    const secureEmbedUrl = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&modestbranding=1&rel=0&iv_load_policy=3&controls=1`;
-
-    wrapper.innerHTML = `
-        <iframe class="w-full h-full absolute inset-0" src="${secureEmbedUrl}" title="Secure LMS Player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-    `;
-
-    if (window.innerWidth < 1024) toggleSidebar();
-}
+            if (window.innerWidth < 1024) toggleSidebar();
+        }
 
         function resetPlayerToEmpty() {
             activeVideoId = null;
-            document.getElementById('iframePlayerWrapper').innerHTML = `<div class="text-center p-4 text-xs text-slate-500"><p>ไม่มีวิดีโอในคอร์สนี้</p></div>`;
-        }
-
-        function alertBlocked() {
-            Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: '🔒 ระบบปิดกั้นการเปิดหน้าต่างภายนอก', showConfirmButton: false, timer: 1500 });
+            document.getElementById('bunnyPlayerWrapper').innerHTML = `<div class="text-center p-4 text-xs text-slate-500"><p>ไม่มีวิดีโอในคอร์สนี้</p></div>`;
         }
 
         initVideoVault();
