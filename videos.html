@@ -385,28 +385,40 @@
         }
 
         // 🛡️ ฟังก์ชันถอดรหัส Base64 สดๆ และเปิดเล่นวิดีโออย่างปลอดภัย
-        function playSecureVideo(id, encodedTitle, createdAt, base64Key) {
-            activeVideoId = id;
-            document.getElementById('currentPlayingTitle').innerHTML = `<i class="fas fa-play-circle text-sky-500 shrink-0"></i> <span class="truncate">${decodeURIComponent(encodedTitle)}</span>`;
-            document.getElementById('videoPublishDate').textContent = `เผยแพร่เมื่อ: ${new Date(createdAt).toLocaleString('th-TH')}`;
+// 🛡️ ฟังก์ชันถอดรหัสและประกอบร่างลิงก์ YouTube แบบปลอดภัย 100% (รองรับทุกลักษณะลิงก์)
+function playSecureVideo(id, encodedTitle, createdAt, base64Key) {
+    activeVideoId = id;
+    document.getElementById('currentPlayingTitle').innerHTML = `<i class="fas fa-play-circle text-sky-500 shrink-0"></i> <span class="truncate">${decodeURIComponent(encodedTitle)}</span>`;
+    document.getElementById('videoPublishDate').textContent = `เผยแพร่เมื่อ: ${new Date(createdAt).toLocaleString('th-TH')}`;
 
-            let ytId = '';
-            try {
-                // ถอดรหัส Base64 กลับเป็นรหัส YouTube 11 หลัก
-                ytId = atob(base64Key);
-            } catch (e) {
-                ytId = base64Key; // เผื่อกรณีข้อมูลเก่า
-            }
+    let rawValue = '';
+    try {
+        // ลองถอดรหัส Base64 ดูก่อน
+        rawValue = atob(base64Key);
+    } catch (e) {
+        rawValue = base64Key; // ถ้าถอดไม่ได้ให้ใช้ค่าตรงๆ
+    }
 
-            const wrapper = document.getElementById('iframePlayerWrapper');
-            const secureEmbedUrl = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&modestbranding=1&rel=0&iv_load_policy=3&controls=1`;
+    // ดึงเฉพาะรหัส YouTube 11 หลักที่ถูกต้องเสมอ ป้องกัน Error Playback ID
+    let ytId = rawValue;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = rawValue.match(regExp);
+    if (match && match[2].length === 11) {
+        ytId = match[2];
+    } else if (rawValue.length > 11) {
+        // เผื่อกรณีติดพารามิเตอร์ส่วนเกินมา ตัดเอา 11 ตัวแรกหรือตัวท้ายตามโครงสร้าง YouTube
+        ytId = rawValue.trim().slice(-11);
+    }
 
-            wrapper.innerHTML = `
-                <iframe class="w-full h-full absolute inset-0" src="${secureEmbedUrl}" title="Secure LMS Player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-            `;
+    const wrapper = document.getElementById('iframePlayerWrapper');
+    const secureEmbedUrl = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&modestbranding=1&rel=0&iv_load_policy=3&controls=1`;
 
-            if (window.innerWidth < 1024) toggleSidebar();
-        }
+    wrapper.innerHTML = `
+        <iframe class="w-full h-full absolute inset-0" src="${secureEmbedUrl}" title="Secure LMS Player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    `;
+
+    if (window.innerWidth < 1024) toggleSidebar();
+}
 
         function resetPlayerToEmpty() {
             activeVideoId = null;
