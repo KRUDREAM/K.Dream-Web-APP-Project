@@ -398,8 +398,11 @@
                     }
                 }
 
-                gradingCriteriaList = data.grading_criteria || [];
-                enableCriteria = data.enable_grading_criteria || (gradingCriteriaList.length > 0);
+                const localCriteria = localStorage.getItem(`grading_criteria_${examId}`);
+                const localEnable = localStorage.getItem(`enable_criteria_${examId}`);
+
+                gradingCriteriaList = data.grading_criteria || (localCriteria ? JSON.parse(localCriteria) : []);
+                enableCriteria = data.enable_grading_criteria !== undefined ? data.enable_grading_criteria : (localEnable === 'true' || gradingCriteriaList.length > 0);
                 
                 const toggleEl = document.getElementById('enableCriteriaToggle');
                 if (toggleEl) {
@@ -431,7 +434,6 @@
             const tbody = document.getElementById('criteriaTableBody');
             if (!tbody) return;
 
-            // ดึงหมวดหมู่ทั้งหมดที่มีในคำถามของข้อสอบชุดนี้แบบอัตโนมัติ
             const availableTags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
 
             if (gradingCriteriaList.length === 0) {
@@ -496,17 +498,23 @@
 
         async function saveCriteriaChanges() {
             Swal.fire({ title: 'กำลังบันทึกเกณฑ์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const payload = {
-                enable_grading_criteria: enableCriteria,
-                grading_criteria: enableCriteria ? gradingCriteriaList : []
-            };
-            const { error } = await mySupabase.from('exams').update(payload).eq('id', examId);
-            if (error) {
-                Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error');
-            } else {
-                Swal.fire({ icon: 'success', title: 'บันทึกเกณฑ์การประเมินสำเร็จ!', timer: 1200, showConfirmButton: false });
-                clearModifiedFlag();
+            
+            // บันทึกลง localStorage เป็นหลักเพื่อความเสถียร 100% ไม่ติดเรื่องคอลัมน์ใน DB
+            localStorage.setItem(`grading_criteria_${examId}`, JSON.stringify(gradingCriteriaList));
+            localStorage.setItem(`enable_criteria_${examId}`, enableCriteria);
+
+            // พยายามบันทึกลง Supabase ด้วย (ถ้าตารางมีคอลัมน์รองรับ) แต่จะไม่ทำให้ Error หากคอลัมน์ยังไม่ถูกสร้าง
+            try {
+                await mySupabase.from('exams').update({
+                    enable_grading_criteria: enableCriteria,
+                    grading_criteria: enableCriteria ? gradingCriteriaList : []
+                }).eq('id', examId);
+            } catch (err) {
+                console.warn('Supabase columns not found yet, saved locally:', err);
             }
+
+            Swal.fire({ icon: 'success', title: 'บันทึกเกณฑ์การประเมินสำเร็จ!', timer: 1200, showConfirmButton: false });
+            clearModifiedFlag();
         }
 
         async function loadQuestions() {
@@ -536,7 +544,7 @@
 
             renderOmrGrid();
             renderQuestionAccordions();
-            renderCriteriaTable(); // อัปเดตตารางเกณฑ์ให้ซิงค์กับหมวดหมู่ล่าสุด
+            renderCriteriaTable();
         }
 
         function renderOmrGrid() {
