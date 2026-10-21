@@ -481,68 +481,35 @@
         async function loadEnrolledStudents() {
             let totalStudents = new Set();
             
-            let validStudentIds = new Set();
             try {
-                const [profilesRes, studentsRes] = await Promise.all([
-                    mySupabase.from('profiles').select('id, user_id, student_id').catch(() => ({ data: [] })),
-                    mySupabase.from('students').select('id, user_id').catch(() => ({ data: [] }))
-                ]);
-
-                if (profilesRes.data) {
-                    profilesRes.data.forEach(p => {
-                        if (!isUserAdmin(p)) {
-                            if (p.id) validStudentIds.add(String(p.id));
-                            if (p.user_id) validStudentIds.add(String(p.user_id));
-                            if (p.student_id) validStudentIds.add(String(p.student_id));
-                        }
-                    });
-                }
-                if (studentsRes.data) {
-                    studentsRes.data.forEach(s => {
-                        if (s.id) validStudentIds.add(String(s.id));
-                        if (s.user_id) validStudentIds.add(String(s.user_id));
-                    });
-                }
-            } catch (e) { console.warn("Valid students filter error:", e); }
-
-            try {
-                const [en1Res, en2Res] = await Promise.all([
+                // ดึงข้อมูลดิบจากทุกตารางมาดูโครงสร้าง
+                const [en1, en2] = await Promise.all([
                     mySupabase.from('course_enrollments').select('*').catch(() => ({ data: [] })),
                     mySupabase.from('enrollments').select('*').catch(() => ({ data: [] }))
                 ]);
 
-                const allEnrolls = [...(en1Res.data || []), ...(en2Res.data || [])];
-                allEnrolls.forEach(e => {
-                    const cId = String(e.course_id || e.courseid || '');
-                    if (cId === String(courseId)) {
-                        const sId = String(e.student_id || e.user_id || '');
-                        if (sId) {
-                            if (validStudentIds.size === 0 || validStudentIds.has(sId)) {
-                                totalStudents.add(sId);
-                            }
-                        }
-                    }
-                });
-            } catch (e) { console.warn(e); }
+                console.log("DEBUG ENROLL 1 (course_enrollments):", en1.data);
+                console.log("DEBUG ENROLL 2 (enrollments):", en2.data);
+                console.log("DEBUG COURSE ID ปัจจุบัน:", courseId);
 
-            if (allExams && allExams.length > 0 && allAttempts) {
-                const examIds = new Set(allExams.map(e => String(e.id)));
-                allAttempts.forEach(a => {
-                    if (examIds.has(String(a.exam_id))) {
-                        const sId = String(a.student_id || a.user_id || '');
-                        if (sId) {
-                            const profile = allProfilesMap[sId];
-                            if (!profile || !isUserAdmin(profile)) {
-                                if (validStudentIds.size === 0 || validStudentIds.has(sId)) {
-                                    totalStudents.add(sId);
-                                }
-                            }
+                const all = [...(en1.data || []), ...(en2.data || [])];
+                all.forEach(row => {
+                    // วนลูปเช็คทุกคอลัมน์ที่เป็นไปได้ว่าเก็บ course_id และ student_id
+                    const foundCourse = Object.values(row).some(val => String(val) === String(courseId));
+                    if (foundCourse) {
+                        // ถ้าเจอคอร์สนี้ ให้หาค่า ID นักเรียนจากทุกฟิลด์ที่เป็นไปได้
+                        const sId = row.student_id || row.user_id || row.id || row.studentId || row.userId;
+                        if (sId && String(sId) !== String(courseId)) {
+                            totalStudents.add(String(sId));
                         }
                     }
                 });
+            } catch (err) {
+                console.warn("Load Enrolled Error:", err);
             }
 
             courseEnrolledStudentIds = Array.from(totalStudents);
+            console.log("DEBUG จำนวนนักเรียนที่นับได้จริง:", courseEnrolledStudentIds.length, courseEnrolledStudentIds);
 
             const countEl = document.getElementById('courseEnrolledStudentsCount');
             const badgeEl = document.getElementById('enrolledCountBadge');
@@ -972,7 +939,7 @@
 
         function previewVideo(bunnyId, videoTitle) {
             const isDark = document.documentElement.classList.contains('dark');
-            let embedUrl = bunnyId.startsWith('http') ? bunnyId : `https://iframe.mediadelivery.net/embed/YOUR_LIBRARY_ID/${bunnyId}`;
+            let embedUrl = bunnyId.startsWith('http') ? bunnyId : `https://iframe.mediadelivery.net/embed/785115/${bunnyId}`;
             
             Swal.fire({
                 title: `🎬 ดูตัวอย่าง: ${videoTitle}`,
