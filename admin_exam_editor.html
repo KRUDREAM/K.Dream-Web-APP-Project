@@ -263,6 +263,16 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function markAsModified() {
             hasUnsavedChanges = true;
             const banner = document.getElementById('floatingSaveBanner');
@@ -429,10 +439,10 @@
             tbody.innerHTML = gradingCriteriaList.map((item, idx) => `
                 <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40">
                     <td class="p-2.5">
-                        <input type="text" value="${item.category || ''}" onchange="updateCriteriaData(${idx}, 'category', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none text-sky-600 dark:text-sky-400" placeholder="เช่น ฟิสิกส์คำนวณ">
+                        <input type="text" value="${escapeHtml(item.category || '')}" onchange="updateCriteriaData(${idx}, 'category', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none text-sky-600 dark:text-sky-400" placeholder="เช่น ฟิสิกส์คำนวณ">
                     </td>
                     <td class="p-2.5">
-                        <input type="text" value="${item.name || ''}" onchange="updateCriteriaData(${idx}, 'name', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none" placeholder="เช่น ดีเยี่ยม / ผ่าน">
+                        <input type="text" value="${escapeHtml(item.name || '')}" onchange="updateCriteriaData(${idx}, 'name', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none" placeholder="เช่น ดีเยี่ยม / ผ่าน">
                     </td>
                     <td class="p-2.5">
                         <input type="number" min="0" max="100" value="${item.min_pct !== undefined ? item.min_pct : 0}" onchange="updateCriteriaData(${idx}, 'min_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="0">
@@ -497,7 +507,7 @@
             if (chipsSec) {
                 chipsSec.innerHTML = Object.keys(tagCounts).map(tag => `
                     <span class="px-3 py-1 bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 rounded-full font-bold text-xs border border-sky-300 dark:border-sky-800">
-                        🏷️ ${tag}: ${tagCounts[tag]} ข้อ
+                        🏷️ ${escapeHtml(tag)}: ${tagCounts[tag]} ข้อ
                     </span>
                 `).join('');
             }
@@ -505,7 +515,7 @@
             const tags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
             const dd = document.getElementById('categoryFilterDropdown');
             if (dd) {
-                dd.innerHTML = '<option value="ALL">📂 แสดงหมวดหมู่โจทย์ทั้งหมด</option>' + tags.map(t => `<option value="${t}">🏷️ หมวดหมู่: ${t}</option>`).join('');
+                dd.innerHTML = '<option value="ALL">📂 แสดงหมวดหมู่โจทย์ทั้งหมด</option>' + tags.map(t => `<option value="${escapeHtml(t)}">🏷️ หมวดหมู่: ${escapeHtml(t)}</option>`).join('');
             }
 
             renderOmrGrid();
@@ -542,7 +552,7 @@
 
                 const bubblesHtml = opts.map((cLabel, cIdx) => {
                     const isSelected = String(q.correct_answer) === String(cIdx);
-                    return `<div onclick="selectOmrChoice('${qId}', '${cIdx}')" class="omr-bubble-lg ${isSelected ? 'active' : ''}">${cLabel}</div>`;
+                    return `<div onclick="selectOmrChoice('${qId}', '${cIdx}')" class="omr-bubble-lg ${isSelected ? 'active' : ''}">${escapeHtml(cLabel)}</div>`;
                 }).join('');
 
                 return `
@@ -582,7 +592,7 @@
                 if (isEssay) {
                     let kwBadges = '';
                     if (q.keywords && Array.isArray(q.keywords)) {
-                        kwBadges = q.keywords.map(k => `<span class="px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded border border-amber-300">${k.word || ''} (${k.mode === 'exact' ? 'ตรงเป๊ะ' : 'มีในข้อความ'})</span>`).join(' ');
+                        kwBadges = q.keywords.map(k => `<span class="px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded border border-amber-300">${escapeHtml(k.word || '')} (${k.mode === 'exact' ? 'ตรงเป๊ะ' : 'มีในข้อความ'})</span>`).join(' ');
                     }
                     const keywordsTag = kwBadges ? `<div class="text-[11px] text-slate-500">คำสำคัญ: ${kwBadges}</div>` : '';
                     optionsListHtml = `<div class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl text-xs text-amber-600 dark:text-amber-300 font-bold space-y-1">
@@ -595,16 +605,16 @@
                         const displayLabel = standardLabels[i] || String.fromCharCode(65+i);
                         const correctBadge = isCorrect ? '<span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] rounded-md font-bold"><i class="fas fa-check mr-1"></i>เฉลยถูกต้อง</span>' : '';
                         return `<div class="px-3 py-2 rounded-xl border text-xs flex items-center justify-between ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 font-bold text-emerald-700 dark:text-emerald-300' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}">
-                            <span><strong class="mr-1">${displayLabel}:</strong> ${opt}</span>
+                            <span><strong class="mr-1">${displayLabel}:</strong> ${escapeHtml(opt)}</span>
                             ${correctBadge}
                         </div>`;
                     }).join('');
                 }
 
                 const qNum = q.question_number || (idx+1);
-                const categoryBadge = q.category_tag ? `<span class="px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-600 font-bold text-[10px]">${q.category_tag}</span>` : '';
-                const imgTag = q.image_url ? `<div class="mb-2"><img src="${q.image_url}" class="max-h-48 rounded-xl border border-slate-300 shadow-sm"></div>` : '';
-                const qText = q.question_text || q.content || 'คำถามในกระดาษ OMR';
+                const categoryBadge = q.category_tag ? `<span class="px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-600 font-bold text-[10px]">${escapeHtml(q.category_tag)}</span>` : '';
+                const imgTag = q.image_url ? `<div class="mb-2"><img src="${escapeHtml(q.image_url)}" class="max-h-48 rounded-xl border border-slate-300 shadow-sm"></div>` : '';
+                const qText = escapeHtml(q.question_text || q.content || 'คำถามในกระดาษ OMR');
                 const qId = q.id;
 
                 return `
@@ -698,7 +708,7 @@
             div.innerHTML = `
                 <input type="radio" name="swalCorrectRadio" value="${currentCount}">
                 <span class="font-bold w-6">${label}:</span>
-                <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${label}">
+                <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(label)}">
                 <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>
             `;
             container.appendChild(div);
@@ -753,15 +763,15 @@
                 const deleteBtn = i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>` : '';
                 return `<div class="flex items-center gap-2 option-row">
                     <input type="radio" name="swalCorrectRadio" value="${i}" ${isChecked ? 'checked' : ''}>
-                    <span class="font-bold w-6">${label}:</span>
-                    <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${opt}">
+                    <span class="font-bold w-6">${escapeHtml(label)}:</span>
+                    <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(opt)}">
                     ${deleteBtn}
                 </div>`;
             }).join('');
 
             let keywordsHtml = currentKeywords.map(k => {
                 return `<div class="flex items-center gap-2 keyword-row">
-                    <input class="kw-text flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${k.word || ''}" placeholder="พิมพ์คำตอบ/คำสำคัญ...">
+                    <input class="kw-text flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(k.word || '')}" placeholder="พิมพ์คำตอบ/คำสำคัญ...">
                     <select class="kw-mode px-2 py-1 border rounded-xl dark:bg-slate-800 text-[10px]">
                         <option value="contains" ${k.mode === 'contains' ? 'selected' : ''}>มีอยู่ในข้อความ</option>
                         <option value="exact" ${k.mode === 'exact' ? 'selected' : ''}>ถูกต้องเป๊ะ ๆ</option>
@@ -782,7 +792,7 @@
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">หมวดหมู่ย่อยโจทย์</label>
-                                <input id="qCategoryTag" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" placeholder="เช่น ฟิสิกส์คำนวณ" value="${qData?.category_tag || ''}">
+                                <input id="qCategoryTag" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" placeholder="เช่น ฟิสิกส์คำนวณ" value="${escapeHtml(qData?.category_tag || '')}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">ประเภทข้อสอบ</label>
@@ -795,13 +805,13 @@
 
                         <div>
                             <label class="block font-bold mb-1">คำถาม / ข้อความโจทย์</label>
-                            <textarea id="qText" rows="3" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800">${qData?.question_text || qData?.content || ''}</textarea>
+                            <textarea id="qText" rows="3" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800">${escapeHtml(qData?.question_text || qData?.content || '')}</textarea>
                         </div>
 
                         <div>
                             <label class="block font-bold mb-1">รูปภาพประกอบโจทย์ (ถ้ามี)</label>
                             <div class="flex gap-2 items-center">
-                                <input id="qImageUrl" class="flex-1 px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-[11px]" value="${qData?.image_url || ''}" placeholder="URL รูปภาพหรืออัปโหลดจากปุ่มขวา...">
+                                <input id="qImageUrl" class="flex-1 px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-[11px]" value="${escapeHtml(qData?.image_url || '')}" placeholder="URL รูปภาพหรืออัปโหลดจากปุ่มขวา...">
                                 <label class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold text-xs cursor-pointer">
                                     <i class="fas fa-upload mr-1"></i> อัปรูป
                                     <input type="file" accept="image/*" class="hidden" onchange="uploadQuestionImage(this)">
