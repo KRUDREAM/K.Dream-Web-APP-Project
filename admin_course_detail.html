@@ -477,50 +477,41 @@
             renderFiles(files);
         }
 
-        async function loadEnrolledStudents() {
-            // ดึงข้อมูลรายชื่อบัญชีนักเรียนที่มีตัวตนจริงจาก profiles และ students เพื่อกรองบัญชีที่ถูกลบออก
-            const [profilesRes, studentsRes, en1Res, en2Res] = await Promise.all([
-                mySupabase.from('profiles').select('id, user_id'),
-                mySupabase.from('students').select('id'),
-                mySupabase.from('course_enrollments').select('student_id, user_id').eq('course_id', courseId),
-                mySupabase.from('enrollments').select('student_id, user_id').eq('course_id', courseId)
-            ]);
-
-            validStudentIds = new Set();
-            if (profilesRes.data) {
-                profilesRes.data.forEach(p => {
-                    if (p.id) validStudentIds.add(String(p.id));
-                    if (p.user_id) validStudentIds.add(String(p.user_id));
-                });
-            }
-            if (studentsRes.data) {
-                studentsRes.data.forEach(s => {
-                    if (s.id) validStudentIds.add(String(s.id));
-                });
-            }
-
-            const rawEnrolledIds = new Set();
-            if (en1Res.data) {
-                en1Res.data.forEach(e => {
-                    if (e.student_id) rawEnrolledIds.add(String(e.student_id));
-                    if (e.user_id) rawEnrolledIds.add(String(e.user_id));
-                });
-            }
-            if (en2Res.data) {
-                en2Res.data.forEach(e => {
-                    if (e.student_id) rawEnrolledIds.add(String(e.student_id));
-                    if (e.user_id) rawEnrolledIds.add(String(e.user_id));
-                });
-            }
-
-            // กรองเฉพาะ ID ที่มีตัวตนอยู่จริงและไม่ซ้ำกัน
-            courseEnrolledStudentIds = [];
-            rawEnrolledIds.forEach(id => {
-                if (validStudentIds.size === 0 || validStudentIds.has(id)) {
-                    courseEnrolledStudentIds.push(id);
+       async function loadEnrolledStudents() {
+            let totalStudents = new Set();
+            
+            try {
+                // 1. ลองดึงจากตาราง course_enrollments (เช็คทั้ง student_id และ user_id)
+                const { data: en1, error: err1 } = await mySupabase.from('course_enrollments').select('*').eq('course_id', courseId);
+                if (!err1 && en1) {
+                    en1.forEach(e => {
+                        if (e.student_id) totalStudents.add(String(e.student_id));
+                        if (e.user_id) totalStudents.add(String(e.user_id));
+                    });
                 }
-            });
+            } catch (e) { console.warn(e); }
 
+            try {
+                // 2. ลองดึงจากตาราง enrollments (เช็คทั้ง student_id และ user_id)
+                const { data: en2, error: err2 } = await mySupabase.from('enrollments').select('*').eq('course_id', courseId);
+                if (!err2 && en2) {
+                    en2.forEach(e => {
+                        if (e.student_id) totalStudents.add(String(e.student_id));
+                        if (e.user_id) totalStudents.add(String(e.user_id));
+                    });
+                }
+            } catch (e) { console.warn(e); }
+
+            // 3. หากยังเป็น 0 ลองเช็คเผื่อตาราง courses มีการเก็บรายชื่อนักเรียนเป็น Array (เช่น enrolled_students หรือ students)
+            if (totalStudents.size === 0 && currentCourse) {
+                if (Array.isArray(currentCourse.enrolled_students)) {
+                    currentCourse.enrolled_students.forEach(id => totalStudents.add(String(id)));
+                } else if (Array.isArray(currentCourse.students)) {
+                    currentCourse.students.forEach(id => totalStudents.add(String(id)));
+                }
+            }
+
+            courseEnrolledStudentIds = Array.from(totalStudents);
             document.getElementById('courseEnrolledStudentsCount').textContent = `${courseEnrolledStudentIds.length} คน`;
             document.getElementById('enrolledCountBadge').textContent = courseEnrolledStudentIds.length;
         }
