@@ -127,6 +127,11 @@
                     <span id="announcementBadge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center shadow-md hidden animate-pulse">0</span>
                 </button>
 
+                <!-- 🌟 ปุ่มนโยบายความเป็นส่วนตัว (Privacy Policy) -->
+                <button onclick="openPrivacyPolicyModal()" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="นโยบายความเป็นส่วนตัว">
+                    <i class="fas fa-shield-alt text-xs"></i>
+                </button>
+
                 <button onclick="openProfileSettingsModal()" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="ตั้งค่าโปรไฟล์">
                     <i class="fas fa-cog text-xs"></i>
                 </button>
@@ -541,6 +546,41 @@
             } catch (err) {
                 console.warn("Notification count warning:", err);
             }
+        }
+
+        // 🌟 ฟังก์ชันแสดงหน้าต่างนโยบายความเป็นส่วนตัว (Privacy Policy Modal)
+        function openPrivacyPolicyModal() {
+            const isDark = document.documentElement.classList.contains('dark');
+            Swal.fire({
+                title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-shield-alt"></i> นโยบายความเป็นส่วนตัว (Privacy Policy)</span>`,
+                html: `
+                    <div class="space-y-3 text-left text-xs sm:text-sm max-h-[60vh] overflow-y-auto pr-2">
+                        <p class="text-slate-600 dark:text-slate-300 font-light">
+                            เว็บไซต์ <strong>KRUDREAM LAND</strong> ให้ความสำคัญกับการคุ้มครองข้อมูลส่วนบุคคลของคุณ เพื่อความโปร่งใสในการใช้งานระบบการเรียนการสอนออนไลน์ เราจึงขอแจ้งนโยบายการเก็บรวบรวมและใช้ข้อมูลดังต่อไปนี้:
+                        </p>
+                        <div class="space-y-2">
+                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
+                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400"><i class="fas fa-database mr-1"></i> 1. ข้อมูลที่เราจัดเก็บ</h4>
+                                <p class="text-slate-600 dark:text-slate-300 font-light">ข้อมูลส่วนตัว (ชื่อ-นามสกุล, ชื่อเล่น, ระดับชั้น, โรงเรียน, LINE ID), ข้อมูลการเข้าสู่ระบบ, ผลคะแนนสอบ และประวัติการทำกิจกรรมในระบบ</p>
+                            </div>
+                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
+                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400"><i class="fas fa-bullseye mr-1"></i> 2. วัตถุประสงค์ในการเก็บข้อมูล</h4>
+                                <p class="text-slate-600 dark:text-slate-300 font-light">ใช้สำหรับการจัดการเรียนการสอน, ตรวจสอบสิทธิ์เข้าคอร์ส, บันทึกผลคะแนนสอบ, ประมวลผลสถิติพัฒนาการการเรียนรู้ และการสะสม Token เพื่อแลกรางวัล</p>
+                            </div>
+                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
+                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400"><i class="fas fa-lock mr-1"></i> 3. ความปลอดภัยของข้อมูล</h4>
+                                <p class="text-slate-600 dark:text-slate-300 font-light">ข้อมูลทั้งหมดถูกจัดเก็บไว้อย่างปลอดภัยผ่านระบบฐานข้อมูลที่มีมาตรฐาน (Supabase) และไม่มีการนำไปเผยแพร่หรือจำหน่ายให้แก่บุคคลภายนอกเด็ดขาด</p>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'รับทราบและปิด',
+                confirmButtonColor: '#0284c7',
+                width: '600px',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                customClass: { popup: 'rounded-3xl shadow-2xl' }
+            });
         }
 
         async function openEnrolledCoursesModal() {
@@ -1146,7 +1186,6 @@
             return sectionHtml;
         }
 
-        // 🌟 อัปเดตฟังก์ชัน handleExamClick ให้แสดงหน้า Instruction ก่อนเข้าสอบจริง
         async function handleExamClick(examId, action, attemptId) {
             const exam = allExams.find(e => e.id === examId);
             if (!exam) return;
