@@ -98,7 +98,7 @@
 
     <main class="max-w-7xl mx-auto px-4 pt-20 space-y-6">
         
-        <!-- แผงอัปโหลด PDF โจทย์ข้อสอบ -->
+        <!-- PDF Upload Panel -->
         <div id="pdfUploadCard" class="hitech-card p-5 rounded-2xl space-y-3 border-l-4 border-l-red-500">
             <div class="flex justify-between items-center">
                 <h3 class="font-bold text-sm flex items-center gap-2 text-red-600 dark:text-red-400">
@@ -123,7 +123,7 @@
             </div>
         </div>
 
-        <!-- 🌟 แผงตั้งค่าเกณฑ์การประเมิน (เปิด/ปิดการใช้งานได้) -->
+        <!-- Grading Criteria Panel -->
         <div class="hitech-card p-6 rounded-2xl space-y-4 border-l-4 border-l-purple-500">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div>
@@ -139,7 +139,6 @@
                 </label>
             </div>
 
-            <!-- ส่วนตารางเกณฑ์ที่จะซ่อน/แสดงตาม Switch -->
             <div id="criteriaSectionBody" class="space-y-4 hidden">
                 <div class="flex justify-between items-center">
                     <span class="text-xs text-slate-400">กำหนดหมวดหมู่โจทย์, ช่วงเปอร์เซ็นต์ (% ถึง %) และระดับผลการประเมิน</span>
@@ -219,7 +218,7 @@
         </div>
     </main>
 
-    <!-- แบนเนอร์ลอยเตือนให้บันทึก -->
+    <!-- Floating Save Banner -->
     <div id="floatingSaveBanner" class="bottom-floating-banner">
         <div id="floatingBannerInner" class="px-6 py-3.5 bg-slate-900/90 dark:bg-slate-100/90 backdrop-blur-md text-white dark:text-slate-900 rounded-full shadow-2xl border border-sky-500/50 flex items-center gap-4">
             <div class="flex items-center gap-2 text-xs font-bold">
@@ -389,7 +388,6 @@
                     }
                 }
 
-                // 🌟 โหลดค่าเกณฑ์และการเปิดใช้งาน
                 gradingCriteriaList = data.grading_criteria || [];
                 enableCriteria = data.enable_grading_criteria || (gradingCriteriaList.length > 0);
                 
@@ -658,6 +656,70 @@
             }
         }
 
+        // Global functions for SweetAlert / HTML handlers
+        window.toggleQuestionTypeModal = function(val) {
+            const mcSec = document.getElementById('mcSection');
+            const esSec = document.getElementById('essaySection');
+            if (mcSec) mcSec.className = val === 'essay' ? 'hidden' : 'space-y-2 pt-2 border-t dark:border-slate-800';
+            if (esSec) esSec.className = val === 'essay' ? 'space-y-3 pt-2 border-t dark:border-slate-800' : 'hidden';
+        };
+
+        window.toggleGradingTypeSec = function(val) {
+            const kwSec = document.getElementById('keywordSec');
+            if (kwSec) kwSec.className = val === 'keyword' ? 'space-y-2' : 'hidden';
+        };
+
+        window.addOptionField = function() {
+            const container = document.getElementById('optionsInputsContainer');
+            if (!container) return;
+            const currentCount = container.querySelectorAll('.option-row').length;
+            if (currentCount >= 5) { Swal.fire('ข้อจำกัด', 'เพิ่มตัวเลือกได้สูงสุด 5 ตัวเลือกเท่านั้น', 'info'); return; }
+
+            const formatType = currentExamData?.choice_format || 'num';
+            const standardLabels = getChoiceLabels(formatType, 5);
+            const label = standardLabels[currentCount] || String.fromCharCode(65 + currentCount);
+
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-2 option-row';
+            div.innerHTML = `
+                <input type="radio" name="swalCorrectRadio" value="${currentCount}">
+                <span class="font-bold w-6">${label}:</span>
+                <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${label}">
+                <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>
+            `;
+            container.appendChild(div);
+        };
+
+        window.addKeywordField = function() {
+            const container = document.getElementById('keywordsContainer');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-2 keyword-row';
+            div.innerHTML = `
+                <input class="kw-text flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" placeholder="พิมพ์คำตอบ/คำสำคัญ...">
+                <select class="kw-mode px-2 py-1 border rounded-xl dark:bg-slate-800 text-[10px]">
+                    <option value="contains">มีอยู่ในข้อความ</option>
+                    <option value="exact">ถูกต้องเป๊ะ ๆ</option>
+                </select>
+                <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>
+            `;
+            container.appendChild(div);
+        };
+
+        window.uploadQuestionImage = async function(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const fileName = `img_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+            const { error } = await mySupabase.storage.from('exam_images').upload(fileName, file);
+            if (!error) {
+                const { data } = mySupabase.storage.from('exam_images').getPublicUrl(fileName);
+                if (data) {
+                    const imgInp = document.getElementById('qImageUrl');
+                    if (imgInp) imgInp.value = data.publicUrl;
+                }
+            } else { Swal.fire('อัปโหลดล้มเหลว', error.message, 'error'); }
+        };
+
         async function openQuestionModal(qData = null) {
             const isEdit = !!qData;
             const formatType = currentExamData?.choice_format || 'num';
@@ -674,7 +736,7 @@
                         <div class="grid grid-cols-3 gap-2">
                             <div>
                                 <label class="block font-bold mb-1">ข้อที่</label>
-                                <input type="number" id="qNum" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" value="${qData?.question_number || 1}">
+                                <input type="number" id="qNum" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" value="${qData?.question_number || (cachedQuestions.length + 1)}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">หมวดหมู่ย่อยโจทย์</label>
@@ -713,7 +775,7 @@
                             <div id="optionsInputsContainer" class="space-y-1.5">
                                 ${currentOpts.map((opt, i) => `
                                     <div class="flex items-center gap-2 option-row">
-                                        <input type="radio" name="swalCorrectRadio" value="${i}" ${String(qData?.correct_answer) === String(i) ? 'checked' : ''}>
+                                        <input type="radio" name="swalCorrectRadio" value="${i}" ${String(qData?.correct_answer) === String(i) || (!qData && i === 0) ? 'checked' : ''}>
                                         <span class="font-bold w-6">${standardLabels[i] || String.fromCharCode(65+i)}:</span>
                                         <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${opt}">
                                         ${i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>` : ''}
@@ -791,69 +853,6 @@
                 markAsModified();
                 loadQuestions();
             }
-        }
-
-        window.toggleQuestionTypeModal = function(val) {
-            const mcSec = document.getElementById('mcSection');
-            const esSec = document.getElementById('essaySection');
-            if (mcSec) mcSec.className = val === 'essay' ? 'hidden' : 'space-y-2 pt-2 border-t dark:border-slate-800';
-            if (esSec) esSec.className = val === 'essay' ? 'space-y-3 pt-2 border-t dark:border-slate-800' : 'hidden';
-        }
-
-        window.toggleGradingTypeSec = function(val) {
-            const kwSec = document.getElementById('keywordSec');
-            if (kwSec) kwSec.className = val === 'keyword' ? 'space-y-2' : 'hidden';
-        }
-
-        window.addOptionField = function() {
-            const container = document.getElementById('optionsInputsContainer');
-            if (!container) return;
-            const currentCount = container.querySelectorAll('.option-row').length;
-            if (currentCount >= 5) { Swal.fire('ข้อจำกัด', 'เพิ่มตัวเลือกได้สูงสุด 5 ตัวเลือกเท่านั้น', 'info'); return; }
-
-            const formatType = currentExamData?.choice_format || 'num';
-            const standardLabels = getChoiceLabels(formatType, 5);
-            const label = standardLabels[currentCount] || String.fromCharCode(65 + currentCount);
-
-            const div = document.createElement('div');
-            div.className = 'flex items-center gap-2 option-row';
-            div.innerHTML = `
-                <input type="radio" name="swalCorrectRadio" value="${currentCount}">
-                <span class="font-bold w-6">${label}:</span>
-                <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${label}">
-                <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>
-            `;
-            container.appendChild(div);
-        }
-
-        window.addKeywordField = function() {
-            const container = document.getElementById('keywordsContainer');
-            if (!container) return;
-            const div = document.createElement('div');
-            div.className = 'flex items-center gap-2 keyword-row';
-            div.innerHTML = `
-                <input class="kw-text flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" placeholder="พิมพ์คำตอบ/คำสำคัญ...">
-                <select class="kw-mode px-2 py-1 border rounded-xl dark:bg-slate-800 text-[10px]">
-                    <option value="contains">มีอยู่ในข้อความ</option>
-                    <option value="exact">ถูกต้องเป๊ะ ๆ</option>
-                </select>
-                <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>
-            `;
-            container.appendChild(div);
-        }
-
-        async function uploadQuestionImage(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const fileName = `img_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
-            const { error } = await mySupabase.storage.from('exam_images').upload(fileName, file);
-            if (!error) {
-                const { data } = mySupabase.storage.from('exam_images').getPublicUrl(fileName);
-                if (data) {
-                    const imgInp = document.getElementById('qImageUrl');
-                    if (imgInp) imgInp.value = data.publicUrl;
-                }
-            } else { Swal.fire('อัปโหลดล้มเหลว', error.message, 'error'); }
         }
 
         async function confirmDeleteQuestion(id, qNum) {
