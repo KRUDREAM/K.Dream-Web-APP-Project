@@ -388,7 +388,7 @@
             return false;
         }
 
-        async function initCourseDetail() {
+       async function initCourseDetail() {
             if (!courseId) {
                 Swal.fire('ไม่พบรหัสคอร์สเรียน', 'กรุณากลับไปเลือกคอร์สใหม่', 'error').then(() => window.location.replace('admin_courses.html'));
                 return;
@@ -409,7 +409,6 @@
                 document.getElementById('headerCourseDesc').textContent = currentCourse.description || 'ไม่มีรายละเอียดคำอธิบายคอร์ส';
 
                 await loadLessons();
-                await loadEnrolledStudents();
 
                 const { data: cats } = await mySupabase.from('exam_categories').select('*').order('name');
                 if (cats) {
@@ -450,6 +449,9 @@
                 const { data: attempts } = await mySupabase.from('exam_attempts').select('*');
                 allAttempts = (attempts || []).filter(a => activeExamIds.has(String(a.exam_id)));
 
+                // 🌟 ย้ายมาเรียกตรงนี้ เพื่อให้มีข้อมูลข้อสอบและประวัติครบถ้วนก่อนนับจำนวนนักเรียน
+                await loadEnrolledStudents();
+
                 Swal.close();
 
                 calculateCourseKPIs();
@@ -480,71 +482,48 @@
      async function loadEnrolledStudents() {
             let totalStudents = new Set();
             
-            console.log("DEBUG: กำลังโหลดรายชื่อนักเรียนสำหรับคอร์ส ID:", courseId);
-
-            // 1. ลองดึงจากตาราง course_enrollments
+            // 1. ดึงข้อมูลจากตาราง course_enrollments และ enrollments
             try {
-                const { data: en1, error: err1 } = await mySupabase.from('course_enrollments').select('*');
-                if (!err1 && en1) {
-                    console.log("DEBUG: ข้อมูลจาก course_enrollments:", en1);
-                    en1.forEach(e => {
-                        const cId = String(e.course_id || e.courseid || '');
-                        if (cId === String(courseId)) {
-                            const sId = String(e.student_id || e.user_id || '');
-                            if (sId) totalStudents.add(sId);
-                        }
-                    });
-                }
-            } catch (e) { console.warn("course_enrollments error:", e); }
+                const [en1Res, en2Res] = await Promise.all([
+                    mySupabase.from('course_enrollments').select('*').catch(() => ({ data: [] })),
+                    mySupabase.from('enrollments').select('*').catch(() => ({ data: [] }))
+                ]);
 
-            // 2. ลองดึงจากตาราง enrollments
-            try {
-                const { data: en2, error: err2 } = await mySupabase.from('enrollments').select('*');
-                if (!err2 && en2) {
-                    console.log("DEBUG: ข้อมูลจาก enrollments:", en2);
-                    en2.forEach(e => {
-                        const cId = String(e.course_id || e.courseid || '');
-                        if (cId === String(courseId)) {
-                            const sId = String(e.student_id || e.user_id || '');
-                            if (sId) totalStudents.add(sId);
-                        }
-                    });
-                }
-            } catch (e) { console.warn("enrollments error:", e); }
+                const allEnrolls = [...(en1Res.data || []), ...(en2Res.data || [])];
+                allEnrolls.forEach(e => {
+                    const cId = String(e.course_id || e.courseid || '');
+                    if (cId === String(courseId)) {
+                        const sId = String(e.student_id || e.user_id || '');
+                        if (sId) totalStudents.add(sId);
+                    }
+                });
+            } catch (e) { console.warn(e); }
 
-            // 3. ลองเช็คจากฟิลด์ Array ในตัวตาราง courses (เผื่อเก็บเป็นอาเรย์ ID นักเรียนในคอร์ส)
-            if (currentCourse) {
-                console.log("DEBUG: ข้อมูลคอร์สปัจจุบัน (currentCourse):", currentCourse);
-                ['enrolled_students', 'students', 'student_ids', 'members'].forEach(field => {
-                    if (Array.isArray(currentCourse[field])) {
-                        currentCourse[field].forEach(id => totalStudents.add(String(id)));
+            // 2. ดึงเพิ่มเติมจากนักเรียนที่เคยส่งข้อสอบในคอร์สนี้ (ป้องกันกรณีในตารางลงทะเบียนยังไม่ได้กดบันทึก)
+            if (allExams && allExams.length > 0 && allAttempts) {
+                const examIds = new Set(allExams.map(e => String(e.id)));
+                allAttempts.forEach(a => {
+                    if (examIds.has(String(a.exam_id))) {
+                        const sId = String(a.student_id || a.user_id || '');
+                        if (sId) {
+                            // เช็คว่าเป็นบัญชีนักเรียนจริง (ไม่ใช่ Admin)
+                            const profile = allProfilesMap[sId];
+                            if (!profile || !isUserAdmin(profile)) {
+                                totalStudents.add(sId);
+                            }
+                        }
                     }
                 });
             }
 
-            // 4. Fallback เผื่อตารางลงทะเบียนยังไม่มีข้อมูล ให้ดูจากนักเรียนที่เคยส่งข้อสอบในคอร์สนี้
-            if (totalStudents.size === 0 && allExams && allExams.length > 0) {
-                console.log("DEBUG: ใช้ Fallback จากประวัติการทำข้อสอบ (Exam Attempts)");
-                const examIds = new Set(allExams.map(e => String(e.id)));
-                if (allAttempts) {
-                    allAttempts.forEach(a => {
-                        if (examIds.has(String(a.exam_id))) {
-                            const sId = String(a.student_id || a.user_id || '');
-                            if (sId) totalStudents.add(sId);
-                        }
-                    });
-                }
-            }
-
             courseEnrolledStudentIds = Array.from(totalStudents);
-            console.log("DEBUG: สรุปจำนวนนักเรียนที่พบทั้งหมด:", courseEnrolledStudentIds.length, courseEnrolledStudentIds);
 
             const countEl = document.getElementById('courseEnrolledStudentsCount');
             const badgeEl = document.getElementById('enrolledCountBadge');
             if (countEl) countEl.textContent = `${courseEnrolledStudentIds.length} คน`;
             if (badgeEl) badgeEl.textContent = courseEnrolledStudentIds.length;
         }
-
+        
         function calculateCourseKPIs() {
             const totalSubmissions = allAttempts.length;
             document.getElementById('courseTotalSubmissions').textContent = `${totalSubmissions} ครั้ง`;
