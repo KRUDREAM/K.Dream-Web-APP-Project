@@ -217,7 +217,7 @@
                 </div>
             </div>
 
-            <div id="rightResultCard" class="lg:col-span-6 hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4">
+            <div id="rightResultCard" class="lg:col-span-12 hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                     <h3 class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
                         <i class="fas fa-list-check text-sky-500"></i> เฉลยคำตอบรายข้อ
@@ -233,7 +233,7 @@
                 <div id="resultsContainer" class="space-y-3.5 max-h-[70vh] overflow-y-auto pr-1 hide-scrollbar">
                     <div class="text-center py-12 text-slate-400 text-xs flex flex-col items-center gap-2">
                         <i class="fas fa-spinner fa-spin text-lg text-sky-500"></i>
-                        กำลังประมวลผลข้อมูลเฉลยรายข้อ...
+                        กำลังประมวลผลข้อมูลผลการสอบ...
                     </div>
                 </div>
             </div>
@@ -242,10 +242,21 @@
     </main>
 
     <script>
+        // Catch all uncaught errors and display them visually so the screen never goes blank white
+        window.onerror = function(msg, url, line) {
+            const container = document.getElementById('resultsContainer');
+            if (container) {
+                container.innerHTML = '<div class="p-4 bg-red-500/10 border border-red-500 text-red-600 rounded-xl text-xs space-y-1">' +
+                    '<p class="font-bold"><i class="fas fa-triangle-exclamation mr-1"></i> เกิดข้อผิดพลาดในสคริปต์:</p>' +
+                    '<p>' + msg + ' (บรรทัด: ' + line + ')</p>' +
+                '</div>';
+            }
+            return false;
+        };
+
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         
-        // Safely initialize Supabase client
         let mySupabase = null;
         try {
             if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -290,12 +301,6 @@
 
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('mousedown', e => { if (e.button === 2) e.preventDefault(); });
-        document.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p' || e.key === 'u' || e.key === 'c' || e.key === 'a' || e.key === 'i')) {
-                e.preventDefault();
-            }
-            if (e.key === 'F12' || e.key === 'PrintScreen') e.preventDefault();
-        });
 
         function parseChoiceIndex(val) {
             if (val === null || val === undefined || val === '') return null;
@@ -366,7 +371,7 @@
         async function initResultPage() {
             try {
                 if (!mySupabase) {
-                    throw new Error('ไม่สามารถเชื่อมต่อ Supabase ได้ (ตรวจสอบอินเทอร์เน็ตหรือ CDN)');
+                    throw new Error('ไม่สามารถสร้าง Supabase Client ได้ โปรดตรวจสอบการเชื่อมต่อ');
                 }
 
                 let attempt = null;
@@ -396,7 +401,7 @@
 
                 if (!attempt) {
                     document.getElementById('examTitleHeader').textContent = 'ไม่พบข้อมูลการสอบ';
-                    document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-red-500 text-xs">ไม่พบข้อมูลผลการสอบสำหรับบัญชีนี้</div>';
+                    document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-amber-500 text-xs">ไม่พบข้อมูลผลการสอบ (ลองตรวจสอบลิงก์พารามิเตอร์ attempt_id อีกครั้ง)</div>';
                     return;
                 }
 
@@ -438,7 +443,6 @@
                         renderSecurePDF(exam.pdf_url);
                     } catch (pdfErr) {
                         console.error('PDF Render Error:', pdfErr);
-                        document.getElementById('pdfContainer').innerHTML = '<div class="text-amber-500 text-xs py-10 text-center">ไม่สามารถแสดงตัวอย่าง PDF ได้</div>';
                     }
                 } else {
                     document.getElementById('pdfViewerCard').classList.add('hidden');
