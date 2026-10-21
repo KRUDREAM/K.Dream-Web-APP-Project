@@ -499,11 +499,9 @@
         async function saveCriteriaChanges() {
             Swal.fire({ title: 'กำลังบันทึกเกณฑ์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             
-            // บันทึกลง localStorage เป็นหลักเพื่อความเสถียร 100% ไม่ติดเรื่องคอลัมน์ใน DB
             localStorage.setItem(`grading_criteria_${examId}`, JSON.stringify(gradingCriteriaList));
             localStorage.setItem(`enable_criteria_${examId}`, enableCriteria);
 
-            // พยายามบันทึกลง Supabase ด้วย (ถ้าตารางมีคอลัมน์รองรับ) แต่จะไม่ทำให้ Error หากคอลัมน์ยังไม่ถูกสร้าง
             try {
                 await mySupabase.from('exams').update({
                     enable_grading_criteria: enableCriteria,
@@ -774,6 +772,19 @@
             openQuestionModal(qData || null);
         }
 
+        window.onCategorySelectChange = function(val) {
+            const customInp = document.getElementById('qCategoryTagCustom');
+            if (!customInp) return;
+            if (val === '__NEW__') {
+                customInp.classList.remove('hidden');
+                customInp.value = '';
+                customInp.focus();
+            } else {
+                customInp.classList.add('hidden');
+                customInp.value = val;
+            }
+        };
+
         async function openQuestionModal(qData = null) {
             const isEdit = !!qData;
             const formatType = currentExamData?.choice_format || 'num';
@@ -781,6 +792,17 @@
 
             let currentOpts = (qData?.options && qData.options.length > 0) ? qData.options : standardLabels;
             let currentKeywords = qData?.keywords || [];
+
+            const existingTags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
+            const currentTag = qData?.category_tag || '';
+            const isTagInList = existingTags.includes(currentTag);
+
+            let categoryOptionsHtml = `<option value="">-- เลือกหมวดหมู่ทั่วไป --</option>`;
+            existingTags.forEach(t => {
+                const selected = (currentTag === t) ? 'selected' : '';
+                categoryOptionsHtml += `<option value="${escapeHtml(t)}" ${selected}>${escapeHtml(t)}</option>`;
+            });
+            categoryOptionsHtml += `<option value="__NEW__" ${(!isTagInList && currentTag) ? 'selected' : ''}>➕ สร้างหมวดหมู่ใหม่...</option>`;
 
             let optionsHtml = currentOpts.map((opt, i) => {
                 const isChecked = String(qData?.correct_answer) === String(i) || (!qData && i === 0);
@@ -817,7 +839,10 @@
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">หมวดหมู่ย่อยโจทย์</label>
-                                <input id="qCategoryTag" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" placeholder="เช่น ฟิสิกส์คำนวณ" value="${escapeHtml(qData?.category_tag || '')}">
+                                <select id="qCategorySelect" onchange="onCategorySelectChange(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-sky-600 dark:text-sky-400 mb-1">
+                                    ${categoryOptionsHtml}
+                                </select>
+                                <input id="qCategoryTagCustom" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 ${(!isTagInList && currentTag) ? '' : 'hidden'}" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่..." value="${escapeHtml(!isTagInList ? currentTag : '')}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">ประเภทข้อสอบ</label>
@@ -879,6 +904,10 @@
                     const qType = document.getElementById('qType').value;
                     const txt = document.getElementById('qText').value;
 
+                    const selectVal = document.getElementById('qCategorySelect').value;
+                    const customVal = document.getElementById('qCategoryTagCustom').value.trim();
+                    const finalCategoryTag = selectVal === '__NEW__' ? customVal : (selectVal || customVal);
+
                     const optInputs = document.querySelectorAll('.opt-text-input');
                     const optsParsed = Array.from(optInputs).map(inp => inp.value.trim()).filter(Boolean);
                     const selectedRadio = document.querySelector('input[name="swalCorrectRadio"]:checked');
@@ -892,7 +921,7 @@
                     return {
                         exam_id: examId,
                         question_number: parseInt(document.getElementById('qNum').value) || 1,
-                        category_tag: document.getElementById('qCategoryTag').value.trim(),
+                        category_tag: finalCategoryTag,
                         question_type: qType,
                         question_text: txt,
                         content: txt,
@@ -1003,7 +1032,27 @@
             if (url) window.open(url, '_blank');
         }
 
+        window.onGenCategorySelectChange = function(val) {
+            const customInp = document.getElementById('genCategoryTagCustom');
+            if (!customInp) return;
+            if (val === '__NEW__') {
+                customInp.classList.remove('hidden');
+                customInp.value = '';
+                customInp.focus();
+            } else {
+                customInp.classList.add('hidden');
+                customInp.value = val;
+            }
+        };
+
         async function openAutoAnswerSheetModal() {
+            const existingTags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
+            let categoryOptionsHtml = `<option value="">-- ไม่ระบุ / หมวดหมู่ทั่วไป --</option>`;
+            existingTags.forEach(t => {
+                categoryOptionsHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`;
+            });
+            categoryOptionsHtml += `<option value="__NEW__">➕ สร้างหมวดหมู่ใหม่...</option>`;
+
             const { value: formValues } = await Swal.fire({
                 title: '⚡ เจนกระดาษคำตอบ OMR',
                 html: `
@@ -1029,20 +1078,29 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block font-bold mb-1">หมวดหมู่ย่อย (ถ้ามี)</label>
-                                <input id="genCategoryTag" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" placeholder="เช่น ฟิสิกส์คำนวณ">
+                                <label class="block font-bold mb-1">หมวดหมู่ย่อย</label>
+                                <select id="genCategorySelect" onchange="onGenCategorySelectChange(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-sky-600 dark:text-sky-400 mb-1">
+                                    ${categoryOptionsHtml}
+                                </select>
+                                <input id="genCategoryTagCustom" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 hidden" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่...">
                             </div>
                         </div>
                     </div>
                 `,
                 showCancelButton: true,
                 confirmButtonText: 'สร้างกระดาษ OMR',
-                preConfirm: () => ({
-                    start: parseInt(document.getElementById('genStartNum').value) || 1,
-                    end: parseInt(document.getElementById('genEndNum').value) || 20,
-                    choiceCount: parseInt(document.getElementById('genChoiceCount').value) || 4,
-                    tag: document.getElementById('genCategoryTag').value.trim()
-                })
+                preConfirm: () => {
+                    const selectVal = document.getElementById('genCategorySelect').value;
+                    const customVal = document.getElementById('genCategoryTagCustom').value.trim();
+                    const finalTag = selectVal === '__NEW__' ? customVal : (selectVal || customVal);
+
+                    return {
+                        start: parseInt(document.getElementById('genStartNum').value) || 1,
+                        end: parseInt(document.getElementById('genEndNum').value) || 20,
+                        choiceCount: parseInt(document.getElementById('genChoiceCount').value) || 4,
+                        tag: finalTag
+                    }
+                }
             });
 
             if (formValues) {
@@ -1086,7 +1144,8 @@
                 await mySupabase.from('questions').update({
                     correct_answer: q.correct_answer,
                     question_type: q.question_type,
-                    options: q.options
+                    options: q.options,
+                    category_tag: q.category_tag
                 }).eq('id', q.id);
             }
 
