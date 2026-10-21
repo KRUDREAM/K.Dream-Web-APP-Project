@@ -480,45 +480,38 @@
 
      async function loadEnrolledStudents() {
             let totalStudents = new Set();
-            
             try {
-                // ดึงข้อมูลการลงทะเบียนทั้งหมดจากทั้ง 2 ตารางมาตรงๆ (ไม่กรองเงื่อนไข course_id ใน query)
-                const [en1Res, en2Res] = await Promise.all([
-                    mySupabase.from('course_enrollments').select('*').catch(() => ({ data: [] })),
-                    mySupabase.from('enrollments').select('*').catch(() => ({ data: [] }))
-                ]);
-
-                const allEnrolls = [...(en1Res.data || []), ...(en2Res.data || [])];
-                
-                // วนลูปเช็คเทียบเองว่าแถวไหนมีรหัสคอร์สตรงกับ courseId ปัจจุบันบ้าง
-                allEnrolls.forEach(en => {
-                    const cId = String(en.course_id || en.courseid || en.courseId || '');
-                    if (cId === String(courseId)) {
-                        const sId = en.student_id || en.user_id || en.studentId || en.userId;
-                        if (sId) {
-                            totalStudents.add(String(sId));
+                // ดึงข้อมูลการลงทะเบียนตรงๆ ทั้งหมด แล้วเช็คเทียบรหัสคอร์ส
+                const { data } = await mySupabase.from('course_enrollments').select('*');
+                if (data) {
+                    data.forEach(en => {
+                        const cId = String(en.course_id || en.courseid || '');
+                        const sId = String(en.student_id || en.user_id || '');
+                        if (cId === String(courseId) && sId) {
+                            totalStudents.add(sId);
                         }
-                    }
-                });
-
-                // เผื่อกรณีที่ตารางลงทะเบียนไม่มี ให้ดึงจากเด็กที่เคยส่งข้อสอบในคอร์สนี้
-                if (totalStudents.size === 0 && allAttempts && allAttempts.length > 0) {
-                    allAttempts.forEach(a => {
-                        const sId = a.student_id || a.user_id;
-                        if (sId) totalStudents.add(String(sId));
                     });
                 }
+                // ถ้าตารางแรกไม่เจอ ลองเช็คตาราง enrollments อีกตาราง
+                if (totalStudents.size === 0) {
+                    const { data: data2 } = await mySupabase.from('enrollments').select('*');
+                    if (data2) {
+                        data2.forEach(en => {
+                            const cId = String(en.course_id || en.courseid || '');
+                            const sId = String(en.student_id || en.user_id || '');
+                            if (cId === String(courseId) && sId) {
+                                totalStudents.add(sId);
+                            }
+                        });
+                    }
+                }
             } catch (err) {
-                console.warn("Load Enrolled Error:", err);
+                console.warn(err);
             }
 
             courseEnrolledStudentIds = Array.from(totalStudents);
-
-            // อัปเดตตัวเลขแสดงผลบนหน้าจอ
-            const countEl = document.getElementById('courseEnrolledStudentsCount');
-            const badgeEl = document.getElementById('enrolledCountBadge');
-            if (countEl) countEl.textContent = `${courseEnrolledStudentIds.length} คน`;
-            if (badgeEl) badgeEl.textContent = courseEnrolledStudentIds.length;
+            document.getElementById('courseEnrolledStudentsCount').textContent = `${courseEnrolledStudentIds.length} คน`;
+            document.getElementById('enrolledCountBadge').textContent = courseEnrolledStudentIds.length;
         }
         
         function calculateCourseKPIs() {
