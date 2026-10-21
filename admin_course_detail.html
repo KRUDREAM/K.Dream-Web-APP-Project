@@ -388,7 +388,7 @@
             return false;
         }
 
-       async function initCourseDetail() {
+        async function initCourseDetail() {
             if (!courseId) {
                 Swal.fire('ไม่พบรหัสคอร์สเรียน', 'กรุณากลับไปเลือกคอร์สใหม่', 'error').then(() => window.location.replace('admin_courses.html'));
                 return;
@@ -449,7 +449,6 @@
                 const { data: attempts } = await mySupabase.from('exam_attempts').select('*');
                 allAttempts = (attempts || []).filter(a => activeExamIds.has(String(a.exam_id)));
 
-                // 🌟 ย้ายมาเรียกตรงนี้ เพื่อให้มีข้อมูลข้อสอบและประวัติครบถ้วนก่อนนับจำนวนนักเรียน
                 await loadEnrolledStudents();
 
                 Swal.close();
@@ -479,10 +478,35 @@
             renderFiles(files);
         }
 
-     async function loadEnrolledStudents() {
+        async function loadEnrolledStudents() {
             let totalStudents = new Set();
             
-            // 1. ดึงข้อมูลจากตาราง course_enrollments และ enrollments
+            // ดึงรายชื่อบัญชีนักเรียนที่มีตัวตนจริงในระบบเพื่อกรองบัญชีที่ถูกลบออก (ตรงกับหน้า admin_courses.html)
+            let validStudentIds = new Set();
+            try {
+                const [profilesRes, studentsRes] = await Promise.all([
+                    mySupabase.from('profiles').select('id, user_id, student_id').catch(() => ({ data: [] })),
+                    mySupabase.from('students').select('id, user_id').catch(() => ({ data: [] }))
+                ]);
+
+                if (profilesRes.data) {
+                    profilesRes.data.forEach(p => {
+                        if (!isUserAdmin(p)) {
+                            if (p.id) validStudentIds.add(String(p.id));
+                            if (p.user_id) validStudentIds.add(String(p.user_id));
+                            if (p.student_id) validStudentIds.add(String(p.student_id));
+                        }
+                    });
+                }
+                if (studentsRes.data) {
+                    studentsRes.data.forEach(s => {
+                        if (s.id) validStudentIds.add(String(s.id));
+                        if (s.user_id) validStudentIds.add(String(s.user_id));
+                    });
+                }
+            } catch (e) { console.warn("Valid students filter error:", e); }
+
+            // ดึงข้อมูลการลงทะเบียนจากทุกตารางที่เป็นไปได้
             try {
                 const [en1Res, en2Res] = await Promise.all([
                     mySupabase.from('course_enrollments').select('*').catch(() => ({ data: [] })),
@@ -494,22 +518,27 @@
                     const cId = String(e.course_id || e.courseid || '');
                     if (cId === String(courseId)) {
                         const sId = String(e.student_id || e.user_id || '');
-                        if (sId) totalStudents.add(sId);
+                        if (sId) {
+                            if (validStudentIds.size === 0 || validStudentIds.has(sId)) {
+                                totalStudents.add(sId);
+                            }
+                        }
                     }
                 });
             } catch (e) { console.warn(e); }
 
-            // 2. ดึงเพิ่มเติมจากนักเรียนที่เคยส่งข้อสอบในคอร์สนี้ (ป้องกันกรณีในตารางลงทะเบียนยังไม่ได้กดบันทึก)
+            // Fallback เพิ่มเติมจากนักเรียนที่เคยส่งข้อสอบในคอร์สนี้
             if (allExams && allExams.length > 0 && allAttempts) {
                 const examIds = new Set(allExams.map(e => String(e.id)));
                 allAttempts.forEach(a => {
                     if (examIds.has(String(a.exam_id))) {
                         const sId = String(a.student_id || a.user_id || '');
                         if (sId) {
-                            // เช็คว่าเป็นบัญชีนักเรียนจริง (ไม่ใช่ Admin)
                             const profile = allProfilesMap[sId];
                             if (!profile || !isUserAdmin(profile)) {
-                                totalStudents.add(sId);
+                                if (validStudentIds.size === 0 || validStudentIds.has(sId)) {
+                                    totalStudents.add(sId);
+                                }
                             }
                         }
                     }
@@ -900,7 +929,8 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
-                            <button onclick="openEditVideoModal('${v.id}')" class="px-3 py-2 bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-600 rounded-xl font-bold text-[11px] transition-all"><i class="fas fa-edit"></i></button>
+                            <button onclick="previewVideo('${bunnyId}', '${v.title.replace(/'/g, "\\'")}')" class="px-3 py-2 bg-sky-500/10 hover:bg-sky-500 hover:text-white text-sky-600 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1" title="ดูตัวอย่างวิดีโอ"><i class="fas fa-eye text-[10px]"></i> ดูคลิป</button>
+                            <button onclick="openEditVideoModal('${v.id}')" class="px-3 py-2 bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-600 rounded-xl font-bold text-[11px] transition-all" title="แก้ไขวิดีโอ"><i class="fas fa-edit"></i></button>
                             <button onclick="deleteLesson('${v.id}')" class="w-9 h-9 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center" title="ลบวิดีโอ"><i class="fas fa-trash-can text-xs"></i></button>
                         </div>
                     </div>
@@ -921,21 +951,46 @@
                 return;
             }
 
-            container.innerHTML = files.map((f) => `
-                <div class="p-4 bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/30 transition-all flex justify-between items-center gap-3 group">
-                    <div class="flex items-center gap-3.5 min-w-0">
-                        <div class="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform"><i class="fas fa-file-lines text-sm"></i></div>
-                        <div class="min-w-0">
-                            <h4 class="font-bold text-xs text-slate-900 dark:text-white truncate">${f.title}</h4>
-                            <p class="text-[10px] text-slate-400 mt-0.5"><i class="far fa-clock mr-1"></i>เพิ่มเมื่อ: ${new Date(f.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+            container.innerHTML = files.map((f) => {
+                const fileUrl = f.pdf_url || f.file_url || '';
+                return `
+                    <div class="p-4 bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/30 transition-all flex justify-between items-center gap-3 group">
+                        <div class="flex items-center gap-3.5 min-w-0">
+                            <div class="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform"><i class="fas fa-file-lines text-sm"></i></div>
+                            <div class="min-w-0">
+                                <h4 class="font-bold text-xs text-slate-900 dark:text-white truncate">${f.title}</h4>
+                                <p class="text-[10px] text-slate-400 mt-0.5"><i class="far fa-clock mr-1"></i>เพิ่มเมื่อ: ${new Date(f.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <a href="${fileUrl}" target="_blank" class="px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1"><i class="fas fa-external-link-alt text-[10px]"></i> เปิด</a>
+                            <button onclick="openEditFileModal('${f.id}')" class="px-3 py-2 bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-600 rounded-xl font-bold text-[11px] transition-all" title="แก้ไขเอกสาร"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteLesson('${f.id}')" class="w-9 h-9 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center" title="ลบไฟล์"><i class="fas fa-trash-can text-xs"></i></button>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <a href="${f.pdf_url || f.file_url || '#'}" target="_blank" class="px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1"><i class="fas fa-external-link-alt text-[10px]"></i> เปิดลิงก์</a>
-                        <button onclick="deleteLesson('${f.id}')" class="w-9 h-9 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center" title="ลบไฟล์"><i class="fas fa-trash-can text-xs"></i></button>
+                `;
+            }).join('');
+        }
+
+        function previewVideo(bunnyId, videoTitle) {
+            const isDark = document.documentElement.classList.contains('dark');
+            // รองรับทั้งแบบใส่ Bunny ID ตรงๆ หรือเป็น Embed URL เต็มรูปแบบ
+            let embedUrl = bunnyId.startsWith('http') ? bunnyId : `https://iframe.mediadelivery.net/embed/YOUR_LIBRARY_ID/${bunnyId}`;
+            
+            Swal.fire({
+                title: `🎬 ดูตัวอย่าง: ${videoTitle}`,
+                html: `
+                    <div class="aspect-video w-full bg-black rounded-2xl overflow-hidden shadow-xl">
+                        <iframe src="${embedUrl}" loading="lazy" style="border:0; width:100%; height:100%;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
                     </div>
-                </div>
-            `).join('');
+                    <p class="text-[11px] text-slate-400 mt-3 font-mono">Bunny ID / URL: ${bunnyId}</p>
+                `,
+                width: '750px',
+                confirmButtonText: 'ปิดหน้าต่าง',
+                confirmButtonColor: '#0284c7',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b'
+            });
         }
 
         async function openAddLessonModal(type) {
@@ -1042,6 +1097,56 @@
                     return;
                 }
                 Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลสำเร็จ!', timer: 1200, showConfirmButton: false });
+                loadLessons();
+            }
+        }
+
+        async function openEditFileModal(fileId) {
+            const fileItem = courseLessons.find(f => String(f.id) === String(fileId));
+            if (!fileItem) return;
+            const isDark = document.documentElement.classList.contains('dark');
+            const currentUrl = fileItem.pdf_url || fileItem.file_url || '';
+
+            const { value: formValues } = await Swal.fire({
+                title: '✏️ แก้ไขลิงก์เอกสารประกอบการเรียน',
+                width: '550px',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <div>
+                            <label class="block font-bold mb-1">ชื่อหัวข้อเอกสาร <span class="text-red-500">*</span></label>
+                            <input id="swalEditFileTitle" value="${fileItem.title}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">ลิงก์ไฟล์ PDF / URL <span class="text-red-500">*</span></label>
+                            <input id="swalEditFileUrl" value="${currentUrl}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกการแก้ไข',
+                confirmButtonColor: '#6366f1',
+                cancelButtonColor: '#ef4444',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                preConfirm: () => {
+                    const title = document.getElementById('swalEditFileTitle').value.trim();
+                    const pdf_url = document.getElementById('swalEditFileUrl').value.trim();
+                    if (!title || !pdf_url) {
+                        Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบถ้วน');
+                        return false;
+                    }
+                    return { title, pdf_url, file_url: pdf_url };
+                }
+            });
+
+            if (formValues) {
+                Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const { error } = await mySupabase.from('course_lessons').update(formValues).eq('id', fileId);
+                if (error) {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                    return;
+                }
+                Swal.fire({ icon: 'success', title: 'อัปเดตไฟล์เอกสารสำเร็จ!', timer: 1200, showConfirmButton: false });
                 loadLessons();
             }
         }
