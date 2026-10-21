@@ -243,7 +243,6 @@
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         
-        const GEMINI_API_KEY = "__GEMINI_API_KEY__";
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -319,7 +318,7 @@
 
         function getUserAnswer(q, rawAnswers) {
             if (!rawAnswers || typeof rawAnswers !== 'object') return '-';
-            let ans = rawAnswers[q.id] || rawAnswers[String(q.id)] || rawAnswers[q.question_number] || rawAnswers[String(q.question_number)] || rawAnswers[`q${q.question_number}`];
+            let ans = rawAnswers[q.id] || rawAnswers[String(q.id)] || rawAnswers[q.question_number] || rawAnswers[String(q.question_number)] || rawAnswers['q' + q.question_number];
             if (ans === undefined || ans === null) {
                 const idx = globalQuestions.indexOf(q);
                 if (Array.isArray(rawAnswers)) {
@@ -330,6 +329,25 @@
                 }
             }
             return ans !== undefined && ans !== null ? ans : '-';
+        }
+
+        function isAnswerCorrect(q, userAns) {
+            if (userAns === null || userAns === undefined || userAns === '-' || userAns === '') return false;
+            const correctAns = q.correct_answer !== undefined && q.correct_answer !== null ? String(q.correct_answer).trim() : '';
+            const userAnsStr = String(userAns).trim();
+
+            if (userAnsStr === correctAns) return true;
+
+            const uIdx = parseChoiceIndex(userAnsStr);
+            const cIdx = parseChoiceIndex(correctAns);
+            if (uIdx !== null && cIdx !== null && uIdx === cIdx) return true;
+
+            const opts = getQuestionOptions(q);
+            if (cIdx !== null && cIdx >= 0 && cIdx < opts.length) {
+                if (userAnsStr === String(opts[cIdx]).trim()) return true;
+            }
+
+            return false;
         }
 
         async function initResultPage() {
@@ -384,20 +402,26 @@
                     }
                     if (profileRes.data) {
                         const p = profileRes.data;
-                        studentNameStr = `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.full_name || p.fullname || p.name || p.username || 'นักเรียน';
+                        studentNameStr = (p.first_name || '') + ' ' + (p.last_name || '');
+                        studentNameStr = studentNameStr.trim() || p.full_name || p.fullname || p.name || p.username || 'นักเรียน';
                     }
                 }
                 cachedStudentName = studentNameStr;
 
                 document.getElementById('examTitleHeader').textContent = cachedExamTitle;
                 document.getElementById('resultTitleNav').textContent = cachedExamTitle;
-                document.getElementById('submissionTimeText').innerHTML = `<i class="fas fa-clock mr-1 text-sky-500"></i> เวลาส่ง: ${new Date(attempt.submission_time || attempt.submitted_at || attempt.created_at || Date.now()).toLocaleString('th-TH')}`;
-                document.getElementById('studentNameDisplay').innerHTML = `<i class="fas fa-user-graduate mr-1"></i> ผู้สอบ: ${studentNameStr}`;
+                document.getElementById('submissionTimeText').innerHTML = '<i class="fas fa-clock mr-1 text-sky-500"></i> เวลาส่ง: ' + new Date(attempt.submission_time || attempt.submitted_at || attempt.created_at || Date.now()).toLocaleString('th-TH');
+                document.getElementById('studentNameDisplay').innerHTML = '<i class="fas fa-user-graduate mr-1"></i> ผู้สอบ: ' + studentNameStr;
 
                 if (exam && exam.pdf_url) {
                     document.getElementById('pdfViewerCard').classList.remove('hidden');
                     document.getElementById('rightResultCard').className = 'lg:col-span-6 hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4';
-                    renderSecurePDF(exam.pdf_url);
+                    try {
+                        renderSecurePDF(exam.pdf_url);
+                    } catch (pdfErr) {
+                        console.error('PDF Render Error:', pdfErr);
+                        document.getElementById('pdfContainer').innerHTML = '<div class="text-amber-500 text-xs py-10 text-center">ไม่สามารถแสดงตัวอย่าง PDF ได้ (ลิงก์อาจไม่ถูกต้องหรือถูกจำกัดสิทธิ์)</div>';
+                    }
                 } else {
                     document.getElementById('pdfViewerCard').classList.add('hidden');
                     document.getElementById('rightResultCard').className = 'lg:col-span-12 hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4';
@@ -425,12 +449,7 @@
                 let calculatedScore = 0;
                 globalQuestions.forEach((q) => {
                     let userAnsVal = getUserAnswer(q, globalRawAnswers);
-                    const correctAnsVal = q.correct_answer || q.answer || q.solution;
-                    
-                    const studentIdx = parseChoiceIndex(userAnsVal);
-                    const correctIdx = parseChoiceIndex(correctAnsVal);
-
-                    if (studentIdx !== null && studentIdx !== undefined && !isNaN(studentIdx) && studentIdx === correctIdx) {
+                    if (isAnswerCorrect(q, userAnsVal)) {
                         calculatedScore++;
                     }
                 });
@@ -451,10 +470,18 @@
                 computeCategoryStats();
                 renderCategoryComparisonTable();
                 updateCountsAndRender();
-                await loadClassAnalytics(examRef, earnedScore, totalQ);
-                await fetchGeminiAIAnalysis(globalQuestions, globalRawAnswers, earnedScore, totalQ, cachedExamTitle, exam ? exam.learning_objectives : '', exam ? exam.pdf_url : '');
+                
+                try {
+                    await loadClassAnalytics(examRef, earnedScore, totalQ);
+                } catch (analyticsErr) {
+                    console.error('Analytics load error:', analyticsErr);
+                }
+
+                renderLocalAIAnalysis(globalQuestions, globalRawAnswers, earnedScore, totalQ);
+
             } catch (err) {
                 console.error('Init Result Error:', err);
+                Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการโหลดผลการสอบ', text: err.message || 'โปรดลองใหม่อีกครั้ง' });
             }
         }
 
@@ -466,10 +493,7 @@
                 cachedCategoryStats[tag].total++;
 
                 let userAns = getUserAnswer(q, globalRawAnswers);
-                const correctAns = q.correct_answer || q.answer || q.solution;
-                const studentIdx = parseChoiceIndex(userAns);
-                const correctIdx = parseChoiceIndex(correctAns);
-                if (studentIdx !== null && studentIdx !== undefined && !isNaN(studentIdx) && studentIdx === correctIdx) {
+                if (isAnswerCorrect(q, userAns)) {
                     cachedCategoryStats[tag].correct++;
                 }
             });
@@ -481,7 +505,7 @@
 
             const entries = Object.entries(cachedCategoryStats);
             if (entries.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">ไม่พบข้อมูลหมวดหมู่ข้อสอบ</td></tr>`;
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">ไม่พบข้อมูลหมวดหมู่ข้อสอบ</td></tr>';
                 return;
             }
 
@@ -497,17 +521,13 @@
                     evalText = 'ปานกลาง (50-69%)';
                 }
 
-                return `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-darkinput transition-all">
-                        <td class="p-3 font-bold text-slate-800 dark:text-slate-200">🏷️ ${tag}</td>
-                        <td class="p-3 text-center">${stat.correct} / ${stat.total}</td>
-                        <td class="p-3 text-center font-extrabold text-sky-600 dark:text-sky-400">${pct}%</td>
-                        <td class="p-3 text-center text-slate-400 text-xs">70%</td>
-                        <td class="p-3 text-center">
-                            <span class="px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold border ${badgeColor}">${evalText}</span>
-                        </td>
-                    </tr>
-                `;
+                return '<tr class="hover:bg-slate-50 dark:hover:bg-darkinput transition-all">' +
+                    '<td class="p-3 font-bold text-slate-800 dark:text-slate-200">🏷️ ' + tag + '</td>' +
+                    '<td class="p-3 text-center">' + stat.correct + ' / ' + stat.total + '</td>' +
+                    '<td class="p-3 text-center font-extrabold text-sky-600 dark:text-sky-400">' + pct + '%</td>' +
+                    '<td class="p-3 text-center text-slate-400 text-xs">70%</td>' +
+                    '<td class="p-3 text-center"><span class="px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold border ' + badgeColor + '">' + evalText + '</span></td>' +
+                '</tr>';
             }).join('');
         }
 
@@ -533,11 +553,11 @@
                 }
 
                 if (!attempts || attempts.length === 0) {
-                    document.getElementById('rankDisplay').textContent = `#1 / 1`;
-                    document.getElementById('avgScoreDisplay').textContent = `${studentScore} / ${totalQuestions}`;
-                    document.getElementById('maxScoreDisplay').textContent = `${studentScore} / ${totalQuestions}`;
-                    document.getElementById('percentileDisplay').textContent = `Top 100%`;
-                    document.getElementById('totalStudentsText').textContent = `ผู้เข้าสอบทั้งหมด: 1 คน`;
+                    document.getElementById('rankDisplay').textContent = '#1 / 1';
+                    document.getElementById('avgScoreDisplay').textContent = studentScore + ' / ' + totalQuestions;
+                    document.getElementById('maxScoreDisplay').textContent = studentScore + ' / ' + totalQuestions;
+                    document.getElementById('percentileDisplay').textContent = 'Top 100%';
+                    document.getElementById('totalStudentsText').textContent = 'ผู้เข้าสอบทั้งหมด: 1 คน';
                     renderDetailedScoreChart([studentScore], totalQuestions, studentScore);
                     return;
                 }
@@ -554,11 +574,11 @@
                 const maxScore = Math.max(...scores);
                 const topPercentile = Math.max(1, Math.round((rank / totalStudents) * 100));
 
-                document.getElementById('rankDisplay').textContent = `#${rank > 0 ? rank : 1} / ${totalStudents}`;
-                document.getElementById('avgScoreDisplay').textContent = `${avgScore} / ${totalQuestions}`;
-                document.getElementById('maxScoreDisplay').textContent = `${maxScore} / ${totalQuestions}`;
-                document.getElementById('percentileDisplay').textContent = `Top ${topPercentile}%`;
-                document.getElementById('totalStudentsText').textContent = `ผู้เข้าสอบทั้งหมด: ${totalStudents} คน`;
+                document.getElementById('rankDisplay').textContent = '#' + (rank > 0 ? rank : 1) + ' / ' + totalStudents;
+                document.getElementById('avgScoreDisplay').textContent = avgScore + ' / ' + totalQuestions;
+                document.getElementById('maxScoreDisplay').textContent = maxScore + ' / ' + totalQuestions;
+                document.getElementById('percentileDisplay').textContent = 'Top ' + topPercentile + '%';
+                document.getElementById('totalStudentsText').textContent = 'ผู้เข้าสอบทั้งหมด: ' + totalStudents + ' คน';
 
                 renderDetailedScoreChart(scores, totalQuestions, studentScore);
             } catch (err) {
@@ -567,62 +587,66 @@
         }
 
         function renderDetailedScoreChart(scores, totalQuestions, studentScore) {
-            const labels = [];
-            const dataCounts = [];
+            try {
+                const labels = [];
+                const dataCounts = [];
 
-            for (let i = 0; i <= totalQuestions; i++) {
-                labels.push(`${i} คะแนน`);
-                const count = scores.filter(s => s === i).length;
-                dataCounts.push(count);
-            }
+                for (let i = 0; i <= totalQuestions; i++) {
+                    labels.push(i + ' คะแนน');
+                    const count = scores.filter(s => s === i).length;
+                    dataCounts.push(count);
+                }
 
-            const backgroundColors = labels.map((_, idx) => idx === studentScore ? '#0284c7' : 'rgba(148, 163, 184, 0.4)');
-            const borderColors = labels.map((_, idx) => idx === studentScore ? '#0369a1' : 'rgba(148, 163, 184, 0.6)');
+                const backgroundColors = labels.map((_, idx) => idx === studentScore ? '#0284c7' : 'rgba(148, 163, 184, 0.4)');
+                const borderColors = labels.map((_, idx) => idx === studentScore ? '#0369a1' : 'rgba(148, 163, 184, 0.6)');
 
-            const canvasCtx = document.getElementById('scoreDistributionChart');
-            if (!canvasCtx) return;
-            const ctx = canvasCtx.getContext('2d');
-            
-            if (scoreDistributionChartInstance) scoreDistributionChartInstance.destroy();
+                const canvasCtx = document.getElementById('scoreDistributionChart');
+                if (!canvasCtx) return;
+                const ctx = canvasCtx.getContext('2d');
+                
+                if (scoreDistributionChartInstance) scoreDistributionChartInstance.destroy();
 
-            scoreDistributionChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'จำนวนนักเรียน (คน)',
-                        data: dataCounts,
-                        backgroundColor: backgroundColors,
-                        borderColor: borderColors,
-                        borderWidth: 2,
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                afterLabel: function(context) {
-                                    if (context.dataIndex === studentScore) return '📍 คะแนนของคุณ';
+                scoreDistributionChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'จำนวนนักเรียน (คน)',
+                            data: dataCounts,
+                            backgroundColor: backgroundColors,
+                            borderColor: borderColors,
+                            borderWidth: 2,
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    afterLabel: function(context) {
+                                        if (context.dataIndex === studentScore) return '📍 คะแนนของคุณ';
+                                    }
                                 }
                             }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
+                            x: { grid: { display: false } }
                         }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
-                        x: { grid: { display: false } }
                     }
-                }
-            });
+                });
+            } catch (chartErr) {
+                console.error('Chart Render Error:', chartErr);
+            }
         }
 
         async function renderSecurePDF(url) {
             const container = document.getElementById('pdfContainer');
             if (!url) {
-                container.innerHTML = `<div class="text-slate-400 text-xs py-10">ไม่พบลิงก์เอกสารข้อสอบ</div>`;
+                container.innerHTML = '<div class="text-slate-400 text-xs py-10">ไม่พบลิงก์เอกสารข้อสอบ</div>';
                 return;
             }
             try {
@@ -645,7 +669,8 @@
                     container.appendChild(canvas);
                 }
             } catch (err) {
-                container.innerHTML = `<div class="text-red-500 text-xs py-10">ไม่สามารถโหลดเอกสารข้อสอบได้</div>`;
+                console.warn('PDF Loading Warning:', err);
+                container.innerHTML = '<div class="text-amber-500 text-xs py-10 text-center px-4">ไม่สามารถโหลดไฟล์ PDF ได้โดยตรง (อาจติดปัญหา CORS หรือลิงก์หมดอายุ)<br><a href="' + url + '" target="_blank" class="mt-2 inline-block px-3 py-1 bg-sky-600 text-white rounded-lg font-bold">คลิกเพื่อเปิดไฟล์ PDF</a></div>';
             }
         }
 
@@ -654,57 +679,55 @@
                 const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
                 let evalText = pct >= 70 ? 'ดีเยี่ยม' : (pct >= 50 ? 'ปานกลาง' : 'ควรปรับปรุง');
                 let colorHex = pct >= 70 ? '#10b981' : (pct >= 50 ? '#f59e0b' : '#ef4444');
-                return `
-                    <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
-                        <td style="padding: 6px;"><b>${tag}</b></td>
-                        <td style="padding: 6px; text-align: center;">${stat.correct} / ${stat.total}</td>
-                        <td style="padding: 6px; text-align: center; font-weight: bold; color: ${colorHex};">${pct}%</td>
-                        <td style="padding: 6px; text-align: center; color: ${colorHex}; font-weight: bold;">${evalText}</td>
-                    </tr>
-                `;
+                return '<tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">' +
+                    '<td style="padding: 6px;"><b>' + tag + '</b></td>' +
+                    '<td style="padding: 6px; text-align: center;">' + stat.correct + ' / ' + stat.total + '</td>' +
+                    '<td style="padding: 6px; text-align: center; font-weight: bold; color: ' + colorHex + ';">' + pct + '%</td>' +
+                    '<td style="padding: 6px; text-align: center; color: ' + colorHex + '; font-weight: bold;">' + evalText + '</td>' +
+                '</tr>';
             }).join('');
 
             const reportWindow = window.open('', '_blank');
             if (reportWindow) {
-                reportWindow.document.write(`
-                    <!DOCTYPE html>
-                    <html lang="th">
-                    <head>
-                        <meta charset="UTF-8">
-                        <title>รายงานผลการสอบ - ${cachedStudentName}</title>
-                        <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-                        <style>
-                            body { font-family: 'Prompt', sans-serif; padding: 20px; color: #1e293b; background: #ffffff; }
-                            h2 { color: #0284c7; margin-bottom: 5px; font-size: 18px; }
-                            h3 { margin-top: 20px; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; font-size: 14px; }
-                            .header-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; }
-                            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-                            th { background: #0284c7; color: white; padding: 8px; font-size: 11px; text-align: left; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header-box">
-                            <h2>ใบรายงานผลคะแนนสอบออนไลน์</h2>
-                            <p><b>ชุดข้อสอบ:</b> ${cachedExamTitle}</p>
-                            <p><b>ผู้สอบ:</b> ${cachedStudentName}</p>
-                            <p><b>คะแนนที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">${cachedScore} / ${cachedTotal}</span> คะแนน</p>
-                        </div>
-                        <h3>สรุปผลการประเมินรายหมวดหมู่</h3>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>หมวดหมู่</th>
-                                    <th style="text-align: center;">ทำได้ / ทั้งหมด</th>
-                                    <th style="text-align: center;">% ที่ได้</th>
-                                    <th style="text-align: center;">ผลประเมิน</th>
-                                </tr>
-                            </thead>
-                            <tbody>${categoryTableRowsHtml}</tbody>
-                        </table>
-                        <script>window.onload = function() { window.print(); }</script>
-                    </body>
-                    </html>
-                `);
+                reportWindow.document.write(
+                    '<!DOCTYPE html>' +
+                    '<html lang="th">' +
+                    '<head>' +
+                        '<meta charset="UTF-8">' +
+                        '<title>รายงานผลการสอบ - ' + cachedStudentName + '</title>' +
+                        '<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">' +
+                        '<style>' +
+                            'body { font-family: "Prompt", sans-serif; padding: 20px; color: #1e293b; background: #ffffff; }' +
+                            'h2 { color: #0284c7; margin-bottom: 5px; font-size: 18px; }' +
+                            'h3 { margin-top: 20px; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; font-size: 14px; }' +
+                            '.header-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; }' +
+                            'table { width: 100%; border-collapse: collapse; margin-top: 8px; }' +
+                            'th { background: #0284c7; color: white; padding: 8px; font-size: 11px; text-align: left; }' +
+                        '</style>' +
+                    '</head>' +
+                    '<body>' +
+                        '<div class="header-box">' +
+                            '<h2>ใบรายงานผลคะแนนสอบออนไลน์</h2>' +
+                            '<p><b>ชุดข้อสอบ:</b> ' + cachedExamTitle + '</p>' +
+                            '<p><b>ผู้สอบ:</b> ' + cachedStudentName + '</p>' +
+                            '<p><b>คะแนนที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">' + cachedScore + ' / ' + cachedTotal + '</span> คะแนน</p>' +
+                        '</div>' +
+                        '<h3>สรุปผลการประเมินรายหมวดหมู่</h3>' +
+                        '<table>' +
+                            '<thead>' +
+                                '<tr>' +
+                                    '<th>หมวดหมู่</th>' +
+                                    '<th style="text-align: center;">ทำได้ / ทั้งหมด</th>' +
+                                    '<th style="text-align: center;">% ที่ได้</th>' +
+                                    '<th style="text-align: center;">ผลประเมิน</th>' +
+                                '</tr>' +
+                            '</thead>' +
+                            '<tbody>' + categoryTableRowsHtml + '</tbody>' +
+                        '</table>' +
+                        '<script>window.onload = function() { window.print(); }</script>' +
+                    '</body>' +
+                    '</html>'
+                );
                 reportWindow.document.close();
             }
         }
@@ -712,7 +735,7 @@
         function setFilter(filterType) {
             currentFilter = filterType;
             ['all', 'correct', 'wrong'].forEach(f => {
-                const btn = document.getElementById(`filter-${f}`);
+                const btn = document.getElementById('filter-' + f);
                 if (btn) {
                     if (f === filterType) {
                         btn.className = 'flex-1 sm:flex-none px-2.5 py-1 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm';
@@ -730,13 +753,10 @@
 
             globalQuestions.forEach((q) => {
                 let userAns = getUserAnswer(q, globalRawAnswers);
-                const correctAns = q.correct_answer || q.answer || q.solution;
                 const isEssay = q.question_type === 'essay';
                 
                 if (!isEssay) {
-                    const studentIdx = parseChoiceIndex(userAns);
-                    const correctIdx = parseChoiceIndex(correctAns);
-                    if (studentIdx !== null && studentIdx !== undefined && !isNaN(studentIdx) && studentIdx === correctIdx) {
+                    if (isAnswerCorrect(q, userAns)) {
                         correctCount++;
                     } else {
                         wrongCount++;
@@ -765,13 +785,10 @@
 
             const filtered = globalQuestions.filter((q) => {
                 let userAns = getUserAnswer(q, globalRawAnswers);
-                const correctAns = q.correct_answer || q.answer || q.solution;
                 const isEssay = q.question_type === 'essay';
                 if (isEssay) return currentFilter === 'all';
 
-                const studentIdx = parseChoiceIndex(userAns);
-                const correctIdx = parseChoiceIndex(correctAns);
-                const isCorrect = (studentIdx !== null && studentIdx !== undefined && !isNaN(studentIdx) && studentIdx === correctIdx);
+                const isCorrect = isAnswerCorrect(q, userAns);
 
                 if (currentFilter === 'correct') return isCorrect;
                 if (currentFilter === 'wrong') return !isCorrect;
@@ -791,11 +808,9 @@
                 const opts = getQuestionOptions(q);
                 
                 let userAns = getUserAnswer(q, globalRawAnswers);
-                const correctAns = q.correct_answer || q.answer || q.solution;
-
                 const studentChoiceIdx = parseChoiceIndex(userAns);
-                const correctChoiceIdx = parseChoiceIndex(correctAns);
-                const isCorrect = !isEssay && studentChoiceIdx !== null && !isNaN(studentChoiceIdx) && studentChoiceIdx === correctChoiceIdx;
+                const correctChoiceIdx = parseChoiceIndex(q.correct_answer);
+                const isCorrect = !isEssay && isAnswerCorrect(q, userAns);
 
                 if (isEssay) {
                     htmlContent += '<div class="p-4 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">' +
@@ -838,7 +853,7 @@
                         '</div>';
                     }
 
-                    const imageHtml = (q.image_url && q.image_url.trim() !== '') ? '<div><img src="' + q.image_url + '" class="max-h-40 rounded-xl border shadow-sm object-cover"></div>' : '';
+                    const imageHtml = (q.image_url && String(q.image_url).trim() !== '' && !String(q.image_url).includes('${')) ? '<div><img src="' + q.image_url + '" class="max-h-40 rounded-xl border shadow-sm object-cover"></div>' : '';
                     const tagText = q.category_tag || 'ทั่วไป';
                     const badgeClass = isCorrect ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 border border-red-500/20';
                     const badgeText = isCorrect ? '<i class="fas fa-check-circle mr-1"></i> ถูก (+1)' : '<i class="fas fa-times-circle mr-1"></i> ผิด (0)';
@@ -856,10 +871,6 @@
                 }
             }
             container.innerHTML = htmlContent;
-        }
-
-        async function fetchGeminiAIAnalysis(questions, answerMap, score, total, examTitle, learningObjectives, pdfUrl) {
-            renderLocalAIAnalysis(questions, answerMap, score, total);
         }
 
         function renderLocalAIAnalysis(questions, answerMap, score, total) {
