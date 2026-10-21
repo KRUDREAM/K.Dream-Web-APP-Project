@@ -309,9 +309,10 @@
                     exam = exRes.data;
                 }
 
-                // ดึงข้อมูลเกณฑ์จากตาราง exams หรือ fallback ไปที่ localStorage
+                // ดึงข้อมูลเกณฑ์จากตาราง exams อย่างแม่นยำ (รองรับทั้ง boolean และ string "false")
                 if (exam) {
-                    enableGradingCriteria = exam.enable_grading_criteria !== undefined ? Boolean(exam.enable_grading_criteria) : false;
+                    const rawEnable = exam.enable_grading_criteria;
+                    enableGradingCriteria = (rawEnable === true || rawEnable === 'true' || rawEnable === 1 || rawEnable === '1');
                     gradingCriteriaList = exam.grading_criteria || [];
                 }
                 
@@ -370,7 +371,6 @@
 
                 computeCategoryStats();
 
-                // แสดงตารางสรุปผลรายหมวดหมู่เสมอ (ถ้ามีหมวดหมู่) โดยปรับรูปแบบตามการเปิดใช้งานเกณฑ์
                 const entriesCount = Object.keys(cachedCategoryStats).length;
                 if (entriesCount > 0) {
                     document.getElementById('categoryBreakdownCard').classList.remove('hidden');
