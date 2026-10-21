@@ -478,39 +478,33 @@
             renderFiles(files);
         }
 
-       async function loadEnrolledStudents() {
+      async function loadEnrolledStudents() {
             let totalStudents = new Set();
             
             try {
-                // ดึงจากทุกตารางที่เป็นไปได้แบบรวบยอด
-                const [en1, en2, attemptsRes] = await Promise.all([
-                    mySupabase.from('course_enrollments').select('*').catch(() => ({ data: [] })),
-                    mySupabase.from('enrollments').select('*').catch(() => ({ data: [] })),
-                    mySupabase.from('exam_attempts').select('student_id, user_id').catch(() => ({ data: [] }))
+                // ดึงข้อมูลจากตาราง enrollments และ course_enrollments โดยตรงด้วย courseId เหมือนกับตอนเปิด Modal
+                const [en1Res, en2Res] = await Promise.all([
+                    mySupabase.from('course_enrollments').select('*').eq('course_id', courseId).catch(() => ({ data: [] })),
+                    mySupabase.from('enrollments').select('*').eq('course_id', courseId).catch(() => ({ data: [] }))
                 ]);
 
-                // 1. เช็คจากตารางลงทะเบียน
-                const allEnrolls = [...(en1.data || []), ...(en2.data || [])];
-                allEnrolls.forEach(e => {
-                    const cId = String(e.course_id || e.courseid || e.courseId || '');
-                    if (cId === String(courseId)) {
-                        const sId = String(e.student_id || e.user_id || e.studentId || e.userId || '');
-                        if (sId) totalStudents.add(sId);
+                const allEnrolls = [...(en1Res.data || []), ...(en2Res.data || [])];
+                allEnrolls.forEach(en => {
+                    const sId = en.student_id || en.user_id || en.studentId || en.userId;
+                    if (sId) {
+                        totalStudents.add(String(sId));
                     }
                 });
 
-                // 2. ถ้าในตารางลงทะเบียนไม่มีข้อมูล ลองเช็คจากคนที่เคยส่งข้อสอบในคอร์สนี้มาช่วยนับ
-                if (totalStudents.size === 0 && allExams && allExams.length > 0) {
-                    const examIds = new Set(allExams.map(e => String(e.id)));
-                    (attemptsRes.data || []).forEach(a => {
-                        if (examIds.has(String(a.exam_id))) {
-                            const sId = String(a.student_id || a.user_id || '');
-                            if (sId) totalStudents.add(sId);
-                        }
+                // Fallback เผื่อคอร์สไหนยังไม่ได้บันทึกในตารางลงทะเบียน ให้ดึงจากประวัติการส่งข้อสอบในคอร์สนี้มานับรวมด้วย
+                if (totalStudents.size === 0 && allAttempts && allAttempts.length > 0) {
+                    allAttempts.forEach(a => {
+                        const sId = a.student_id || a.user_id;
+                        if (sId) totalStudents.add(String(sId));
                     });
                 }
             } catch (err) {
-                console.warn("Error loading students:", err);
+                console.warn("Load Enrolled Error:", err);
             }
 
             courseEnrolledStudentIds = Array.from(totalStudents);
