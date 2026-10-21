@@ -34,6 +34,7 @@
         .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); border: 1px solid rgba(226, 232, 240, 0.8); }
         .dark .glass-card { background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(51, 65, 85, 0.8); }
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
+        .dark .swal2-popup { background-color: #1e293b !important; color: #f8fafc !important; border: 1px solid #334155 !important; }
     </style>
 </head>
 <body class="bg-lightbg dark:bg-darkbg min-h-screen flex items-center justify-center p-4 transition-colors duration-300">
@@ -72,8 +73,15 @@
             </button>
         </form>
 
-        <div class="mt-6 text-center text-xs text-gray-400">
-            ระบบบริหารจัดการการเรียนการสอนออนไลน์ &copy; 2026
+        <div class="mt-6 text-center space-y-2 text-xs text-gray-400">
+            <div>
+                <a href="javascript:void(0);" onclick="openPrivacyPolicyModal()" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
+                    <i class="fas fa-shield-alt mr-1"></i> นโยบายความเป็นส่วนตัว (Privacy Policy)
+                </a>
+            </div>
+            <div>
+                ระบบบริหารจัดการการเรียนการสอนออนไลน์ &copy; 2026
+            </div>
         </div>
     </div>
 
@@ -94,6 +102,41 @@
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
+
+        // ฟังก์ชันแสดงหน้าต่างนโยบายความเป็นส่วนตัว (Privacy Policy Modal)
+        function openPrivacyPolicyModal() {
+            const isDark = document.documentElement.classList.contains('dark');
+            Swal.fire({
+                title: `<span class="text-base sm:text-lg font-extrabold text-blue-600 dark:text-blue-400 flex items-center justify-center gap-2"><i class="fas fa-shield-alt"></i> นโยบายความเป็นส่วนตัว (Privacy Policy)</span>`,
+                html: `
+                    <div class="space-y-3 text-left text-xs sm:text-sm max-h-[60vh] overflow-y-auto pr-2">
+                        <p class="text-gray-600 dark:text-gray-300 font-light">
+                            เว็บไซต์ <strong>KRUDREAM Online Platform</strong> ให้ความสำคัญกับการคุ้มครองข้อมูลส่วนบุคคลของคุณ เพื่อความโปร่งใสในการใช้งานระบบการเรียนการสอนออนไลน์ เราจึงขอแจ้งนโยบายการเก็บรวบรวมและใช้ข้อมูลดังต่อไปนี้:
+                        </p>
+                        <div class="space-y-2">
+                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/20 space-y-1">
+                                <h4 class="font-extrabold text-blue-600 dark:text-blue-400"><i class="fas fa-database mr-1"></i> 1. ข้อมูลที่เราจัดเก็บ</h4>
+                                <p class="text-gray-600 dark:text-gray-300 font-light">ข้อมูลส่วนตัว (ชื่อ-นามสกุล, ชื่อเล่น, ระดับชั้น, โรงเรียน, LINE ID), ข้อมูลการเข้าสู่ระบบ, ผลคะแนนสอบ และประวัติการทำกิจกรรมในระบบ</p>
+                            </div>
+                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/20 space-y-1">
+                                <h4 class="font-extrabold text-blue-600 dark:text-blue-400"><i class="fas fa-bullseye mr-1"></i> 2. วัตถุประสงค์ในการเก็บข้อมูล</h4>
+                                <p class="text-gray-600 dark:text-gray-300 font-light">ใช้สำหรับการจัดการเรียนการสอน, ตรวจสอบสิทธิ์เข้าคอร์ส, บันทึกผลคะแนนสอบ, ประมวลผลสถิติพัฒนาการการเรียนรู้ และการสะสม Token เพื่อแลกรางวัล</p>
+                            </div>
+                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/20 space-y-1">
+                                <h4 class="font-extrabold text-blue-600 dark:text-blue-400"><i class="fas fa-lock mr-1"></i> 3. ความปลอดภัยของข้อมูล</h4>
+                                <p class="text-gray-600 dark:text-gray-300 font-light">ข้อมูลทั้งหมดถูกจัดเก็บไว้อย่างปลอดภัยผ่านระบบฐานข้อมูลที่มีมาตรฐาน (Supabase) และไม่มีการนำไปเผยแพร่หรือจำหน่ายให้แก่บุคคลภายนอกเด็ดขาด</p>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'รับทราบและปิด',
+                confirmButtonColor: '#1d4ed8',
+                width: '600px',
+                background: isDark ? '#1e293b' : '#ffffff',
+                color: isDark ? '#f8fafc' : '#1e293b',
+                customClass: { popup: 'rounded-3xl shadow-2xl' }
+            });
+        }
 
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
