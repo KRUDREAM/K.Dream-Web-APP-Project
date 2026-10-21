@@ -12,7 +12,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -243,7 +245,17 @@
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         
-        const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Safely initialize Supabase client
+        let mySupabase = null;
+        try {
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            } else if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
+                mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
+        } catch (e) {
+            console.error('Supabase Init Error:', e);
+        }
 
         const urlParams = new URLSearchParams(window.location.search);
         const attemptId = urlParams.get('attempt_id') || urlParams.get('id');
@@ -306,6 +318,7 @@
         }
 
         function getQuestionOptions(q) {
+            if (!q || !q.options) return ['ก', 'ข', 'ค', 'ง'];
             let opts = q.options;
             if (typeof opts === 'string') {
                 try { opts = JSON.parse(opts); } catch(e) { opts = null; }
@@ -352,6 +365,10 @@
 
         async function initResultPage() {
             try {
+                if (!mySupabase) {
+                    throw new Error('ไม่สามารถเชื่อมต่อ Supabase ได้ (ตรวจสอบอินเทอร์เน็ตหรือ CDN)');
+                }
+
                 let attempt = null;
 
                 if (attemptId) {
@@ -378,7 +395,8 @@
                 }
 
                 if (!attempt) {
-                    Swal.fire({ icon: 'warning', title: 'ไม่พบข้อมูลผลการสอบ', confirmButtonText: 'กลับหน้าหลัก' }).then(() => window.location.href = 'student.html');
+                    document.getElementById('examTitleHeader').textContent = 'ไม่พบข้อมูลการสอบ';
+                    document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-red-500 text-xs">ไม่พบข้อมูลผลการสอบสำหรับบัญชีนี้</div>';
                     return;
                 }
 
@@ -420,7 +438,7 @@
                         renderSecurePDF(exam.pdf_url);
                     } catch (pdfErr) {
                         console.error('PDF Render Error:', pdfErr);
-                        document.getElementById('pdfContainer').innerHTML = '<div class="text-amber-500 text-xs py-10 text-center">ไม่สามารถแสดงตัวอย่าง PDF ได้ (ลิงก์อาจไม่ถูกต้องหรือถูกจำกัดสิทธิ์)</div>';
+                        document.getElementById('pdfContainer').innerHTML = '<div class="text-amber-500 text-xs py-10 text-center">ไม่สามารถแสดงตัวอย่าง PDF ได้</div>';
                     }
                 } else {
                     document.getElementById('pdfViewerCard').classList.add('hidden');
@@ -481,7 +499,7 @@
 
             } catch (err) {
                 console.error('Init Result Error:', err);
-                Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการโหลดผลการสอบ', text: err.message || 'โปรดลองใหม่อีกครั้ง' });
+                document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-red-500 text-xs">เกิดข้อผิดพลาด: ' + (err.message || 'ไม่สามารถโหลดข้อมูลได้') + '</div>';
             }
         }
 
@@ -588,6 +606,7 @@
 
         function renderDetailedScoreChart(scores, totalQuestions, studentScore) {
             try {
+                if (typeof Chart === 'undefined') return;
                 const labels = [];
                 const dataCounts = [];
 
@@ -650,6 +669,9 @@
                 return;
             }
             try {
+                if (typeof pdfjsLib === 'undefined') {
+                    throw new Error('PDF.js library not loaded');
+                }
                 const loadingTask = pdfjsLib.getDocument(url);
                 const pdfDoc = await loadingTask.promise;
                 container.innerHTML = '';
@@ -670,7 +692,7 @@
                 }
             } catch (err) {
                 console.warn('PDF Loading Warning:', err);
-                container.innerHTML = '<div class="text-amber-500 text-xs py-10 text-center px-4">ไม่สามารถโหลดไฟล์ PDF ได้โดยตรง (อาจติดปัญหา CORS หรือลิงก์หมดอายุ)<br><a href="' + url + '" target="_blank" class="mt-2 inline-block px-3 py-1 bg-sky-600 text-white rounded-lg font-bold">คลิกเพื่อเปิดไฟล์ PDF</a></div>';
+                container.innerHTML = '<div class="text-amber-500 text-xs py-10 text-center px-4">ไม่สามารถโหลดไฟล์ PDF ได้โดยตรง<br><a href="' + url + '" target="_blank" class="mt-2 inline-block px-3 py-1 bg-sky-600 text-white rounded-lg font-bold">คลิกเพื่อเปิดไฟล์ PDF</a></div>';
             }
         }
 
