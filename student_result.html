@@ -184,7 +184,7 @@
                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
                     <i class="fas fa-table-cells text-sky-500"></i> เปอร์เซ็นต์คะแนนแต่ละหมวดหมู่กับเกณฑ์มาตรฐาน
                 </h3>
-                <span class="text-[10px] sm:text-[11px] text-slate-400 font-light bg-slate-100 dark:bg-darkinput px-2.5 py-1 rounded-xl border">เกณฑ์ผ่าน: $\ge 70\%$</span>
+                <span class="text-[10px] sm:text-[11px] text-slate-400 font-light bg-slate-100 dark:bg-darkinput px-2.5 py-1 rounded-xl border">เกณฑ์ผ่าน: **>= 70%**</span>
             </div>
             <div class="overflow-x-auto hide-scrollbar">
                 <table class="w-full text-left border-collapse text-xs sm:text-sm whitespace-nowrap sm:whitespace-normal">
@@ -293,9 +293,10 @@
             if (str === 'ข' || str === 'B' || str === '1') return 1;
             if (str === 'ค' || str === 'C' || str === '2') return 2;
             if (str === 'ง' || str === 'D' || str === '3') return 3;
+            if (str === 'จ' || str === 'E' || str === '4') return 4;
             
-            const thaiOpts = ['ก', 'ข', 'ค', 'ง'];
-            const engOpts = ['A', 'B', 'C', 'D'];
+            const thaiOpts = ['ก', 'ข', 'ค', 'ง', 'จ'];
+            const engOpts = ['A', 'B', 'C', 'D', 'E'];
             if (thaiOpts.includes(str)) return thaiOpts.indexOf(str);
             if (engOpts.includes(str)) return engOpts.indexOf(str);
             
@@ -313,18 +314,43 @@
             return opts;
         }
 
+        function getUserAnswer(q, rawAnswers) {
+            if (!rawAnswers || typeof rawAnswers !== 'object') return '-';
+            let ans = rawAnswers[q.id] || rawAnswers[String(q.id)] || rawAnswers[q.question_number] || rawAnswers[String(q.question_number)] || rawAnswers[`q${q.question_number}`];
+            if (ans === undefined || ans === null) {
+                const idx = globalQuestions.indexOf(q);
+                if (Array.isArray(rawAnswers)) {
+                    ans = rawAnswers[idx] !== undefined ? rawAnswers[idx] : rawAnswers[idx+1];
+                } else {
+                    const keys = Object.keys(rawAnswers);
+                    if (keys[idx] !== undefined) ans = rawAnswers[keys[idx]];
+                }
+            }
+            return ans !== undefined && ans !== null ? ans : '-';
+        }
+
         async function initResultPage() {
             let attempt = null;
 
             if (attemptId) {
-                const { data } = await mySupabase.from('exam_attempts').select('*').eq('id', attemptId).single();
-                attempt = data;
+                let res = await mySupabase.from('exam_attempts').select('*').eq('id', attemptId).single();
+                if (!res.data) {
+                    res = await mySupabase.from('exam_attempts').select('*').eq('attempt_id', attemptId).single();
+                }
+                if (!res.data) {
+                    res = await mySupabase.from('exam_attempts').select('*').eq('uuid', attemptId).single();
+                }
+                attempt = res.data;
             }
 
             if (!attempt) {
                 let studentId = localStorage.getItem('id') || localStorage.getItem('student_id') || localStorage.getItem('user_id');
                 if (studentId) {
-                    const { data: latestList } = await mySupabase.from('exam_attempts').select('*').eq('student_id', studentId).order('submission_time', { ascending: false }).limit(1);
+                    let { data: latestList } = await mySupabase.from('exam_attempts').select('*').eq('student_id', studentId).order('submission_time', { ascending: false }).limit(1);
+                    if (!latestList || latestList.length === 0) {
+                        const altList = await mySupabase.from('exam_attempts').select('*').eq('student_uuid', studentId).limit(1);
+                        latestList = altList.data;
+                    }
                     if (latestList && latestList.length > 0) attempt = latestList[0];
                 }
             }
@@ -335,19 +361,26 @@
             }
 
             globalAttempt = attempt;
-            const { data: exam } = await mySupabase.from('exams').select('*').eq('id', attempt.exam_id).single();
+            const examRef = attempt.exam_id || attempt.exam_uuid || attempt.quiz_id;
+
+            let exam = null;
+            if (examRef) {
+                const exRes = await mySupabase.from('exams').select('*').eq('id', examRef).single();
+                exam = exRes.data;
+            }
 
             cachedExamTitle = exam ? exam.title : 'ชุดข้อสอบออนไลน์';
+            let studentIdRef = attempt.student_id || attempt.student_uuid || attempt.user_id;
             let studentNameStr = 'นักเรียน';
-            if (attempt.student_id) {
-                const { data: profileData } = await mySupabase.from('profiles').select('full_name, name, first_name, last_name').eq('id', attempt.student_id).single();
-                if (profileData) {
-                    studentNameStr = `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim() || profileData.full_name || profileData.name || 'นักเรียน';
-                } else {
-                    const { data: studentData } = await mySupabase.from('students').select('full_name, fullname, name, username, first_name, last_name').eq('id', attempt.student_id).single();
-                    if (studentData) {
-                        studentNameStr = `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim() || studentData.full_name || studentData.fullname || studentData.name || studentData.username || 'นักเรียน';
-                    }
+
+            if (studentIdRef) {
+                let profileRes = await mySupabase.from('profiles').select('full_name, name, first_name, last_name, username').eq('id', studentIdRef).single();
+                if (!profileRes.data) {
+                    profileRes = await mySupabase.from('students').select('full_name, fullname, name, username, first_name, last_name').eq('id', studentIdRef).single();
+                }
+                if (profileRes.data) {
+                    const p = profileRes.data;
+                    studentNameStr = `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.full_name || p.fullname || p.name || p.username || 'นักเรียน';
                 }
             }
             cachedStudentName = studentNameStr;
@@ -366,25 +399,28 @@
                 document.getElementById('rightResultCard').className = 'lg:col-span-12 hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4';
             }
 
-            let { data: questions } = await mySupabase.from('questions').select('*').eq('exam_id', attempt.exam_id).order('question_number', { ascending: true });
-            if (!questions || questions.length === 0) {
-                const { data: qAlt } = await mySupabase.from('exam_questions').select('*').eq('exam_id', attempt.exam_id).order('question_number', { ascending: true });
-                questions = qAlt;
+            let questions = [];
+            if (examRef) {
+                let qRes = await mySupabase.from('questions').select('*').eq('exam_id', examRef).order('question_number', { ascending: true });
+                if (!qRes.data || qRes.data.length === 0) {
+                    qRes = await mySupabase.from('questions').select('*').eq('exam_uuid', examRef).order('question_number', { ascending: true });
+                }
+                if (!qRes.data || qRes.data.length === 0) {
+                    qRes = await mySupabase.from('exam_questions').select('*').eq('exam_id', examRef).order('question_number', { ascending: true });
+                }
+                questions = qRes.data || [];
             }
-            globalQuestions = questions || [];
+            globalQuestions = questions;
 
-            let rawAns = attempt.answer_saved || attempt.answers || attempt.user_answers;
+            let rawAns = attempt.answer_saved || attempt.answers || attempt.user_answers || attempt.student_answers || attempt.responses || {};
             if (typeof rawAns === 'string') {
-                try { rawAns = JSON.parse(rawAns); } catch(e) {}
+                try { rawAns = JSON.parse(rawAns); } catch(e) { rawAns = {}; }
             }
-            globalRawAnswers = rawAns || {};
+            globalRawAnswers = rawAns;
 
             let calculatedScore = 0;
             globalQuestions.forEach((q) => {
-                let userAnsVal = '-';
-                if (globalRawAnswers && typeof globalRawAnswers === 'object') {
-                    userAnsVal = globalRawAnswers[q.id] || globalRawAnswers[String(q.id)] || globalRawAnswers[q.question_number] || '-';
-                }
+                let userAnsVal = getUserAnswer(q, globalRawAnswers);
                 const correctAnsVal = q.correct_answer || q.answer || q.solution;
                 
                 const studentIdx = parseChoiceIndex(userAnsVal);
@@ -411,7 +447,7 @@
             computeCategoryStats();
             renderCategoryComparisonTable();
             updateCountsAndRender();
-            await loadClassAnalytics(attempt.exam_id, earnedScore, totalQ);
+            await loadClassAnalytics(examRef, earnedScore, totalQ);
             await fetchGeminiAIAnalysis(globalQuestions, globalRawAnswers, earnedScore, totalQ, cachedExamTitle, exam ? exam.learning_objectives : '', exam ? exam.pdf_url : '');
         }
 
@@ -422,10 +458,7 @@
                 if (!cachedCategoryStats[tag]) cachedCategoryStats[tag] = { total: 0, correct: 0 };
                 cachedCategoryStats[tag].total++;
 
-                let userAns = '-';
-                if (globalRawAnswers && typeof globalRawAnswers === 'object') {
-                    userAns = globalRawAnswers[q.id] || globalRawAnswers[String(q.id)] || globalRawAnswers[q.question_number] || '-';
-                }
+                let userAns = getUserAnswer(q, globalRawAnswers);
                 const correctAns = q.correct_answer || q.answer || q.solution;
                 const studentIdx = parseChoiceIndex(userAns);
                 const correctIdx = parseChoiceIndex(correctAns);
@@ -451,7 +484,7 @@
                 let evalText = 'ควรปรับปรุง (< 50%)';
                 if (pct >= 70) {
                     badgeColor = 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
-                    evalText = 'ดีเยี่ยม (≥ 70%)';
+                    evalText = 'ดีเยี่ยม (>= 70%)';
                 } else if (pct >= 50) {
                     badgeColor = 'bg-amber-500/10 text-amber-600 border-amber-500/20';
                     evalText = 'ปานกลาง (50-69%)';
@@ -471,11 +504,24 @@
             }).join('');
         }
 
-        async function loadClassAnalytics(examId, studentScore, totalQuestions) {
-            let { data: attempts, error } = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examId);
-            if (error || !attempts || attempts.length === 0) {
-                const { data: allAttempts } = await mySupabase.from('exam_attempts').select('*');
-                if (allAttempts) attempts = allAttempts.filter(a => String(a.exam_id) === String(examId));
+        async function loadClassAnalytics(examRef, studentScore, totalQuestions) {
+            let attempts = [];
+            if (examRef) {
+                let attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examRef);
+                if (!attRes.data || attRes.data.length === 0) {
+                    attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_uuid', examRef);
+                }
+                if (!attRes.data || attRes.data.length === 0) {
+                    attRes = await mySupabase.from('exam_attempts').select('*').eq('quiz_id', examRef);
+                }
+                attempts = attRes.data || [];
+            }
+
+            if (attempts.length === 0) {
+                const allAtt = await mySupabase.from('exam_attempts').select('*');
+                if (allAtt.data && examRef) {
+                    attempts = allAtt.data.filter(a => String(a.exam_id || a.exam_uuid || a.quiz_id) === String(examRef));
+                }
             }
 
             if (!attempts || attempts.length === 0) {
@@ -664,10 +710,7 @@
             let wrongCount = 0;
 
             globalQuestions.forEach((q) => {
-                let userAns = '-';
-                if (globalRawAnswers && typeof globalRawAnswers === 'object') {
-                    userAns = globalRawAnswers[q.id] || globalRawAnswers[String(q.id)] || globalRawAnswers[q.question_number] || '-';
-                }
+                let userAns = getUserAnswer(q, globalRawAnswers);
                 const correctAns = q.correct_answer || q.answer || q.solution;
                 const isEssay = q.question_type === 'essay';
                 
@@ -697,10 +740,7 @@
             }
 
             const filtered = globalQuestions.filter((q) => {
-                let userAns = '-';
-                if (globalRawAnswers && typeof globalRawAnswers === 'object') {
-                    userAns = globalRawAnswers[q.id] || globalRawAnswers[String(q.id)] || globalRawAnswers[q.question_number] || '-';
-                }
+                let userAns = getUserAnswer(q, globalRawAnswers);
                 const correctAns = q.correct_answer || q.answer || q.solution;
                 const isEssay = q.question_type === 'essay';
                 if (isEssay) return currentFilter === 'all';
@@ -724,10 +764,7 @@
                 const isEssay = q.question_type === 'essay';
                 const opts = getQuestionOptions(q);
                 
-                let userAns = '-';
-                if (globalRawAnswers && typeof globalRawAnswers === 'object') {
-                    userAns = globalRawAnswers[q.id] || globalRawAnswers[String(q.id)] || globalRawAnswers[q.question_number] || '-';
-                }
+                let userAns = getUserAnswer(q, globalRawAnswers);
                 const correctAns = q.correct_answer || q.answer || q.solution;
 
                 const studentChoiceIdx = parseChoiceIndex(userAns);
@@ -807,19 +844,6 @@
             if (!GEMINI_API_KEY || GEMINI_API_KEY.trim() === "" || GEMINI_API_KEY.includes("__GEMINI_API_KEY__")) {
                 renderLocalAIAnalysis(questions, answerMap, score, total);
                 return;
-            }
-
-            let pdfTextContent = "";
-            if (pdfUrl) {
-                try {
-                    const loadingTask = pdfjsLib.getDocument(pdfUrl);
-                    const pdfDoc = await loadingTask.promise;
-                    for (let i = 1; i <= Math.min(pdfDoc.numPages, 3); i++) {
-                        const page = await pdfDoc.getPage(i);
-                        const textContent = await page.getTextContent();
-                        pdfTextContent += textContent.items.map(item => item.str).join(" ") + " ";
-                    }
-                } catch (e) { console.warn("PDF extraction warning:", e); }
             }
 
             const prompt = `
