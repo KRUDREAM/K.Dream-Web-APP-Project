@@ -1146,10 +1146,59 @@
             return sectionHtml;
         }
 
+        // 🌟 อัปเดตฟังก์ชัน handleExamClick ให้แสดงหน้า Instruction ก่อนเข้าสอบจริง
         async function handleExamClick(examId, action, attemptId) {
             const exam = allExams.find(e => e.id === examId);
             if (!exam) return;
-            window.location.href = `exam_take.html?exam_id=${examId}&student_id=${currentStudentId}`;
+
+            const questionCount = examQuestionCounts[examId] || 'ไม่ระบุ';
+            const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
+            const maxAttempts = exam.max_attempts || exam.attempts_allowed || 'ไม่จำกัด';
+            const isDark = document.documentElement.classList.contains('dark');
+
+            const { value: confirmed } = await Swal.fire({
+                title: `<div class="text-base font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-clipboard-list"></i> คำชี้แจงก่อนเข้าสอบ</div>`,
+                html: `
+                    <div class="space-y-3 text-left text-xs sm:text-sm bg-slate-50 dark:bg-darkinput p-4 rounded-2xl border border-sky-500/20">
+                        <div class="font-bold text-slate-900 dark:text-white text-sm sm:text-base border-b border-slate-200 dark:border-slate-800 pb-2">
+                            📝 ${exam.title}
+                        </div>
+                        <p class="text-slate-600 dark:text-slate-300 font-light text-xs">
+                            ${exam.description || 'กรุณาอ่านคำชี้แจงและตรวจสอบเวลาให้เรียบร้อยก่อนกดปุ่มเริ่มทำข้อสอบ'}
+                        </p>
+                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
+                            <div class="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                                <span class="text-slate-400 block text-[10px]">จำนวนข้อสอบ</span>
+                                <span class="font-extrabold text-sky-600 dark:text-sky-400 text-sm">${questionCount} ข้อ</span>
+                            </div>
+                            <div class="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                                <span class="text-slate-400 block text-[10px]">เวลาที่ใช้ทำ</span>
+                                <span class="font-extrabold text-amber-500 text-sm">${durationMins} นาที</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-600 dark:text-amber-400 text-[11px] space-y-1">
+                            <div class="font-extrabold flex items-center gap-1"><i class="fas fa-triangle-exclamation"></i> ข้อควรปฏิบัติและกฎระเบียบ:</div>
+                            <ul class="list-disc list-inside space-y-0.5 text-slate-700 dark:text-slate-300">
+                                <li>ระบบจะทำการ **จับเวลาถอยหลัง** ทันทีเมื่อเริ่มทำข้อสอบ</li>
+                                <li>ห้ามปิดหน้าจอ, สลับแท็บ หรือกดออกจากหน้าต่างสอบเด็ดขาด (อาจส่งผลให้การส่งข้อสอบผิดพลาดหรือถูกตัดสิทธิ์)</li>
+                                <li>เมื่อครบกำหนดเวลา ระบบจะทำการส่งข้อสอบอัตโนมัติ</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '🚀 เข้าสู่หน้าจอทำข้อสอบ',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#0284c7',
+                cancelButtonColor: '#ef4444',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                customClass: { popup: 'rounded-3xl shadow-2xl' }
+            });
+
+            if (confirmed) {
+                window.location.href = `exam_take.html?exam_id=${examId}&student_id=${currentStudentId}`;
+            }
         }
 
         function renderExamHistory() {
