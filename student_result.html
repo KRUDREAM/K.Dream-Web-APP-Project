@@ -119,21 +119,20 @@
             </div>
         </div>
 
-        <!-- Category Percentage Breakdown Table (แสดงเฉพาะเมื่อเปิดใช้งานเกณฑ์และมีข้อมูลเกณฑ์) -->
+        <!-- Category Percentage Breakdown Table -->
         <div id="categoryBreakdownCard" class="card-box p-6 rounded-2xl space-y-4 hidden">
             <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
-                <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <i class="fas fa-table-cells text-sky-500"></i> สรุปผลคะแนนรายหมวดหมู่ (%) และระดับการประเมิน
+                <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2" id="categoryTableTitle">
+                    <i class="fas fa-table-cells text-sky-500"></i> สรุปผลคะแนนรายหมวดหมู่ (%)
                 </h3>
             </div>
             <div class="overflow-x-auto hide-scrollbar">
                 <table class="w-full text-left border-collapse text-xs sm:text-sm">
                     <thead>
-                        <tr class="bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px]">
+                        <tr class="bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px]" id="categoryTableHeader">
                             <th class="p-3 rounded-l-xl">หมวดหมู่ข้อสอบ</th>
                             <th class="p-3 text-center">ทำได้ / ทั้งหมด</th>
-                            <th class="p-3 text-center">% คะแนน</th>
-                            <th class="p-3 text-center rounded-r-xl">ระดับผลการประเมิน</th>
+                            <th class="p-3 text-center rounded-r-xl">% คะแนน</th>
                         </tr>
                     </thead>
                     <tbody id="categoryTableBody" class="divide-y divide-slate-200 dark:divide-slate-800">
@@ -312,7 +311,7 @@
 
                 // ดึงข้อมูลเกณฑ์จากตาราง exams หรือ fallback ไปที่ localStorage
                 if (exam) {
-                    enableGradingCriteria = exam.enable_grading_criteria !== undefined ? exam.enable_grading_criteria : false;
+                    enableGradingCriteria = exam.enable_grading_criteria !== undefined ? Boolean(exam.enable_grading_criteria) : false;
                     gradingCriteriaList = exam.grading_criteria || [];
                 }
                 
@@ -371,10 +370,13 @@
 
                 computeCategoryStats();
 
-                // แสดงตารางเกณฑ์เฉพาะเมื่อเปิดใช้งานและมีข้อมูลเกณฑ์จริง ๆ เท่านั้น
-                if (enableGradingCriteria && gradingCriteriaList.length > 0) {
+                // แสดงตารางสรุปผลรายหมวดหมู่เสมอ (ถ้ามีหมวดหมู่) โดยปรับรูปแบบตามการเปิดใช้งานเกณฑ์
+                const entriesCount = Object.keys(cachedCategoryStats).length;
+                if (entriesCount > 0) {
                     document.getElementById('categoryBreakdownCard').classList.remove('hidden');
                     renderCategoryTable();
+                } else {
+                    document.getElementById('categoryBreakdownCard').classList.add('hidden');
                 }
 
                 await loadAnalytics(examRef, score, cachedTotal);
@@ -400,7 +402,6 @@
 
         function findCriteriaNameForCategoryAndPct(categoryTag, pct) {
             if (!gradingCriteriaList || gradingCriteriaList.length === 0) return '-';
-            // หาเกณฑ์ที่ตรงกับ category นี้ หรือเกณฑ์ทั่วไป (ถ้ามี)
             const matched = gradingCriteriaList.find(c => {
                 const cTag = (c.category || '').trim();
                 const matchCat = cTag === '' || cTag === categoryTag;
@@ -413,43 +414,119 @@
 
         function renderCategoryTable() {
             const tbody = document.getElementById('categoryTableBody');
+            const theadTr = document.getElementById('categoryTableHeader');
+            const titleEl = document.getElementById('categoryTableTitle');
             const entries = Object.entries(cachedCategoryStats);
-            if (entries.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-slate-400 text-xs">ไม่พบข้อมูลหมวดหมู่ข้อสอบ</td></tr>';
-                return;
+            
+            if (entries.length === 0) return;
+
+            const hasActiveCriteria = enableGradingCriteria && gradingCriteriaList.length > 0;
+
+            if (titleEl) {
+                titleEl.innerHTML = `<i class="fas fa-table-cells text-sky-500"></i> ${hasActiveCriteria ? 'สรุปผลคะแนนรายหมวดหมู่ (%) และระดับการประเมิน' : 'สรุปผลคะแนนรายหมวดหมู่ (%)'}`;
             }
 
-            tbody.innerHTML = entries.map(([tag, stat]) => {
-                const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
-                const levelName = findCriteriaNameForCategoryAndPct(tag, pct);
-
-                return `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all">
-                        <td class="p-3 font-bold text-slate-800 dark:text-slate-200">🏷️ ${escapeHtml(tag)}</td>
-                        <td class="p-3 text-center">${stat.correct} / ${stat.total}</td>
-                        <td class="p-3 text-center font-extrabold text-sky-600 dark:text-sky-400">${pct}%</td>
-                        <td class="p-3 text-center font-bold text-slate-700 dark:text-slate-300">${escapeHtml(levelName)}</td>
-                    </tr>
-                `;
-            }).join('');
+            if (hasActiveCriteria) {
+                if (theadTr) {
+                    theadTr.innerHTML = `
+                        <th class="p-3 rounded-l-xl">หมวดหมู่ข้อสอบ</th>
+                        <th class="p-3 text-center">ทำได้ / ทั้งหมด</th>
+                        <th class="p-3 text-center">% คะแนน</th>
+                        <th class="p-3 text-center rounded-r-xl">ระดับผลการประเมิน</th>
+                    `;
+                }
+                tbody.innerHTML = entries.map(([tag, stat]) => {
+                    const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                    const levelName = findCriteriaNameForCategoryAndPct(tag, pct);
+                    return `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all">
+                            <td class="p-3 font-bold text-slate-800 dark:text-slate-200">🏷️ ${escapeHtml(tag)}</td>
+                            <td class="p-3 text-center">${stat.correct} / ${stat.total}</td>
+                            <td class="p-3 text-center font-extrabold text-sky-600 dark:text-sky-400">${pct}%</td>
+                            <td class="p-3 text-center font-bold text-slate-700 dark:text-slate-300">${escapeHtml(levelName)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                if (theadTr) {
+                    theadTr.innerHTML = `
+                        <th class="p-3 rounded-l-xl">หมวดหมู่ข้อสอบ</th>
+                        <th class="p-3 text-center">ทำได้ / ทั้งหมด</th>
+                        <th class="p-3 text-center rounded-r-xl">% คะแนน</th>
+                    `;
+                }
+                tbody.innerHTML = entries.map(([tag, stat]) => {
+                    const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                    return `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all">
+                            <td class="p-3 font-bold text-slate-800 dark:text-slate-200">🏷️ ${escapeHtml(tag)}</td>
+                            <td class="p-3 text-center">${stat.correct} / ${stat.total}</td>
+                            <td class="p-3 text-center font-extrabold text-sky-600 dark:text-sky-400 rounded-r-xl">${pct}%</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
         }
 
         function downloadSummaryReport() {
             try {
-                let categoryRows = '';
-                if (enableGradingCriteria && gradingCriteriaList.length > 0) {
-                    categoryRows = Object.entries(cachedCategoryStats).map(([tag, stat]) => {
-                        const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
-                        const levelName = findCriteriaNameForCategoryAndPct(tag, pct);
-                        return `
-                            <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
-                                <td style="padding: 6px;"><b>${escapeHtml(tag)}</b></td>
-                                <td style="padding: 6px; text-align: center;">${stat.correct} / ${stat.total}</td>
-                                <td style="padding: 6px; text-align: center; font-weight: bold; color: #0284c7;">${pct}%</td>
-                                <td style="padding: 6px; text-align: center; font-weight: bold;">${escapeHtml(levelName)}</td>
-                            </tr>
+                let categoryTableHtml = '';
+                const entries = Object.entries(cachedCategoryStats);
+                const hasActiveCriteria = enableGradingCriteria && gradingCriteriaList.length > 0;
+
+                if (entries.length > 0) {
+                    if (hasActiveCriteria) {
+                        const categoryRows = entries.map(([tag, stat]) => {
+                            const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                            const levelName = findCriteriaNameForCategoryAndPct(tag, pct);
+                            return `
+                                <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
+                                    <td style="padding: 6px;"><b>${escapeHtml(tag)}</b></td>
+                                    <td style="padding: 6px; text-align: center;">${stat.correct} / ${stat.total}</td>
+                                    <td style="padding: 6px; text-align: center; font-weight: bold; color: #0284c7;">${pct}%</td>
+                                    <td style="padding: 6px; text-align: center; font-weight: bold;">${escapeHtml(levelName)}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                        categoryTableHtml = `
+                            <h3>สรุปผลการประเมินรายหมวดหมู่</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>หมวดหมู่</th>
+                                        <th style="text-align: center;">ทำได้ / ทั้งหมด</th>
+                                        <th style="text-align: center;">% คะแนน</th>
+                                        <th style="text-align: center;">ระดับการประเมิน</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${categoryRows}</tbody>
+                            </table>
                         `;
-                    }).join('');
+                    } else {
+                        const categoryRows = entries.map(([tag, stat]) => {
+                            const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                            return `
+                                <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
+                                    <td style="padding: 6px;"><b>${escapeHtml(tag)}</b></td>
+                                    <td style="padding: 6px; text-align: center;">${stat.correct} / ${stat.total}</td>
+                                    <td style="padding: 6px; text-align: center; font-weight: bold; color: #0284c7;">${pct}%</td>
+                                </tr>
+                            `;
+                        }).join('');
+                        categoryTableHtml = `
+                            <h3>สรุปผลคะแนนรายหมวดหมู่</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>หมวดหมู่</th>
+                                        <th style="text-align: center;">ทำได้ / ทั้งหมด</th>
+                                        <th style="text-align: center;">% คะแนน</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${categoryRows}</tbody>
+                            </table>
+                        `;
+                    }
                 }
 
                 const win = window.open('', '_blank');
@@ -479,20 +556,7 @@
                         <p><b>ผู้สอบ:</b> ${escapeHtml(cachedStudentName)}</p>
                         <p><b>คะแนนที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">${cachedScore} / ${cachedTotal}</span> คะแนน</p>
                     </div>
-                    ${enableGradingCriteria && gradingCriteriaList.length > 0 ? `
-                        <h3>สรุปผลการประเมินรายหมวดหมู่</h3>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>หมวดหมู่</th>
-                                    <th style="text-align: center;">ทำได้ / ทั้งหมด</th>
-                                    <th style="text-align: center;">% คะแนน</th>
-                                    <th style="text-align: center;">ระดับการประเมิน</th>
-                                </tr>
-                            </thead>
-                            <tbody>${categoryRows}</tbody>
-                        </table>
-                    ` : ''}
+                    ${categoryTableHtml}
                     <script>
                         window.onload = function() { setTimeout(function() { window.print(); }, 500); };
                     <\/script>
