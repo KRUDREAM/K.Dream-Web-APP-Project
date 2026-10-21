@@ -477,66 +477,62 @@
             renderFiles(files);
         }
 
-       async function loadEnrolledStudents() {
+      async function loadEnrolledStudents() {
             let totalStudents = new Set();
             
             try {
-                // 1. ดึงรายชื่อนักเรียนที่มีตัวตนจริง (ใช้ฟังก์ชันเดียวกับ Modal จัดการนักเรียน เพื่อความแม่นยำสูงสุด)
-                let activeStudentIds = new Set();
-                const { data: profiles, error: rpcErr } = await mySupabase.rpc('get_students_with_auth_created');
-                if (!rpcErr && profiles) {
-                    profiles.forEach(p => {
-                        const sId = p.id || p.user_id || p.student_id;
-                        if (sId && !isUserAdmin(p)) {
-                            activeStudentIds.add(String(sId));
-                        }
-                    });
-                } else {
-                    const { data: fallbackProfiles } = await mySupabase.from('profiles').select('*');
-                    if (fallbackProfiles) {
-                        fallbackProfiles.forEach(p => {
-                            const sId = p.id || p.user_id || p.student_id;
-                            if (sId && !isUserAdmin(p)) {
-                                activeStudentIds.add(String(sId));
-                            }
-                        });
-                    }
-                }
-
-                // 2. ดึงข้อมูลการลงทะเบียนของคอร์สนี้จากทั้ง 2 ตาราง
-                const [en1Res, en2Res] = await Promise.all([
-                    mySupabase.from('course_enrollments').select('student_id, user_id').eq('course_id', courseId),
-                    mySupabase.from('enrollments').select('student_id, user_id').eq('course_id', courseId)
+                // 1. ดึงรายชื่อบัญชีนักเรียนที่มีตัวตนจริงเพื่อกรองบัญชีที่ถูกลบออก
+                let validStudentIds = new Set();
+                const [profilesRes, studentsRes] = await Promise.all([
+                    mySupabase.from('profiles').select('id, user_id, student_id').catch(() => ({ data: [] })),
+                    mySupabase.from('students').select('id, user_id').catch(() => ({ data: [] }))
                 ]);
 
-                const rawEnrolledIds = new Set();
-                if (en1Res.data) {
-                    en1Res.data.forEach(e => {
-                        if (e.student_id) rawEnrolledIds.add(String(e.student_id));
-                        if (e.user_id) rawEnrolledIds.add(String(e.user_id));
+                if (profilesRes.data) {
+                    profilesRes.data.forEach(p => {
+                        if (p.id) validStudentIds.add(String(p.id));
+                        if (p.user_id) validStudentIds.add(String(p.user_id));
+                        if (p.student_id) validStudentIds.add(String(p.student_id));
                     });
                 }
-                if (en2Res.data) {
-                    en2Res.data.forEach(e => {
-                        if (e.student_id) rawEnrolledIds.add(String(e.student_id));
-                        if (e.user_id) rawEnrolledIds.add(String(e.user_id));
+                if (studentsRes.data) {
+                    studentsRes.data.forEach(s => {
+                        if (s.id) validStudentIds.add(String(s.id));
+                        if (s.user_id) validStudentIds.add(String(s.user_id));
                     });
                 }
 
-                // 3. กรองนับเฉพาะนักเรียนที่มีตัวตนจริง (ถ้าโหลดรายชื่อไม่ได้ ให้ยอมรับทั้งหมดกันเหนียวไม่ให้ตัวเลขเป็น 0)
-                rawEnrolledIds.forEach(id => {
-                    if (activeStudentIds.size === 0 || activeStudentIds.has(id)) {
-                        totalStudents.add(id);
+                // 2. ดึงข้อมูลการลงทะเบียนทั้งหมดมาคัดกรองใน JS ป้องกันปัญหาชื่อคอลัมน์หรือ Type ไม่ตรงกัน
+                const [en1Res, en2Res] = await Promise.all([
+                    mySupabase.from('course_enrollments').select('*').catch(() => ({ data: [] })),
+                    mySupabase.from('enrollments').select('*').catch(() => ({ data: [] }))
+                ]);
+
+                const allEnrolls = [...(en1Res.data || []), ...(en2Res.data || [])];
+
+                allEnrolls.forEach(e => {
+                    const cId = String(e.course_id || e.courseid || '');
+                    if (cId === String(courseId)) {
+                        const sId = String(e.student_id || e.user_id || '');
+                        if (sId) {
+                            // ถ้ามีข้อมูล profiles ให้กรองเฉพาะที่มีตัวตนจริง แต่ถ้าไม่มีให้ยอมรับเพื่อกันเหนียว
+                            if (validStudentIds.size === 0 || validStudentIds.has(sId)) {
+                                totalStudents.add(sId);
+                            }
+                        }
                     }
                 });
 
-            } catch (e) { 
-                console.warn("Load Enrolled Students Error:", e); 
+            } catch (e) {
+                console.warn("Load Enrolled Students Error:", e);
             }
 
             courseEnrolledStudentIds = Array.from(totalStudents);
-            document.getElementById('courseEnrolledStudentsCount').textContent = `${courseEnrolledStudentIds.length} คน`;
-            document.getElementById('enrolledCountBadge').textContent = courseEnrolledStudentIds.length;
+            
+            const countEl = document.getElementById('courseEnrolledStudentsCount');
+            const badgeEl = document.getElementById('enrolledCountBadge');
+            if (countEl) countEl.textContent = `${courseEnrolledStudentIds.length} คน`;
+            if (badgeEl) badgeEl.textContent = courseEnrolledStudentIds.length;
         }
 
         function calculateCourseKPIs() {
