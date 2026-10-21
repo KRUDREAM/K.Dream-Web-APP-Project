@@ -11,7 +11,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         tailwind.config = {
@@ -184,7 +183,7 @@
                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
                     <i class="fas fa-table-cells text-sky-500"></i> เปอร์เซ็นต์คะแนนแต่ละหมวดหมู่กับเกณฑ์มาตรฐาน
                 </h3>
-                <span class="text-[10px] sm:text-[11px] text-slate-400 font-light bg-slate-100 dark:bg-darkinput px-2.5 py-1 rounded-xl border">เกณฑ์ผ่าน: **>= 70%**</span>
+                <span class="text-[10px] sm:text-[11px] text-slate-400 font-light bg-slate-100 dark:bg-darkinput px-2.5 py-1 rounded-xl border">เกณฑ์ผ่าน: &gt;= 70%</span>
             </div>
             <div class="overflow-x-auto hide-scrollbar">
                 <table class="w-full text-left border-collapse text-xs sm:text-sm whitespace-nowrap sm:whitespace-normal">
@@ -265,14 +264,18 @@
         const themeIcon = document.getElementById('themeIcon');
         if (localStorage.getItem('theme') === 'dark') {
             htmlElement.classList.add('dark');
-            themeIcon.classList.replace('fa-moon', 'fa-sun');
+            if (themeIcon) themeIcon.classList.replace('fa-moon', 'fa-sun');
         }
-        document.getElementById('themeToggle').addEventListener('click', () => {
-            htmlElement.classList.toggle('dark');
-            const isDark = htmlElement.classList.contains('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
-        });
+        
+        const themeToggleBtn = document.getElementById('themeToggle');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                htmlElement.classList.toggle('dark');
+                const isDark = htmlElement.classList.contains('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                if (themeIcon) themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
+            });
+        }
 
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('mousedown', e => { if (e.button === 2) e.preventDefault(); });
@@ -330,125 +333,129 @@
         }
 
         async function initResultPage() {
-            let attempt = null;
+            try {
+                let attempt = null;
 
-            if (attemptId) {
-                let res = await mySupabase.from('exam_attempts').select('*').eq('id', attemptId).single();
-                if (!res.data) {
-                    res = await mySupabase.from('exam_attempts').select('*').eq('attempt_id', attemptId).single();
-                }
-                if (!res.data) {
-                    res = await mySupabase.from('exam_attempts').select('*').eq('uuid', attemptId).single();
-                }
-                attempt = res.data;
-            }
-
-            if (!attempt) {
-                let studentId = localStorage.getItem('id') || localStorage.getItem('student_id') || localStorage.getItem('user_id');
-                if (studentId) {
-                    let { data: latestList } = await mySupabase.from('exam_attempts').select('*').eq('student_id', studentId).order('submission_time', { ascending: false }).limit(1);
-                    if (!latestList || latestList.length === 0) {
-                        const altList = await mySupabase.from('exam_attempts').select('*').eq('student_uuid', studentId).limit(1);
-                        latestList = altList.data;
+                if (attemptId) {
+                    let res = await mySupabase.from('exam_attempts').select('*').eq('id', attemptId).maybeSingle();
+                    if (!res.data) {
+                        res = await mySupabase.from('exam_attempts').select('*').eq('attempt_id', attemptId).maybeSingle();
                     }
-                    if (latestList && latestList.length > 0) attempt = latestList[0];
+                    if (!res.data) {
+                        res = await mySupabase.from('exam_attempts').select('*').eq('uuid', attemptId).maybeSingle();
+                    }
+                    attempt = res.data;
                 }
-            }
 
-            if (!attempt) {
-                Swal.fire({ icon: 'warning', title: 'ไม่พบข้อมูลผลการสอบ', confirmButtonText: 'กลับหน้าหลัก' }).then(() => window.location.href = 'student.html');
-                return;
-            }
-
-            globalAttempt = attempt;
-            const examRef = attempt.exam_id || attempt.exam_uuid || attempt.quiz_id;
-
-            let exam = null;
-            if (examRef) {
-                const exRes = await mySupabase.from('exams').select('*').eq('id', examRef).single();
-                exam = exRes.data;
-            }
-
-            cachedExamTitle = exam ? exam.title : 'ชุดข้อสอบออนไลน์';
-            let studentIdRef = attempt.student_id || attempt.student_uuid || attempt.user_id;
-            let studentNameStr = 'นักเรียน';
-
-            if (studentIdRef) {
-                let profileRes = await mySupabase.from('profiles').select('full_name, name, first_name, last_name, username').eq('id', studentIdRef).single();
-                if (!profileRes.data) {
-                    profileRes = await mySupabase.from('students').select('full_name, fullname, name, username, first_name, last_name').eq('id', studentIdRef).single();
+                if (!attempt) {
+                    let studentId = localStorage.getItem('id') || localStorage.getItem('student_id') || localStorage.getItem('user_id');
+                    if (studentId) {
+                        let { data: latestList } = await mySupabase.from('exam_attempts').select('*').eq('student_id', studentId).order('submission_time', { ascending: false }).limit(1);
+                        if (!latestList || latestList.length === 0) {
+                            const altList = await mySupabase.from('exam_attempts').select('*').eq('student_uuid', studentId).limit(1);
+                            latestList = altList.data;
+                        }
+                        if (latestList && latestList.length > 0) attempt = latestList[0];
+                    }
                 }
-                if (profileRes.data) {
-                    const p = profileRes.data;
-                    studentNameStr = `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.full_name || p.fullname || p.name || p.username || 'นักเรียน';
+
+                if (!attempt) {
+                    Swal.fire({ icon: 'warning', title: 'ไม่พบข้อมูลผลการสอบ', confirmButtonText: 'กลับหน้าหลัก' }).then(() => window.location.href = 'student.html');
+                    return;
                 }
-            }
-            cachedStudentName = studentNameStr;
 
-            document.getElementById('examTitleHeader').textContent = cachedExamTitle;
-            document.getElementById('resultTitleNav').textContent = cachedExamTitle;
-            document.getElementById('submissionTimeText').innerHTML = `<i class="fas fa-clock mr-1 text-sky-500"></i> เวลาส่ง: ${new Date(attempt.submission_time || attempt.submitted_at || attempt.created_at || Date.now()).toLocaleString('th-TH')}`;
-            document.getElementById('studentNameDisplay').innerHTML = `<i class="fas fa-user-graduate mr-1"></i> ผู้สอบ: ${studentNameStr}`;
+                globalAttempt = attempt;
+                const examRef = attempt.exam_id || attempt.exam_uuid || attempt.quiz_id;
 
-            if (exam && exam.pdf_url) {
-                document.getElementById('pdfViewerCard').classList.remove('hidden');
-                document.getElementById('rightResultCard').className = 'lg:col-span-6 hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4';
-                renderSecurePDF(exam.pdf_url);
-            } else {
-                document.getElementById('pdfViewerCard').classList.add('hidden');
-                document.getElementById('rightResultCard').className = 'lg:col-span-12 hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4';
-            }
-
-            let questions = [];
-            if (examRef) {
-                let qRes = await mySupabase.from('questions').select('*').eq('exam_id', examRef).order('question_number', { ascending: true });
-                if (!qRes.data || qRes.data.length === 0) {
-                    qRes = await mySupabase.from('questions').select('*').eq('exam_uuid', examRef).order('question_number', { ascending: true });
+                let exam = null;
+                if (examRef) {
+                    const exRes = await mySupabase.from('exams').select('*').eq('id', examRef).maybeSingle();
+                    exam = exRes.data;
                 }
-                if (!qRes.data || qRes.data.length === 0) {
-                    qRes = await mySupabase.from('exam_questions').select('*').eq('exam_id', examRef).order('question_number', { ascending: true });
+
+                cachedExamTitle = exam ? exam.title : 'ชุดข้อสอบออนไลน์';
+                let studentIdRef = attempt.student_id || attempt.student_uuid || attempt.user_id;
+                let studentNameStr = 'นักเรียน';
+
+                if (studentIdRef) {
+                    let profileRes = await mySupabase.from('profiles').select('full_name, name, first_name, last_name, username').eq('id', studentIdRef).maybeSingle();
+                    if (!profileRes.data) {
+                        profileRes = await mySupabase.from('students').select('full_name, fullname, name, username, first_name, last_name').eq('id', studentIdRef).maybeSingle();
+                    }
+                    if (profileRes.data) {
+                        const p = profileRes.data;
+                        studentNameStr = `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.full_name || p.fullname || p.name || p.username || 'นักเรียน';
+                    }
                 }
-                questions = qRes.data || [];
-            }
-            globalQuestions = questions;
+                cachedStudentName = studentNameStr;
 
-            let rawAns = attempt.answer_saved || attempt.answers || attempt.user_answers || attempt.student_answers || attempt.responses || {};
-            if (typeof rawAns === 'string') {
-                try { rawAns = JSON.parse(rawAns); } catch(e) { rawAns = {}; }
-            }
-            globalRawAnswers = rawAns;
+                document.getElementById('examTitleHeader').textContent = cachedExamTitle;
+                document.getElementById('resultTitleNav').textContent = cachedExamTitle;
+                document.getElementById('submissionTimeText').innerHTML = `<i class="fas fa-clock mr-1 text-sky-500"></i> เวลาส่ง: ${new Date(attempt.submission_time || attempt.submitted_at || attempt.created_at || Date.now()).toLocaleString('th-TH')}`;
+                document.getElementById('studentNameDisplay').innerHTML = `<i class="fas fa-user-graduate mr-1"></i> ผู้สอบ: ${studentNameStr}`;
 
-            let calculatedScore = 0;
-            globalQuestions.forEach((q) => {
-                let userAnsVal = getUserAnswer(q, globalRawAnswers);
-                const correctAnsVal = q.correct_answer || q.answer || q.solution;
+                if (exam && exam.pdf_url) {
+                    document.getElementById('pdfViewerCard').classList.remove('hidden');
+                    document.getElementById('rightResultCard').className = 'lg:col-span-6 hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4';
+                    renderSecurePDF(exam.pdf_url);
+                } else {
+                    document.getElementById('pdfViewerCard').classList.add('hidden');
+                    document.getElementById('rightResultCard').className = 'lg:col-span-12 hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4';
+                }
+
+                let questions = [];
+                if (examRef) {
+                    let qRes = await mySupabase.from('questions').select('*').eq('exam_id', examRef).order('question_number', { ascending: true });
+                    if (!qRes.data || qRes.data.length === 0) {
+                        qRes = await mySupabase.from('questions').select('*').eq('exam_uuid', examRef).order('question_number', { ascending: true });
+                    }
+                    if (!qRes.data || qRes.data.length === 0) {
+                        qRes = await mySupabase.from('exam_questions').select('*').eq('exam_id', examRef).order('question_number', { ascending: true });
+                    }
+                    questions = qRes.data || [];
+                }
+                globalQuestions = questions;
+
+                let rawAns = attempt.answer_saved || attempt.answers || attempt.user_answers || attempt.student_answers || attempt.responses || {};
+                if (typeof rawAns === 'string') {
+                    try { rawAns = JSON.parse(rawAns); } catch(e) { rawAns = {}; }
+                }
+                globalRawAnswers = rawAns;
+
+                let calculatedScore = 0;
+                globalQuestions.forEach((q) => {
+                    let userAnsVal = getUserAnswer(q, globalRawAnswers);
+                    const correctAnsVal = q.correct_answer || q.answer || q.solution;
+                    
+                    const studentIdx = parseChoiceIndex(userAnsVal);
+                    const correctIdx = parseChoiceIndex(correctAnsVal);
+
+                    if (studentIdx !== null && studentIdx !== undefined && !isNaN(studentIdx) && studentIdx === correctIdx) {
+                        calculatedScore++;
+                    }
+                });
+
+                const totalQ = globalQuestions.length;
+                let earnedScore = calculatedScore;
                 
-                const studentIdx = parseChoiceIndex(userAnsVal);
-                const correctIdx = parseChoiceIndex(correctAnsVal);
-
-                if (studentIdx !== null && studentIdx !== undefined && !isNaN(studentIdx) && studentIdx === correctIdx) {
-                    calculatedScore++;
+                if (earnedScore === 0 && (attempt.total_score !== undefined || attempt.score !== undefined)) {
+                    earnedScore = Number(attempt.total_score !== undefined ? attempt.total_score : attempt.score);
                 }
-            });
 
-            const totalQ = globalQuestions.length;
-            let earnedScore = calculatedScore;
-            
-            if (earnedScore === 0 && (attempt.total_score !== undefined || attempt.score !== undefined)) {
-                earnedScore = Number(attempt.total_score !== undefined ? attempt.total_score : attempt.score);
+                cachedScore = earnedScore;
+                cachedTotal = totalQ;
+
+                document.getElementById('scoreDisplay').textContent = earnedScore;
+                document.getElementById('totalScoreDisplay').textContent = totalQ;
+
+                computeCategoryStats();
+                renderCategoryComparisonTable();
+                updateCountsAndRender();
+                await loadClassAnalytics(examRef, earnedScore, totalQ);
+                await fetchGeminiAIAnalysis(globalQuestions, globalRawAnswers, earnedScore, totalQ, cachedExamTitle, exam ? exam.learning_objectives : '', exam ? exam.pdf_url : '');
+            } catch (err) {
+                console.error('Init Result Error:', err);
             }
-
-            cachedScore = earnedScore;
-            cachedTotal = totalQ;
-
-            document.getElementById('scoreDisplay').textContent = earnedScore;
-            document.getElementById('totalScoreDisplay').textContent = totalQ;
-
-            computeCategoryStats();
-            renderCategoryComparisonTable();
-            updateCountsAndRender();
-            await loadClassAnalytics(examRef, earnedScore, totalQ);
-            await fetchGeminiAIAnalysis(globalQuestions, globalRawAnswers, earnedScore, totalQ, cachedExamTitle, exam ? exam.learning_objectives : '', exam ? exam.pdf_url : '');
         }
 
         function computeCategoryStats() {
@@ -505,54 +512,58 @@
         }
 
         async function loadClassAnalytics(examRef, studentScore, totalQuestions) {
-            let attempts = [];
-            if (examRef) {
-                let attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examRef);
-                if (!attRes.data || attRes.data.length === 0) {
-                    attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_uuid', examRef);
+            try {
+                let attempts = [];
+                if (examRef) {
+                    let attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examRef);
+                    if (!attRes.data || attRes.data.length === 0) {
+                        attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_uuid', examRef);
+                    }
+                    if (!attRes.data || attRes.data.length === 0) {
+                        attRes = await mySupabase.from('exam_attempts').select('*').eq('quiz_id', examRef);
+                    }
+                    attempts = attRes.data || [];
                 }
-                if (!attRes.data || attRes.data.length === 0) {
-                    attRes = await mySupabase.from('exam_attempts').select('*').eq('quiz_id', examRef);
+
+                if (attempts.length === 0) {
+                    const allAtt = await mySupabase.from('exam_attempts').select('*');
+                    if (allAtt.data && examRef) {
+                        attempts = allAtt.data.filter(a => String(a.exam_id || a.exam_uuid || a.quiz_id) === String(examRef));
+                    }
                 }
-                attempts = attRes.data || [];
-            }
 
-            if (attempts.length === 0) {
-                const allAtt = await mySupabase.from('exam_attempts').select('*');
-                if (allAtt.data && examRef) {
-                    attempts = allAtt.data.filter(a => String(a.exam_id || a.exam_uuid || a.quiz_id) === String(examRef));
+                if (!attempts || attempts.length === 0) {
+                    document.getElementById('rankDisplay').textContent = `#1 / 1`;
+                    document.getElementById('avgScoreDisplay').textContent = `${studentScore} / ${totalQuestions}`;
+                    document.getElementById('maxScoreDisplay').textContent = `${studentScore} / ${totalQuestions}`;
+                    document.getElementById('percentileDisplay').textContent = `Top 100%`;
+                    document.getElementById('totalStudentsText').textContent = `ผู้เข้าสอบทั้งหมด: 1 คน`;
+                    renderDetailedScoreChart([studentScore], totalQuestions, studentScore);
+                    return;
                 }
+
+                const scores = attempts.map(a => {
+                    let s = a.total_score !== undefined && a.total_score !== null ? a.total_score : a.score;
+                    return s !== undefined && s !== null ? Number(s) : 0;
+                });
+
+                const totalStudents = scores.length;
+                const sortedScores = [...scores].sort((a, b) => b - a);
+                const rank = sortedScores.indexOf(studentScore) + 1;
+                const avgScore = (scores.reduce((a, b) => a + b, 0) / totalStudents).toFixed(1);
+                const maxScore = Math.max(...scores);
+                const topPercentile = Math.max(1, Math.round((rank / totalStudents) * 100));
+
+                document.getElementById('rankDisplay').textContent = `#${rank > 0 ? rank : 1} / ${totalStudents}`;
+                document.getElementById('avgScoreDisplay').textContent = `${avgScore} / ${totalQuestions}`;
+                document.getElementById('maxScoreDisplay').textContent = `${maxScore} / ${totalQuestions}`;
+                document.getElementById('percentileDisplay').textContent = `Top ${topPercentile}%`;
+                document.getElementById('totalStudentsText').textContent = `ผู้เข้าสอบทั้งหมด: ${totalStudents} คน`;
+
+                renderDetailedScoreChart(scores, totalQuestions, studentScore);
+            } catch (err) {
+                console.error('Analytics Error:', err);
             }
-
-            if (!attempts || attempts.length === 0) {
-                document.getElementById('rankDisplay').textContent = `#1 / 1`;
-                document.getElementById('avgScoreDisplay').textContent = `${studentScore} / ${totalQuestions}`;
-                document.getElementById('maxScoreDisplay').textContent = `${studentScore} / ${totalQuestions}`;
-                document.getElementById('percentileDisplay').textContent = `Top 100%`;
-                document.getElementById('totalStudentsText').textContent = `ผู้เข้าสอบทั้งหมด: 1 คน`;
-                renderDetailedScoreChart([studentScore], totalQuestions, studentScore);
-                return;
-            }
-
-            const scores = attempts.map(a => {
-                let s = a.total_score !== undefined && a.total_score !== null ? a.total_score : a.score;
-                return s !== undefined && s !== null ? Number(s) : 0;
-            });
-
-            const totalStudents = scores.length;
-            const sortedScores = [...scores].sort((a, b) => b - a);
-            const rank = sortedScores.indexOf(studentScore) + 1;
-            const avgScore = (scores.reduce((a, b) => a + b, 0) / totalStudents).toFixed(1);
-            const maxScore = Math.max(...scores);
-            const topPercentile = Math.max(1, Math.round((rank / totalStudents) * 100));
-
-            document.getElementById('rankDisplay').textContent = `#${rank > 0 ? rank : 1} / ${totalStudents}`;
-            document.getElementById('avgScoreDisplay').textContent = `${avgScore} / ${totalQuestions}`;
-            document.getElementById('maxScoreDisplay').textContent = `${maxScore} / ${totalQuestions}`;
-            document.getElementById('percentileDisplay').textContent = `Top ${topPercentile}%`;
-            document.getElementById('totalStudentsText').textContent = `ผู้เข้าสอบทั้งหมด: ${totalStudents} คน`;
-
-            renderDetailedScoreChart(scores, totalQuestions, studentScore);
         }
 
         function renderDetailedScoreChart(scores, totalQuestions, studentScore) {
@@ -610,6 +621,10 @@
 
         async function renderSecurePDF(url) {
             const container = document.getElementById('pdfContainer');
+            if (!url) {
+                container.innerHTML = `<div class="text-slate-400 text-xs py-10">ไม่พบลิงก์เอกสารข้อสอบ</div>`;
+                return;
+            }
             try {
                 const loadingTask = pdfjsLib.getDocument(url);
                 const pdfDoc = await loadingTask.promise;
@@ -650,56 +665,60 @@
             }).join('');
 
             const reportWindow = window.open('', '_blank');
-            reportWindow.document.write(`
-                <!DOCTYPE html>
-                <html lang="th">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>รายงานผลการสอบ - ${cachedStudentName}</title>
-                    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-                    <style>
-                        body { font-family: 'Prompt', sans-serif; padding: 20px; color: #1e293b; background: #ffffff; }
-                        h2 { color: #0284c7; margin-bottom: 5px; font-size: 18px; }
-                        h3 { margin-top: 20px; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; font-size: 14px; }
-                        .header-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-                        th { background: #0284c7; color: white; padding: 8px; font-size: 11px; text-align: left; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header-box">
-                        <h2>ใบรายงานผลคะแนนสอบออนไลน์</h2>
-                        <p><b>ชุดข้อสอบ:</b> ${cachedExamTitle}</p>
-                        <p><b>ผู้สอบ:</b> ${cachedStudentName}</p>
-                        <p><b>คะแนนที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">${cachedScore} / ${cachedTotal}</span> คะแนน</p>
-                    </div>
-                    <h3>สรุปผลการประเมินรายหมวดหมู่</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>หมวดหมู่</th>
-                                <th style="text-align: center;">ทำได้ / ทั้งหมด</th>
-                                <th style="text-align: center;">% ที่ได้</th>
-                                <th style="text-align: center;">ผลประเมิน</th>
-                            </tr>
-                        </thead>
-                        <tbody>${categoryTableRowsHtml}</tbody>
-                    </table>
-                    <script>window.onload = function() { window.print(); }</script>
-                </body>
-                </html>
-            `);
-            reportWindow.document.close();
+            if (reportWindow) {
+                reportWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="th">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>รายงานผลการสอบ - ${cachedStudentName}</title>
+                        <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                        <style>
+                            body { font-family: 'Prompt', sans-serif; padding: 20px; color: #1e293b; background: #ffffff; }
+                            h2 { color: #0284c7; margin-bottom: 5px; font-size: 18px; }
+                            h3 { margin-top: 20px; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; font-size: 14px; }
+                            .header-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+                            th { background: #0284c7; color: white; padding: 8px; font-size: 11px; text-align: left; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header-box">
+                            <h2>ใบรายงานผลคะแนนสอบออนไลน์</h2>
+                            <p><b>ชุดข้อสอบ:</b> ${cachedExamTitle}</p>
+                            <p><b>ผู้สอบ:</b> ${cachedStudentName}</p>
+                            <p><b>คะแนนที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">${cachedScore} / ${cachedTotal}</span> คะแนน</p>
+                        </div>
+                        <h3>สรุปผลการประเมินรายหมวดหมู่</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>หมวดหมู่</th>
+                                    <th style="text-align: center;">ทำได้ / ทั้งหมด</th>
+                                    <th style="text-align: center;">% ที่ได้</th>
+                                    <th style="text-align: center;">ผลประเมิน</th>
+                                </tr>
+                            </thead>
+                            <tbody>${categoryTableRowsHtml}</tbody>
+                        </table>
+                        <script>window.onload = function() { window.print(); }</script>
+                    </body>
+                    </html>
+                `);
+                reportWindow.document.close();
+            }
         }
 
         function setFilter(filterType) {
             currentFilter = filterType;
             ['all', 'correct', 'wrong'].forEach(f => {
                 const btn = document.getElementById(`filter-${f}`);
-                if (f === filterType) {
-                    btn.className = 'flex-1 sm:flex-none px-2.5 py-1 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm';
-                } else {
-                    btn.className = 'flex-1 sm:flex-none px-2.5 py-1 rounded-lg font-bold transition-all text-slate-600 dark:text-slate-300 hover:text-sky-500';
+                if (btn) {
+                    if (f === filterType) {
+                        btn.className = 'flex-1 sm:flex-none px-2.5 py-1 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm';
+                    } else {
+                        btn.className = 'flex-1 sm:flex-none px-2.5 py-1 rounded-lg font-bold transition-all text-slate-600 dark:text-slate-300 hover:text-sky-500';
+                    }
                 }
             });
             renderDetailedResults();
@@ -725,15 +744,20 @@
                 }
             });
 
-            document.getElementById('count-all').textContent = globalQuestions.length;
-            document.getElementById('count-correct').textContent = correctCount;
-            document.getElementById('count-wrong').textContent = wrongCount;
+            const elAll = document.getElementById('count-all');
+            const elCorr = document.getElementById('count-correct');
+            const elWrong = document.getElementById('count-wrong');
+            if (elAll) elAll.textContent = globalQuestions.length;
+            if (elCorr) elCorr.textContent = correctCount;
+            if (elWrong) elWrong.textContent = wrongCount;
 
             renderDetailedResults();
         }
 
         function renderDetailedResults() {
             const container = document.getElementById('resultsContainer');
+            if (!container) return;
+
             if (globalQuestions.length === 0) {
                 container.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">ไม่พบรายการคำถาม</div>`;
                 return;
@@ -839,46 +863,13 @@
         }
 
         async function fetchGeminiAIAnalysis(questions, answerMap, score, total, examTitle, learningObjectives, pdfUrl) {
-            const container = document.getElementById('aiAnalysisContainer');
-            
-            if (!GEMINI_API_KEY || GEMINI_API_KEY.trim() === "" || GEMINI_API_KEY.includes("__GEMINI_API_KEY__")) {
-                renderLocalAIAnalysis(questions, answerMap, score, total);
-                return;
-            }
-
-            const prompt = `
-คุณคือ AI Tutor ผู้เชี่ยวชาญด้านการวิเคราะห์ผลการเรียน
-ข้อมูลประกอบการวิเคราะห์:
-- ชื่อชุดข้อสอบ: "${examTitle}"
-- คะแนนรวมที่ได้: ${score} จาก ${total} คะแนน
-สรุปผลสัมฤทธิ์ภาพรวมเป็นภาษาไทย สั้นกระชับ เป็นกันเอง ตอบเป็น HTML แท็ก h4, p, ul, li
-`;
-
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY.trim()}`;
-            const payload = { contents: [{ parts: [{ text: prompt }] }] };
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await response.json();
-                
-                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                    let aiText = data.candidates[0].content.parts[0].text;
-                    aiText = aiText.replace(/```html/g, '').replace(/```/g, '');
-                    container.innerHTML = `<div class="space-y-3 bg-white dark:bg-darkinput p-4 sm:p-5 rounded-xl border border-indigo-500/30 shadow-inner">${aiText}</div>`;
-                } else {
-                    renderLocalAIAnalysis(questions, answerMap, score, total);
-                }
-            } catch (err) {
-                renderLocalAIAnalysis(questions, answerMap, score, total);
-            }
+            renderLocalAIAnalysis(questions, answerMap, score, total);
         }
 
         function renderLocalAIAnalysis(questions, answerMap, score, total) {
             const container = document.getElementById('aiAnalysisContainer');
+            if (!container) return;
+
             const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
             let performanceSummary = percentage >= 80 ? "ยอดเยี่ยมมาก! มีความเข้าใจเนื้อหาในชุดข้อสอบนี้เป็นอย่างดีเยี่ยม" : (percentage >= 50 ? "ทำผลงานได้ปานกลาง มีพื้นฐานในระดับน่าพอใจ แต่ยังมีบางจุดที่ต้องเก็บตก" : "ควรเน้นทบทวนเนื้อหาภาพรวมและฝึกทำโจทย์ซ้ำอีกรอบ");
 
