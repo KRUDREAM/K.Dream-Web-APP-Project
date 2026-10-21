@@ -481,30 +481,34 @@
             let totalStudents = new Set();
             
             try {
-                // 1. ดึงข้อมูลรายชื่อบัญชีที่มีตัวตนจริงจาก profiles และ students เพื่อใช้กรองบัญชีที่ถูกลบออก
-                const [profilesRes, studentsRes, en1Res, en2Res] = await Promise.all([
-                    mySupabase.from('profiles').select('id, user_id, student_id'),
-                    mySupabase.from('students').select('id, user_id'),
+                // 1. ดึงรายชื่อนักเรียนที่มีตัวตนจริง (ใช้ฟังก์ชันเดียวกับ Modal จัดการนักเรียน เพื่อความแม่นยำสูงสุด)
+                let activeStudentIds = new Set();
+                const { data: profiles, error: rpcErr } = await mySupabase.rpc('get_students_with_auth_created');
+                if (!rpcErr && profiles) {
+                    profiles.forEach(p => {
+                        const sId = p.id || p.user_id || p.student_id;
+                        if (sId && !isUserAdmin(p)) {
+                            activeStudentIds.add(String(sId));
+                        }
+                    });
+                } else {
+                    const { data: fallbackProfiles } = await mySupabase.from('profiles').select('*');
+                    if (fallbackProfiles) {
+                        fallbackProfiles.forEach(p => {
+                            const sId = p.id || p.user_id || p.student_id;
+                            if (sId && !isUserAdmin(p)) {
+                                activeStudentIds.add(String(sId));
+                            }
+                        });
+                    }
+                }
+
+                // 2. ดึงข้อมูลการลงทะเบียนของคอร์สนี้จากทั้ง 2 ตาราง
+                const [en1Res, en2Res] = await Promise.all([
                     mySupabase.from('course_enrollments').select('student_id, user_id').eq('course_id', courseId),
                     mySupabase.from('enrollments').select('student_id, user_id').eq('course_id', courseId)
                 ]);
 
-                let validStudentIds = new Set();
-                if (profilesRes.data) {
-                    profilesRes.data.forEach(p => {
-                        if (p.id) validStudentIds.add(String(p.id));
-                        if (p.user_id) validStudentIds.add(String(p.user_id));
-                        if (p.student_id) validStudentIds.add(String(p.student_id));
-                    });
-                }
-                if (studentsRes.data) {
-                    studentsRes.data.forEach(s => {
-                        if (s.id) validStudentIds.add(String(s.id));
-                        if (s.user_id) validStudentIds.add(String(s.user_id));
-                    });
-                }
-
-                // 2. รวบรวม ID จากตารางลงทะเบียน
                 const rawEnrolledIds = new Set();
                 if (en1Res.data) {
                     en1Res.data.forEach(e => {
@@ -519,24 +523,15 @@
                     });
                 }
 
-                // 3. กรองเฉพาะ ID ที่มีตัวตนอยู่จริงในระบบ (ตัด Ghost Records ออก)
+                // 3. กรองนับเฉพาะนักเรียนที่มีตัวตนจริง (ถ้าโหลดรายชื่อไม่ได้ ให้ยอมรับทั้งหมดกันเหนียวไม่ให้ตัวเลขเป็น 0)
                 rawEnrolledIds.forEach(id => {
-                    if (validStudentIds.size === 0 || validStudentIds.has(id)) {
+                    if (activeStudentIds.size === 0 || activeStudentIds.has(id)) {
                         totalStudents.add(id);
                     }
                 });
 
             } catch (e) { 
                 console.warn("Load Enrolled Students Error:", e); 
-            }
-
-            // 4. สำรองกรณีดึงจากฟิลด์ array ในตาราง courses ถ้ามี
-            if (totalStudents.size === 0 && currentCourse) {
-                if (Array.isArray(currentCourse.enrolled_students)) {
-                    currentCourse.enrolled_students.forEach(id => totalStudents.add(String(id)));
-                } else if (Array.isArray(currentCourse.students)) {
-                    currentCourse.students.forEach(id => totalStudents.add(String(id)));
-                }
             }
 
             courseEnrolledStudentIds = Array.from(totalStudents);
