@@ -141,7 +141,7 @@
 
             <div id="criteriaSectionBody" class="space-y-4 hidden">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs text-slate-400">กำหนดหมวดหมู่โจทย์, ช่วงเปอร์เซ็นต์ (% ถึง %) และระดับผลการประเมิน</span>
+                    <span class="text-xs text-slate-400">เลือกหมวดหมู่จากโจทย์ข้อสอบ, กำหนดช่วงเปอร์เซ็นต์ (% ถึง %) และระดับผลการประเมิน</span>
                     <button onclick="addCriteriaRow()" class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
                         <i class="fas fa-plus"></i> เพิ่มแถวเกณฑ์
                     </button>
@@ -151,7 +151,7 @@
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>
                             <tr class="bg-slate-100 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-b dark:border-slate-800">
-                                <th class="p-3 w-1/4">หมวดหมู่โจทย์ (Category Tag)</th>
+                                <th class="p-3 w-1/4">หมวดหมู่โจทย์ (ดึงจากข้อสอบอัตโนมัติ)</th>
                                 <th class="p-3 w-1/4">ชื่อเกณฑ์ / ระดับผลการประเมิน</th>
                                 <th class="p-3 w-1/6">Min %</th>
                                 <th class="p-3 w-1/6">Max %</th>
@@ -431,30 +431,46 @@
             const tbody = document.getElementById('criteriaTableBody');
             if (!tbody) return;
 
+            // ดึงหมวดหมู่ทั้งหมดที่มีในคำถามของข้อสอบชุดนี้แบบอัตโนมัติ
+            const availableTags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
+
             if (gradingCriteriaList.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">ยังไม่มีเกณฑ์การประเมิน กดปุ่ม "เพิ่มแถวเกณฑ์" ด้านบน</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = gradingCriteriaList.map((item, idx) => `
-                <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40">
-                    <td class="p-2.5">
-                        <input type="text" value="${escapeHtml(item.category || '')}" onchange="updateCriteriaData(${idx}, 'category', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none text-sky-600 dark:text-sky-400" placeholder="เช่น ฟิสิกส์คำนวณ">
-                    </td>
-                    <td class="p-2.5">
-                        <input type="text" value="${escapeHtml(item.name || '')}" onchange="updateCriteriaData(${idx}, 'name', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none" placeholder="เช่น ดีเยี่ยม / ผ่าน">
-                    </td>
-                    <td class="p-2.5">
-                        <input type="number" min="0" max="100" value="${item.min_pct !== undefined ? item.min_pct : 0}" onchange="updateCriteriaData(${idx}, 'min_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="0">
-                    </td>
-                    <td class="p-2.5">
-                        <input type="number" min="0" max="100" value="${item.max_pct !== undefined ? item.max_pct : 100}" onchange="updateCriteriaData(${idx}, 'max_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="100">
-                    </td>
-                    <td class="p-2.5 text-center">
-                        <button onclick="removeCriteriaRow(${idx})" class="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-600 hover:bg-red-500 hover:text-white transition-all"><i class="fas fa-trash text-xs"></i></button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = gradingCriteriaList.map((item, idx) => {
+                let optionsHtml = `<option value="">-- เลือกหมวดหมู่จากโจทย์ --</option>`;
+                availableTags.forEach(tag => {
+                    const selected = item.category === tag ? 'selected' : '';
+                    optionsHtml += `<option value="${escapeHtml(tag)}" ${selected}>${escapeHtml(tag)}</option>`;
+                });
+                if (item.category && !availableTags.includes(item.category)) {
+                    optionsHtml += `<option value="${escapeHtml(item.category)}" selected>${escapeHtml(item.category)} (กำหนดเอง)</option>`;
+                }
+
+                return `
+                    <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40">
+                        <td class="p-2.5">
+                            <select onchange="updateCriteriaData(${idx}, 'category', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none text-sky-600 dark:text-sky-400">
+                                ${optionsHtml}
+                            </select>
+                        </td>
+                        <td class="p-2.5">
+                            <input type="text" value="${escapeHtml(item.name || '')}" onchange="updateCriteriaData(${idx}, 'name', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none" placeholder="เช่น ดีเยี่ยม / ผ่าน">
+                        </td>
+                        <td class="p-2.5">
+                            <input type="number" min="0" max="100" value="${item.min_pct !== undefined ? item.min_pct : 0}" onchange="updateCriteriaData(${idx}, 'min_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="0">
+                        </td>
+                        <td class="p-2.5">
+                            <input type="number" min="0" max="100" value="${item.max_pct !== undefined ? item.max_pct : 100}" onchange="updateCriteriaData(${idx}, 'max_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="100">
+                        </td>
+                        <td class="p-2.5 text-center">
+                            <button onclick="removeCriteriaRow(${idx})" class="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-600 hover:bg-red-500 hover:text-white transition-all"><i class="fas fa-trash text-xs"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function addCriteriaRow() {
@@ -520,6 +536,7 @@
 
             renderOmrGrid();
             renderQuestionAccordions();
+            renderCriteriaTable(); // อัปเดตตารางเกณฑ์ให้ซิงค์กับหมวดหมู่ล่าสุด
         }
 
         function renderOmrGrid() {
