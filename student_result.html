@@ -284,6 +284,16 @@
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('mousedown', e => { if (e.button === 2) e.preventDefault(); });
 
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         function parseChoiceIndex(val) {
             if (val === null || val === undefined || val === '') return null;
             if (typeof val === 'number') return val;
@@ -526,7 +536,7 @@
                 }
 
                 return '<tr class="hover:bg-slate-50 dark:hover:bg-darkinput transition-all">' +
-                    '<td class="p-3 font-bold text-slate-800 dark:text-slate-200">🏷️ ' + tag + '</td>' +
+                    '<td class="p-3 font-bold text-slate-800 dark:text-slate-200">🏷️ ' + escapeHtml(tag) + '</td>' +
                     '<td class="p-3 text-center">' + stat.correct + ' / ' + stat.total + '</td>' +
                     '<td class="p-3 text-center font-extrabold text-sky-600 dark:text-sky-400">' + pct + '%</td>' +
                     '<td class="p-3 text-center text-slate-400 text-xs">70%</td>' +
@@ -683,60 +693,65 @@
         }
 
         function downloadSummaryReport() {
-            let categoryTableRowsHtml = Object.entries(cachedCategoryStats).map(([tag, stat]) => {
-                const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
-                let evalText = pct >= 70 ? 'ดีเยี่ยม' : (pct >= 50 ? 'ปานกลาง' : 'ควรปรับปรุง');
-                let colorHex = pct >= 70 ? '#10b981' : (pct >= 50 ? '#f59e0b' : '#ef4444');
-                return '<tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">' +
-                    '<td style="padding: 6px;"><b>' + tag + '</b></td>' +
-                    '<td style="padding: 6px; text-align: center;">' + stat.correct + ' / ' + stat.total + '</td>' +
-                    '<td style="padding: 6px; text-align: center; font-weight: bold; color: ' + colorHex + ';">' + pct + '%</td>' +
-                    '<td style="padding: 6px; text-align: center; color: ' + colorHex + '; font-weight: bold;">' + evalText + '</td>' +
-                '</tr>';
-            }).join('');
+            try {
+                let categoryTableRowsHtml = Object.entries(cachedCategoryStats).map(([tag, stat]) => {
+                    const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                    let evalText = pct >= 70 ? 'ดีเยี่ยม' : (pct >= 50 ? 'ปานกลาง' : 'ควรปรับปรุง');
+                    let colorHex = pct >= 70 ? '#10b981' : (pct >= 50 ? '#f59e0b' : '#ef4444');
+                    return '<tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">' +
+                        '<td style="padding: 6px;"><b>' + escapeHtml(tag) + '</b></td>' +
+                        '<td style="padding: 6px; text-align: center;">' + stat.correct + ' / ' + stat.total + '</td>' +
+                        '<td style="padding: 6px; text-align: center; font-weight: bold; color: ' + colorHex + ';">' + pct + '%</td>' +
+                        '<td style="padding: 6px; text-align: center; color: ' + colorHex + '; font-weight: bold;">' + evalText + '</td>' +
+                    '</tr>';
+                }).join('');
 
-            const reportWindow = window.open('', '_blank');
-            if (reportWindow) {
-                reportWindow.document.write(
-                    '<!DOCTYPE html>' +
-                    '<html lang="th">' +
-                    '<head>' +
-                        '<meta charset="UTF-8">' +
-                        '<title>รายงานผลการสอบ - ' + cachedStudentName + '</title>' +
-                        '<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">' +
-                        '<style>' +
-                            'body { font-family: "Prompt", sans-serif; padding: 20px; color: #1e293b; background: #ffffff; }' +
-                            'h2 { color: #0284c7; margin-bottom: 5px; font-size: 18px; }' +
-                            'h3 { margin-top: 20px; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; font-size: 14px; }' +
-                            '.header-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; }' +
-                            'table { width: 100%; border-collapse: collapse; margin-top: 8px; }' +
-                            'th { background: #0284c7; color: white; padding: 8px; font-size: 11px; text-align: left; }' +
-                        '</style>' +
-                    '</head>' +
-                    '<body>' +
-                        '<div class="header-box">' +
-                            '<h2>ใบรายงานผลคะแนนสอบออนไลน์</h2>' +
-                            '<p><b>ชุดข้อสอบ:</b> ' + cachedExamTitle + '</p>' +
-                            '<p><b>ผู้สอบ:</b> ' + cachedStudentName + '</p>' +
-                            '<p><b>คะแนนที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">' + cachedScore + ' / ' + cachedTotal + '</span> คะแนน</p>' +
-                        '</div>' +
-                        '<h3>สรุปผลการประเมินรายหมวดหมู่</h3>' +
-                        '<table>' +
-                            '<thead>' +
-                                '<tr>' +
-                                    '<th>หมวดหมู่</th>' +
-                                    '<th style="text-align: center;">ทำได้ / ทั้งหมด</th>' +
-                                    '<th style="text-align: center;">% ที่ได้</th>' +
-                                    '<th style="text-align: center;">ผลประเมิน</th>' +
-                                '</tr>' +
-                            '</thead>' +
-                            '<tbody>' + categoryTableRowsHtml + '</tbody>' +
-                        '</table>' +
-                        '<script>window.onload = function() { window.print(); }</script>' +
-                    '</body>' +
-                    '</html>'
-                );
-                reportWindow.document.close();
+                const reportWindow = window.open('', '_blank');
+                if (reportWindow) {
+                    reportWindow.document.write(
+                        '<!DOCTYPE html>' +
+                        '<html lang="th">' +
+                        '<head>' +
+                            '<meta charset="UTF-8">' +
+                            '<title>รายงานผลการสอบ - ' + escapeHtml(cachedStudentName) + '</title>' +
+                            '<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">' +
+                            '<style>' +
+                                'body { font-family: "Prompt", sans-serif; padding: 20px; color: #1e293b; background: #ffffff; }' +
+                                'h2 { color: #0284c7; margin-bottom: 5px; font-size: 18px; }' +
+                                'h3 { margin-top: 20px; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; font-size: 14px; }' +
+                                '.header-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; }' +
+                                'table { width: 100%; border-collapse: collapse; margin-top: 8px; }' +
+                                'th { background: #0284c7; color: white; padding: 8px; font-size: 11px; text-align: left; }' +
+                            '</style>' +
+                        '</head>' +
+                        '<body>' +
+                            '<div class="header-box">' +
+                                '<h2>ใบรายงานผลคะแนนสอบออนไลน์</h2>' +
+                                '<p><b>ชุดข้อสอบ:</b> ' + escapeHtml(cachedExamTitle) + '</p>' +
+                                '<p><b>ผู้สอบ:</b> ' + escapeHtml(cachedStudentName) + '</p>' +
+                                '<p><b>คะแนนที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">' + cachedScore + ' / ' + cachedTotal + '</span> คะแนน</p>' +
+                            '</div>' +
+                            '<h3>สรุปผลการประเมินรายหมวดหมู่</h3>' +
+                            '<table>' +
+                                '<thead>' +
+                                    '<tr>' +
+                                        '<th>หมวดหมู่</th>' +
+                                        '<th style="text-align: center;">ทำได้ / ทั้งหมด</th>' +
+                                        '<th style="text-align: center;">% ที่ได้</th>' +
+                                        '<th style="text-align: center;">ผลประเมิน</th>' +
+                                    '</tr>' +
+                                '</thead>' +
+                                '<tbody>' + categoryTableRowsHtml + '</tbody>' +
+                            '</table>' +
+                            '<script>window.onload = function() { window.print(); }</script>' +
+                        '</body>' +
+                        '</html>'
+                    );
+                    reportWindow.document.close();
+                }
+            } catch (e) {
+                console.error("Report generation error:", e);
+                alert("ไม่สามารถเปิดหน้าต่างรายงานได้ (อาจถูกเบราว์เซอร์บล็อก Popup)");
             }
         }
 
@@ -826,10 +841,10 @@
                             '<span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 font-bold text-[11px] rounded-lg">ข้อที่ ' + qNum + ' (อัตนัย)</span>' +
                             '<span class="text-[11px] font-bold text-amber-500">รอตรวจ</span>' +
                         '</div>' +
-                        '<div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">' + (q.question_text || q.content || '') + '</div>' +
+                        '<div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">' + escapeHtml(q.question_text || q.content || '') + '</div>' +
                         '<div class="p-2.5 bg-slate-50 dark:bg-slate-900 rounded-xl border text-xs">' +
                             '<span class="text-[10px] font-bold text-slate-400 block mb-0.5">คำตอบของคุณ:</span>' +
-                            '<p class="text-slate-700 dark:text-slate-300">' + (userAns !== '-' ? userAns : '- ไม่ได้ตอบ -') + '</p>' +
+                            '<p class="text-slate-700 dark:text-slate-300">' + escapeHtml(userAns !== '-' ? userAns : '- ไม่ได้ตอบ -') + '</p>' +
                         '</div>' +
                     '</div>';
                 } else {
@@ -856,12 +871,12 @@
 
                         bubblesHtml += '<div class="flex items-center gap-2.5 p-2 rounded-xl transition-all bg-white dark:bg-darkinput border border-slate-100 dark:border-slate-800/80">' +
                             '<div class="' + bubbleClass + '">' + String.fromCharCode(65 + optIdx) + '</div>' +
-                            '<span class="text-xs text-slate-700 dark:text-slate-300 truncate">' + optText + '</span>' +
+                            '<span class="text-xs text-slate-700 dark:text-slate-300 truncate">' + escapeHtml(optText) + '</span>' +
                             badgeIcon +
                         '</div>';
                     }
 
-                    const imageHtml = (q.image_url && String(q.image_url).trim() !== '' && !String(q.image_url).includes('${')) ? '<div><img src="' + q.image_url + '" class="max-h-40 rounded-xl border shadow-sm object-cover"></div>' : '';
+                    const imageHtml = (q.image_url && String(q.image_url).trim() !== '' && !String(q.image_url).includes('${')) ? '<div><img src="' + escapeHtml(q.image_url) + '" class="max-h-40 rounded-xl border shadow-sm object-cover"></div>' : '';
                     const tagText = q.category_tag || 'ทั่วไป';
                     const badgeClass = isCorrect ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 border border-red-500/20';
                     const badgeText = isCorrect ? '<i class="fas fa-check-circle mr-1"></i> ถูก (+1)' : '<i class="fas fa-times-circle mr-1"></i> ผิด (0)';
@@ -869,11 +884,11 @@
 
                     htmlContent += '<div class="p-4 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">' +
                         '<div class="flex justify-between items-center">' +
-                            '<span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-300 font-bold text-[11px] rounded-lg">ข้อ ' + qNum + ' (' + tagText + ')</span>' +
+                            '<span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-300 font-bold text-[11px] rounded-lg">ข้อ ' + qNum + ' (' + escapeHtml(tagText) + ')</span>' +
                             '<span class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold ' + badgeClass + '">' + badgeText + '</span>' +
                         '</div>' +
                         imageHtml +
-                        '<div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">' + qText + '</div>' +
+                        '<div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">' + escapeHtml(qText) + '</div>' +
                         '<div class="grid grid-cols-1 gap-1.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border">' + bubblesHtml + '</div>' +
                     '</div>';
                 }
@@ -891,7 +906,7 @@
             let breakdownHtml = Object.entries(cachedCategoryStats).map(([tag, stat]) => {
                 const p = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
                 return '<li class="flex items-center justify-between text-xs py-1.5 border-b border-slate-200/50 dark:border-slate-800/50">' +
-                    '<span>🏷️ <b>' + tag + '</b></span>' +
+                    '<span>🏷️ <b>' + escapeHtml(tag) + '</b></span>' +
                     '<span class="font-bold ' + (p >= 70 ? 'text-emerald-500' : 'text-amber-500') + '">' + stat.correct + '/' + stat.total + ' ข้อ (' + p + '%)</span>' +
                 '</li>';
             }).join('');
