@@ -210,7 +210,6 @@
             }
         }
 
-        // ฟังก์ชันแปลงค่าตัวเลือกให้เป็น Index (0, 1, 2, 3) รองรับทั้งตัวเลข, ตัวอักษรไทย (ก ข ค ง) และอังกฤษ (A B C D)
         function parseChoiceIndex(val) {
             if (val === null || val === undefined || val === '') return null;
             if (typeof val === 'number') return val;
@@ -468,8 +467,13 @@
             tbody.innerHTML = filteredAttempts.map((att, idx) => {
                 const sId = att.student_id || att.user_id;
                 const profile = allStudentsMap[String(sId)] || {};
-                const fullName = `${profile.first_name || '-'} ${profile.last_name || ''}`.trim() || profile.full_name || 'ไม่ระบุชื่อ';
-                const studentIdCode = profile.student_id || '-';
+                
+                // ดึงชื่อ-นามสกุลจริงจาก profile ให้ครอบคลุมทุกคอลัมน์ในฐานข้อมูล
+                const fullName = (profile.first_name || profile.name || profile.full_name || '').trim() + 
+                                 (profile.last_name ? ' ' + profile.last_name : '') || 
+                                 att.student_name || att.full_name || 'ไม่ระบุชื่อ';
+                
+                const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
                 const score = att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0);
                 const max = allQuestions.length || 10;
                 const dateStr = att.submission_time || att.submitted_at || att.created_at ? new Date(att.submission_time || att.submitted_at || att.created_at).toLocaleString('th-TH') : '-';
@@ -499,19 +503,41 @@
                 filteredAttempts = allAttempts.filter(att => {
                     const sId = att.student_id || att.user_id;
                     const profile = allStudentsMap[String(sId)] || {};
-                    const fullName = `${profile.first_name || ''} ${profile.last_name || ''} ${profile.full_name || ''}`.toLowerCase();
-                    const sIdCode = String(profile.student_id || '').toLowerCase();
+                    const fullName = `${profile.first_name || ''} ${profile.last_name || ''} ${profile.full_name || ''} ${att.student_name || ''}`.toLowerCase();
+                    const sIdCode = String(profile.student_id || profile.code || att.student_id_code || '').toLowerCase();
                     return fullName.includes(keyword) || sIdCode.includes(keyword);
                 });
             }
             renderSubmissionsTable();
         }
 
-        // ฟังก์ชันสั่งพิมพ์ / ดาวน์โหลดรายงานสรุปผลการสอบรายบุคคล พร้อมวิเคราะห์แยกหมวดหมู่และเกณฑ์
+        // ฟังก์ชันประเมินระดับเกณฑ์ตามเปอร์เซ็นต์หมวดหมู่
+        function evaluateCategoryCriteria(categoryName, categoryPct) {
+            if (!currentExam || !currentExam.enable_grading_criteria || !Array.isArray(currentExam.grading_criteria)) {
+                // เกณฑ์มาตรฐานถ้ายังไม่ได้ตั้งค่าในชุดข้อสอบ
+                if (categoryPct >= 80) return 'ดีเยี่ยม (Excellent)';
+                if (categoryPct >= 50) return 'ปานกลาง (Moderate)';
+                return 'ต้องปรับปรุง (Needs Improvement)';
+            }
+
+            // ค้นหาเกณฑ์ที่ตรงกับหมวดหมู่
+            const matchedCriteria = currentExam.grading_criteria.filter(c => !c.category || c.category.trim() === '' || c.category.trim() === categoryName.trim());
+            
+            for (let crit of matchedCriteria) {
+                const min = crit.min_pct !== undefined ? crit.min_pct : 0;
+                const max = crit.max_pct !== undefined ? crit.max_pct : 100;
+                if (categoryPct >= min && categoryPct <= max) {
+                    return crit.name;
+                }
+            }
+
+            return 'ผ่านเกณฑ์';
+        }
+
         function downloadStudentReport(studentName, studentIdCode, score, maxScore, categoryStats) {
             let categoryRows = Object.entries(categoryStats).map(([cat, stat]) => {
                 let pct = stat.total > 0 ? ((stat.correct / stat.total) * 100).toFixed(1) : '0.0';
-                let evalLevel = pct >= 80 ? 'ดีเยี่ยม (Excellent)' : (pct >= 50 ? 'ปานกลาง (Moderate)' : 'ต้องปรับปรุง (Needs Improvement)');
+                let evalLevel = evaluateCategoryCriteria(cat, parseFloat(pct));
                 return `
                     <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
                         <td style="padding: 8px;"><b>${cat}</b></td>
@@ -523,7 +549,7 @@
             }).join('');
 
             let totalPct = maxScore > 0 ? ((score / maxScore) * 100).toFixed(1) : '0.0';
-            let overallEval = totalPct >= 80 ? 'ผ่านเกณฑ์ระดับดีเยี่ยม' : (totalPct >= 50 ? 'ผ่านเกณฑ์ระดับปานกลาง' : 'ไม่ผ่านเกณฑ์การประเมิน');
+            let overallEval = evaluateCategoryCriteria('ภาพรวม', parseFloat(totalPct));
 
             const reportWin = window.open('', '_blank');
             reportWin.document.write(`
@@ -578,8 +604,10 @@
 
             const sId = att.student_id || att.user_id;
             const profile = allStudentsMap[String(sId)] || {};
-            const name = `${profile.first_name || '-'} ${profile.last_name || ''}`.trim() || 'นักเรียน';
-            const studentIdCode = profile.student_id || '-';
+            const name = (profile.first_name || profile.name || profile.full_name || '').trim() + 
+                         (profile.last_name ? ' ' + profile.last_name : '') || 
+                         att.student_name || att.full_name || 'นักเรียน';
+            const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
             const score = att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0);
             const maxScore = allQuestions.length || 10;
 
@@ -599,7 +627,6 @@
                 const correctIdx = parseChoiceIndex(correctAns);
                 const isCorrect = (studentIdx !== null && studentIdx !== undefined && !isNaN(studentIdx) && studentIdx === correctIdx);
 
-                // แปลงตัวเลือกให้แสดงเป็น ก ข ค ง หรือตัวอักษรที่เข้าใจง่าย
                 const displayUserAns = studentIdx !== null && studentIdx !== undefined ? ['ก (A)', 'ข (B)', 'ค (C)', 'ง (D)'][studentIdx] || userAns : userAns;
                 const displayCorrectAns = correctIdx !== null && correctIdx !== undefined ? ['ก (A)', 'ข (B)', 'ค (C)', 'ง (D)'][correctIdx] || correctAns : correctAns;
 
@@ -621,13 +648,13 @@
                 `;
             }).join('');
 
-            // สร้าง HTML สำหรับแสดงสรุปคะแนนแต่ละหมวดในหน้าต่าง Modal
             let categorySummaryHtml = Object.entries(categoryStats).map(([cat, stat]) => {
                 let pct = stat.total > 0 ? ((stat.correct / stat.total) * 100).toFixed(1) : '0.0';
+                let levelName = evaluateCategoryCriteria(cat, parseFloat(pct));
                 return `
                     <div class="p-2.5 bg-sky-500/5 border border-sky-500/20 rounded-xl flex justify-between items-center text-[11px]">
                         <div><b>หมวด:</b> ${cat}</div>
-                        <div>คะแนน: <b>${stat.correct}/${stat.total}</b> (<span class="text-sky-600 font-bold">${pct}%</span>)</div>
+                        <div>คะแนน: <b>${stat.correct}/${stat.total}</b> (<span class="text-sky-600 font-bold">${pct}%</span>) -> ระดับ: <span class="font-bold text-purple-600 dark:text-purple-400">${levelName}</span></div>
                     </div>
                 `;
             }).join('');
@@ -648,7 +675,7 @@
                         </div>
                         
                         <div class="space-y-2">
-                            <div class="font-bold text-slate-700 dark:text-slate-300">📊 สรุปผลคะแนนแยกตามหมวดหมู่:</div>
+                            <div class="font-bold text-slate-700 dark:text-slate-300">📊 สรุปผลคะแนนและเกณฑ์การประเมินแยกตามหมวดหมู่:</div>
                             <div class="grid grid-cols-1 gap-2">${categorySummaryHtml}</div>
                         </div>
 
