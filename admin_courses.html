@@ -99,6 +99,7 @@
 
         let coursesList = [];
         let enrollmentsList = [];
+        let validStudentIds = new Set();
         let countdownTimer = null;
 
         const htmlElement = document.documentElement;
@@ -116,10 +117,12 @@
 
         async function initPage() {
             try {
-                const [coursesRes, enrollRes, altEnrollRes] = await Promise.all([
+                const [coursesRes, enrollRes, altEnrollRes, profilesRes, studentsRes] = await Promise.all([
                     mySupabase.from('courses').select('*').order('created_at', { ascending: false }),
                     mySupabase.from('course_enrollments').select('*'),
-                    mySupabase.from('enrollments').select('*')
+                    mySupabase.from('enrollments').select('*'),
+                    mySupabase.from('profiles').select('id'),
+                    mySupabase.from('students').select('id')
                 ]);
 
                 coursesList = coursesRes.data || [];
@@ -132,6 +135,15 @@
                         enrollmentsList.push(se);
                     }
                 });
+
+                // เก็บ ID นักเรียนทั้งหมดที่มีตัวตนอยู่จริงในระบบ
+                validStudentIds = new Set();
+                if (profilesRes.data) {
+                    profilesRes.data.forEach(p => validStudentIds.add(String(p.id)));
+                }
+                if (studentsRes && studentsRes.data) {
+                    studentsRes.data.forEach(s => validStudentIds.add(String(s.id)));
+                }
 
                 renderCoursesGrid();
                 startCountdownInterval();
@@ -153,7 +165,17 @@
             }
 
             container.innerHTML = coursesList.map(c => {
-                const enrolledCount = enrollmentsList.filter(e => String(e.course_id) === String(c.id)).length;
+                // นับจำนวนนักเรียนที่ไม่ซ้ำกัน (Unique Student ID) และมีตัวตนอยู่จริงในระบบ (กรองบัญชีที่ถูกลบและข้อมูลซ้ำออก)
+                const courseEnrollments = enrollmentsList.filter(e => String(e.course_id) === String(c.id));
+                const uniqueStudentSet = new Set();
+                courseEnrollments.forEach(e => {
+                    const sId = String(e.student_id || e.user_id || '');
+                    if (sId && (validStudentIds.size === 0 || validStudentIds.has(sId))) {
+                        uniqueStudentSet.add(sId);
+                    }
+                });
+                const enrolledCount = uniqueStudentSet.size;
+
                 const coverImg = c.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80';
                 
                 let expiryHtml = `<span class="text-slate-400">♾️ ไม่จำกัดระยะเวลา</span>`;
@@ -170,7 +192,6 @@
                 return `
                     <div class="hitech-card rounded-3xl overflow-hidden flex flex-col justify-between group border border-purple-500/20">
                         <div>
-                            <!-- ปรับสัดส่วนรูปภาพปกคอร์สเป็น 1920x1080 (Aspect Ratio 16:9) -->
                             <div class="aspect-video w-full relative overflow-hidden bg-slate-200 dark:bg-slate-800">
                                 <img src="${coverImg}" alt="${c.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                                 <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white font-mono font-bold text-[10px] px-3 py-1 rounded-full border border-white/10">
@@ -280,7 +301,6 @@
                         <div>
                             <label class="block font-bold mb-1">รูปภาพปกคอร์ส (แนะนำสัดส่วน 1920x1080 หรือ 16:9)</label>
                             <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                                <!-- ปรับตัวอย่างพรีวิวใน Modal เป็น 16:9 ด้วยเช่นกัน -->
                                 <div class="w-20 aspect-video rounded-xl bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center shrink-0 border">
                                     <img id="swalCoverPreview" src="${course.image_url || ''}" class="w-full h-full object-cover ${course.image_url ? '' : 'hidden'}">
                                     <i class="fas fa-image text-slate-400 text-base ${course.image_url ? 'hidden' : ''}" id="swalCoverPlaceholder"></i>
