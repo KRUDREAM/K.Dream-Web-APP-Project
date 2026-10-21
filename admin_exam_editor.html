@@ -123,6 +123,44 @@
             </div>
         </div>
 
+        <!-- 🌟 แผงตั้งค่าเกณฑ์การประเมิน (Grading Criteria Table) -->
+        <div class="hitech-card p-6 rounded-2xl space-y-4 border-l-4 border-l-purple-500">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div>
+                    <h3 class="font-bold text-base flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                        <i class="fas fa-award"></i> กำหนดเกณฑ์การประเมินผล (Grading Scale / Criteria)
+                    </h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">กำหนดช่วงเปอร์เซ็นต์ (% ถึง %) และชื่อเกณฑ์ที่จะแสดงเมื่อนักเรียนทำคะแนนได้ตามกำหนด</p>
+                </div>
+                <button onclick="addCriteriaRow()" class="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                    <i class="fas fa-plus"></i> เพิ่มเกณฑ์
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-100 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-b dark:border-slate-800">
+                            <th class="p-3 w-1/4">ชื่อเกณฑ์ / ระดับผลการประเมิน</th>
+                            <th class="p-3 w-1/4">เปอร์เซ็นต์ขั้นต่ำ (Min %)</th>
+                            <th class="p-3 w-1/4">เปอร์เซ็นต์สูงสุด (Max %)</th>
+                            <th class="p-3 w-16 text-center">ลบ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="criteriaTableBody">
+                        <tr>
+                            <td colspan="4" class="text-center py-6 text-slate-400">ยังไม่มีเกณฑ์การประเมิน กดปุ่ม "เพิ่มเกณฑ์" ด้านบน</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="saveCriteriaChanges()" class="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5">
+                    <i class="fas fa-save"></i> บันทึกเกณฑ์การประเมิน
+                </button>
+            </div>
+        </div>
+
         <div class="hitech-card p-4 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-l-4 border-l-sky-500">
             <div>
                 <h3 class="font-bold text-sm text-sky-600 dark:text-sky-400 flex items-center gap-2">
@@ -189,7 +227,6 @@
         const urlParams = new URLSearchParams(window.location.search);
         const examId = urlParams.get('id') || urlParams.get('exam_id');
         
-        // 🌟 บันทึก course_id ลง localStorage ทันทีถ้ามีส่งมาใน URL
         const urlCourseId = urlParams.get('course_id');
         if (urlCourseId) {
             localStorage.setItem('active_exam_course_id', urlCourseId);
@@ -198,6 +235,7 @@
         let hasUnsavedChanges = false;
         let cachedQuestions = [];
         let currentExamData = null;
+        let gradingCriteriaList = [];
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -224,7 +262,6 @@
             if (banner) banner.classList.remove('show');
         }
 
-        // 🌟 ฟังก์ชันจัดการปุ่มย้อนกลับ ดึงจาก localStorage หรือ URL
         function handleNavigate(targetUrl) {
             if (hasUnsavedChanges) {
                 triggerScreenShakeWarning();
@@ -305,7 +342,6 @@
             if (data) {
                 currentExamData = data;
                 
-                // 🌟 หากใน localStorage ยังไม่มี ให้เช็คจากคอร์สที่ผูกไว้ในฐานข้อมูลแล้วเซฟเก็บไว้
                 if (!localStorage.getItem('active_exam_course_id') && data.course_id) {
                     let cId = null;
                     if (Array.isArray(data.course_id) && data.course_id.length > 0) {
@@ -338,6 +374,70 @@
                         badge.textContent = "พร้อมใช้งาน PDF";
                     }
                 }
+
+                // 🌟 โหลดข้อมูลเกณฑ์การประเมิน (grading_criteria)
+                gradingCriteriaList = data.grading_criteria || [];
+                renderCriteriaTable();
+            }
+        }
+
+        // 🌟 ฟังก์ชันจัดการตารางเกณฑ์การประเมิน
+        function renderCriteriaTable() {
+            const tbody = document.getElementById('criteriaTableBody');
+            if (!tbody) return;
+
+            if (gradingCriteriaList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-slate-400">ยังไม่มีเกณฑ์การประเมิน กดปุ่ม "เพิ่มเกณฑ์" ด้านบน</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = gradingCriteriaList.map((item, idx) => `
+                <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40">
+                    <td class="p-2.5">
+                        <input type="text" value="${item.name || ''}" onchange="updateCriteriaData(${idx}, 'name', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none" placeholder="เช่น ดีเยี่ยม / ผ่าน / ไม่ผ่าน">
+                    </td>
+                    <td class="p-2.5">
+                        <input type="number" min="0" max="100" value="${item.min_pct !== undefined ? item.min_pct : 0}" onchange="updateCriteriaData(${idx}, 'min_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="0">
+                    </td>
+                    <td class="p-2.5">
+                        <input type="number" min="0" max="100" value="${item.max_pct !== undefined ? item.max_pct : 100}" onchange="updateCriteriaData(${idx}, 'max_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="100">
+                    </td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="removeCriteriaRow(${idx})" class="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-600 hover:bg-red-500 hover:text-white transition-all"><i class="fas fa-trash text-xs"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function addCriteriaRow() {
+            gradingCriteriaList.push({ name: '', min_pct: 0, max_pct: 100 });
+            renderCriteriaTable();
+            markAsModified();
+        }
+
+        function removeCriteriaRow(idx) {
+            gradingCriteriaList.splice(idx, 1);
+            renderCriteriaTable();
+            markAsModified();
+        }
+
+        function updateCriteriaData(idx, field, val) {
+            if (field === 'min_pct' || field === 'max_pct') {
+                gradingCriteriaList[idx][field] = parseFloat(val) || 0;
+            } else {
+                gradingCriteriaList[idx][field] = val;
+            }
+            markAsModified();
+        }
+
+        async function saveCriteriaChanges() {
+            Swal.fire({ title: 'กำลังบันทึกเกณฑ์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const { error } = await mySupabase.from('exams').update({ grading_criteria: gradingCriteriaList }).eq('id', examId);
+            if (error) {
+                Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error');
+            } else {
+                Swal.fire({ icon: 'success', title: 'บันทึกเกณฑ์การประเมินสำเร็จ!', timer: 1200, showConfirmButton: false });
+                clearModifiedFlag();
             }
         }
 
@@ -437,7 +537,7 @@
                 const optionsListHtml = isEssay 
                     ? `<div class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl text-xs text-amber-600 dark:text-amber-300 font-bold space-y-1">
                         <div><i class="fas fa-pen-nib mr-1"></i> โหมดตรวจอัตนัย: ${q.grading_type === 'keyword' ? 'ตรวจด้วย Keyword อัตโนมัติ' : 'คุณครูตรวจเอง'}</div>
-                        ${(q.keywords || []).length > 0 ? `<div class="text-[11px] text-slate-500">คำสำคัญ: ${q.keywords.map(k => `<span class="px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded border border-amber-300">${k.word} (${k.mode === 'exact' ? 'ตรงเป๊ะ' : 'มีในข้อความ'})</span>`).join(' ')}</div>` : ''}
+                        {(q.keywords || []).length > 0 ? `<div class="text-[11px] text-slate-500">คำสำคัญ: ${q.keywords.map(k => `<span class="px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded border border-amber-300">${k.word} (${k.mode === 'exact' ? 'ตรงเป๊ะ' : 'มีในข้อความ'})</span>`).join(' ')}</div>` : ''}
                        </div>`
                     : opts.map((opt, i) => {
                         const isCorrect = String(q.correct_answer) === String(i);
