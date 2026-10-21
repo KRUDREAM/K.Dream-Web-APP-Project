@@ -527,27 +527,29 @@
                 const isEssay = q.question_type === 'essay';
                 const standardLabels = getChoiceLabels(formatType, q.options ? q.options.length : 4);
                 const opts = (q.options && q.options.length > 0) ? q.options : standardLabels;
+                const qNum = q.question_number || (idx+1);
+                const qId = q.id;
 
                 if (isEssay) {
                     return `
                         <div class="p-3 bg-amber-500/10 dark:bg-amber-950/20 rounded-2xl border border-amber-500/30 flex items-center justify-between gap-2">
-                            <span class="font-extrabold text-sm text-amber-600 dark:text-amber-400">ข้อ ${q.question_number || (idx+1)}</span>
+                            <span class="font-extrabold text-sm text-amber-600 dark:text-amber-400">ข้อ ${qNum}</span>
                             <span class="px-2.5 py-1 bg-amber-500 text-white font-bold text-xs rounded-lg"><i class="fas fa-pen-nib mr-1"></i>อัตนัย</span>
-                            <button onclick="toggleQuestionType('${q.id}', 'multiple_choice')" class="text-xs text-slate-400 underline hover:text-sky-500">สลับ OMR</button>
+                            <button onclick="toggleQuestionType('${qId}', 'multiple_choice')" class="text-xs text-slate-400 underline hover:text-sky-500">สลับ OMR</button>
                         </div>
                     `;
                 }
 
                 const bubblesHtml = opts.map((cLabel, cIdx) => {
                     const isSelected = String(q.correct_answer) === String(cIdx);
-                    return `<div onclick="selectOmrChoice('${q.id}', '${cIdx}')" class="omr-bubble-lg ${isSelected ? 'active' : ''}">${cLabel}</div>`;
+                    return `<div onclick="selectOmrChoice('${qId}', '${cIdx}')" class="omr-bubble-lg ${isSelected ? 'active' : ''}">${cLabel}</div>`;
                 }).join('');
 
                 return `
                     <div class="p-3 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-                        <span class="font-extrabold text-sm text-slate-800 dark:text-slate-200 w-10">ข้อ ${q.question_number || (idx+1)}</span>
+                        <span class="font-extrabold text-sm text-slate-800 dark:text-slate-200 w-10">ข้อ ${qNum}</span>
                         <div class="flex gap-1.5 overflow-x-auto py-1">${bubblesHtml}</div>
-                        <button onclick="toggleQuestionType('${q.id}', 'essay')" class="text-xs text-slate-400 hover:text-amber-500 px-1" title="เปลี่ยนเป็นข้ออัตนัย"><i class="fas fa-file-signature"></i></button>
+                        <button onclick="toggleQuestionType('${qId}', 'essay')" class="text-xs text-slate-400 hover:text-amber-500 px-1" title="เปลี่ยนเป็นข้ออัตนัย"><i class="fas fa-file-signature"></i></button>
                     </div>
                 `;
             }).join('');
@@ -576,41 +578,50 @@
                 const standardLabels = getChoiceLabels(formatType, q.options ? q.options.length : 4);
                 const opts = (q.options && q.options.length > 0) ? q.options : standardLabels;
 
-                const optionsListHtml = isEssay 
-                    ? `<div class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl text-xs text-amber-600 dark:text-amber-300 font-bold space-y-1">
+                let optionsListHtml = '';
+                if (isEssay) {
+                    const keywordsTag = (q.keywords || []).length > 0 ? `<div class="text-[11px] text-slate-500">คำสำคัญ: ${q.keywords.map(k => `<span class="px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded border border-amber-300">${k.word} (${k.mode === 'exact' ? 'ตรงเป๊ะ' : 'มีในข้อความ'})</span>`).join(' ')}</div>` : '';
+                    optionsListHtml = `<div class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl text-xs text-amber-600 dark:text-amber-300 font-bold space-y-1">
                         <div><i class="fas fa-pen-nib mr-1"></i> โหมดตรวจอัตนัย: ${q.grading_type === 'keyword' ? 'ตรวจด้วย Keyword อัตโนมัติ' : 'คุณครูตรวจเอง'}</div>
-                        {(q.keywords || []).length > 0 ? `<div class="text-[11px] text-slate-500">คำสำคัญ: ${q.keywords.map(k => `<span class="px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded border border-amber-300">${k.word} (${k.mode === 'exact' ? 'ตรงเป๊ะ' : 'มีในข้อความ'})</span>`).join(' ')}</div>` : ''}
-                       </div>`
-                    : opts.map((opt, i) => {
+                        ${keywordsTag}
+                       </div>`;
+                } else {
+                    optionsListHtml = opts.map((opt, i) => {
                         const isCorrect = String(q.correct_answer) === String(i);
                         const displayLabel = standardLabels[i] || String.fromCharCode(65+i);
-                        return `
-                            <div class="px-3 py-2 rounded-xl border text-xs flex items-center justify-between ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 font-bold text-emerald-700 dark:text-emerald-300' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}">
-                                <span><strong class="mr-1">${displayLabel}:</strong> ${opt}</span>
-                                ${isCorrect ? '<span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] rounded-md font-bold"><i class="fas fa-check mr-1"></i>เฉลยถูกต้อง</span>' : ''}
-                            </div>
-                        `;
+                        const correctBadge = isCorrect ? '<span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] rounded-md font-bold"><i class="fas fa-check mr-1"></i>เฉลยถูกต้อง</span>' : '';
+                        return `<div class="px-3 py-2 rounded-xl border text-xs flex items-center justify-between ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 font-bold text-emerald-700 dark:text-emerald-300' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}">
+                            <span><strong class="mr-1">${displayLabel}:</strong> ${opt}</span>
+                            ${correctBadge}
+                        </div>`;
                     }).join('');
+                }
+
+                const qNum = q.question_number || (idx+1);
+                const categoryBadge = q.category_tag ? `<span class="px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-600 font-bold text-[10px]">${q.category_tag}</span>` : '';
+                const imgTag = q.image_url ? `<div class="mb-2"><img src="${q.image_url}" class="max-h-48 rounded-xl border border-slate-300 shadow-sm"></div>` : '';
+                const qText = q.question_text || q.content || 'คำถามในกระดาษ OMR';
+                const qId = q.id;
 
                 return `
                     <div class="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
-                        <div onclick="toggleAccordion('acc-${q.id}')" class="p-3.5 bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <div onclick="toggleAccordion('acc-${qId}')" class="p-3.5 bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                             <div class="flex items-center gap-2 font-bold text-xs truncate pr-2">
-                                <i class="fas fa-chevron-down text-slate-400 transition-transform" id="icon-acc-${q.id}"></i>
-                                <span class="text-sky-600 dark:text-sky-400">ข้อ ${q.question_number || (idx+1)}:</span>
-                                ${q.category_tag ? `<span class="px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-600 font-bold text-[10px]">${q.category_tag}</span>` : ''}
-                                <span class="text-slate-800 dark:text-slate-200 truncate">${q.question_text || q.content || 'คำถามในกระดาษ OMR'}</span>
+                                <i class="fas fa-chevron-down text-slate-400 transition-transform" id="icon-acc-${qId}"></i>
+                                <span class="text-sky-600 dark:text-sky-400">ข้อ ${qNum}:</span>
+                                ${categoryBadge}
+                                <span class="text-slate-800 dark:text-slate-200 truncate">${qText}</span>
                             </div>
                             <div class="flex gap-1 shrink-0" onclick="event.stopPropagation()">
                                 <button onclick='openQuestionModal(${JSON.stringify(q)})' class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-bold"><i class="fas fa-pen mr-1"></i> แก้ไข</button>
-                                <button onclick="confirmDeleteQuestion('${q.id}', ${q.question_number || (idx+1)})" class="px-2.5 py-1 bg-red-100 dark:bg-red-950/50 text-red-600 rounded-lg text-xs font-bold"><i class="fas fa-trash"></i></button>
+                                <button onclick="confirmDeleteQuestion('${qId}', ${qNum})" class="px-2.5 py-1 bg-red-100 dark:bg-red-950/50 text-red-600 rounded-lg text-xs font-bold"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
 
-                        <div id="acc-${q.id}" class="hidden p-4 space-y-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                            ${q.image_url ? `<div class="mb-2"><img src="${q.image_url}" class="max-h-48 rounded-xl border border-slate-300 shadow-sm"></div>` : ''}
+                        <div id="acc-${qId}" class="hidden p-4 space-y-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                            ${imgTag}
                             <div class="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                                <strong>คำถาม:</strong> ${q.question_text || q.content || '-'}
+                                <strong>คำถาม:</strong> ${qText}
                             </div>
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-bold text-slate-500">ตัวเลือก & เฉลยคำตอบ:</label>
@@ -656,7 +667,6 @@
             }
         }
 
-        // Global functions for SweetAlert / HTML handlers
         window.toggleQuestionTypeModal = function(val) {
             const mcSec = document.getElementById('mcSection');
             const esSec = document.getElementById('essaySection');
@@ -728,6 +738,29 @@
             let currentOpts = (qData?.options && qData.options.length > 0) ? qData.options : standardLabels;
             let currentKeywords = qData?.keywords || [];
 
+            let optionsHtml = currentOpts.map((opt, i) => {
+                const isChecked = String(qData?.correct_answer) === String(i) || (!qData && i === 0);
+                const label = standardLabels[i] || String.fromCharCode(65+i);
+                const deleteBtn = i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>` : '';
+                return `<div class="flex items-center gap-2 option-row">
+                    <input type="radio" name="swalCorrectRadio" value="${i}" ${isChecked ? 'checked' : ''}>
+                    <span class="font-bold w-6">${label}:</span>
+                    <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${opt}">
+                    ${deleteBtn}
+                </div>`;
+            }).join('');
+
+            let keywordsHtml = currentKeywords.map(k => {
+                return `<div class="flex items-center gap-2 keyword-row">
+                    <input class="kw-text flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${k.word || ''}" placeholder="พิมพ์คำตอบ/คำสำคัญ...">
+                    <select class="kw-mode px-2 py-1 border rounded-xl dark:bg-slate-800 text-[10px]">
+                        <option value="contains" ${k.mode === 'contains' ? 'selected' : ''}>มีอยู่ในข้อความ</option>
+                        <option value="exact" ${k.mode === 'exact' ? 'selected' : ''}>ถูกต้องเป๊ะ ๆ</option>
+                    </select>
+                    <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>
+                </div>`;
+            }).join('');
+
             const { value: formValues } = await Swal.fire({
                 title: isEdit ? `แก้ไขโจทย์ ข้อที่ ${qData.question_number}` : 'เพิ่มข้อสอบใหม่',
                 width: '650px',
@@ -773,14 +806,7 @@
                                 <button type="button" onclick="addOptionField()" class="px-2 py-1 bg-sky-600 text-white rounded-lg text-[10px] font-bold"><i class="fas fa-plus"></i> เพิ่มตัวเลือก</button>
                             </div>
                             <div id="optionsInputsContainer" class="space-y-1.5">
-                                ${currentOpts.map((opt, i) => `
-                                    <div class="flex items-center gap-2 option-row">
-                                        <input type="radio" name="swalCorrectRadio" value="${i}" ${String(qData?.correct_answer) === String(i) || (!qData && i === 0) ? 'checked' : ''}>
-                                        <span class="font-bold w-6">${standardLabels[i] || String.fromCharCode(65+i)}:</span>
-                                        <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${opt}">
-                                        ${i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>` : ''}
-                                    </div>
-                                `).join('')}
+                                ${optionsHtml}
                             </div>
                         </div>
 
@@ -797,16 +823,7 @@
                                     <button type="button" onclick="addKeywordField()" class="px-2 py-1 bg-amber-500 text-white rounded-lg text-[10px] font-bold"><i class="fas fa-plus"></i> เพิ่มคำตอบ</button>
                                 </div>
                                 <div id="keywordsContainer" class="space-y-2">
-                                    ${currentKeywords.map(k => `
-                                        <div class="flex items-center gap-2 keyword-row">
-                                            <input class="kw-text flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${k.word || ''}" placeholder="พิมพ์คำตอบ/คำสำคัญ...">
-                                            <select class="kw-mode px-2 py-1 border rounded-xl dark:bg-slate-800 text-[10px]">
-                                                <option value="contains" ${k.mode === 'contains' ? 'selected' : ''}>มีอยู่ในข้อความ</option>
-                                                <option value="exact" ${k.mode === 'exact' ? 'selected' : ''}>ถูกต้องเป๊ะ ๆ</option>
-                                            </select>
-                                            <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>
-                                        </div>
-                                    `).join('')}
+                                    ${keywordsHtml}
                                 </div>
                             </div>
                         </div>
