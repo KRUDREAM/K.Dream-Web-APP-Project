@@ -477,58 +477,68 @@
             renderFiles(files);
         }
 
-      async function loadEnrolledStudents() {
+     async function loadEnrolledStudents() {
             let totalStudents = new Set();
             
+            console.log("DEBUG: กำลังโหลดรายชื่อนักเรียนสำหรับคอร์ส ID:", courseId);
+
+            // 1. ลองดึงจากตาราง course_enrollments
             try {
-                // 1. ดึงรายชื่อบัญชีนักเรียนที่มีตัวตนจริงเพื่อกรองบัญชีที่ถูกลบออก
-                let validStudentIds = new Set();
-                const [profilesRes, studentsRes] = await Promise.all([
-                    mySupabase.from('profiles').select('id, user_id, student_id').catch(() => ({ data: [] })),
-                    mySupabase.from('students').select('id, user_id').catch(() => ({ data: [] }))
-                ]);
-
-                if (profilesRes.data) {
-                    profilesRes.data.forEach(p => {
-                        if (p.id) validStudentIds.add(String(p.id));
-                        if (p.user_id) validStudentIds.add(String(p.user_id));
-                        if (p.student_id) validStudentIds.add(String(p.student_id));
-                    });
-                }
-                if (studentsRes.data) {
-                    studentsRes.data.forEach(s => {
-                        if (s.id) validStudentIds.add(String(s.id));
-                        if (s.user_id) validStudentIds.add(String(s.user_id));
-                    });
-                }
-
-                // 2. ดึงข้อมูลการลงทะเบียนทั้งหมดมาคัดกรองใน JS ป้องกันปัญหาชื่อคอลัมน์หรือ Type ไม่ตรงกัน
-                const [en1Res, en2Res] = await Promise.all([
-                    mySupabase.from('course_enrollments').select('*').catch(() => ({ data: [] })),
-                    mySupabase.from('enrollments').select('*').catch(() => ({ data: [] }))
-                ]);
-
-                const allEnrolls = [...(en1Res.data || []), ...(en2Res.data || [])];
-
-                allEnrolls.forEach(e => {
-                    const cId = String(e.course_id || e.courseid || '');
-                    if (cId === String(courseId)) {
-                        const sId = String(e.student_id || e.user_id || '');
-                        if (sId) {
-                            // ถ้ามีข้อมูล profiles ให้กรองเฉพาะที่มีตัวตนจริง แต่ถ้าไม่มีให้ยอมรับเพื่อกันเหนียว
-                            if (validStudentIds.size === 0 || validStudentIds.has(sId)) {
-                                totalStudents.add(sId);
-                            }
+                const { data: en1, error: err1 } = await mySupabase.from('course_enrollments').select('*');
+                if (!err1 && en1) {
+                    console.log("DEBUG: ข้อมูลจาก course_enrollments:", en1);
+                    en1.forEach(e => {
+                        const cId = String(e.course_id || e.courseid || '');
+                        if (cId === String(courseId)) {
+                            const sId = String(e.student_id || e.user_id || '');
+                            if (sId) totalStudents.add(sId);
                         }
+                    });
+                }
+            } catch (e) { console.warn("course_enrollments error:", e); }
+
+            // 2. ลองดึงจากตาราง enrollments
+            try {
+                const { data: en2, error: err2 } = await mySupabase.from('enrollments').select('*');
+                if (!err2 && en2) {
+                    console.log("DEBUG: ข้อมูลจาก enrollments:", en2);
+                    en2.forEach(e => {
+                        const cId = String(e.course_id || e.courseid || '');
+                        if (cId === String(courseId)) {
+                            const sId = String(e.student_id || e.user_id || '');
+                            if (sId) totalStudents.add(sId);
+                        }
+                    });
+                }
+            } catch (e) { console.warn("enrollments error:", e); }
+
+            // 3. ลองเช็คจากฟิลด์ Array ในตัวตาราง courses (เผื่อเก็บเป็นอาเรย์ ID นักเรียนในคอร์ส)
+            if (currentCourse) {
+                console.log("DEBUG: ข้อมูลคอร์สปัจจุบัน (currentCourse):", currentCourse);
+                ['enrolled_students', 'students', 'student_ids', 'members'].forEach(field => {
+                    if (Array.isArray(currentCourse[field])) {
+                        currentCourse[field].forEach(id => totalStudents.add(String(id)));
                     }
                 });
+            }
 
-            } catch (e) {
-                console.warn("Load Enrolled Students Error:", e);
+            // 4. Fallback เผื่อตารางลงทะเบียนยังไม่มีข้อมูล ให้ดูจากนักเรียนที่เคยส่งข้อสอบในคอร์สนี้
+            if (totalStudents.size === 0 && allExams && allExams.length > 0) {
+                console.log("DEBUG: ใช้ Fallback จากประวัติการทำข้อสอบ (Exam Attempts)");
+                const examIds = new Set(allExams.map(e => String(e.id)));
+                if (allAttempts) {
+                    allAttempts.forEach(a => {
+                        if (examIds.has(String(a.exam_id))) {
+                            const sId = String(a.student_id || a.user_id || '');
+                            if (sId) totalStudents.add(sId);
+                        }
+                    });
+                }
             }
 
             courseEnrolledStudentIds = Array.from(totalStudents);
-            
+            console.log("DEBUG: สรุปจำนวนนักเรียนที่พบทั้งหมด:", courseEnrolledStudentIds.length, courseEnrolledStudentIds);
+
             const countEl = document.getElementById('courseEnrolledStudentsCount');
             const badgeEl = document.getElementById('enrolledCountBadge');
             if (countEl) countEl.textContent = `${courseEnrolledStudentIds.length} คน`;
