@@ -131,6 +131,7 @@
         const isPreview = urlParams.get('preview') === 'true';
 
         let currentExam = null;
+        let currentStudentId = null;
         let currentQuestions = [];
         let studentAnswers = {};
         let flaggedQuestions = {};
@@ -140,6 +141,10 @@
 
         let halfTimeTriggered = false;
         let fiveMinsTriggered = false;
+
+        // 🛡️ ตัวแปรระบบ Anti-Cheat (สลับแท็บ)
+        let tabSwitchCount = 0;
+        const MAX_ALLOWED_VIOLATIONS = 3;
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -170,7 +175,7 @@
             if (formatType === 'th_num') return ['ก', 'ข', 'ค', 'ง', 'จ'];
             if (formatType === 'upper') return ['A', 'B', 'C', 'D', 'E'];
             if (formatType === 'lower') return ['a', 'b', 'c', 'd', 'e'];
-            return ['1', '2', '3', '4', '5']; // ค่าเริ่มต้น num
+            return ['1', '2', '3', '4', '5'];
         }
 
         function getChoiceFormatLabelText(formatType) {
@@ -221,6 +226,8 @@
                 Swal.fire('ไม่พบ ID ข้อสอบ', '', 'warning').then(() => window.location.href = 'student.html');
                 return;
             }
+
+            currentStudentId = getValidatedStudentId();
 
             if (isPreview) {
                 document.getElementById('previewBanner').classList.remove('hidden');
@@ -280,6 +287,65 @@
 
             totalExamSeconds = (currentExam.time_limit || 60) * 60;
             startPersistentTimer(parseInt(startTime, 10), totalExamSeconds);
+
+            // เปิดใช้งานระบบ Anti-Cheat (เมื่อเริ่มทำข้อสอบจริง)
+            if (!isPreview) {
+                initAntiCheatSystem();
+            }
+        }
+
+        // 🛡️ ระบบ Anti-Cheat: ตรวจจับการสลับแท็บและสูญเสียโฟกัส
+        function initAntiCheatSystem() {
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) {
+                    handleExamViolation("ตรวจพบการสลับแท็บหรือออกจากหน้าจอเบราว์เซอร์");
+                }
+            });
+
+            window.addEventListener('blur', function () {
+                if (!document.hidden) {
+                    handleExamViolation("หน้าต่างข้อสอบสูญเสียการโฟกัส (คลิกออกนอกหน้าจอ)");
+                }
+            });
+        }
+
+        async function handleExamViolation(reason) {
+            if (isPreview) return;
+            tabSwitchCount++;
+
+            try {
+                await mySupabase.from('exam_violation_logs').insert([{
+                    exam_id: examId,
+                    student_id: currentStudentId,
+                    violation_reason: reason,
+                    attempt_count: tabSwitchCount,
+                    created_at: new Date().toISOString()
+                }]);
+            } catch (err) {
+                console.warn("Log violation warning:", err);
+            }
+
+            if (tabSwitchCount < MAX_ALLOWED_VIOLATIONS) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '⚠️ คำเตือน! ห้ามสลับหน้าจอ',
+                    html: `ระบบตรวจพบพฤติกรรมสลับแท็บ/ออกนอกหน้าจอ<br><b>(ครั้งที่ ${tabSwitchCount} จาก ${MAX_ALLOWED_VIOLATIONS} ครั้ง)</b><br><span class="text-red-500 text-xs">หากครบกำหนด ระบบจะบังคับส่งข้อสอบทันที!</span>`,
+                    confirmButtonText: 'รับทราบและกลับไปทำข้อสอบ',
+                    confirmButtonColor: '#0284c7',
+                    allowOutsideClick: false
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: '❌ ถูกตัดสิทธิ์การสอบ',
+                    text: 'คุณสลับหน้าจอเกินจำนวนครั้งที่กำหนด ระบบได้ทำการส่งข้อสอบอัตโนมัติแล้ว',
+                    confirmButtonText: 'ดูผลคะแนน',
+                    confirmButtonColor: '#ef4444',
+                    allowOutsideClick: false
+                }).then(() => {
+                    submitExam(true);
+                });
+            }
         }
 
         async function renderSecurePDF(url) {
