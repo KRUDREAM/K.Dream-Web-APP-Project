@@ -783,7 +783,9 @@
                 return;
             }
 
-            container.innerHTML = filtered.map((q) => {
+            let htmlContent = '';
+            for (let i = 0; i < filtered.length; i++) {
+                const q = filtered[i];
                 const qNum = q.question_number || (globalQuestions.indexOf(q) + 1);
                 const isEssay = q.question_type === 'essay';
                 const opts = getQuestionOptions(q);
@@ -796,7 +798,7 @@
                 const isCorrect = !isEssay && studentChoiceIdx !== null && !isNaN(studentChoiceIdx) && studentChoiceIdx === correctChoiceIdx;
 
                 if (isEssay) {
-                    return `
+                    htmlContent += `
                         <div class="p-4 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
                             <div class="flex justify-between items-center">
                                 <span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 font-bold text-[11px] rounded-lg">ข้อที่ ${qNum} (อัตนัย)</span>
@@ -810,7 +812,9 @@
                         </div>
                     `;
                 } else {
-                    const bubblesHtml = opts.map((optText, optIdx) => {
+                    let bubblesHtml = '';
+                    for (let optIdx = 0; optIdx < opts.length; optIdx++) {
+                        const optText = opts[optIdx];
                         let bubbleClass = 'result-bubble';
                         let badgeIcon = '';
                         const isStudentPicked = (studentChoiceIdx !== null && studentChoiceIdx === optIdx);
@@ -829,28 +833,34 @@
                             bubbleClass += ' student-choice';
                         }
 
-                        return `
+                        bubblesHtml += `
                             <div class="flex items-center gap-2.5 p-2 rounded-xl transition-all bg-white dark:bg-darkinput border border-slate-100 dark:border-slate-800/80">
                                 <div class="${bubbleClass}">${String.fromCharCode(65 + optIdx)}</div>
                                 <span class="text-xs text-slate-700 dark:text-slate-300 truncate">${optText}</span>
                                 ${badgeIcon}
                             </div>
                         `;
-                    }).join('');
+                    }
 
-                    return `
+                    const imageHtml = q.image_url ? `<div><img src="${q.image_url}" class="max-h-40 rounded-xl border shadow-sm object-cover"></div>` : '';
+                    const tagText = q.category_tag || 'ทั่วไป';
+                    const badgeClass = isCorrect ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 border border-red-500/20';
+                    const badgeText = isCorrect ? '<i class="fas fa-check-circle mr-1"></i> ถูก (+1)' : '<i class="fas fa-times-circle mr-1"></i> ผิด (0)';
+                    const qText = q.question_text || q.content || '';
+
+                    htmlContent += `
                         <div class="p-4 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
                             <div class="flex justify-between items-center">
-                                <span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-300 font-bold text-[11px] rounded-lg">ข้อ ${qNum} (${q.category_tag || 'ทั่วไป'})</span>
-                                <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold ${isCorrect ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 border border-red-500/20'}">
-                                    ${isCorrect ? '<i class="fas fa-check-circle mr-1"></i> ถูก (+1)' : '<i class="fas fa-times-circle mr-1"></i> ผิด (0)'}
+                                <span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-300 font-bold text-[11px] rounded-lg">ข้อ ${qNum} (${tagText})</span>
+                                <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold ${badgeClass}">
+                                    ${badgeText}
                                 </span>
                             </div>
 
-                            ${q.image_url ? `<div><img src="${q.image_url}" class="max-h-40 rounded-xl border shadow-sm object-cover"></div>` : ''}
+                            ${imageHtml}
 
                             <div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                ${q.question_text || q.content || ''}
+                                ${qText}
                             </div>
 
                             <div class="grid grid-cols-1 gap-1.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border">
@@ -859,7 +869,8 @@
                         </div>
                     `;
                 }
-            }).join('');
+            }
+            container.innerHTML = htmlContent;
         }
 
         async function fetchGeminiAIAnalysis(questions, answerMap, score, total, examTitle, learningObjectives, pdfUrl) {
