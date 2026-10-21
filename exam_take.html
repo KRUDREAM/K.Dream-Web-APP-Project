@@ -233,6 +233,32 @@
                 document.getElementById('previewBanner').classList.remove('hidden');
             }
 
+            // 🛑 ป้องกันการทำซ้ำ: ตรวจสอบในฐานข้อมูลว่านักเรียนเคยส่งข้อสอบชุดนี้ไปแล้วหรือยัง
+            if (!isPreview && currentStudentId) {
+                try {
+                    const { data: prevAttempts, error } = await mySupabase
+                        .from('exam_attempts')
+                        .select('id')
+                        .eq('exam_id', examId)
+                        .eq('student_id', currentStudentId);
+
+                    if (prevAttempts && prevAttempts.length > 0) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'คุณได้ทำและส่งข้อสอบชุดนี้ไปแล้ว!',
+                            text: 'ไม่อนุญาตให้ทำข้อสอบซ้ำผ่านการเข้าลิงก์เดิม ระบบจะนำคุณกลับสู่หน้าหลัก',
+                            confirmButtonText: 'รับทราบ',
+                            allowOutsideClick: false
+                        }).then(() => {
+                            window.location.href = 'student.html';
+                        });
+                        return;
+                    }
+                } catch(err) {
+                    console.error("Check previous attempt error:", err);
+                }
+            }
+
             const { data: exam } = await mySupabase.from('exams').select('*').eq('id', examId).single();
             if (!exam) {
                 Swal.fire('ไม่พบชุดข้อสอบนี้', '', 'error').then(() => window.location.href = 'student.html');
@@ -265,7 +291,6 @@
             }
 
             if (!isPreview) {
-                // เช็คว่าเคยมีเวลาเริ่มสอบบันทึกไว้หรือยัง (ถ้ามีแล้ว แปลว่าเป็นการกดรีเฟรชระหว่างสอบ ไม่ต้องขึ้น Popup ถามซ้ำ)
                 const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
                 const existingStartTime = localStorage.getItem(timerKey);
 
@@ -496,7 +521,6 @@
         function selectAnswer(qId, cIdx) {
             studentAnswers[qId] = String(cIdx);
             
-            // 💾 บันทึกลง localStorage ทันทีที่ตอบ
             try {
                 localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
             } catch(e) {}
@@ -526,7 +550,6 @@
         function saveEssayAnswer(qId, val) {
             studentAnswers[qId] = val;
             
-            // 💾 บันทึกลง localStorage ทันทีที่พิมพ์
             try {
                 localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
             } catch(e) {}
@@ -696,7 +719,6 @@
         async function submitExam(isTimeout = false) {
             if (timerInterval) clearInterval(timerInterval);
             
-            // 🧹 ล้างข้อมูลแคชคำตอบและเวลาใน localStorage เมื่อส่งข้อสอบสำเร็จ
             localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
             localStorage.removeItem(`exam_answers_${examId}_${currentStudentId}`);
             localStorage.removeItem(`exam_flags_${examId}_${currentStudentId}`);
