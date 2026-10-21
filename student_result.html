@@ -40,7 +40,7 @@
     <nav class="glass-nav fixed w-full top-0 z-40">
         <div class="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex justify-between items-center gap-2">
             <div class="flex items-center gap-2.5 min-w-0">
-                <button onclick="window.location.href='student.html'" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm shrink-0" title="กลับหน้าพอร์ทัล">
+                <button onclick="goBackPortal()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm shrink-0" title="กลับหน้าพอร์ทัล">
                     <i class="fas fa-arrow-left text-xs"></i>
                 </button>
                 <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center text-base shadow-md shadow-sky-500/30 shrink-0">
@@ -255,6 +255,15 @@
         let cachedScore = 0;
         let cachedTotal = 0;
         let cachedCategoryStats = {};
+
+        // Safe Navigation back handler
+        function goBackPortal() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = 'student.html';
+            }
+        }
 
         // Theme management
         const htmlElement = document.documentElement;
@@ -754,4 +763,192 @@
                         };
                     </script>
                 </body>
-                </html>
+                </html>`;
+
+                reportWindow.document.open();
+                reportWindow.document.write(reportHtml);
+                reportWindow.document.close();
+
+            } catch (e) {
+                console.error("Report generation error:", e);
+                alert("ไม่สามารถเปิดหน้าต่างรายงานได้");
+            }
+        }
+
+        function setFilter(filterType) {
+            currentFilter = filterType;
+            ['all', 'correct', 'wrong'].forEach(f => {
+                const btn = document.getElementById('filter-' + f);
+                if (btn) {
+                    if (f === filterType) {
+                        btn.className = 'flex-1 sm:flex-none px-2.5 py-1 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm';
+                    } else {
+                        btn.className = 'flex-1 sm:flex-none px-2.5 py-1 rounded-lg font-bold transition-all text-slate-600 dark:text-slate-300 hover:text-sky-500';
+                    }
+                }
+            });
+            renderDetailedResults();
+        }
+
+        function updateCountsAndRender() {
+            let correctCount = 0;
+            let wrongCount = 0;
+
+            globalQuestions.forEach((q) => {
+                let userAns = getUserAnswer(q, globalRawAnswers);
+                const isEssay = q.question_type === 'essay';
+                
+                if (!isEssay) {
+                    if (isAnswerCorrect(q, userAns)) {
+                        correctCount++;
+                    } else {
+                        wrongCount++;
+                    }
+                }
+            });
+
+            const elAll = document.getElementById('count-all');
+            const elCorr = document.getElementById('count-correct');
+            const elWrong = document.getElementById('count-wrong');
+            if (elAll) elAll.textContent = globalQuestions.length;
+            if (elCorr) elCorr.textContent = correctCount;
+            if (elWrong) elWrong.textContent = wrongCount;
+
+            renderDetailedResults();
+        }
+
+        function renderDetailedResults() {
+            const container = document.getElementById('resultsContainer');
+            if (!container) return;
+
+            if (globalQuestions.length === 0) {
+                container.innerHTML = '<div class="text-center py-10 text-slate-400 text-xs">ไม่พบรายการคำถาม</div>';
+                return;
+            }
+
+            const filtered = globalQuestions.filter((q) => {
+                let userAns = getUserAnswer(q, globalRawAnswers);
+                const isEssay = q.question_type === 'essay';
+                if (isEssay) return currentFilter === 'all';
+
+                const isCorrect = isAnswerCorrect(q, userAns);
+
+                if (currentFilter === 'correct') return isCorrect;
+                if (currentFilter === 'wrong') return !isCorrect;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="text-center py-12 text-slate-400 text-xs">ไม่มีรายการในหมวดหมู่นี้</div>';
+                return;
+            }
+
+            let htmlContent = '';
+            for (let i = 0; i < filtered.length; i++) {
+                const q = filtered[i];
+                const qNum = q.question_number || (globalQuestions.indexOf(q) + 1);
+                const isEssay = q.question_type === 'essay';
+                const opts = getQuestionOptions(q);
+                
+                let userAns = getUserAnswer(q, globalRawAnswers);
+                const studentChoiceIdx = parseChoiceIndex(userAns);
+                const correctChoiceIdx = parseChoiceIndex(q.correct_answer);
+                const isCorrect = !isEssay && isAnswerCorrect(q, userAns);
+
+                if (isEssay) {
+                    htmlContent += `
+                        <div class="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
+                            <div class="flex justify-between items-center">
+                                <span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 font-bold text-[11px] rounded-lg">ข้อที่ ${qNum} (อัตนัย)</span>
+                                <span class="text-[11px] font-bold text-amber-500">รอตรวจ</span>
+                            </div>
+                            <div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">${escapeHtml(q.question_text || q.content || '')}</div>
+                            <div class="p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border text-xs">
+                                <span class="text-[10px] font-bold text-slate-400 block mb-0.5">คำตอบของคุณ:</span>
+                                <p class="text-slate-700 dark:text-slate-300">${escapeHtml(userAns !== '-' ? userAns : '- ไม่ได้ตอบ -')}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    let bubblesHtml = '';
+                    for (let optIdx = 0; optIdx < opts.length; optIdx++) {
+                        const optText = opts[optIdx];
+                        let bubbleClass = 'result-bubble';
+                        let badgeIcon = '';
+                        const isStudentPicked = (studentChoiceIdx !== null && studentChoiceIdx === optIdx);
+                        const isCorrectOpt = (correctChoiceIdx !== null && correctChoiceIdx === optIdx);
+
+                        if (isStudentPicked && isCorrectOpt) {
+                            bubbleClass += ' correct-choice';
+                            badgeIcon = '<i class="fas fa-check text-[10px] ml-auto"></i>';
+                        } else if (isStudentPicked && !isCorrectOpt) {
+                            bubbleClass += ' wrong-choice';
+                            badgeIcon = '<i class="fas fa-times text-[10px] ml-auto"></i>';
+                        } else if (!isStudentPicked && isCorrectOpt) {
+                            bubbleClass += ' correct-choice';
+                            badgeIcon = '<i class="fas fa-check text-[10px] ml-auto opacity-70"></i>';
+                        } else if (isStudentPicked) {
+                            bubbleClass += ' student-choice';
+                        }
+
+                        bubblesHtml += `
+                            <div class="flex items-center gap-2.5 p-2 rounded-xl transition-all bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80">
+                                <div class="${bubbleClass}">${String.fromCharCode(65 + optIdx)}</div>
+                                <span class="text-xs text-slate-700 dark:text-slate-300 truncate">${escapeHtml(optText)}</span>
+                                ${badgeIcon}
+                            </div>
+                        `;
+                    }
+
+                    const imageHtml = (q.image_url && String(q.image_url).trim() !== '' && !String(q.image_url).includes('${')) ? `<div><img src="${escapeHtml(q.image_url)}" class="max-h-40 rounded-xl border shadow-sm object-cover"></div>` : '';
+                    const tagText = q.category_tag || 'ทั่วไป';
+                    const badgeClass = isCorrect ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 border border-red-500/20';
+                    const badgeText = isCorrect ? '<i class="fas fa-check-circle mr-1"></i> ถูก (+1)' : '<i class="fas fa-times-circle mr-1"></i> ผิด (0)';
+                    const qText = q.question_text || q.content || '';
+
+                    htmlContent += `
+                        <div class="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
+                            <div class="flex justify-between items-center">
+                                <span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-300 font-bold text-[11px] rounded-lg">ข้อ ${qNum} (${escapeHtml(tagText)})</span>
+                                <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold ${badgeClass}">${badgeText}</span>
+                            </div>
+                            ${imageHtml}
+                            <div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">${escapeHtml(qText)}</div>
+                            <div class="grid grid-cols-1 gap-1.5 bg-slate-50 dark:bg-slate-950/60 p-2.5 rounded-xl border">${bubblesHtml}</div>
+                        </div>
+                    `;
+                }
+            }
+            container.innerHTML = htmlContent;
+        }
+
+        function renderLocalAIAnalysis(questions, answerMap, score, total) {
+            const container = document.getElementById('aiAnalysisContainer');
+            if (!container) return;
+
+            const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+            let performanceSummary = percentage >= 80 ? "ยอดเยี่ยมมาก! มีความเข้าใจเนื้อหาในชุดข้อสอบนี้เป็นอย่างดีเยี่ยม" : (percentage >= 50 ? "ทำผลงานได้ปานกลาง มีพื้นฐานในระดับน่าพอใจ แต่ยังมีบางจุดที่ต้องเก็บตก" : "ควรเน้นทบทวนเนื้อหาภาพรวมและฝึกทำโจทย์ซ้ำอีกรอบ");
+
+            let breakdownHtml = Object.entries(cachedCategoryStats).map(([tag, stat]) => {
+                const p = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                return `
+                    <li class="flex items-center justify-between text-xs py-1.5 border-b border-slate-200/50 dark:border-slate-800/50">
+                        <span>🏷️ <b>${escapeHtml(tag)}</b></span>
+                        <span class="font-bold ${p >= 70 ? 'text-emerald-500' : 'text-amber-500'}">${stat.correct}/${stat.total} ข้อ (${p}%)</span>
+                    </li>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="space-y-3 bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl border border-indigo-500/30 shadow-inner">
+                    <h4 class="font-bold text-xs sm:text-sm text-sky-600 dark:text-sky-400 flex items-center gap-1.5"><i class="fas fa-chart-pie"></i> สรุปผลสัมฤทธิ์ภาพรวม (${score}/${total} คะแนน)</h4>
+                    <p class="text-slate-700 dark:text-slate-300 text-xs sm:text-sm">${performanceSummary}</p>
+                    <div class="pt-1"><ul class="space-y-1">${breakdownHtml}</ul></div>
+                </div>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', initResultPage);
+    </script>
+</body>
+</html>
