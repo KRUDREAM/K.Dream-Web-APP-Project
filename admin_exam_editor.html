@@ -617,7 +617,7 @@
                                 <span class="text-slate-800 dark:text-slate-200 truncate">${qText}</span>
                             </div>
                             <div class="flex gap-1 shrink-0" onclick="event.stopPropagation()">
-                                <button onclick='openQuestionModal(${JSON.stringify(q)})' class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-bold"><i class="fas fa-pen mr-1"></i> แก้ไข</button>
+                                <button onclick="openQuestionModalById('${qId}')" class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-bold"><i class="fas fa-pen mr-1"></i> แก้ไข</button>
                                 <button onclick="confirmDeleteQuestion('${qId}', ${qNum})" class="px-2.5 py-1 bg-red-100 dark:bg-red-950/50 text-red-600 rounded-lg text-xs font-bold"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
@@ -733,6 +733,11 @@
                 }
             } else { Swal.fire('อัปโหลดล้มเหลว', error.message, 'error'); }
         };
+
+        function openQuestionModalById(qId) {
+            const qData = cachedQuestions.find(q => q.id === qId);
+            openQuestionModal(qData || null);
+        }
 
         async function openQuestionModal(qData = null) {
             const isEdit = !!qData;
