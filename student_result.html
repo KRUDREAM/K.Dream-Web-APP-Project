@@ -759,7 +759,7 @@
             if (!container) return;
 
             if (globalQuestions.length === 0) {
-                container.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">ไม่พบรายการคำถาม</div>`;
+                container.innerHTML = '<div class="text-center py-10 text-slate-400 text-xs">ไม่พบรายการคำถาม</div>';
                 return;
             }
 
@@ -779,7 +779,7 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">ไม่มีรายการในหมวดหมู่นี้</div>`;
+                container.innerHTML = '<div class="text-center py-12 text-slate-400 text-xs">ไม่มีรายการในหมวดหมู่นี้</div>';
                 return;
             }
 
@@ -798,19 +798,17 @@
                 const isCorrect = !isEssay && studentChoiceIdx !== null && !isNaN(studentChoiceIdx) && studentChoiceIdx === correctChoiceIdx;
 
                 if (isEssay) {
-                    htmlContent += `
-                        <div class="p-4 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
-                            <div class="flex justify-between items-center">
-                                <span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 font-bold text-[11px] rounded-lg">ข้อที่ ${qNum} (อัตนัย)</span>
-                                <span class="text-[11px] font-bold text-amber-500">รอตรวจ</span>
-                            </div>
-                            <div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">${q.question_text || q.content || ''}</div>
-                            <div class="p-2.5 bg-slate-50 dark:bg-slate-900 rounded-xl border text-xs">
-                                <span class="text-[10px] font-bold text-slate-400 block mb-0.5">คำตอบของคุณ:</span>
-                                <p class="text-slate-700 dark:text-slate-300">${userAns !== '-' ? userAns : '- ไม่ได้ตอบ -'}</p>
-                            </div>
-                        </div>
-                    `;
+                    htmlContent += '<div class="p-4 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">' +
+                        '<div class="flex justify-between items-center">' +
+                            '<span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 font-bold text-[11px] rounded-lg">ข้อที่ ' + qNum + ' (อัตนัย)</span>' +
+                            '<span class="text-[11px] font-bold text-amber-500">รอตรวจ</span>' +
+                        '</div>' +
+                        '<div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">' + (q.question_text || q.content || '') + '</div>' +
+                        '<div class="p-2.5 bg-slate-50 dark:bg-slate-900 rounded-xl border text-xs">' +
+                            '<span class="text-[10px] font-bold text-slate-400 block mb-0.5">คำตอบของคุณ:</span>' +
+                            '<p class="text-slate-700 dark:text-slate-300">' + (userAns !== '-' ? userAns : '- ไม่ได้ตอบ -') + '</p>' +
+                        '</div>' +
+                    '</div>';
                 } else {
                     let bubblesHtml = '';
                     for (let optIdx = 0; optIdx < opts.length; optIdx++) {
@@ -833,41 +831,28 @@
                             bubbleClass += ' student-choice';
                         }
 
-                        bubblesHtml += `
-                            <div class="flex items-center gap-2.5 p-2 rounded-xl transition-all bg-white dark:bg-darkinput border border-slate-100 dark:border-slate-800/80">
-                                <div class="${bubbleClass}">${String.fromCharCode(65 + optIdx)}</div>
-                                <span class="text-xs text-slate-700 dark:text-slate-300 truncate">${optText}</span>
-                                ${badgeIcon}
-                            </div>
-                        `;
+                        bubblesHtml += '<div class="flex items-center gap-2.5 p-2 rounded-xl transition-all bg-white dark:bg-darkinput border border-slate-100 dark:border-slate-800/80">' +
+                            '<div class="' + bubbleClass + '">' + String.fromCharCode(65 + optIdx) + '</div>' +
+                            '<span class="text-xs text-slate-700 dark:text-slate-300 truncate">' + optText + '</span>' +
+                            badgeIcon +
+                        '</div>';
                     }
 
-                    const imageHtml = q.image_url ? `<div><img src="${q.image_url}" class="max-h-40 rounded-xl border shadow-sm object-cover"></div>` : '';
+                    const imageHtml = (q.image_url && q.image_url.trim() !== '') ? '<div><img src="' + q.image_url + '" class="max-h-40 rounded-xl border shadow-sm object-cover"></div>' : '';
                     const tagText = q.category_tag || 'ทั่วไป';
                     const badgeClass = isCorrect ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 border border-red-500/20';
                     const badgeText = isCorrect ? '<i class="fas fa-check-circle mr-1"></i> ถูก (+1)' : '<i class="fas fa-times-circle mr-1"></i> ผิด (0)';
                     const qText = q.question_text || q.content || '';
 
-                    htmlContent += `
-                        <div class="p-4 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
-                            <div class="flex justify-between items-center">
-                                <span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-300 font-bold text-[11px] rounded-lg">ข้อ ${qNum} (${tagText})</span>
-                                <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold ${badgeClass}">
-                                    ${badgeText}
-                                </span>
-                            </div>
-
-                            ${imageHtml}
-
-                            <div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                ${qText}
-                            </div>
-
-                            <div class="grid grid-cols-1 gap-1.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border">
-                                ${bubblesHtml}
-                            </div>
-                        </div>
-                    `;
+                    htmlContent += '<div class="p-4 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">' +
+                        '<div class="flex justify-between items-center">' +
+                            '<span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-300 font-bold text-[11px] rounded-lg">ข้อ ' + qNum + ' (' + tagText + ')</span>' +
+                            '<span class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold ' + badgeClass + '">' + badgeText + '</span>' +
+                        '</div>' +
+                        imageHtml +
+                        '<div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">' + qText + '</div>' +
+                        '<div class="grid grid-cols-1 gap-1.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border">' + bubblesHtml + '</div>' +
+                    '</div>';
                 }
             }
             container.innerHTML = htmlContent;
@@ -886,19 +871,17 @@
 
             let breakdownHtml = Object.entries(cachedCategoryStats).map(([tag, stat]) => {
                 const p = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
-                return `<li class="flex items-center justify-between text-xs py-1.5 border-b border-slate-200/50 dark:border-slate-800/50">
-                    <span>🏷️ <b>${tag}</b></span>
-                    <span class="font-bold ${p >= 70 ? 'text-emerald-500' : 'text-amber-500'}">${stat.correct}/${stat.total} ข้อ (${p}%)</span>
-                </li>`;
+                return '<li class="flex items-center justify-between text-xs py-1.5 border-b border-slate-200/50 dark:border-slate-800/50">' +
+                    '<span>🏷️ <b>' + tag + '</b></span>' +
+                    '<span class="font-bold ' + (p >= 70 ? 'text-emerald-500' : 'text-amber-500') + '">' + stat.correct + '/' + stat.total + ' ข้อ (' + p + '%)</span>' +
+                '</li>';
             }).join('');
 
-            container.innerHTML = `
-                <div class="space-y-3 bg-white dark:bg-darkinput p-4 sm:p-5 rounded-xl border border-indigo-500/30 shadow-inner">
-                    <h4 class="font-bold text-xs sm:text-sm text-sky-600 dark:text-sky-400 flex items-center gap-1.5"><i class="fas fa-chart-pie"></i> สรุปผลสัมฤทธิ์ภาพรวม (${score}/${total} คะแนน)</h4>
-                    <p class="text-slate-700 dark:text-slate-300 text-xs sm:text-sm">${performanceSummary}</p>
-                    <div class="pt-1"><ul class="space-y-1">${breakdownHtml}</ul></div>
-                </div>
-            `;
+            container.innerHTML = '<div class="space-y-3 bg-white dark:bg-darkinput p-4 sm:p-5 rounded-xl border border-indigo-500/30 shadow-inner">' +
+                '<h4 class="font-bold text-xs sm:text-sm text-sky-600 dark:text-sky-400 flex items-center gap-1.5"><i class="fas fa-chart-pie"></i> สรุปผลสัมฤทธิ์ภาพรวม (' + score + '/' + total + ' คะแนน)</h4>' +
+                '<p class="text-slate-700 dark:text-slate-300 text-xs sm:text-sm">' + performanceSummary + '</p>' +
+                '<div class="pt-1"><ul class="space-y-1">' + breakdownHtml + '</ul></div>' +
+            '</div>';
         }
 
         initResultPage();
