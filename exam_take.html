@@ -248,20 +248,42 @@
                 formatSub.textContent = `รูปแบบตัวเลือก: ${getChoiceFormatLabelText(exam.choice_format)}`;
             }
 
+            // 💾 โหลดคำตอบและสถานะปักธงที่บันทึกไว้ใน localStorage (ป้องกันเผลอรีเฟรช)
             if (!isPreview) {
-                const confirmStart = await Swal.fire({
-                    title: `พร้อมเริ่มทำข้อสอบ "${exam.title}" หรือยัง?`,
-                    text: `เวลาในการทำข้อสอบ: ${exam.time_limit || 60} นาที เมื่อกดเริ่มเวลานับถอยหลังทันที`,
-                    icon: 'info',
-                    showCancelButton: true,
-                    confirmButtonText: 'เริ่มทำข้อสอบ',
-                    cancelButtonText: 'กลับหน้าหลัก',
-                    allowOutsideClick: false
-                });
+                try {
+                    const savedAnswers = localStorage.getItem(`exam_answers_${examId}_${currentStudentId}`);
+                    if (savedAnswers) {
+                        studentAnswers = JSON.parse(savedAnswers);
+                    }
+                    const savedFlags = localStorage.getItem(`exam_flags_${examId}_${currentStudentId}`);
+                    if (savedFlags) {
+                        flaggedQuestions = JSON.parse(savedFlags);
+                    }
+                } catch(e) {
+                    console.error("Load local backup error:", e);
+                }
+            }
 
-                if (!confirmStart.isConfirmed) {
-                    window.location.href = 'student.html';
-                    return;
+            if (!isPreview) {
+                // เช็คว่าเคยมีเวลาเริ่มสอบบันทึกไว้หรือยัง (ถ้ามีแล้ว แปลว่าเป็นการกดรีเฟรชระหว่างสอบ ไม่ต้องขึ้น Popup ถามซ้ำ)
+                const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
+                const existingStartTime = localStorage.getItem(timerKey);
+
+                if (!existingStartTime) {
+                    const confirmStart = await Swal.fire({
+                        title: `พร้อมเริ่มทำข้อสอบ "${exam.title}" หรือยัง?`,
+                        text: `เวลาในการทำข้อสอบ: ${exam.time_limit || 60} นาที เมื่อกดเริ่มเวลานับถอยหลังทันที`,
+                        icon: 'info',
+                        showCancelButton: true,
+                        confirmButtonText: 'เริ่มทำข้อสอบ',
+                        cancelButtonText: 'กลับหน้าหลัก',
+                        allowOutsideClick: false
+                    });
+
+                    if (!confirmStart.isConfirmed) {
+                        window.location.href = 'student.html';
+                        return;
+                    }
                 }
             }
 
@@ -278,7 +300,7 @@
 
             await loadQuestions();
 
-            const timerKey = `exam_start_time_${examId}`;
+            const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
             let startTime = localStorage.getItem(timerKey);
             if (!startTime || isPreview) {
                 startTime = Date.now();
@@ -465,12 +487,20 @@
 
         function toggleFlag(qId) {
             flaggedQuestions[qId] = !flaggedQuestions[qId];
+            try {
+                localStorage.setItem(`exam_flags_${examId}_${currentStudentId}`, JSON.stringify(flaggedQuestions));
+            } catch(e) {}
             renderQuestionsContainer();
         }
 
         function selectAnswer(qId, cIdx) {
             studentAnswers[qId] = String(cIdx);
             
+            // 💾 บันทึกลง localStorage ทันทีที่ตอบ
+            try {
+                localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
+            } catch(e) {}
+
             const box = document.getElementById(`q-box-${qId}`);
             if (box) box.classList.remove('question-unanswered-highlight');
 
@@ -495,6 +525,12 @@
 
         function saveEssayAnswer(qId, val) {
             studentAnswers[qId] = val;
+            
+            // 💾 บันทึกลง localStorage ทันทีที่พิมพ์
+            try {
+                localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
+            } catch(e) {}
+
             if (val && val.trim() !== '') {
                 const box = document.getElementById(`q-box-${qId}`);
                 if (box) box.classList.remove('question-unanswered-highlight');
@@ -583,7 +619,9 @@
 
                 if (remainingSeconds <= 0) {
                     clearInterval(timerInterval);
-                    localStorage.removeItem(`exam_start_time_${examId}`);
+                    localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
+                    localStorage.removeItem(`exam_answers_${examId}_${currentStudentId}`);
+                    localStorage.removeItem(`exam_flags_${examId}_${currentStudentId}`);
                     Swal.fire({
                         icon: 'warning',
                         title: 'หมดเวลาทำข้อสอบ!',
@@ -657,7 +695,11 @@
 
         async function submitExam(isTimeout = false) {
             if (timerInterval) clearInterval(timerInterval);
-            localStorage.removeItem(`exam_start_time_${examId}`);
+            
+            // 🧹 ล้างข้อมูลแคชคำตอบและเวลาใน localStorage เมื่อส่งข้อสอบสำเร็จ
+            localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
+            localStorage.removeItem(`exam_answers_${examId}_${currentStudentId}`);
+            localStorage.removeItem(`exam_flags_${examId}_${currentStudentId}`);
 
             try {
                 let progress = JSON.parse(localStorage.getItem('student_in_progress_exams') || '{}');
