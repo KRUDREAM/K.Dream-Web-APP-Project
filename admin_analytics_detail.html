@@ -528,12 +528,10 @@
             renderSubmissionsTable();
         }
 
-        // ฟังก์ชันประเมินระดับเกณฑ์ตามเปอร์เซ็นต์หมวดหมู่ (อิงตามค่าที่บันทึกในตาราง exams)
+        // ฟังก์ชันประเมินระดับเกณฑ์ตามเปอร์เซ็นต์หมวดหมู่ (ตรวจสอบว่าเปิดใช้งานเกณฑ์หรือไม่)
         function evaluateCategoryCriteria(categoryName, categoryPct) {
-            if (!currentExam || !currentExam.enable_grading_criteria || !Array.isArray(currentExam.grading_criteria)) {
-                if (categoryPct >= 80) return 'ดีเยี่ยม (Excellent)';
-                if (categoryPct >= 50) return 'ปานกลาง (Moderate)';
-                return 'ต้องปรับปรุง (Needs Improvement)';
+            if (!currentExam || !currentExam.enable_grading_criteria || !Array.isArray(currentExam.grading_criteria) || currentExam.grading_criteria.length === 0) {
+                return null;
             }
 
             const matchedCriteria = currentExam.grading_criteria.filter(c => !c.category || c.category.trim() === '' || c.category.trim() === categoryName.trim());
@@ -550,6 +548,8 @@
         }
 
         function downloadStudentReport(studentName, studentIdCode, score, maxScore, categoryStats) {
+            const hasCriteria = currentExam && currentExam.enable_grading_criteria && Array.isArray(currentExam.grading_criteria) && currentExam.grading_criteria.length > 0;
+
             let categoryRows = Object.entries(categoryStats).map(([cat, stat]) => {
                 let pct = stat.total > 0 ? ((stat.correct / stat.total) * 100).toFixed(1) : '0.0';
                 let evalLevel = evaluateCategoryCriteria(cat, parseFloat(pct));
@@ -558,7 +558,7 @@
                         <td style="padding: 8px;"><b>${cat}</b></td>
                         <td style="padding: 8px; text-align: center;">${stat.correct} / ${stat.total}</td>
                         <td style="padding: 8px; text-align: center; font-weight: bold; color: #0284c7;">${pct}%</td>
-                        <td style="padding: 8px; text-align: center;">${evalLevel}</td>
+                        ${hasCriteria ? `<td style="padding: 8px; text-align: center;">${evalLevel || '-'}</td>` : ''}
                     </tr>
                 `;
             }).join('');
@@ -588,16 +588,16 @@
                         <p><b>ชื่อชุดข้อสอบ:</b> ${currentExam ? currentExam.title : '-'}</p>
                         <p><b>รหัสนักเรียน:</b> ${studentIdCode} | <b>ชื่อ-นามสกุล:</b> ${studentName}</p>
                         <p><b>คะแนนรวมที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">${score} / ${maxScore}</span> คะแนน (${totalPct}%)</p>
-                        <p><b>ผลการประเมินภาพรวม:</b> <span style="color: #0284c7; font-weight: bold;">${overallEval}</span></p>
+                        ${hasCriteria && overallEval ? `<p><b>ผลการประเมินภาพรวม:</b> <span style="color: #0284c7; font-weight: bold;">${overallEval}</span></p>` : ''}
                     </div>
-                    <h3>คะแนนและเกณฑ์การประเมินแยกตามหมวดหมู่เนื้อหา</h3>
+                    <h3>คะแนน${hasCriteria ? 'และเกณฑ์การประเมิน' : ''}แยกตามหมวดหมู่เนื้อหา</h3>
                     <table>
                         <thead>
                             <tr>
                                 <th>หมวดหมู่ / หัวข้อเนื้อหา</th>
                                 <th style="text-align: center;">คะแนน (ถูก/ทั้งหมด)</th>
                                 <th style="text-align: center;">ร้อยละ (%)</th>
-                                <th style="text-align: center;">ระดับการประเมิน</th>
+                                ${hasCriteria ? `<th style="text-align: center;">ระดับการประเมิน</th>` : ''}
                             </tr>
                         </thead>
                         <tbody>
@@ -663,13 +663,15 @@
                 `;
             }).join('');
 
+            const hasCriteria = currentExam && currentExam.enable_grading_criteria && Array.isArray(currentExam.grading_criteria) && currentExam.grading_criteria.length > 0;
+
             let categorySummaryHtml = Object.entries(categoryStats).map(([cat, stat]) => {
                 let pct = stat.total > 0 ? ((stat.correct / stat.total) * 100).toFixed(1) : '0.0';
                 let levelName = evaluateCategoryCriteria(cat, parseFloat(pct));
                 return `
                     <div class="p-2.5 bg-sky-500/5 border border-sky-500/20 rounded-xl flex justify-between items-center text-[11px]">
                         <div><b>หมวด:</b> ${cat}</div>
-                        <div>คะแนน: <b>${stat.correct}/${stat.total}</b> (<span class="text-sky-600 font-bold">${pct}%</span>) -> ระดับ: <span class="font-bold text-purple-600 dark:text-purple-400">${levelName}</span></div>
+                        <div>คะแนน: <b>${stat.correct}/${stat.total}</b> (<span class="text-sky-600 font-bold">${pct}%</span>)${hasCriteria && levelName ? ` -> ระดับ: <span class="font-bold text-purple-600 dark:text-purple-400">${levelName}</span>` : ''}</div>
                     </div>
                 `;
             }).join('');
@@ -690,7 +692,7 @@
                         </div>
                         
                         <div class="space-y-2">
-                            <div class="font-bold text-slate-700 dark:text-slate-300">📊 สรุปผลคะแนนและเกณฑ์การประเมินแยกตามหมวดหมู่:</div>
+                            <div class="font-bold text-slate-700 dark:text-slate-300">📊 สรุปผลคะแนน${hasCriteria ? 'และเกณฑ์การประเมิน' : ''}แยกตามหมวดหมู่:</div>
                             <div class="grid grid-cols-1 gap-2">${categorySummaryHtml}</div>
                         </div>
 
