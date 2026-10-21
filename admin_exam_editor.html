@@ -123,41 +123,54 @@
             </div>
         </div>
 
-        <!-- 🌟 แผงตั้งค่าเกณฑ์การประเมิน (Grading Criteria Table) -->
+        <!-- 🌟 แผงตั้งค่าเกณฑ์การประเมิน (เปิด/ปิดการใช้งานได้) -->
         <div class="hitech-card p-6 rounded-2xl space-y-4 border-l-4 border-l-purple-500">
-            <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div>
                     <h3 class="font-bold text-base flex items-center gap-2 text-purple-600 dark:text-purple-400">
-                        <i class="fas fa-award"></i> กำหนดเกณฑ์การประเมินผล (Grading Scale / Criteria)
+                        <i class="fas fa-award"></i> เปิด/ปิด เกณฑ์การประเมินผล (Grading Criteria)
                     </h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">กำหนดช่วงเปอร์เซ็นต์ (% ถึง %) และชื่อเกณฑ์ที่จะแสดงเมื่อนักเรียนทำคะแนนได้ตามกำหนด</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เปิดใช้งานหากต้องการให้ระบบประเมินระดับคะแนนตามเปอร์เซ็นต์ในแต่ละหมวดหมู่</p>
                 </div>
-                <button onclick="addCriteriaRow()" class="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
-                    <i class="fas fa-plus"></i> เพิ่มเกณฑ์
-                </button>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="enableCriteriaToggle" onchange="toggleCriteriaSection(this.checked)" class="sr-only peer">
+                    <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    <span class="ml-2.5 text-xs font-bold text-slate-700 dark:text-slate-300" id="criteriaToggleLabel">ปิดใช้งานเกณฑ์</span>
+                </label>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead>
-                        <tr class="bg-slate-100 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-b dark:border-slate-800">
-                            <th class="p-3 w-1/4">ชื่อเกณฑ์ / ระดับผลการประเมิน</th>
-                            <th class="p-3 w-1/4">เปอร์เซ็นต์ขั้นต่ำ (Min %)</th>
-                            <th class="p-3 w-1/4">เปอร์เซ็นต์สูงสุด (Max %)</th>
-                            <th class="p-3 w-16 text-center">ลบ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="criteriaTableBody">
-                        <tr>
-                            <td colspan="4" class="text-center py-6 text-slate-400">ยังไม่มีเกณฑ์การประเมิน กดปุ่ม "เพิ่มเกณฑ์" ด้านบน</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="flex justify-end pt-2">
-                <button onclick="saveCriteriaChanges()" class="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5">
-                    <i class="fas fa-save"></i> บันทึกเกณฑ์การประเมิน
-                </button>
+            <!-- ส่วนตารางเกณฑ์ที่จะซ่อน/แสดงตาม Switch -->
+            <div id="criteriaSectionBody" class="space-y-4 hidden">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-400">กำหนดหมวดหมู่โจทย์, ช่วงเปอร์เซ็นต์ (% ถึง %) และระดับผลการประเมิน</span>
+                    <button onclick="addCriteriaRow()" class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                        <i class="fas fa-plus"></i> เพิ่มแถวเกณฑ์
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-100 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-b dark:border-slate-800">
+                                <th class="p-3 w-1/4">หมวดหมู่โจทย์ (Category Tag)</th>
+                                <th class="p-3 w-1/4">ชื่อเกณฑ์ / ระดับผลการประเมิน</th>
+                                <th class="p-3 w-1/6">Min %</th>
+                                <th class="p-3 w-1/6">Max %</th>
+                                <th class="p-3 w-16 text-center">ลบ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="criteriaTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center py-6 text-slate-400">ยังไม่มีเกณฑ์การประเมิน</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex justify-end pt-2">
+                    <button onclick="saveCriteriaChanges()" class="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5">
+                        <i class="fas fa-save"></i> บันทึกเกณฑ์การประเมิน
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -236,6 +249,7 @@
         let cachedQuestions = [];
         let currentExamData = null;
         let gradingCriteriaList = [];
+        let enableCriteria = false;
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -375,26 +389,52 @@
                     }
                 }
 
-                // 🌟 โหลดข้อมูลเกณฑ์การประเมิน (grading_criteria)
+                // 🌟 โหลดค่าเกณฑ์และการเปิดใช้งาน
                 gradingCriteriaList = data.grading_criteria || [];
+                enableCriteria = data.enable_grading_criteria || (gradingCriteriaList.length > 0);
+                
+                const toggleEl = document.getElementById('enableCriteriaToggle');
+                if (toggleEl) {
+                    toggleEl.checked = enableCriteria;
+                    toggleCriteriaSection(enableCriteria, false);
+                }
                 renderCriteriaTable();
             }
         }
 
-        // 🌟 ฟังก์ชันจัดการตารางเกณฑ์การประเมิน
+        function toggleCriteriaSection(isChecked, triggerMark = true) {
+            enableCriteria = isChecked;
+            const bodySec = document.getElementById('criteriaSectionBody');
+            const labelEl = document.getElementById('criteriaToggleLabel');
+
+            if (bodySec) {
+                if (isChecked) {
+                    bodySec.classList.remove('hidden');
+                    if (labelEl) labelEl.textContent = 'เปิดใช้งานเกณฑ์แล้ว';
+                } else {
+                    bodySec.classList.add('hidden');
+                    if (labelEl) labelEl.textContent = 'ปิดใช้งานเกณฑ์';
+                }
+            }
+            if (triggerMark) markAsModified();
+        }
+
         function renderCriteriaTable() {
             const tbody = document.getElementById('criteriaTableBody');
             if (!tbody) return;
 
             if (gradingCriteriaList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-slate-400">ยังไม่มีเกณฑ์การประเมิน กดปุ่ม "เพิ่มเกณฑ์" ด้านบน</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">ยังไม่มีเกณฑ์การประเมิน กดปุ่ม "เพิ่มแถวเกณฑ์" ด้านบน</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = gradingCriteriaList.map((item, idx) => `
                 <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40">
                     <td class="p-2.5">
-                        <input type="text" value="${item.name || ''}" onchange="updateCriteriaData(${idx}, 'name', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none" placeholder="เช่น ดีเยี่ยม / ผ่าน / ไม่ผ่าน">
+                        <input type="text" value="${item.category || ''}" onchange="updateCriteriaData(${idx}, 'category', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none text-sky-600 dark:text-sky-400" placeholder="เช่น ฟิสิกส์คำนวณ">
+                    </td>
+                    <td class="p-2.5">
+                        <input type="text" value="${item.name || ''}" onchange="updateCriteriaData(${idx}, 'name', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none" placeholder="เช่น ดีเยี่ยม / ผ่าน">
                     </td>
                     <td class="p-2.5">
                         <input type="number" min="0" max="100" value="${item.min_pct !== undefined ? item.min_pct : 0}" onchange="updateCriteriaData(${idx}, 'min_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="0">
@@ -410,7 +450,7 @@
         }
 
         function addCriteriaRow() {
-            gradingCriteriaList.push({ name: '', min_pct: 0, max_pct: 100 });
+            gradingCriteriaList.push({ category: '', name: '', min_pct: 0, max_pct: 100 });
             renderCriteriaTable();
             markAsModified();
         }
@@ -432,7 +472,11 @@
 
         async function saveCriteriaChanges() {
             Swal.fire({ title: 'กำลังบันทึกเกณฑ์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const { error } = await mySupabase.from('exams').update({ grading_criteria: gradingCriteriaList }).eq('id', examId);
+            const payload = {
+                enable_grading_criteria: enableCriteria,
+                grading_criteria: enableCriteria ? gradingCriteriaList : []
+            };
+            const { error } = await mySupabase.from('exams').update(payload).eq('id', examId);
             if (error) {
                 Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error');
             } else {
