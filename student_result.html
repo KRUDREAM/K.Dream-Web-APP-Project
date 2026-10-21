@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMS | ผลการสอบและวิเคราะห์ผลสัมฤทธิ์</title>
+    <title>LMS | ผลการสอบและ AI วิเคราะห์เชิงลึก</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,34 +15,34 @@
     </script>
     <style>
         body { font-family: 'Prompt', sans-serif; user-select: none; -webkit-user-select: none; }
-        .glass-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; }
-        .dark .glass-nav { background: rgba(15, 23, 42, 0.9); border-bottom: 1px solid #1e293b; }
-        .card-box { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .dark .card-box { background: #0f172a; border: 1px solid #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3); }
+        .glass-nav { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px); border-bottom: 1px solid #cbd5e1; }
+        .dark .glass-nav { background: rgba(15, 23, 42, 0.92); border-bottom: 1px solid #1e293b; }
+        .card-box { background: #ffffff; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .dark .card-box { background: #0f172a; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3); }
         .result-bubble {
             width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 11px; border: 2px solid #cbd5e1; background-color: #ffffff; color: #334155; flex-shrink: 0;
+            font-weight: 700; font-size: 11px; border: 2px solid #94a3b8; background-color: #ffffff; color: #1e293b; flex-shrink: 0;
         }
-        .dark .result-bubble { border-color: #334155; background-color: #0f172a; color: #94a3b8; }
-        .result-bubble.student-choice { border-color: #0284c7 !important; color: #0284c7 !important; background-color: rgba(2, 132, 199, 0.15) !important; }
-        .result-bubble.correct-choice { background-color: #10b981 !important; color: #ffffff !important; border-color: #10b981 !important; }
-        .result-bubble.wrong-choice { background-color: #ef4444 !important; color: #ffffff !important; border-color: #ef4444 !important; }
+        .dark .result-bubble { border-color: #475569; background-color: #0f172a; color: #e2e8f0; }
+        .result-bubble.student-choice { border-color: #0284c7 !important; color: #0284c7 !important; background-color: rgba(2, 132, 199, 0.2) !important; }
+        .result-bubble.correct-choice { background-color: #059669 !important; color: #ffffff !important; border-color: #059669 !important; }
+        .result-bubble.wrong-choice { background-color: #dc2626 !important; color: #ffffff !important; border-color: #dc2626 !important; }
         .hide-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .hide-scrollbar::-webkit-scrollbar-thumb { background: rgba(2, 132, 199, 0.3); border-radius: 9999px; }
+        .hide-scrollbar::-webkit-scrollbar-thumb { background: rgba(2, 132, 199, 0.4); border-radius: 9999px; }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 min-h-screen text-slate-900 dark:text-slate-100 pb-20">
+<body class="bg-slate-100 dark:bg-slate-950 min-h-screen text-slate-900 dark:text-slate-100 pb-20">
 
     <!-- Navbar -->
     <nav class="glass-nav fixed w-full top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <button onclick="window.history.back()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm">
+                <button onclick="window.history.back()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm">
                     <i class="fas fa-arrow-left text-xs"></i>
                 </button>
-                <h1 class="font-bold text-sm sm:text-base" id="navTitle">ผลการสอบ & Analytics</h1>
+                <h1 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white" id="navTitle">ผลการสอบ & Analytics</h1>
             </div>
-            <button id="themeToggle" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+            <button id="themeToggle" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
                 <i class="fas fa-moon text-xs" id="themeIcon"></i>
             </button>
         </div>
@@ -51,26 +51,31 @@
     <main class="max-w-7xl mx-auto px-4 pt-24 space-y-6">
         
         <!-- Header Summary Banner -->
-        <div class="card-box p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-sky-500">
-            <div class="space-y-1">
-                <span class="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-full inline-flex items-center gap-1">
-                    <i class="fas fa-circle-check"></i> ตรวจผลคะแนนเรียบร้อย
-                </span>
-                <h2 class="text-lg sm:text-2xl font-extrabold pt-1" id="examTitle">กำลังโหลดชุดข้อสอบ...</h2>
-                <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1">
-                    <span id="subTime"><i class="fas fa-clock mr-1 text-sky-500"></i> เวลาส่ง: --</span>
-                    <span id="studentName" class="text-sky-600 dark:text-sky-400 font-bold"><i class="fas fa-user-graduate mr-1"></i> ผู้สอบ: กำลังโหลด...</span>
+        <div class="card-box p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-sky-600">
+            <div class="space-y-2 w-full">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span class="px-3 py-1 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 font-extrabold text-xs rounded-full inline-flex items-center gap-1 border border-emerald-600/20">
+                        <i class="fas fa-circle-check"></i> ตรวจผลคะแนนเรียบร้อย
+                    </span>
+                    <button onclick="downloadSummaryReport()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center gap-1.5 shadow-md shadow-sky-600/20">
+                        <i class="fas fa-file-pdf"></i> ดาวน์โหลด PDF รายงาน
+                    </button>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white pt-1" id="examTitle">กำลังโหลดชุดข้อสอบ...</h2>
+                <div class="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600 dark:text-slate-400 pt-1">
+                    <span id="subTime"><i class="fas fa-clock mr-1 text-sky-600"></i> เวลาส่ง: --</span>
+                    <span id="studentName" class="text-sky-700 dark:text-sky-400 font-extrabold"><i class="fas fa-user-graduate mr-1"></i> ผู้สอบ: กำลังโหลด...</span>
                 </div>
             </div>
             
-            <div class="flex items-center gap-4 bg-slate-100 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0">
+            <div class="flex items-center gap-4 bg-slate-200/70 dark:bg-slate-900 p-4 rounded-xl border border-slate-300 dark:border-slate-800 shrink-0 w-full md:w-auto justify-around">
                 <div class="text-center px-3 border-r border-slate-300 dark:border-slate-700">
-                    <span class="text-[10px] text-slate-400 block font-bold uppercase">คะแนนที่ได้</span>
-                    <span class="text-2xl font-extrabold text-emerald-600" id="scoreVal">--</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-bold uppercase">คะแนนที่ได้</span>
+                    <span class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400" id="scoreVal">--</span>
                 </div>
                 <div class="text-center px-3">
-                    <span class="text-[10px] text-slate-400 block font-bold uppercase">คะแนนเต็ม</span>
-                    <span class="text-2xl font-extrabold" id="totalVal">--</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-bold uppercase">คะแนนเต็ม</span>
+                    <span class="text-3xl font-extrabold text-slate-800 dark:text-slate-200" id="totalVal">--</span>
                 </div>
             </div>
         </div>
@@ -78,42 +83,67 @@
         <!-- Stats Overview Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="card-box p-4 rounded-2xl flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-lg">🏆</div>
+                <div class="w-11 h-11 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-lg">🏆</div>
                 <div>
-                    <span class="text-[10px] text-slate-400 block font-bold uppercase">อันดับในห้อง</span>
-                    <span class="text-base font-extrabold" id="rankStat">#-- / --</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-bold uppercase">อันดับในห้อง</span>
+                    <span class="text-base font-extrabold text-slate-900 dark:text-white" id="rankStat">#-- / --</span>
                 </div>
             </div>
             <div class="card-box p-4 rounded-2xl flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-lg">📊</div>
+                <div class="w-11 h-11 rounded-xl bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold text-lg">📊</div>
                 <div>
-                    <span class="text-[10px] text-slate-400 block font-bold uppercase">คะแนนเฉลี่ย</span>
-                    <span class="text-base font-extrabold" id="avgStat">--</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-bold uppercase">คะแนนเฉลี่ย</span>
+                    <span class="text-base font-extrabold text-slate-900 dark:text-white" id="avgStat">--</span>
                 </div>
             </div>
             <div class="card-box p-4 rounded-2xl flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-lg">🥇</div>
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg">🥇</div>
                 <div>
-                    <span class="text-[10px] text-slate-400 block font-bold uppercase">คะแนนสูงสุด</span>
-                    <span class="text-base font-extrabold" id="maxStat">--</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-bold uppercase">คะแนนสูงสุด</span>
+                    <span class="text-base font-extrabold text-slate-900 dark:text-white" id="maxStat">--</span>
                 </div>
             </div>
             <div class="card-box p-4 rounded-2xl flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-lg">🚀</div>
+                <div class="w-11 h-11 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-lg">🚀</div>
                 <div>
-                    <span class="text-[10px] text-slate-400 block font-bold uppercase">Percentile</span>
-                    <span class="text-base font-extrabold" id="percentileStat">Top --%</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-bold uppercase">Percentile</span>
+                    <span class="text-base font-extrabold text-slate-900 dark:text-white" id="percentileStat">Top --%</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- Category Percentage Breakdown Table -->
+        <div class="card-box p-6 rounded-2xl space-y-4">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
+                <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <i class="fas fa-table-cells text-sky-600"></i> สรุปผลคะแนนรายหมวดหมู่ (%)
+                </h3>
+                <span class="text-xs font-bold text-slate-500 bg-slate-200 dark:bg-slate-900 px-2.5 py-1 rounded-lg">เกณฑ์ผ่าน: &gt;= 70%</span>
+            </div>
+            <div class="overflow-x-auto hide-scrollbar">
+                <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                    <thead>
+                        <tr class="bg-slate-200/70 dark:bg-slate-900 text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px]">
+                            <th class="p-3 rounded-l-xl">หมวดหมู่ข้อสอบ</th>
+                            <th class="p-3 text-center">ทำได้ / ทั้งหมด</th>
+                            <th class="p-3 text-center">% คะแนน</th>
+                            <th class="p-3 text-center rounded-r-xl">ผลการประเมิน</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoryTableBody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                        <tr><td colspan="4" class="text-center py-4 text-slate-400 text-xs">กำลังประมวลผลหมวดหมู่...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
         <!-- Score Distribution Chart Section -->
         <div class="card-box p-6 rounded-2xl space-y-3">
             <div class="flex justify-between items-center">
-                <h3 class="font-bold text-sm flex items-center gap-2">
-                    <i class="fas fa-chart-bar text-sky-500"></i> แผนภูมิการกระจายตัวของคะแนนในชั้นเรียน
+                <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <i class="fas fa-chart-bar text-sky-600"></i> แผนภูมิการกระจายตัวของคะแนนในชั้นเรียน
                 </h3>
-                <span class="text-xs text-slate-400 font-bold" id="totalStudentsText">ผู้เข้าสอบ: -- คน</span>
+                <span class="text-xs text-slate-600 dark:text-slate-400 font-bold" id="totalStudentsText">ผู้เข้าสอบ: -- คน</span>
             </div>
             <div class="h-64 w-full relative">
                 <canvas id="scoreChart"></canvas>
@@ -123,18 +153,18 @@
         <!-- Detailed Questions & Answers Section -->
         <div class="card-box p-6 rounded-2xl space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-                <h3 class="font-bold text-sm flex items-center gap-2"><i class="fas fa-list-check text-sky-500"></i> เฉลยคำตอบรายข้อ</h3>
+                <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2"><i class="fas fa-list-check text-sky-600"></i> เฉลยคำตอบรายข้อ</h3>
                 
-                <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border text-xs">
-                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg font-bold bg-sky-600 text-white transition-all">ทั้งหมด (<span id="cnt-all">0</span>)</button>
-                    <button onclick="setFilter('correct')" id="filter-correct" class="px-3 py-1 rounded-lg font-bold text-slate-600 dark:text-slate-300 transition-all">ถูก (<span id="cnt-correct">0</span>)</button>
-                    <button onclick="setFilter('wrong')" id="filter-wrong" class="px-3 py-1 rounded-lg font-bold text-slate-600 dark:text-slate-300 transition-all">ผิด (<span id="cnt-wrong">0</span>)</button>
+                <div class="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-900 p-1 rounded-xl border border-slate-300 dark:border-slate-800 text-xs">
+                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg font-bold bg-sky-600 text-white transition-all shadow-sm">ทั้งหมด (<span id="cnt-all">0</span>)</button>
+                    <button onclick="setFilter('correct')" id="filter-correct" class="px-3 py-1 rounded-lg font-bold text-slate-700 dark:text-slate-300 transition-all">ถูก (<span id="cnt-correct">0</span>)</button>
+                    <button onclick="setFilter('wrong')" id="filter-wrong" class="px-3 py-1 rounded-lg font-bold text-slate-700 dark:text-slate-300 transition-all">ผิด (<span id="cnt-wrong">0</span>)</button>
                 </div>
             </div>
 
             <div id="resultsContainer" class="space-y-3 max-h-[70vh] overflow-y-auto pr-1 hide-scrollbar">
-                <div class="text-center py-12 text-slate-400 text-xs flex items-center justify-center gap-2">
-                    <i class="fas fa-spinner fa-spin text-sky-500"></i> กำลังประมวลผลข้อมูลผลการสอบ...
+                <div class="text-center py-12 text-slate-500 text-xs flex items-center justify-center gap-2 font-bold">
+                    <i class="fas fa-spinner fa-spin text-sky-600"></i> กำลังประมวลผลข้อมูลผลการสอบ...
                 </div>
             </div>
         </div>
@@ -164,6 +194,11 @@
         let globalRawAnswers = {};
         let currentFilter = 'all';
         let chartInstance = null;
+        let cachedExamTitle = '';
+        let cachedStudentName = '';
+        let cachedScore = 0;
+        let cachedTotal = 0;
+        let cachedCategoryStats = {};
 
         // Theme management
         const htmlEl = document.documentElement;
@@ -237,7 +272,6 @@
             try {
                 if (!supabaseClient) throw new Error('Supabase client is not initialized.');
 
-                // 1. Fetch Attempt
                 let attempt = null;
                 if (attemptId) {
                     let res = await supabaseClient.from('exam_attempts').select('*').eq('id', attemptId).maybeSingle();
@@ -255,13 +289,12 @@
 
                 if (!attempt) {
                     document.getElementById('examTitle').textContent = 'ไม่พบข้อมูลการสอบ';
-                    document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-amber-500 text-xs">ไม่พบผลการสอบ กรุณาตรวจสอบลิงก์ใหม่อีกครั้ง</div>';
+                    document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-amber-500 text-xs font-bold">ไม่พบผลการสอบ กรุณาตรวจสอบลิงก์ใหม่อีกครั้ง</div>';
                     return;
                 }
 
                 const examRef = attempt.exam_id || attempt.exam_uuid || attempt.quiz_id;
 
-                // 2. Fetch Exam & Questions
                 let exam = null;
                 if (examRef) {
                     const exRes = await supabaseClient.from('exams').select('*').eq('id', examRef).maybeSingle();
@@ -278,22 +311,20 @@
                 }
                 globalQuestions = questions;
 
-                // 3. Render Header Info
-                const title = exam ? exam.title : 'ชุดข้อสอบออนไลน์';
-                document.getElementById('examTitle').textContent = title;
-                document.getElementById('navTitle').textContent = title;
-                document.getElementById('subTime').innerHTML = '<i class="fas fa-clock mr-1 text-sky-500"></i> เวลาส่ง: ' + new Date(attempt.submission_time || attempt.submitted_at || Date.now()).toLocaleString('th-TH');
+                cachedExamTitle = exam ? exam.title : 'ชุดข้อสอบออนไลน์';
+                document.getElementById('examTitle').textContent = cachedExamTitle;
+                document.getElementById('navTitle').textContent = cachedExamTitle;
+                document.getElementById('subTime').innerHTML = '<i class="fas fa-clock mr-1 text-sky-600"></i> เวลาส่ง: ' + new Date(attempt.submission_time || attempt.submitted_at || Date.now()).toLocaleString('th-TH');
 
-                // Student Profile Lookup
                 let studentIdRef = attempt.student_id || attempt.student_uuid;
                 let studentName = 'นักเรียน';
                 if (studentIdRef) {
                     let pRes = await supabaseClient.from('profiles').select('full_name, name, username').eq('id', studentIdRef).maybeSingle();
                     if (pRes.data) studentName = pRes.data.full_name || pRes.data.name || pRes.data.username || 'นักเรียน';
                 }
+                cachedStudentName = studentName;
                 document.getElementById('studentName').innerHTML = '<i class="fas fa-user-graduate mr-1"></i> ผู้สอบ: ' + studentName;
 
-                // 4. Parse Answers & Calculate Score
                 let rawAns = attempt.answer_saved || attempt.answers || attempt.user_answers || {};
                 if (typeof rawAns === 'string') {
                     try { rawAns = JSON.parse(rawAns); } catch(e) { rawAns = {}; }
@@ -308,19 +339,127 @@
                     score = Number(attempt.total_score !== undefined ? attempt.total_score : attempt.score);
                 }
 
-                const totalQ = globalQuestions.length;
+                cachedScore = score;
+                cachedTotal = globalQuestions.length;
+
                 document.getElementById('scoreVal').textContent = score;
-                document.getElementById('totalVal').textContent = totalQ;
+                document.getElementById('totalVal').textContent = cachedTotal;
 
-                // 5. Load Class Analytics & Chart
-                await loadAnalytics(examRef, score, totalQ);
-
-                // 6. Render Answer Items
+                computeCategoryStats();
+                renderCategoryTable();
+                await loadAnalytics(examRef, score, cachedTotal);
                 updateCountsAndRender();
 
             } catch (err) {
                 console.error('App Init Error:', err);
-                document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-red-500 text-xs">เกิดข้อผิดพลาดในการโหลดระบบ: ' + escapeHtml(err.message) + '</div>';
+                document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-red-500 text-xs font-bold">เกิดข้อผิดพลาดในการโหลดระบบ: ' + escapeHtml(err.message) + '</div>';
+            }
+        }
+
+        function computeCategoryStats() {
+            cachedCategoryStats = {};
+            globalQuestions.forEach(q => {
+                const tag = q.category_tag && q.category_tag.trim() !== '' ? q.category_tag : 'ทั่วไป';
+                if (!cachedCategoryStats[tag]) cachedCategoryStats[tag] = { total: 0, correct: 0 };
+                cachedCategoryStats[tag].total++;
+                if (isAnswerCorrect(q, getUserAnswer(q, globalRawAnswers))) {
+                    cachedCategoryStats[tag].correct++;
+                }
+            });
+        }
+
+        function renderCategoryTable() {
+            const tbody = document.getElementById('categoryTableBody');
+            const entries = Object.entries(cachedCategoryStats);
+            if (entries.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400 text-xs">ไม่พบข้อมูลหมวดหมู่ข้อสอบ</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = entries.map(([tag, stat]) => {
+                const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                let badge = '<span class="px-2.5 py-1 bg-red-500/15 text-red-600 font-extrabold rounded-lg text-xs">ควรปรับปรุง (&lt;50%)</span>';
+                if (pct >= 70) {
+                    badge = '<span class="px-2.5 py-1 bg-emerald-500/15 text-emerald-600 font-extrabold rounded-lg text-xs">ดีเยี่ยม (&gt;=70%)</span>';
+                } else if (pct >= 50) {
+                    badge = '<span class="px-2.5 py-1 bg-amber-500/15 text-amber-600 font-extrabold rounded-lg text-xs">ปานกลาง (50-69%)</span>';
+                }
+
+                return `
+                    <tr class="hover:bg-slate-200/50 dark:hover:bg-slate-900/50 transition-all">
+                        <td class="p-3 font-extrabold text-slate-800 dark:text-slate-200">🏷️ ${escapeHtml(tag)}</td>
+                        <td class="p-3 text-center font-bold">${stat.correct} / ${stat.total}</td>
+                        <td class="p-3 text-center font-extrabold text-sky-600 dark:text-sky-400">${pct}%</td>
+                        <td class="p-3 text-center">${badge}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function downloadSummaryReport() {
+            try {
+                let categoryRows = Object.entries(cachedCategoryStats).map(([tag, stat]) => {
+                    const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                    let evalText = pct >= 70 ? 'ดีเยี่ยม' : (pct >= 50 ? 'ปานกลาง' : 'ควรปรับปรุง');
+                    let color = pct >= 70 ? '#059669' : (pct >= 50 ? '#d97706' : '#dc2626');
+                    return `
+                        <tr style="border-bottom: 1px solid #cbd5e1; font-size: 12px;">
+                            <td style="padding: 8px; font-weight: bold;">${escapeHtml(tag)}</td>
+                            <td style="padding: 8px; text-align: center;">${stat.correct} / ${stat.total}</td>
+                            <td style="padding: 8px; text-align: center; font-weight: bold; color: ${color};">${pct}%</td>
+                            <td style="padding: 8px; text-align: center; color: ${color}; font-weight: bold;">${evalText}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                const win = window.open('', '_blank');
+                if (!win) {
+                    alert('เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัป');
+                    return;
+                }
+
+                win.document.write(`<!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>รายงานผลการสอบ - ${escapeHtml(cachedStudentName)}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+                    <style>
+                        body { font-family: 'Prompt', sans-serif; padding: 25px; color: #1e293b; background: #ffffff; }
+                        h2 { color: #0284c7; margin-bottom: 5px; }
+                        .box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                        th { background: #0284c7; color: white; padding: 10px; font-size: 12px; text-align: left; }
+                    </style>
+                </head>
+                <body>
+                    <div class="box">
+                        <h2>รายงานผลคะแนนสอบออนไลน์</h2>
+                        <p><b>ชุดข้อสอบ:</b> ${escapeHtml(cachedExamTitle)}</p>
+                        <p><b>ผู้สอบ:</b> ${escapeHtml(cachedStudentName)}</p>
+                        <p><b>คะแนนที่ได้:</b> <span style="color: #059669; font-size: 18px; font-weight: bold;">${cachedScore} / ${cachedTotal}</span> คะแนน</p>
+                    </div>
+                    <h3>สรุปผลการประเมินรายหมวดหมู่</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>หมวดหมู่</th>
+                                <th style="text-align: center;">ทำได้ / ทั้งหมด</th>
+                                <th style="text-align: center;">% คะแนน</th>
+                                <th style="text-align: center;">ผลการประเมิน</th>
+                            </tr>
+                        </thead>
+                        <tbody>${categoryRows}</tbody>
+                    </table>
+                    <script>
+                        window.onload = function() { setTimeout(function() { window.print(); }, 500); };
+                    <\/script>
+                </body>
+                </html>`);
+                win.document.close();
+            } catch (e) {
+                console.error('Report Error:', e);
+                alert('ไม่สามารถสร้างรายงานได้');
             }
         }
 
@@ -373,8 +512,8 @@
                     dataCounts.push(scores.filter(s => s === i).length);
                 }
 
-                const bgColors = labels.map((_, idx) => idx === studentScore ? '#0284c7' : 'rgba(148, 163, 184, 0.4)');
-                const borderColors = labels.map((_, idx) => idx === studentScore ? '#0369a1' : 'rgba(148, 163, 184, 0.6)');
+                const bgColors = labels.map((_, idx) => idx === studentScore ? '#0284c7' : 'rgba(148, 163, 184, 0.5)');
+                const borderColors = labels.map((_, idx) => idx === studentScore ? '#0369a1' : 'rgba(148, 163, 184, 0.8)');
 
                 const ctx = document.getElementById('scoreChart').getContext('2d');
                 if (chartInstance) chartInstance.destroy();
@@ -404,8 +543,8 @@
                             }
                         },
                         scales: {
-                            y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
-                            x: { grid: { display: false } }
+                            y: { beginAtZero: true, ticks: { stepSize: 1, font: { weight: 'bold' } }, grid: { color: 'rgba(148, 163, 184, 0.15)' } },
+                            x: { ticks: { font: { weight: 'bold' } }, grid: { display: false } }
                         }
                     }
                 });
@@ -419,7 +558,7 @@
             ['all', 'correct', 'wrong'].forEach(f => {
                 const btn = document.getElementById('filter-' + f);
                 if (btn) {
-                    btn.className = f === type ? 'px-3 py-1 rounded-lg font-bold bg-sky-600 text-white transition-all' : 'px-3 py-1 rounded-lg font-bold text-slate-600 dark:text-slate-300 transition-all';
+                    btn.className = f === type ? 'px-3 py-1 rounded-lg font-extrabold bg-sky-600 text-white transition-all shadow-sm' : 'px-3 py-1 rounded-lg font-bold text-slate-700 dark:text-slate-300 transition-all';
                 }
             });
             renderResults();
@@ -447,7 +586,7 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = '<div class="text-center py-10 text-slate-400 text-xs">ไม่มีรายการในหมวดหมู่นี้</div>';
+                container.innerHTML = '<div class="text-center py-10 text-slate-400 text-xs font-bold">ไม่มีรายการในหมวดหมู่นี้</div>';
                 return;
             }
 
@@ -458,6 +597,7 @@
                 const opts = getQuestionOptions(q);
                 const studentIdx = parseChoiceIndex(userAns);
                 const correctIdx = parseChoiceIndex(q.correct_answer);
+                const tag = q.category_tag || 'ทั่วไป';
 
                 const bubbles = opts.map((optText, optIdx) => {
                     let bClass = 'result-bubble';
@@ -467,30 +607,30 @@
 
                     if (isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-[10px] ml-auto"></i>'; }
                     else if (isPicked && !isRight) { bClass += ' wrong-choice'; icon = '<i class="fas fa-times text-[10px] ml-auto"></i>'; }
-                    else if (!isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-[10px] ml-auto opacity-60"></i>'; }
+                    else if (!isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-[10px] ml-auto opacity-70"></i>'; }
                     else if (isPicked) { bClass += ' student-choice'; }
 
                     return `
-                        <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                        <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                             <div class="${bClass}">${String.fromCharCode(65 + optIdx)}</div>
-                            <span class="text-xs text-slate-700 dark:text-slate-300 truncate">${escapeHtml(optText)}</span>
+                            <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">${escapeHtml(optText)}</span>
                             ${icon}
                         </div>
                     `;
                 }).join('');
 
                 const badge = isCorrect 
-                    ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-[10px] font-bold"><i class="fas fa-check-circle mr-1"></i> ถูก (+1)</span>'
-                    : '<span class="px-2.5 py-0.5 bg-red-500/10 text-red-600 rounded-lg text-[10px] font-bold"><i class="fas fa-times-circle mr-1"></i> ผิด (0)</span>';
+                    ? '<span class="px-2.5 py-1 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-extrabold"><i class="fas fa-check-circle mr-1"></i> ถูก (+1)</span>'
+                    : '<span class="px-2.5 py-1 bg-red-500/15 text-red-700 dark:text-red-400 rounded-lg text-xs font-extrabold"><i class="fas fa-times-circle mr-1"></i> ผิด (0)</span>';
 
                 return `
-                    <div class="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                    <div class="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
                         <div class="flex justify-between items-center">
-                            <span class="font-bold text-xs text-sky-600">ข้อที่ ${qNum}</span>
+                            <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400">ข้อที่ ${qNum} (${escapeHtml(tag)})</span>
                             ${badge}
                         </div>
-                        <div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">${escapeHtml(q.question_text || q.content || '')}</div>
-                        <div class="grid grid-cols-1 gap-1.5 bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border">${bubbles}</div>
+                        <div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">${escapeHtml(q.question_text || q.content || '')}</div>
+                        <div class="grid grid-cols-1 gap-1.5 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">${bubbles}</div>
                     </div>
                 `;
             }).join('');
