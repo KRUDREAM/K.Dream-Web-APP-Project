@@ -580,7 +580,11 @@
 
                 let optionsListHtml = '';
                 if (isEssay) {
-                    const keywordsTag = (q.keywords || []).length > 0 ? `<div class="text-[11px] text-slate-500">คำสำคัญ: ${q.keywords.map(k => `<span class="px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded border border-amber-300">${k.word} (${k.mode === 'exact' ? 'ตรงเป๊ะ' : 'มีในข้อความ'})</span>`).join(' ')}</div>` : '';
+                    let kwBadges = '';
+                    if (q.keywords && Array.isArray(q.keywords)) {
+                        kwBadges = q.keywords.map(k => `<span class="px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded border border-amber-300">${k.word || ''} (${k.mode === 'exact' ? 'ตรงเป๊ะ' : 'มีในข้อความ'})</span>`).join(' ');
+                    }
+                    const keywordsTag = kwBadges ? `<div class="text-[11px] text-slate-500">คำสำคัญ: ${kwBadges}</div>` : '';
                     optionsListHtml = `<div class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl text-xs text-amber-600 dark:text-amber-300 font-bold space-y-1">
                         <div><i class="fas fa-pen-nib mr-1"></i> โหมดตรวจอัตนัย: ${q.grading_type === 'keyword' ? 'ตรวจด้วย Keyword อัตโนมัติ' : 'คุณครูตรวจเอง'}</div>
                         ${keywordsTag}
@@ -802,7 +806,7 @@
 
                         <div id="mcSection" class="${qData?.question_type === 'essay' ? 'hidden' : ''} space-y-2 pt-2 border-t dark:border-slate-800">
                             <div class="flex justify-between items-center">
-                                <label class="font-bold text-slate-800 dark:text-slate-200">รายการตัวเลือกคำตอบ (รูปแบบ: ${getChoiceFormatLabelText(formatType)})</label>
+                                <label class="font-bold text-slate-800 dark:text-slate-200">รายการตัวเลือกคำตอบ</label>
                                 <button type="button" onclick="addOptionField()" class="px-2 py-1 bg-sky-600 text-white rounded-lg text-[10px] font-bold"><i class="fas fa-plus"></i> เพิ่มตัวเลือก</button>
                             </div>
                             <div id="optionsInputsContainer" class="space-y-1.5">
