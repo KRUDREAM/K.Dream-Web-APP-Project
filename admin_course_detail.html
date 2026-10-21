@@ -350,6 +350,7 @@
         let allAttempts = [];
         let allProfilesMap = {};
         let courseEnrolledStudentIds = [];
+        let validStudentIds = new Set();
         let examQuestionsMap = {};
 
         let chart1 = null, chartRadar = null, chart2 = null, chart3 = null, chart4 = null;
@@ -477,14 +478,49 @@
         }
 
         async function loadEnrolledStudents() {
-            let totalStudents = new Set();
-            const { data: en1 } = await mySupabase.from('course_enrollments').select('student_id').eq('course_id', courseId);
-            if (en1) en1.forEach(e => totalStudents.add(e.student_id));
+            // ดึงข้อมูลรายชื่อบัญชีนักเรียนที่มีตัวตนจริงจาก profiles และ students เพื่อกรองบัญชีที่ถูกลบออก
+            const [profilesRes, studentsRes, en1Res, en2Res] = await Promise.all([
+                mySupabase.from('profiles').select('id, user_id'),
+                mySupabase.from('students').select('id'),
+                mySupabase.from('course_enrollments').select('student_id, user_id').eq('course_id', courseId),
+                mySupabase.from('enrollments').select('student_id, user_id').eq('course_id', courseId)
+            ]);
 
-            const { data: en2 } = await mySupabase.from('enrollments').select('student_id').eq('course_id', courseId);
-            if (en2) en2.forEach(e => totalStudents.add(e.student_id));
+            validStudentIds = new Set();
+            if (profilesRes.data) {
+                profilesRes.data.forEach(p => {
+                    if (p.id) validStudentIds.add(String(p.id));
+                    if (p.user_id) validStudentIds.add(String(p.user_id));
+                });
+            }
+            if (studentsRes.data) {
+                studentsRes.data.forEach(s => {
+                    if (s.id) validStudentIds.add(String(s.id));
+                });
+            }
 
-            courseEnrolledStudentIds = Array.from(totalStudents);
+            const rawEnrolledIds = new Set();
+            if (en1Res.data) {
+                en1Res.data.forEach(e => {
+                    if (e.student_id) rawEnrolledIds.add(String(e.student_id));
+                    if (e.user_id) rawEnrolledIds.add(String(e.user_id));
+                });
+            }
+            if (en2Res.data) {
+                en2Res.data.forEach(e => {
+                    if (e.student_id) rawEnrolledIds.add(String(e.student_id));
+                    if (e.user_id) rawEnrolledIds.add(String(e.user_id));
+                });
+            }
+
+            // กรองเฉพาะ ID ที่มีตัวตนอยู่จริงและไม่ซ้ำกัน
+            courseEnrolledStudentIds = [];
+            rawEnrolledIds.forEach(id => {
+                if (validStudentIds.size === 0 || validStudentIds.has(id)) {
+                    courseEnrolledStudentIds.push(id);
+                }
+            });
+
             document.getElementById('courseEnrolledStudentsCount').textContent = `${courseEnrolledStudentIds.length} คน`;
             document.getElementById('enrolledCountBadge').textContent = courseEnrolledStudentIds.length;
         }
@@ -1037,10 +1073,16 @@
 
                 let enrolledMap = {};
                 const { data: en1 } = await mySupabase.from('course_enrollments').select('*').eq('course_id', courseId);
-                if (en1) en1.forEach(en => { enrolledMap[String(en.student_id)] = en.id; });
+                if (en1) en1.forEach(en => { 
+                    if (en.student_id) enrolledMap[String(en.student_id)] = en.id;
+                    if (en.user_id) enrolledMap[String(en.user_id)] = en.id;
+                });
 
                 const { data: en2 } = await mySupabase.from('enrollments').select('*').eq('course_id', courseId);
-                if (en2) en2.forEach(en => { enrolledMap[String(en.student_id || en.user_id)] = en.id; });
+                if (en2) en2.forEach(en => { 
+                    if (en.student_id) enrolledMap[String(en.student_id)] = en.id;
+                    if (en.user_id) enrolledMap[String(en.user_id)] = en.id;
+                });
 
                 window.globalAllStudents = studentsList.map(p => {
                     const sId = String(p.id || p.user_id || p.student_id);
