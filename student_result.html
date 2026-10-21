@@ -6,15 +6,16 @@
     <title>LMS | ผลการสอบและ AI วิเคราะห์เชิงลึก</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Load CDNs with defer to prevent white screen blocking -->
+    <script src="https://cdn.tailwindcss.com" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    
     <script>
-        if (typeof pdfjsLib !== 'undefined') {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        }
+        tailwind = window.tailwind || {};
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -37,9 +38,6 @@
             background: rgba(9, 13, 22, 0.95); border: 1px solid rgba(30, 58, 138, 0.5); 
             box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); 
         }
-        div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
-        .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
-        
         .result-bubble {
             width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
             font-weight: 700; font-size: 11px; border: 2px solid #cbd5e1; background-color: #ffffff; color: #334155; transition: all 0.2s;
@@ -49,7 +47,6 @@
         .result-bubble.student-choice { border-color: #0284c7 !important; color: #0284c7 !important; background-color: rgba(2, 132, 199, 0.2) !important; }
         .result-bubble.correct-choice { background-color: #10b981 !important; color: #ffffff !important; border-color: #10b981 !important; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
         .result-bubble.wrong-choice { background-color: #ef4444 !important; color: #ffffff !important; border-color: #ef4444 !important; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
-        
         .ai-pulse-glow { box-shadow: 0 0 30px rgba(99, 102, 241, 0.15); }
         .hide-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .hide-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); border-radius: 9999px; }
@@ -115,28 +112,28 @@
 
         <!-- Stats Grid -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div class="hitech-card p-4 sm:p-5 rounded-2xl flex items-center gap-3 hover:border-amber-500/50 transition-all">
+            <div class="hitech-card p-4 sm:p-5 rounded-2xl flex items-center gap-3">
                 <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-base sm:text-xl shadow-inner shrink-0">🏆</div>
                 <div class="min-w-0">
                     <span class="text-[10px] text-slate-400 block font-bold uppercase tracking-wider truncate">อันดับในห้อง</span>
                     <span class="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white truncate block" id="rankDisplay">#-- / --</span>
                 </div>
             </div>
-            <div class="hitech-card p-4 sm:p-5 rounded-2xl flex items-center gap-3 hover:border-sky-500/50 transition-all">
+            <div class="hitech-card p-4 sm:p-5 rounded-2xl flex items-center gap-3">
                 <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base sm:text-xl shadow-inner shrink-0">📊</div>
                 <div class="min-w-0">
                     <span class="text-[10px] text-slate-400 block font-bold uppercase tracking-wider truncate">คะแนนเฉลี่ย</span>
                     <span class="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white truncate block" id="avgScoreDisplay">-- / --</span>
                 </div>
             </div>
-            <div class="hitech-card p-4 sm:p-5 rounded-2xl flex items-center gap-3 hover:border-emerald-500/50 transition-all">
+            <div class="hitech-card p-4 sm:p-5 rounded-2xl flex items-center gap-3">
                 <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base sm:text-xl shadow-inner shrink-0">🥇</div>
                 <div class="min-w-0">
                     <span class="text-[10px] text-slate-400 block font-bold uppercase tracking-wider truncate">คะแนนสูงสุด</span>
                     <span class="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white truncate block" id="maxScoreDisplay">-- / --</span>
                 </div>
             </div>
-            <div class="hitech-card p-4 sm:p-5 rounded-2xl flex items-center gap-3 hover:border-purple-500/50 transition-all">
+            <div class="hitech-card p-4 sm:p-5 rounded-2xl flex items-center gap-3">
                 <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-base sm:text-xl shadow-inner shrink-0">🚀</div>
                 <div class="min-w-0">
                     <span class="text-[10px] text-slate-400 block font-bold uppercase tracking-wider truncate">Percentile</span>
@@ -242,18 +239,6 @@
     </main>
 
     <script>
-        // Catch all uncaught errors and display them visually so the screen never goes blank white
-        window.onerror = function(msg, url, line) {
-            const container = document.getElementById('resultsContainer');
-            if (container) {
-                container.innerHTML = '<div class="p-4 bg-red-500/10 border border-red-500 text-red-600 rounded-xl text-xs space-y-1">' +
-                    '<p class="font-bold"><i class="fas fa-triangle-exclamation mr-1"></i> เกิดข้อผิดพลาดในสคริปต์:</p>' +
-                    '<p>' + msg + ' (บรรทัด: ' + line + ')</p>' +
-                '</div>';
-            }
-            return false;
-        };
-
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         
@@ -371,7 +356,7 @@
         async function initResultPage() {
             try {
                 if (!mySupabase) {
-                    throw new Error('ไม่สามารถสร้าง Supabase Client ได้ โปรดตรวจสอบการเชื่อมต่อ');
+                    throw new Error('ไม่สามารถเชื่อมต่อ Supabase Client ได้');
                 }
 
                 let attempt = null;
@@ -401,7 +386,7 @@
 
                 if (!attempt) {
                     document.getElementById('examTitleHeader').textContent = 'ไม่พบข้อมูลการสอบ';
-                    document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-amber-500 text-xs">ไม่พบข้อมูลผลการสอบ (ลองตรวจสอบลิงก์พารามิเตอร์ attempt_id อีกครั้ง)</div>';
+                    document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-amber-500 text-xs">ไม่พบข้อมูลผลการสอบสำหรับบัญชีนี้</div>';
                     return;
                 }
 
@@ -676,6 +661,7 @@
                 if (typeof pdfjsLib === 'undefined') {
                     throw new Error('PDF.js library not loaded');
                 }
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
                 const loadingTask = pdfjsLib.getDocument(url);
                 const pdfDoc = await loadingTask.promise;
                 container.innerHTML = '';
@@ -921,7 +907,8 @@
             '</div>';
         }
 
-        initResultPage();
+        // Run when DOM is ready
+        window.addEventListener('DOMContentLoaded', initResultPage);
     </script>
 </body>
 </html>
