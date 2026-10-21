@@ -121,9 +121,17 @@
 
         <!-- Charts Layout -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Difficulty Chart -->
+            <!-- Difficulty Chart with Dropdown Toggle (Default to Incorrect) -->
             <div class="lg:col-span-12 hitech-card p-6 rounded-3xl space-y-4">
-                <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2"><i class="fas fa-chart-bar text-sky-500"></i> สถิติความยาก-ง่ายรายข้อ (เปอร์เซ็นต์ผู้ตอบถูก)</h3>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <h3 id="diffChartTitle" class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-chart-bar text-sky-500"></i> สถิติความยาก-ง่ายรายข้อ (% ผู้ตอบผิด)
+                    </h3>
+                    <select id="diffMetricSelect" onchange="renderDifficultyChart()" class="px-3.5 py-1.5 bg-slate-100 dark:bg-darkinput font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-sky-600 dark:text-sky-400">
+                        <option value="correct">% ผู้ตอบถูกในแต่ละข้อ</option>
+                        <option value="incorrect" selected>% ผู้ตอบผิดในแต่ละข้อ</option>
+                    </select>
+                </div>
                 <div class="relative h-64 w-full"><canvas id="questionDifficultyChart"></canvas></div>
             </div>
 
@@ -301,9 +309,15 @@
 
         function renderDifficultyChart() {
             const ctx = document.getElementById('questionDifficultyChart').getContext('2d');
+            const metric = document.getElementById('diffMetricSelect')?.value || 'incorrect';
+            const titleEl = document.getElementById('diffChartTitle');
+
+            if (titleEl) {
+                titleEl.innerHTML = `<i class="fas fa-chart-bar text-sky-500"></i> สถิติความยาก-ง่ายรายข้อ (${metric === 'correct' ? '% ผู้ตอบถูก' : '% ผู้ตอบผิด'})`;
+            }
             
             let labels = allQuestions.map(q => `ข้อ ${q.question_number}`);
-            let correctPercentages = allQuestions.map(q => {
+            let percentages = allQuestions.map(q => {
                 if (allAttempts.length === 0) return 0;
                 let correctCount = 0;
                 allAttempts.forEach(att => {
@@ -320,7 +334,11 @@
                         }
                     }
                 });
-                return Number(((correctCount / allAttempts.length) * 100).toFixed(1));
+                const correctPct = (correctCount / allAttempts.length) * 100;
+                if (metric === 'incorrect') {
+                    return Number((100 - correctPct).toFixed(1));
+                }
+                return Number(correctPct.toFixed(1));
             });
 
             if (diffChartInstance) diffChartInstance.destroy();
@@ -329,9 +347,9 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: '% ผู้ตอบถูก',
-                        data: correctPercentages,
-                        backgroundColor: '#0284c7',
+                        label: metric === 'correct' ? '% ผู้ตอบถูก' : '% ผู้ตอบผิด',
+                        data: percentages,
+                        backgroundColor: metric === 'correct' ? '#0284c7' : '#ef4444',
                         borderRadius: 8
                     }]
                 },
@@ -468,7 +486,6 @@
                 const sId = att.student_id || att.user_id;
                 const profile = allStudentsMap[String(sId)] || {};
                 
-                // ดึงชื่อ-นามสกุลจริงจาก profile ให้ครอบคลุมทุกคอลัมน์ในฐานข้อมูล
                 const fullName = (profile.first_name || profile.name || profile.full_name || '').trim() + 
                                  (profile.last_name ? ' ' + profile.last_name : '') || 
                                  att.student_name || att.full_name || 'ไม่ระบุชื่อ';
@@ -511,16 +528,14 @@
             renderSubmissionsTable();
         }
 
-        // ฟังก์ชันประเมินระดับเกณฑ์ตามเปอร์เซ็นต์หมวดหมู่
+        // ฟังก์ชันประเมินระดับเกณฑ์ตามเปอร์เซ็นต์หมวดหมู่ (อิงตามค่าที่บันทึกในตาราง exams)
         function evaluateCategoryCriteria(categoryName, categoryPct) {
             if (!currentExam || !currentExam.enable_grading_criteria || !Array.isArray(currentExam.grading_criteria)) {
-                // เกณฑ์มาตรฐานถ้ายังไม่ได้ตั้งค่าในชุดข้อสอบ
                 if (categoryPct >= 80) return 'ดีเยี่ยม (Excellent)';
                 if (categoryPct >= 50) return 'ปานกลาง (Moderate)';
                 return 'ต้องปรับปรุง (Needs Improvement)';
             }
 
-            // ค้นหาเกณฑ์ที่ตรงกับหมวดหมู่
             const matchedCriteria = currentExam.grading_criteria.filter(c => !c.category || c.category.trim() === '' || c.category.trim() === categoryName.trim());
             
             for (let crit of matchedCriteria) {
