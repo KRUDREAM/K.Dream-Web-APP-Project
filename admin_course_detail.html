@@ -482,45 +482,33 @@ async function loadEnrolledStudents() {
             let totalStudents = new Set();
             
             try {
-                // ดึงข้อมูลทั้งหมดจากทั้ง 2 ตารางลงทะเบียนตรงๆ มาเลย (ไม่กรองด้วย .eq เพื่อป้องกันฟิลด์ไม่ตรงกัน)
-                const [en1Res, en2Res] = await Promise.all([
-                    mySupabase.from('course_enrollments').select('*').catch(() => ({ data: [] })),
-                    mySupabase.from('enrollments').select('*').catch(() => ({ data: [] }))
-                ]);
-
-                const allEnrolls = [...(en1Res.data || []), ...(en2Res.data || [])];
+                // ดึงข้อมูลดึงตรงจาก course_enrollments และ enrollments แบบง่ายที่สุด
+                const res1 = await mySupabase.from('course_enrollments').select('*');
+                const res2 = await mySupabase.from('enrollments').select('*');
                 
-                // ตรวจสอบทุกแถวในตารางลงทะเบียน
-                allEnrolls.forEach(en => {
-                    // วนเช็คทุกค่าใน Object เพื่อหาว่ามีค่าไหนตรงกับ courseId ของคอร์สนี้ไหม
-                    const matchesCourse = Object.values(en).some(val => String(val) === String(courseId));
-                    if (matchesCourse) {
-                        // ถ้าเจอคอร์สนี้ ให้ดึงไอดีนักเรียนจากฟิลด์ที่เป็นไปได้ทั้งหมด
-                        const sId = en.student_id || en.user_id || en.studentId || en.userId || en.id;
-                        if (sId && String(sId) !== String(courseId)) {
-                            totalStudents.add(String(sId));
-                        }
+                const all = [...(res1.data || []), ...(res2.data || [])];
+                all.forEach(item => {
+                    const cId = String(item.course_id || item.courseid || '');
+                    const sId = String(item.student_id || item.user_id || '');
+                    if (cId === String(courseId) && sId) {
+                        totalStudents.add(sId);
                     }
                 });
-
-                // ถ้ายังไม่ได้ลงทะเบียนในตาราง แต่เคยส่งข้อสอบในคอร์สนี้ให้นับรวมด้วย
-                if (totalStudents.size === 0 && allAttempts && allAttempts.length > 0) {
-                    allAttempts.forEach(a => {
-                        const sId = a.student_id || a.user_id;
-                        if (sId) totalStudents.add(String(sId));
-                    });
-                }
-            } catch (err) {
-                console.warn("Load Enrolled Error:", err);
+            } catch (e) {
+                console.error("Error:", e);
             }
 
             courseEnrolledStudentIds = Array.from(totalStudents);
+            const count = courseEnrolledStudentIds.length;
 
-            // แสดงผลตัวเลขลงบนหน้าจอ
+            console.log("จำนวนนักเรียนที่นับได้:", count);
+
+            // บังคับหา Element แล้วใส่ค่าตรงๆ
             const countEl = document.getElementById('courseEnrolledStudentsCount');
             const badgeEl = document.getElementById('enrolledCountBadge');
-            if (countEl) countEl.textContent = `${courseEnrolledStudentIds.length} คน`;
-            if (badgeEl) badgeEl.textContent = courseEnrolledStudentIds.length;
+            
+            if (countEl) countEl.innerText = count + ' คน';
+            if (badgeEl) badgeEl.innerText = count;
         }
         
         function calculateCourseKPIs() {
