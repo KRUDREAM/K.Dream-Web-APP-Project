@@ -115,7 +115,7 @@
             </div>
         </div>
 
-        <!-- 🎓 กล่องเลือกคอร์สที่มีสิทธิ์จอง Consult (แยกออกมาให้เห็นเด่นชัด 100%) -->
+        <!-- 🎓 กล่องเลือกคอร์สที่มีสิทธิ์จอง Consult -->
         <div class="hitech-card p-6 rounded-2xl space-y-3 border-l-4 border-l-indigo-500">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div class="flex items-center gap-2.5">
@@ -295,6 +295,27 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
+        // ⚡ ฟังก์ชันสำหรับโพสต์ประกาศแจ้งเตือนอัตโนมัติเมื่อเปิด Consult หรือสร้าง Slot
+        async function autoPostAnnouncement(category, title, content, targetType = 'all', targetValue = '') {
+            try {
+                await mySupabase.from('announcements').insert([{
+                    category: category,
+                    title: title,
+                    content: content,
+                    target_type: targetType,
+                    target_value: targetValue,
+                    created_at: new Date().toISOString()
+                }]);
+                await mySupabase.from('notifications').insert([{
+                    type: category,
+                    message: `${title}: ${content.substring(0, 60)}...`,
+                    created_at: new Date().toISOString()
+                }]);
+            } catch (err) {
+                console.error('Failed to auto-create announcement:', err);
+            }
+        }
+
         function checkAdminAuth() {
             const currentUsername = localStorage.getItem('admin_username') || localStorage.getItem('user_name') || 'ผู้ดูแลระบบ';
             localStorage.setItem('admin_username', currentUsername);
@@ -422,6 +443,11 @@
             await mySupabase.from('consult_settings').update({ is_open: newStatus }).eq('id', 1);
             currentSetting.is_open = newStatus;
             await logHistory(newStatus ? 'Manual Override: เปิดระบบรับจอง' : 'Manual Override: ปิดระบบรับจอง');
+            
+            if (newStatus) {
+                await autoPostAnnouncement('consult', '📅 เปิดระบบจองเวลา Consult แล้ว', 'อาจารย์ได้เปิดระบบให้จองคิว Consult ประจำสัปดาห์แล้ว สามารถเข้าไปเลือกช่วงเวลาที่ต้องการได้ทันที');
+            }
+
             Swal.fire({ icon: 'success', title: newStatus ? 'เปิดระบบสำเร็จ' : 'ปิดระบบสำเร็จ', timer: 1200, showConfirmButton: false });
             updateStatusDisplay();
         }
@@ -695,6 +721,14 @@
                 const { error } = await mySupabase.from('consult_slots').insert(slotsToInsert);
                 if (!error) {
                     await logHistory(`สร้าง Slot อัตโนมัติจำนวน ${slotsToInsert.length} ช่วงเวลา`);
+                    
+                    // ⚡ โพสต์ประกาศเมื่อเปิดช่วงเวลา Consult ใหม่
+                    await autoPostAnnouncement(
+                        'consult',
+                        '📅 เพิ่มช่วงเวลา Consult ใหม่ในระบบ',
+                        `อาจารย์ได้เปิดช่วงเวลาจอง Consult ใหม่จำนวน ${slotsToInsert.length} ช่วงเวลาแล้ว สามารถเข้ามาจองเวลาได้ทันที`
+                    );
+
                     Swal.fire({ icon: 'success', title: `สร้างสำเร็จ ${slotsToInsert.length} ช่วงเวลา!`, timer: 1500, showConfirmButton: false });
                 } else {
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
