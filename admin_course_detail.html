@@ -468,8 +468,8 @@
             const { data } = await mySupabase.from('course_lessons').select('*').eq('course_id', courseId).order('created_at', { ascending: false });
             courseLessons = data || [];
             
-            const videos = courseLessons.filter(l => l.bunny_video_id || l.video_url || l.video || l.url || (!l.pdf_url && !l.file_url));
-            const files = courseLessons.filter(l => l.pdf_url || l.file_url);
+            const videos = courseLessons.filter(l => l.bunny_video_id || l.video_url || l.video || l.url || (!l.file_url));
+            const files = courseLessons.filter(l => l.file_url);
 
             document.getElementById('videoCountBadge').textContent = `${videos.length} รายการ`;
             document.getElementById('fileCountBadge').textContent = `${files.length} รายการ`;
@@ -478,11 +478,10 @@
             renderFiles(files);
         }
 
-async function loadEnrolledStudents() {
+        async function loadEnrolledStudents() {
             let totalStudents = new Set();
             
             try {
-                // ดึงข้อมูลดึงตรงจาก course_enrollments และ enrollments แบบง่ายที่สุด
                 const res1 = await mySupabase.from('course_enrollments').select('*');
                 const res2 = await mySupabase.from('enrollments').select('*');
                 
@@ -501,9 +500,6 @@ async function loadEnrolledStudents() {
             courseEnrolledStudentIds = Array.from(totalStudents);
             const count = courseEnrolledStudentIds.length;
 
-            console.log("จำนวนนักเรียนที่นับได้:", count);
-
-            // บังคับหา Element แล้วใส่ค่าตรงๆ
             const countEl = document.getElementById('courseEnrolledStudentsCount');
             const badgeEl = document.getElementById('enrolledCountBadge');
             
@@ -911,7 +907,7 @@ async function loadEnrolledStudents() {
             }
 
             container.innerHTML = files.map((f) => {
-                const fileUrl = f.pdf_url || f.file_url || '';
+                const fileUrl = f.file_url || '';
                 return `
                     <div class="p-4 bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/30 transition-all flex justify-between items-center gap-3 group">
                         <div class="flex items-center gap-3.5 min-w-0">
@@ -997,7 +993,7 @@ async function loadEnrolledStudents() {
                     title: formValues.title,
                     bunny_video_id: formValues.isVideo ? formValues.urlVal : null,
                     video_url: formValues.isVideo ? formValues.urlVal : null,
-                    pdf_url: !formValues.isVideo ? formValues.urlVal : null,
+                    file_url: !formValues.isVideo ? formValues.urlVal : null,
                     created_at: new Date().toISOString()
                 };
                 const { error } = await mySupabase.from('course_lessons').insert([payload]);
@@ -1065,7 +1061,7 @@ async function loadEnrolledStudents() {
             const fileItem = courseLessons.find(f => String(f.id) === String(fileId));
             if (!fileItem) return;
             const isDark = document.documentElement.classList.contains('dark');
-            const currentUrl = fileItem.pdf_url || fileItem.file_url || '';
+            const currentUrl = fileItem.file_url || '';
             const safeTitle = (fileItem.title || '').replace(/"/g, '&quot;');
             const safeUrl = currentUrl.replace(/"/g, '&quot;');
 
@@ -1092,12 +1088,12 @@ async function loadEnrolledStudents() {
                 color: isDark ? '#f1f5f9' : '#1e293b',
                 preConfirm: () => {
                     const title = document.getElementById('swalEditFileTitle').value.trim();
-                    const pdf_url = document.getElementById('swalEditFileUrl').value.trim();
-                    if (!title || !pdf_url) {
+                    const file_url = document.getElementById('swalEditFileUrl').value.trim();
+                    if (!title || !file_url) {
                         Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบถ้วน');
                         return false;
                     }
-                    return { title, pdf_url, file_url: pdf_url };
+                    return { title, file_url };
                 }
             });
 
@@ -1277,7 +1273,7 @@ async function loadEnrolledStudents() {
                                         <th class="p-3.5 sortable-th" onclick="setStudentSort('gradeLevel')">
                                             ระดับชั้น / โรงเรียน <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i>
                                         </th>
-                                        <th class="p-3.5 sortable-th" onclick="setStudentTagSort = 'created_at'" onclick="setStudentSort('created_at')">
+                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('created_at')">
                                             วันเวลาสมัคร <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i>
                                         </th>
                                     </tr>
