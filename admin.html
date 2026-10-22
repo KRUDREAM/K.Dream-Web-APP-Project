@@ -1,565 +1,551 @@
 <!DOCTYPE html>
 <html lang="th" class="light">
 <head>
-    <script src="lms_core.js"></script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KRUDREAM LAND | แผงควบคุมผู้ดูแลระบบ</title>
-    
-    <!-- 🌟 โลโก้ไอคอนสำหรับเว็บแอป -->
-    <link rel="icon" type="image/png" sizes="512x512" href="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg">
-    <link rel="apple-touch-icon" href="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg">
-    <meta name="theme-color" content="#0284c7">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="KRUDREAM LAND">
+    <script src="lms_core.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KRUDREAM LAND | แผงควบคุมผู้ดูแลระบบ</title>
+    
+    <!-- 🌟 โลโก้ไอคอนสำหรับเว็บแอป (Favicon & Mobile App Icon)[cite: 1, 3] -->
+    <link rel="icon" type="image/png" sizes="512x512" href="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg">
+    <link rel="apple-touch-icon" href="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg">
+    <meta name="theme-color" content="#0284c7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KRUDREAM LAND">
 
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- 🔒 Security Guard -->
-    <script>
-        const SUPABASE_URL_CHECK = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
-        const SUPABASE_KEY_CHECK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
-        
-        (async function() {
-            const tempClient = window.supabase.createClient(SUPABASE_URL_CHECK, SUPABASE_KEY_CHECK);
-            const { data: { session } } = await tempClient.auth.getSession();
-            if (!session) { window.location.replace('index.html'); return; }
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- 🔒 Security Guard -->
+    <script>
+        const SUPABASE_URL_CHECK = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
+        const SUPABASE_KEY_CHECK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
+        
+        (async function() {
+            const tempClient = window.supabase.createClient(SUPABASE_URL_CHECK, SUPABASE_KEY_CHECK);
+            const { data: { session } } = await tempClient.auth.getSession();
+            if (!session) { window.location.replace('index.html'); return; }
 
-            const userId = session.user.id;
-            const { data: profile, error } = await tempClient.from('profiles').select('*').eq('id', userId).single();
-            if (error || !profile) { window.location.replace('index.html'); return; }
+            const userId = session.user.id;
+            const { data: profile, error } = await tempClient.from('profiles').select('*').eq('id', userId).single();
+            if (error || !profile) { window.location.replace('index.html'); return; }
 
-            const role = String(profile.role || '').toLowerCase();
-            const email = String(profile.email || '').toLowerCase();
-            if (!['admin', 'teacher', 'instructor'].includes(role) && !email.includes('admin') && !email.includes('teacher')) {
-                alert('⚠️ พื้นที่นี้สำหรับผู้ดูแลระบบหรือคุณครูเท่านั้น!');
-                window.location.replace('index.html'); 
-            }
-        })();
-    </script>
+            const role = String(profile.role || '').toLowerCase();
+            const email = String(profile.email || '').toLowerCase();
+            if (!['admin', 'teacher', 'instructor'].includes(role) && !email.includes('admin') && !email.includes('teacher')) {
+                alert('⚠️ พื้นที่นี้สำหรับผู้ดูแลระบบหรือคุณครูเท่านั้น!');
+                window.location.replace('index.html'); 
+            }
+        })();
+    </script>
 
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Prompt', 'sans-serif'] },
-                    colors: { primary: '#0284c7', darkbg: '#020617', darkbox: '#090d16', darkinput: '#0f172a' }
-                }
-            }
-        }
-    </script>
-    <style>
-        body { font-family: 'Prompt', sans-serif; }
-        .glass-nav { background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(186, 230, 253, 0.5); }
-        .dark .glass-nav { background: rgba(2, 6, 23, 0.9); border-bottom: 1px solid rgba(30, 58, 138, 0.4); }
-        .hitech-card { 
-            background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(186, 230, 253, 0.8); 
-            box-shadow: 0 10px 30px -10px rgba(2, 132, 199, 0.08); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-        }
-        .dark .hitech-card { 
-            background: rgba(9, 13, 22, 0.95); border: 1px solid rgba(30, 58, 138, 0.5); 
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); 
-        }
-        .hitech-card:hover { transform: translateY(-4px); border-color: #0ea5e9; box-shadow: 0 20px 35px -10px rgba(2, 132, 199, 0.2); }
-        .hero-banner { background: linear-gradient(135deg, rgba(2, 132, 199, 0.12) 0%, rgba(37, 99, 235, 0.06) 100%); border: 1px solid rgba(56, 189, 248, 0.3); }
-        .dark .hero-banner { background: linear-gradient(135deg, rgba(14, 165, 233, 0.18) 0%, rgba(30, 58, 138, 0.25) 100%); border: 1px solid rgba(56, 189, 248, 0.25); }
-        div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
-        .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
-    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] },
+                    colors: { primary: '#0284c7', darkbg: '#020617', darkbox: '#090d16', darkinput: '#0f172a' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(186, 230, 253, 0.5); }
+        .dark .glass-nav { background: rgba(2, 6, 23, 0.88); border-bottom: 1px solid rgba(30, 58, 138, 0.4); }
+        .hitech-card { 
+            background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(186, 230, 253, 0.8); 
+            box-shadow: 0 10px 30px -10px rgba(2, 132, 199, 0.08); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        .dark .hitech-card { 
+            background: rgba(9, 13, 22, 0.95); border: 1px solid rgba(30, 58, 138, 0.5); 
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); 
+        }
+        .hitech-card:hover { transform: translateY(-3px); border-color: #0ea5e9; box-shadow: 0 15px 30px -10px rgba(2, 132, 199, 0.2); }
+        .hero-banner { background: linear-gradient(135deg, rgba(2, 132, 199, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%); border: 1px solid rgba(56, 189, 248, 0.3); }
+        .dark .hero-banner { background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(30, 58, 138, 0.2) 100%); border: 1px solid rgba(56, 189, 248, 0.2); }
+        div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
+        .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
+    </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-20">
 
-    <!-- Responsive Navbar -->
-    <nav class="glass-nav fixed w-full top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6">
-            <div class="flex justify-between h-20 items-center gap-3">
-                <div class="flex items-center gap-3.5 min-w-0">
-                    <div class="w-12 h-12 rounded-2xl overflow-hidden shadow-lg shadow-sky-500/30 shrink-0 border-2 border-sky-400 bg-sky-950 flex items-center justify-center p-0.5">
-                        <img src="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg" alt="KRUDREAM LAND Logo" class="w-full h-full object-cover rounded-full scale-105">
-                    </div>
-                    <div class="min-w-0">
-                        <h1 class="font-black text-sm sm:text-lg text-slate-900 dark:text-white truncate tracking-tight">KRUDREAM LAND</h1>
-                        <span class="text-[10px] text-sky-600 dark:text-sky-400 font-extrabold tracking-wider uppercase truncate block">Admin Command Center</span>
-                    </div>
-                </div>
+    <!-- Responsive Navbar -->
+    <nav class="glass-nav fixed w-full top-0 z-40">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6">
+            <div class="flex justify-between h-16 items-center gap-2">
+                <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <!-- 🌟 โลโก้รูปครูครีมแบบวงกลม ไร้ขอบขาว และจัดให้อยู่กึ่งกลางพอดี -->
+                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden shadow-md shadow-sky-500/30 shrink-0 border-2 border-sky-400 bg-sky-950 flex items-center justify-center p-0.5">
+                        <img src="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg" alt="KRUDREAM LAND Logo" class="w-full h-full object-cover rounded-full scale-105">
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="font-extrabold text-xs sm:text-base text-slate-900 dark:text-white truncate leading-tight">KRUDREAM LAND</h1>
+                        <span class="text-[9px] sm:text-[10px] text-sky-600 dark:text-sky-400 font-bold tracking-wider uppercase truncate block">Admin Command Center</span>
+                    </div>
+                </div>
 
-                <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-                    <button onclick="openNotificationsModal()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-sky-500 relative group" title="การแจ้งเตือน">
-                        <i class="fas fa-bell text-sm group-hover:scale-110 transition-transform"></i>
-                        <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">0</span>
-                    </button>
+                <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <button onclick="openNotificationsModal()" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-sky-500 relative" title="การแจ้งเตือน">
+                        <i class="fas fa-bell text-xs sm:text-sm"></i>
+                        <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">0</span>
+                    </button>
 
-                    <button id="themeToggle" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-sky-500 group">
-                        <i class="fas fa-moon text-sm group-hover:rotate-45 transition-transform" id="themeIcon"></i>
-                    </button>
+                    <button id="themeToggle" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-sky-500">
+                        <i class="fas fa-moon text-xs sm:text-sm" id="themeIcon"></i>
+                    </button>
 
-                    <button onclick="openChangePasswordModal()" class="px-3.5 py-2 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900 hover:bg-amber-100 font-bold text-xs rounded-2xl transition-all flex items-center gap-1.5 shadow-sm" title="เปลี่ยนรหัสผ่าน">
-                        <i class="fas fa-key"></i> <span class="hidden md:inline">เปลี่ยนรหัสผ่าน</span>
-                    </button>
+                    <button onclick="openChangePasswordModal()" class="px-2.5 sm:px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900 hover:bg-amber-100 font-bold text-[11px] sm:text-xs rounded-xl transition-all flex items-center gap-1" title="เปลี่ยนรหัสผ่าน">
+                        <i class="fas fa-key"></i> <span class="hidden md:inline">เปลี่ยนรหัสผ่าน</span>
+                    </button>
 
-                    <button onclick="logoutAdmin()" class="px-3.5 py-2 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 hover:bg-rose-100 font-bold text-xs rounded-2xl transition-all flex items-center gap-1.5 shadow-sm" title="ออกจากระบบ">
-                        <i class="fas fa-right-from-bracket"></i> <span class="hidden md:inline">ออกจากระบบ</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </nav>
+                    <button onclick="logoutAdmin()" class="px-2.5 sm:px-3 py-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 hover:bg-rose-100 font-bold text-[11px] sm:text-xs rounded-xl transition-all flex items-center gap-1" title="ออกจากระบบ">
+                        <i class="fas fa-right-from-bracket"></i> <span class="hidden md:inline">ออก</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-24 sm:pt-28 space-y-6 sm:space-y-8">
-        
-        <!-- 🌟 Smart Consult Time Bar -->
-        <div id="consultTimeBar" class="hidden p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-purple-400/40">
-            <div class="flex items-center gap-3.5">
-                <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl shrink-0 shadow-inner">
-                    <i class="fas fa-clock-rotate-left"></i>
-                </div>
-                <div class="space-y-0.5">
-                    <div class="text-[10px] font-black uppercase tracking-wider text-purple-200 flex items-center gap-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span> Live Consult Alert (ภายใน 24 ชม.)
-                    </div>
-                    <div id="timeBarMainText" class="text-xs sm:text-sm font-extrabold">
-                        กำลังโหลดข้อมูลคิว...
-                    </div>
-                </div>
-            </div>
-            <button onclick="window.location.href='admin_consult_queue.html'" class="px-4 py-2.5 bg-white text-purple-900 font-extrabold text-xs rounded-2xl shadow-lg hover:bg-purple-50 transition-all shrink-0 flex items-center gap-1.5">
-                <i class="fas fa-calendar-check text-purple-600"></i> ดูปฏิทินและคิวทั้งหมด
-            </button>
-        </div>
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 pt-20 sm:pt-24 space-y-5 sm:space-y-6">
+        
+        <!-- 🌟 Smart Consult Time Bar -->
+        <div id="consultTimeBar" class="hidden p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-purple-400/40 animate-pulse">
+            <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl shrink-0">
+                    <i class="fas fa-clock-rotate-left"></i>
+                </div>
+                <div class="space-y-0.5">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-purple-200 flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Live Consult Alert (ภายใน 24 ชม.)
+                    </div>
+                    <div id="timeBarMainText" class="text-xs sm:text-sm font-extrabold">
+                        กำลังโหลดข้อมูลคิว...
+                    </div>
+                </div>
+            </div>
+            <button onclick="window.location.href='admin_consult_queue.html'" class="px-4 py-2 bg-white text-purple-900 font-bold text-xs rounded-xl shadow-md hover:bg-purple-50 transition-all shrink-0">
+                <i class="fas fa-calendar-check mr-1"></i> ดูปฏิทินและคิวทั้งหมด
+            </button>
+        </div>
 
-        <!-- Welcome Banner -->
-        <div class="hero-banner p-6 sm:p-8 rounded-3xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm">
-            <div class="space-y-3 relative z-10 w-full">
-                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 font-extrabold text-xs border border-sky-500/20">
-                    <span class="w-2 h-2 rounded-full bg-sky-500 animate-ping"></span> Realtime Command System
-                </div>
-                <h2 class="text-xl sm:text-3xl font-black text-slate-900 dark:text-white leading-tight">
-                    ยินดีต้อนรับ, คุณ <span id="displayAdminName" class="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-indigo-600">ผู้ดูแลระบบ</span> 🌟
-                </h2>
-                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
-                    ศูนย์บริหารจัดการแพลตฟอร์มการเรียนการสอน ข้อสอบ สถิติ และระบบสนับสนุนนักเรียนแบบครบวงจร พร้อมเครื่องมืออัจฉริยะสำหรับคุณครู
-                </p>
-            </div>
+        <!-- Welcome Banner -->
+        <div class="hero-banner p-5 sm:p-8 rounded-3xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
+            <div class="space-y-2 relative z-10 w-full">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold text-[11px] sm:text-xs border border-sky-500/20">
+                    <span class="w-2 h-2 rounded-full bg-sky-500 animate-ping"></span> Realtime Signal Active
+                </div>
+                <h2 class="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white">ยินดีต้อนรับสู่ <span class="text-sky-600 dark:text-sky-400">KRUDREAM LAND</span>, คุณ <span id="displayAdminName" class="text-purple-600 dark:text-purple-400">ผู้ดูแลระบบ</span></h2>
+                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
+                    ศูนย์บริหารจัดการแพลตฟอร์มการเรียนการสอน ข้อสอบ สถิติ และระบบสนับสนุนนักเรียนแบบครบวงจร
+                </p>
+            </div>
 
-            <div class="grid grid-cols-2 gap-3.5 relative z-10 w-full md:w-auto shrink-0">
-                <div class="p-4 bg-white/90 dark:bg-darkbox/90 backdrop-blur-md rounded-2xl border border-sky-500/30 text-center space-y-1 shadow-sm">
-                    <div id="statTotalExams" class="text-xl sm:text-2xl font-black text-sky-600 dark:text-sky-400">0</div>
-                    <div class="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider">ชุดข้อสอบทั้งหมด</div>
-                </div>
-                <div class="p-4 bg-white/90 dark:bg-darkbox/90 backdrop-blur-md rounded-2xl border border-indigo-500/30 text-center space-y-1 shadow-sm">
-                    <div id="statTotalSubmissions" class="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400">0</div>
-                    <div class="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider">นักเรียนส่งข้อสอบ</div>
-                </div>
-            </div>
-        </div>
+            <div class="grid grid-cols-2 gap-3 relative z-10 w-full md:w-auto shrink-0">
+                <div class="p-3.5 sm:p-4 bg-white/80 dark:bg-darkbox/80 backdrop-blur-md rounded-2xl border border-sky-500/20 text-center space-y-1">
+                    <div id="statTotalExams" class="text-lg sm:text-xl font-extrabold text-sky-600 dark:text-sky-400">0</div>
+                    <div class="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-wider">ชุดข้อสอบทั้งหมด</div>
+                </div>
+                <div class="p-3.5 sm:p-4 bg-white/80 dark:bg-darkbox/80 backdrop-blur-md rounded-2xl border border-sky-500/20 text-center space-y-1">
+                    <div id="statTotalSubmissions" class="text-lg sm:text-xl font-extrabold text-indigo-600 dark:text-indigo-400">0</div>
+                    <div class="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-wider">นักเรียนส่งข้อสอบ</div>
+                </div>
+            </div>
+        </div>
 
-        <!-- Modules Grid -->
-        <div class="space-y-4">
-            <div class="flex items-center justify-between">
-                <h3 class="font-extrabold text-xs sm:text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <i class="fas fa-th-large text-sky-500"></i> แผงควบคุมหลัก (Admin Modules)
-                </h3>
-                <span class="text-xs text-slate-400 font-medium">เลือกเมนูเพื่อจัดการระบบ</span>
-            </div>
+        <!-- Modules Grid -->
+        <div class="space-y-4">
+            <h3 class="font-extrabold text-xs sm:text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <i class="fas fa-th-large text-sky-500"></i> ฟังก์ชันหลักระบบผู้ดูแลระบบ (Admin Modules)
+            </h3>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                
-                <!-- 1. Exam Hub -->
-                <div onclick="window.location.href='admin_exams.html'" class="hitech-card p-6 rounded-3xl cursor-pointer space-y-4 group">
-                    <div class="flex justify-between items-start">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center text-lg shadow-lg shadow-sky-500/30 group-hover:scale-110 transition-transform">
-                            <i class="fas fa-file-signature"></i>
-                        </div>
-                        <span class="px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 font-black text-[10px] border border-sky-200 dark:border-sky-800">Exam Hub</span>
-                    </div>
-                    <div class="space-y-1.5">
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-sky-500 transition-colors">ศูนย์จัดการชุดข้อสอบ</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">สร้าง แก้ไข โคลน และตั้งค่าชุดข้อสอบ พร้อมระบบอัปโหลด PDF และ OMR ครบวงจร</p>
-                    </div>
-                </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                
+                <div onclick="window.location.href='admin_exams.html'" class="hitech-card p-5 sm:p-6 rounded-2xl cursor-pointer space-y-3 sm:space-y-4 group">
+                    <div class="flex justify-between items-start">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-sky-500/30 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-file-signature"></i>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold text-[10px] border border-sky-200 dark:border-sky-800">Exam Hub</span>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-sky-500 transition-colors">ศูนย์จัดการชุดข้อสอบ</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">สร้าง แก้ไข โคลน และตั้งค่าชุดข้อสอบ พร้อมระบบอัปโหลด PDF และ OMR ครบวงจร</p>
+                    </div>
+                </div>
 
-                <!-- 2. Analytics -->
-                <div onclick="window.location.href='admin_analytics.html'" class="hitech-card p-6 rounded-3xl cursor-pointer space-y-4 group">
-                    <div class="flex justify-between items-start">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-sky-500 text-white flex items-center justify-center text-lg shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
-                            <i class="fas fa-chart-pie"></i>
-                        </div>
-                        <span class="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-black text-[10px] border border-indigo-200 dark:border-indigo-800">Analytics</span>
-                    </div>
-                    <div class="space-y-1.5">
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-indigo-500 transition-colors">วิเคราะห์ผลคะแนน & สถิติ</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">วิเคราะห์จุดอ่อนรายข้อ ออกรายงานคะแนนเฉลย กราฟกระจายตัว และ Export CSV</p>
-                    </div>
-                </div>
+                <div onclick="window.location.href='admin_analytics.html'" class="hitech-card p-5 sm:p-6 rounded-2xl cursor-pointer space-y-3 sm:space-y-4 group">
+                    <div class="flex justify-between items-start">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-sky-500 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold text-[10px] border border-indigo-200 dark:border-indigo-800">Analytics</span>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-indigo-500 transition-colors">วิเคราะห์ผลคะแนน & สถิติ</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">วิเคราะห์จุดอ่อนรายข้อ ออกรายงานคะแนนเฉลย กราฟกระจายตัว และ Export CSV</p>
+                    </div>
+                </div>
 
-                <!-- 3. Audit Logs -->
-                <div onclick="window.location.href='admin_audit_logs.html'" class="hitech-card p-6 rounded-3xl cursor-pointer space-y-4 group">
-                    <div class="flex justify-between items-start">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-700 text-white flex items-center justify-center text-lg shadow-lg shadow-cyan-500/30 group-hover:scale-110 transition-transform">
-                            <i class="fas fa-history"></i>
-                        </div>
-                        <span class="px-3 py-1 rounded-full bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 font-black text-[10px] border border-cyan-200 dark:border-cyan-800">Security</span>
-                    </div>
-                    <div class="space-y-1.5">
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-cyan-500 transition-colors">Audit Logs (ประวัติระบบ)</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ตรวจสอบประวัติการแก้ไข การสร้างข้อสอบ และกิจกรรมทั้งหมดในระบบแบบเรียลไทม์</p>
-                    </div>
-                </div>
+                <div onclick="window.location.href='admin_audit_logs.html'" class="hitech-card p-5 sm:p-6 rounded-2xl cursor-pointer space-y-3 sm:space-y-4 group">
+                    <div class="flex justify-between items-start">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-700 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-cyan-500/30 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-cyan-50 dark:bg-cyan-950 text-cyan-600 dark:text-cyan-400 font-bold text-[10px] border border-cyan-200 dark:border-cyan-800">Security</span>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-cyan-500 transition-colors">Audit Logs (ประวัติระบบ)</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ตรวจสอบประวัติการแก้ไข การสร้างข้อสอบ และกิจกรรมทั้งหมดในระบบแบบเรียลไทม์</p>
+                    </div>
+                </div>
 
-                <!-- 4. Announcements -->
-                <div onclick="window.location.href='admin_announcements.html'" class="hitech-card p-6 rounded-3xl cursor-pointer space-y-4 group">
-                    <div class="flex justify-between items-start">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center text-lg shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform">
-                            <i class="fas fa-bullhorn"></i>
-                        </div>
-                        <span class="px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 font-black text-[10px] border border-amber-200 dark:border-amber-800">Broadcast</span>
-                    </div>
-                    <div class="space-y-1.5">
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-amber-500 transition-colors">ระบบประกาศข่าวสาร</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">สร้างและจัดการประกาศแจ้งเตือน ข่าวสารสำคัญ หรือกำหนดการสอบส่งตรงถึงหน้านักเรียน</p>
-                    </div>
-                </div>
+                <div onclick="window.location.href='admin_announcements.html'" class="hitech-card p-5 sm:p-6 rounded-2xl cursor-pointer space-y-3 sm:space-y-4 group">
+                    <div class="flex justify-between items-start">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 font-bold text-[10px] border border-amber-200 dark:border-amber-800">Broadcast</span>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-amber-500 transition-colors">ระบบประกาศข่าวสาร</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">สร้างและจัดการประกาศแจ้งเตือน ข่าวสารสำคัญ หรือกำหนดการสอบส่งตรงถึงหน้านักเรียน</p>
+                    </div>
+                </div>
 
-                <!-- 5. Consult -->
-                <div onclick="window.location.href='admin_consult.html'" class="hitech-card p-6 rounded-3xl cursor-pointer space-y-4 group">
-                    <div class="flex justify-between items-start">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-500 to-pink-600 text-white flex items-center justify-center text-lg shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform">
-                            <i class="fas fa-comments"></i>
-                        </div>
-                        <span class="px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 font-black text-[10px] border border-purple-200 dark:border-purple-800">Consult</span>
-                    </div>
-                    <div class="space-y-1.5">
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-purple-500 transition-colors">ระบบ Consult ปรึกษา</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ระบบรับข้อซักถาม ให้คำปรึกษา หรือพูดคุยตอบข้อสงสัยกับนักเรียนภายในแพลตฟอร์ม</p>
-                    </div>
-                </div>
+                <div onclick="window.location.href='admin_consult.html'" class="hitech-card p-5 sm:p-6 rounded-2xl cursor-pointer space-y-3 sm:space-y-4 group">
+                    <div class="flex justify-between items-start">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-purple-500 to-pink-600 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 font-bold text-[10px] border border-purple-200 dark:border-purple-800">Consult</span>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-purple-500 transition-colors">ระบบ Consult ปรึกษา</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ระบบรับข้อซักถาม ให้คำปรึกษา หรือพูดคุยตอบข้อสงสัยกับนักเรียนภายในแพลตฟอร์ม</p>
+                    </div>
+                </div>
 
-                <!-- 6. Daily Queue -->
-                <div onclick="window.location.href='admin_consult_queue.html'" class="hitech-card p-6 rounded-3xl cursor-pointer space-y-4 group border-sky-500/40">
-                    <div class="flex justify-between items-start">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 text-white flex items-center justify-center text-lg shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
-                            <i class="fas fa-calendar-check"></i>
-                        </div>
-                        <span class="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-black text-[10px] border border-blue-200 dark:border-blue-800">Daily Queue</span>
-                    </div>
-                    <div class="space-y-1.5">
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-blue-500 transition-colors">ตรวจสอบคิว Consult ประจำวัน</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ปฏิทินและเวลานับถอยหลังคิวปรึกษา Slot ละ 30 นาทีแบบ Realtime</p>
-                    </div>
-                </div>
+                <div onclick="window.location.href='admin_consult_queue.html'" class="hitech-card p-5 sm:p-6 rounded-2xl cursor-pointer space-y-3 sm:space-y-4 group border-sky-500/40">
+                    <div class="flex justify-between items-start">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold text-[10px] border border-blue-200 dark:border-blue-800">Daily Queue</span>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-blue-500 transition-colors">ตรวจสอบคิว Consult ประจำวัน</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ปฏิทินและเวลานับถอยหลังคิวปรึกษา Slot ละ 30 นาทีแบบ Realtime</p>
+                    </div>
+                </div>
 
-                <!-- 7. Video Vault -->
-                <div onclick="window.location.href='admin_videos.html'" class="hitech-card p-6 rounded-3xl cursor-pointer space-y-4 group border-rose-500/30">
-                    <div class="flex justify-between items-start">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 to-red-600 text-white flex items-center justify-center text-lg shadow-lg shadow-rose-500/30 group-hover:scale-110 transition-transform">
-                            <i class="fas fa-video"></i>
-                        </div>
-                        <span class="px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-black text-[10px] border border-rose-200 dark:border-rose-800">Video Vault</span>
-                    </div>
-                    <div class="space-y-1.5">
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-rose-500 transition-colors">จัดการเทปเรียนย้อนหลัง</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">เพิ่ม ลบ และจัดเรียงลำดับคลิปวิดีโอย้อนหลัง พร้อมระบบความปลอดภัยป้องกันการดาวน์โหลดและ Pop-out</p>
-                    </div>
-                </div>
+                <div onclick="window.location.href='admin_videos.html'" class="hitech-card p-5 sm:p-6 rounded-2xl cursor-pointer space-y-3 sm:space-y-4 group border-rose-500/30">
+                    <div class="flex justify-between items-start">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-rose-500 to-red-600 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-rose-500/30 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 font-bold text-[10px] border border-rose-200 dark:border-rose-800">Video Vault</span>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-rose-500 transition-colors">จัดการเทปเรียนย้อนหลัง</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">เพิ่ม ลบ และจัดเรียงลำดับคลิปวิดีโอย้อนหลัง พร้อมระบบความปลอดภัยป้องกันการดาวน์โหลดและ Pop-out</p>
+                    </div>
+                </div>
 
-                <!-- 8. Courses -->
-                <div onclick="window.location.href='admin_courses.html'" class="hitech-card p-6 rounded-3xl cursor-pointer space-y-4 group border-purple-500/30">
-                    <div class="flex justify-between items-start">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white flex items-center justify-center text-lg shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform">
-                            <i class="fas fa-graduation-cap"></i>
-                        </div>
-                        <span class="px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 font-black text-[10px] border border-purple-200 dark:border-purple-800">Courses</span>
-                    </div>
-                    <div class="space-y-1.5">
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-purple-500 transition-colors">ศูนย์จัดการคอร์สเรียน</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">สร้างคอร์ส จัดการรายชื่อนักเรียนที่ลงทะเบียนเรียนในแต่ละคอร์สได้อย่างอิสระ</p>
-                    </div>
-                </div>
+                <div onclick="window.location.href='admin_courses.html'" class="hitech-card p-5 sm:p-6 rounded-2xl cursor-pointer space-y-3 sm:space-y-4 group border-purple-500/30">
+                    <div class="flex justify-between items-start">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 font-bold text-[10px] border border-purple-200 dark:border-purple-800">Courses</span>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-purple-500 transition-colors">ศูนย์จัดการคอร์สเรียน</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">สร้างคอร์ส จัดการรายชื่อนักเรียนที่ลงทะเบียนเรียนในแต่ละคอร์สได้อย่างอิสระ</p>
+                    </div>
+                </div>
 
-                <!-- 9. Users -->
-                <div onclick="window.location.href='admin_users.html'" class="hitech-card p-6 rounded-3xl cursor-pointer space-y-4 group border-teal-500/30">
-                    <div class="flex justify-between items-start">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-600 text-white flex items-center justify-center text-lg shadow-lg shadow-teal-500/30 group-hover:scale-110 transition-transform">
-                            <i class="fas fa-users-gear"></i>
-                        </div>
-                        <span class="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-black text-[10px] border border-emerald-200 dark:border-emerald-800">Users</span>
-                    </div>
-                    <div class="space-y-1.5">
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">จัดการบัญชีผู้ใช้งาน</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ตรวจสอบรายชื่อนักเรียน แก้ไขข้อมูลส่วนตัว และจัดการคอร์สเรียนรายบุคคล</p>
-                    </div>
-                </div>
+                <div onclick="window.location.href='admin_users.html'" class="hitech-card p-5 sm:p-6 rounded-2xl cursor-pointer space-y-3 sm:space-y-4 group border-teal-500/30">
+                    <div class="flex justify-between items-start">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-600 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-teal-500/30 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-users-gear"></i>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] border border-emerald-200 dark:border-emerald-800">Users</span>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">จัดการบัญชีผู้ใช้งาน</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ตรวจสอบรายชื่อนักเรียน แก้ไขข้อมูลส่วนตัว และจัดการคอร์สเรียนรายบุคคล</p>
+                    </div>
+                </div>
 
-                <!-- 10. Token Hub -->
-                <div onclick="window.location.href='admin_tokens.html'" class="hitech-card p-6 rounded-3xl cursor-pointer space-y-4 group border-amber-500/40">
-                    <div class="flex justify-between items-start">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-600 text-white flex items-center justify-center text-lg shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform">
-                            <i class="fas fa-coins"></i>
-                        </div>
-                        <span class="px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 font-black text-[10px] border border-amber-200 dark:border-amber-800">Token Hub</span>
-                    </div>
-                    <div class="space-y-1.5">
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-amber-500 transition-colors">จัดการ Token / หน่วยเงิน</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ระบบปรับเพิ่มหรือหักลด (Adjust / Deduct) หน่วยเงิน Token ของนักเรียนแต่ละคนแบบเรียลไทม์</p>
-                    </div>
-                </div>
+                <div onclick="window.location.href='admin_tokens.html'" class="hitech-card p-5 sm:p-6 rounded-2xl cursor-pointer space-y-3 sm:space-y-4 group border-amber-500/40">
+                    <div class="flex justify-between items-start">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-600 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 font-bold text-[10px] border border-amber-200 dark:border-amber-800">Token Hub</span>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-amber-500 transition-colors">จัดการ Token / หน่วยเงิน</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ระบบปรับเพิ่มหรือหักลด (Adjust / Deduct) หน่วยเงิน Token ของนักเรียนแต่ละคนแบบเรียลไทม์</p>
+                    </div>
+                </div>
 
-            </div>
-        </div>
-    </main>
+            </div>
+        </div>
+    </main>
 
-    <script>
-        const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <script>
+        const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let liveNotifications = [];
+        let liveNotifications = [];
 
-        const htmlElement = document.documentElement;
-        const themeIcon = document.getElementById('themeIcon');
-        if (localStorage.getItem('theme') === 'dark') {
-            htmlElement.classList.add('dark');
-            themeIcon.classList.replace('fa-moon', 'fa-sun');
-        }
-        document.getElementById('themeToggle').addEventListener('click', () => {
-            htmlElement.classList.toggle('dark');
-            const isDark = htmlElement.classList.contains('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
-        });
+        const htmlElement = document.documentElement;
+        const themeIcon = document.getElementById('themeIcon');
+        if (localStorage.getItem('theme') === 'dark') {
+            htmlElement.classList.add('dark');
+            themeIcon.classList.replace('fa-moon', 'fa-sun');
+        }
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            htmlElement.classList.toggle('dark');
+            const isDark = htmlElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
+        });
 
-        async function initAdminDashboard() {
-            const currentUsername = localStorage.getItem('admin_username') || 
-                                    localStorage.getItem('user_name') || 
-                                    localStorage.getItem('account_name') || 
-                                    localStorage.getItem('full_name') || 
-                                    localStorage.getItem('user') || 
-                                    'ผู้ดูแลระบบ';
+        async function initAdminDashboard() {
+            const currentUsername = localStorage.getItem('admin_username') || 
+                                    localStorage.getItem('user_name') || 
+                                    localStorage.getItem('account_name') || 
+                                    localStorage.getItem('full_name') || 
+                                    localStorage.getItem('user') || 
+                                    'ผู้ดูแลระบบ';
 
-            document.getElementById('displayAdminName').textContent = currentUsername;
+            document.getElementById('displayAdminName').textContent = currentUsername;
 
-            try {
-                const { count: examCount } = await supabaseClient.from('exams').select('*', { count: 'exact', head: true });
-                document.getElementById('statTotalExams').textContent = examCount ?? 0;
+            try {
+                const { count: examCount } = await supabaseClient.from('exams').select('*', { count: 'exact', head: true });
+                document.getElementById('statTotalExams').textContent = examCount ?? 0;
 
-                const { count: subCount } = await supabaseClient.from('exam_submissions').select('*', { count: 'exact', head: true });
-                document.getElementById('statTotalSubmissions').textContent = subCount ?? 0;
+                const { count: subCount } = await supabaseClient.from('exam_submissions').select('*', { count: 'exact', head: true });
+                document.getElementById('statTotalSubmissions').textContent = subCount ?? 0;
 
-                await checkConsultTimeBar();
-                await fetchLiveNotifications();
-                listenRealtimeNotifications();
-            } catch (err) { console.error(err); }
-        }
+                await checkConsultTimeBar();
+                await fetchLiveNotifications();
+                listenRealtimeNotifications();
+            } catch (err) { console.error(err); }
+        }
 
-        async function checkConsultTimeBar() {
-            const now = new Date();
-            const twentyFourHoursLater = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        async function checkConsultTimeBar() {
+            const now = new Date();
+            const twentyFourHoursLater = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-            const { data: upcomingSlots, error } = await supabaseClient
-                .from('consult_slots')
-                .select('*, profiles(full_name)')
-                .eq('status', 'booked')
-                .gte('start_time', now.toISOString())
-                .lte('start_time', twentyFourHoursLater.toISOString())
-                .order('start_time', { ascending: true });
+            const { data: upcomingSlots, error } = await supabaseClient
+                .from('consult_slots')
+                .select('*, profiles(full_name)')
+                .eq('status', 'booked')
+                .gte('start_time', now.toISOString())
+                .lte('start_time', twentyFourHoursLater.toISOString())
+                .order('start_time', { ascending: true });
 
-            const timeBar = document.getElementById('consultTimeBar');
-            const mainText = document.getElementById('timeBarMainText');
+            const timeBar = document.getElementById('consultTimeBar');
+            const mainText = document.getElementById('timeBarMainText');
 
-            if (!timeBar || !mainText) return;
+            if (!timeBar || !mainText) return;
 
-            if (error || !upcomingSlots || upcomingSlots.length === 0) {
-                timeBar.style.display = 'none';
-                return;
-            }
+            if (error || !upcomingSlots || upcomingSlots.length === 0) {
+                timeBar.style.display = 'none';
+                return;
+            }
 
-            timeBar.style.display = 'flex';
-            const curr = upcomingSlots[0];
-            const currName = curr.profiles?.full_name || 'นักเรียน';
-            const currTime = new Date(curr.start_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
-            
-            let text = `คิวใกล้ถึงที่สุด: <span class="text-amber-300 font-black">${currName}</span> (เวลา ${currTime} น.)`;
+            timeBar.style.display = 'flex';
+            const curr = upcomingSlots[0];
+            const currName = curr.profiles?.full_name || 'นักเรียน';
+            const currTime = new Date(curr.start_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
+            
+            let text = `คิวใกล้ถึงที่สุด: <span class="text-amber-300 font-black">${currName}</span> (เวลา ${currTime} น.)`;
 
-            if (upcomingSlots.length > 1) {
-                const next = upcomingSlots[1];
-                const nextName = next.profiles?.full_name || 'นักเรียน';
-                const nextTime = new Date(next.start_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
-                text += ` | ➔ คิวถัดไป: <span class="text-cyan-200 font-bold">${nextName}</span> (${nextTime} น.)`;
-            }
+            if (upcomingSlots.length > 1) {
+                const next = upcomingSlots[1];
+                const nextName = next.profiles?.full_name || 'นักเรียน';
+                const nextTime = new Date(next.start_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
+                text += ` | ➔ คิวถัดไป: <span class="text-cyan-200 font-bold">${nextName}</span> (${nextTime} น.)`;
+            }
 
-            mainText.innerHTML = text;
-        }
+            mainText.innerHTML = text;
+        }
 
-        setInterval(checkConsultTimeBar, 30000);
+        setInterval(checkConsultTimeBar, 30000);
 
-        async function openChangePasswordModal() {
-            const isDark = document.documentElement.classList.contains('dark');
+        async function openChangePasswordModal() {
+            const isDark = document.documentElement.classList.contains('dark');
 
-            const { value: formValues } = await Swal.fire({
-                title: '🔑 เปลี่ยนรหัสผ่านผู้ดูแลระบบ',
-                width: '450px',
-                html: `
-                    <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-300 rounded-xl text-xs font-bold text-center"></div>
-                    <div class="space-y-3 text-left text-xs">
-                        <div>
-                            <label class="block font-bold mb-1">รหัสผ่านใหม่ <span class="text-red-500">*</span></label>
-                            <input type="password" id="swalNewPassword" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="กรอกรหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)">
-                        </div>
-                        <div>
-                            <label class="block font-bold mb-1">ยืนยันรหัสผ่านใหม่ <span class="text-red-500">*</span></label>
-                            <input type="password" id="swalConfirmPassword" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="กรอกรหัสผ่านใหม่อีกครั้ง">
-                        </div>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonText: 'บันทึกรหัสผ่านใหม่',
-                cancelButtonText: 'ยกเลิก',
-                confirmButtonColor: '#0284c7',
-                background: isDark ? '#090d16' : '#ffffff',
-                color: isDark ? '#f1f5f9' : '#1e293b',
-                preConfirm: () => {
-                    const newPwd = document.getElementById('swalNewPassword').value.trim();
-                    const confirmPwd = document.getElementById('swalConfirmPassword').value.trim();
-                    const errorBox = document.getElementById('swalErrorMsg');
+            const { value: formValues } = await Swal.fire({
+                title: '🔑 เปลี่ยนรหัสผ่านผู้ดูแลระบบ',
+                width: '450px',
+                html: `
+                    <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-300 rounded-xl text-xs font-bold text-center"></div>
+                    <div class="space-y-3 text-left text-xs">
+                        <div>
+                            <label class="block font-bold mb-1">รหัสผ่านใหม่ <span class="text-red-500">*</span></label>
+                            <input type="password" id="swalNewPassword" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="กรอกรหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)">
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">ยืนยันรหัสผ่านใหม่ <span class="text-red-500">*</span></label>
+                            <input type="password" id="swalConfirmPassword" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="กรอกรหัสผ่านใหม่อีกครั้ง">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกรหัสผ่านใหม่',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#0284c7',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                preConfirm: () => {
+                    const newPwd = document.getElementById('swalNewPassword').value.trim();
+                    const confirmPwd = document.getElementById('swalConfirmPassword').value.trim();
+                    const errorBox = document.getElementById('swalErrorMsg');
 
-                    if (!newPwd || !confirmPwd) {
-                        errorBox.textContent = '⚠️ กรุณากรอกข้อมูลให้ครบทุกช่อง';
-                        errorBox.classList.remove('hidden');
-                        return false;
-                    }
+                    if (!newPwd || !confirmPwd) {
+                        errorBox.textContent = '⚠️ กรุณากรอกข้อมูลให้ครบทุกช่อง';
+                        errorBox.classList.remove('hidden');
+                        return false;
+                    }
 
-                    if (newPwd.length < 6) {
-                        errorBox.textContent = '⚠️ รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร';
-                        errorBox.classList.remove('hidden');
-                        return false;
-                    }
+                    if (newPwd.length < 6) {
+                        errorBox.textContent = '⚠️ รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร';
+                        errorBox.classList.remove('hidden');
+                        return false;
+                    }
 
-                    if (newPwd !== confirmPwd) {
-                        errorBox.textContent = '⚠️ รหัสผ่านทั้งสองช่องไม่ตรงกัน';
-                        errorBox.classList.remove('hidden');
-                        return false;
-                    }
+                    if (newPwd !== confirmPwd) {
+                        errorBox.textContent = '⚠️ รหัสผ่านทั้งสองช่องไม่ตรงกัน';
+                        errorBox.classList.remove('hidden');
+                        return false;
+                    }
 
-                    return newPwd;
-                }
-            });
+                    return newPwd;
+                }
+            });
 
-            if (formValues) {
-                Swal.fire({ title: 'กำลังอัปเดตรหัสผ่าน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                const { error } = await supabaseClient.auth.updateUser({ password: formValues });
+            if (formValues) {
+                Swal.fire({ title: 'กำลังอัปเดตรหัสผ่าน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const { error } = await supabaseClient.auth.updateUser({ password: formValues });
 
-                if (!error) {
-                    Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสผ่านสำเร็จ!', text: 'รหัสผ่านของคุณถูกอัปเดตเรียบร้อยแล้ว', confirmButtonColor: '#0284c7' });
-                } else {
-                    Swal.fire({ icon: 'error', title: 'เปลี่ยนรหัสผ่านไม่สำเร็จ', text: error.message, confirmButtonColor: '#0284c7' });
-                }
-            }
-        }
+                if (!error) {
+                    Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสผ่านสำเร็จ!', text: 'รหัสผ่านของคุณถูกอัปเดตเรียบร้อยแล้ว', confirmButtonColor: '#0284c7' });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'เปลี่ยนรหัสผ่านไม่สำเร็จ', text: error.message, confirmButtonColor: '#0284c7' });
+                }
+            }
+        }
 
-        async function fetchLiveNotifications() {
-            try {
-                const { data, error } = await supabaseClient.from('notifications').select('*').order('created_at', { ascending: false }).limit(20);
-                if (!error && data) { liveNotifications = data; } else { liveNotifications = []; }
-            } catch (err) { liveNotifications = []; }
-            updateNotifBadge();
-        }
+        async function fetchLiveNotifications() {
+            try {
+                const { data, error } = await supabaseClient.from('notifications').select('*').order('created_at', { ascending: false }).limit(20);
+                if (!error && data) { liveNotifications = data; } else { liveNotifications = []; }
+            } catch (err) { liveNotifications = []; }
+            updateNotifBadge();
+        }
 
-        function listenRealtimeNotifications() {
-            supabaseClient
-                .channel('realtime-notifications-channel')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
-                    liveNotifications.unshift(payload.new);
-                    updateNotifBadge();
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: payload.new.title, showConfirmButton: false, timer: 3000 });
-                })
-                .subscribe();
-        }
+        function listenRealtimeNotifications() {
+            supabaseClient
+                .channel('realtime-notifications-channel')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
+                    liveNotifications.unshift(payload.new);
+                    updateNotifBadge();
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: payload.new.title, showConfirmButton: false, timer: 3000 });
+                })
+                .subscribe();
+        }
 
-        function updateNotifBadge() {
-            const badge = document.getElementById('notifBadge');
-            if (liveNotifications.length > 0) {
-                badge.textContent = liveNotifications.length;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
+        function updateNotifBadge() {
+            const badge = document.getElementById('notifBadge');
+            if (liveNotifications.length > 0) {
+                badge.textContent = liveNotifications.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
 
-        function openNotificationsModal() {
-            Swal.fire({
-                title: '🔔 การแจ้งเตือนระบบ Realtime',
-                width: '600px',
-                html: `
-                    <div class="space-y-3 text-left text-xs">
-                        <div class="flex gap-1 overflow-x-auto pb-1 border-b dark:border-slate-800">
-                            <button id="btn-tab-all" onclick="filterNotifTab('all')" class="notif-tab-btn active px-2.5 py-1 bg-sky-600 text-white rounded-lg font-bold shrink-0 transition-all">ทั้งหมด (${liveNotifications.length})</button>
-                            <button id="btn-tab-submit" onclick="filterNotifTab('submit')" class="notif-tab-btn px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold shrink-0 transition-all">ส่งข้อสอบ</button>
-                            <button id="btn-tab-question" onclick="filterNotifTab('question')" class="notif-tab-btn px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold shrink-0 transition-all">คำถาม Consult</button>
-                            <button id="btn-tab-grading" onclick="filterNotifTab('grading')" class="notif-tab-btn px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold shrink-0 transition-all">ที่ต้องตรวจ</button>
-                            <button id="btn-tab-general" onclick="filterNotifTab('general')" class="notif-tab-btn px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold shrink-0 transition-all">ประกาศ/ทั่วไป</button>
-                        </div>
-                        <div id="notifListContainer" class="space-y-2 max-h-64 overflow-y-auto pr-1">
-                            ${liveNotifications.length > 0 ? liveNotifications.map(n => renderNotifCard(n)).join('') : '<div class="text-center py-8 text-slate-400">🎉 ยังไม่มีรายการแจ้งเตือนใหม่ในระบบ</div>'}
-                        </div>
-                    </div>
-                `,
-                confirmButtonText: 'ปิดหน้าต่าง'
-            });
-        }
+        function openNotificationsModal() {
+            Swal.fire({
+                title: '🔔 การแจ้งเตือนระบบ Realtime',
+                width: '600px',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <div class="flex gap-1 overflow-x-auto pb-1 border-b dark:border-slate-800">
+                            <button id="btn-tab-all" onclick="filterNotifTab('all')" class="notif-tab-btn active px-2.5 py-1 bg-sky-600 text-white rounded-lg font-bold shrink-0 transition-all">ทั้งหมด (${liveNotifications.length})</button>
+                            <button id="btn-tab-submit" onclick="filterNotifTab('submit')" class="notif-tab-btn px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold shrink-0 transition-all">ส่งข้อสอบ</button>
+                            <button id="btn-tab-question" onclick="filterNotifTab('question')" class="notif-tab-btn px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold shrink-0 transition-all">คำถาม Consult</button>
+                            <button id="btn-tab-grading" onclick="filterNotifTab('grading')" class="notif-tab-btn px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold shrink-0 transition-all">ที่ต้องตรวจ</button>
+                            <button id="btn-tab-general" onclick="filterNotifTab('general')" class="notif-tab-btn px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold shrink-0 transition-all">ประกาศ/ทั่วไป</button>
+                        </div>
+                        <div id="notifListContainer" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                            ${liveNotifications.length > 0 ? liveNotifications.map(n => renderNotifCard(n)).join('') : '<div class="text-center py-8 text-slate-400">🎉 ยังไม่มีรายการแจ้งเตือนใหม่ในระบบ</div>'}
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'ปิดหน้าต่าง'
+            });
+        }
 
-        window.renderNotifCard = function(n) {
-            let badge = '';
-            const type = n.type || 'general';
-            if (type === 'general') badge = '<span class="px-2 py-0.5 rounded bg-sky-100 text-sky-600 font-bold text-[10px]">ทั่วไป/ประกาศ</span>';
-            else if (type === 'submit') badge = '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-600 font-bold text-[10px]">ส่งข้อสอบ</span>';
-            else if (type === 'grading') badge = '<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-600 font-bold text-[10px]">ที่ต้องตรวจ</span>';
-            else if (type === 'question') badge = '<span class="px-2 py-0.5 rounded bg-purple-100 text-purple-600 font-bold text-[10px]">คำถาม Consult</span>';
+        window.renderNotifCard = function(n) {
+            let badge = '';
+            const type = n.type || 'general';
+            if (type === 'general') badge = '<span class="px-2 py-0.5 rounded bg-sky-100 text-sky-600 font-bold text-[10px]">ทั่วไป/ประกาศ</span>';
+            else if (type === 'submit') badge = '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-600 font-bold text-[10px]">ส่งข้อสอบ</span>';
+            else if (type === 'grading') badge = '<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-600 font-bold text-[10px]">ที่ต้องตรวจ</span>';
+            else if (type === 'question') badge = '<span class="px-2 py-0.5 rounded bg-purple-100 text-purple-600 font-bold text-[10px]">คำถาม Consult</span>';
 
-            const titleText = n.title || n.topic || 'การแจ้งเตือนจากระบบ';
-            const descText = n.description || n.content || n.message || n.desc || 'ไม่มีรายละเอียดเพิ่มเติม';
-            const targetUrl = n.target_url || n.targetUrl || 'admin.html';
-            let timeStr = n.created_at ? new Date(n.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'เมื่อครู่นี้';
+            const titleText = n.title || n.topic || 'การแจ้งเตือนจากระบบ';
+            const descText = n.description || n.content || n.message || n.desc || 'ไม่มีรายละเอียดเพิ่มเติม';
+            const targetUrl = n.target_url || n.targetUrl || 'admin.html';
+            let timeStr = n.created_at ? new Date(n.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'เมื่อครู่นี้';
 
-            return `
-                <div onclick="window.location.href='${targetUrl}'" class="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl cursor-pointer hover:border-sky-500 border border-slate-200 dark:border-slate-700 transition-all flex justify-between items-center">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2">${badge}<h5 class="font-bold text-slate-900 dark:text-white line-clamp-1">${titleText}</h5></div>
-                        <p class="text-slate-500 dark:text-slate-400 text-[11px] line-clamp-1">${descText}</p>
-                    </div>
-                    <span class="text-[10px] text-slate-400 font-mono shrink-0 ml-2">${timeStr}</span>
-                </div>
-            `;
-        };
+            return `
+                <div onclick="window.location.href='${targetUrl}'" class="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl cursor-pointer hover:border-sky-500 border border-slate-200 dark:border-slate-700 transition-all flex justify-between items-center">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">${badge}<h5 class="font-bold text-slate-900 dark:text-white line-clamp-1">${titleText}</h5></div>
+                        <p class="text-slate-500 dark:text-slate-400 text-[11px] line-clamp-1">${descText}</p>
+                    </div>
+                    <span class="text-[10px] text-slate-400 font-mono shrink-0 ml-2">${timeStr}</span>
+                </div>
+            `;
+        };
 
-        window.filterNotifTab = function(type) {
-            document.querySelectorAll('.notif-tab-btn').forEach(btn => {
-                btn.className = 'notif-tab-btn px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold shrink-0 transition-all';
-            });
-            const activeBtn = document.getElementById(`btn-tab-${type}`);
-            if (activeBtn) activeBtn.className = 'notif-tab-btn active px-2.5 py-1 bg-sky-600 text-white rounded-lg font-bold shrink-0 transition-all';
+        window.filterNotifTab = function(type) {
+            document.querySelectorAll('.notif-tab-btn').forEach(btn => {
+                btn.className = 'notif-tab-btn px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold shrink-0 transition-all';
+            });
+            const activeBtn = document.getElementById(`btn-tab-${type}`);
+            if (activeBtn) activeBtn.className = 'notif-tab-btn active px-2.5 py-1 bg-sky-600 text-white rounded-lg font-bold shrink-0 transition-all';
 
-            const container = document.getElementById('notifListContainer');
-            const filtered = type === 'all' ? liveNotifications : liveNotifications.filter(n => n.type === type);
-            container.innerHTML = filtered.length === 0 ? `<div class="text-center py-6 text-slate-400 text-xs">ไม่มีรายการแจ้งเตือนในหมวดหมู่นี้</div>` : filtered.map(n => renderNotifCard(n)).join('');
-        }
+            const container = document.getElementById('notifListContainer');
+            const filtered = type === 'all' ? liveNotifications : liveNotifications.filter(n => n.type === type);
+            container.innerHTML = filtered.length === 0 ? `<div class="text-center py-6 text-slate-400 text-xs">ไม่มีรายการแจ้งเตือนในหมวดหมู่นี้</div>` : filtered.map(n => renderNotifCard(n)).join('');
+        }
 
-        function logoutAdmin() {
-            Swal.fire({ title: 'ออกจากระบบ?', text: 'คุณต้องการออกจากระบบผู้ดูแลระบบใช่หรือไม่', icon: 'question', showCancelButton: true, confirmButtonText: 'ออกจากระบบ', cancelButtonText: 'ยกเลิก' }).then(async res => { 
-                if (res.isConfirmed) {
-                    await supabaseClient.auth.signOut();
-                    localStorage.clear();
-                    window.location.href = 'index.html';
-                } 
-            });
-        }
+        function logoutAdmin() {
+            Swal.fire({ title: 'ออกจากระบบ?', text: 'คุณต้องการออกจากระบบผู้ดูแลระบบใช่หรือไม่', icon: 'question', showCancelButton: true, confirmButtonText: 'ออกจากระบบ', cancelButtonText: 'ยกเลิก' }).then(async res => { 
+                if (res.isConfirmed) {
+                    await supabaseClient.auth.signOut();
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                } 
+            });
+        }
 
-        initAdminDashboard();
-    </script>
+        initAdminDashboard();
+    </script>
 </body>
 </html>
