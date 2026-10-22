@@ -281,14 +281,28 @@
                 if (feed) feed.className = 'lg:col-span-12 space-y-5';
 
                 if (studentId) {
-                    const { data: sData } = await mySupabase.from('profiles').select('*').eq('id', studentId).maybeSingle();
+                    // ค้นหาโปรไฟล์นักเรียน ทั้งแบบ id (UUID) และ student_id
+                    let { data: sData } = await mySupabase.from('profiles').select('*').eq('id', studentId).maybeSingle();
+                    if (!sData) {
+                        const { data: sData2 } = await mySupabase.from('profiles').select('*').eq('student_id', studentId).maybeSingle();
+                        sData = sData2;
+                    }
                     currentStudentData = sData;
 
-                    const { data: en1 } = await mySupabase.from('course_enrollments').select('course_id').eq('student_id', studentId);
-                    if (en1) {
+                    const realUuid = sData?.id || studentId;
+                    const { data: en1 } = await mySupabase.from('course_enrollments').select('course_id').eq('student_id', realUuid);
+                    if (en1 && en1.length > 0) {
                         for (let e of en1) {
                             const { data: cData } = await mySupabase.from('courses').select('title, course_code').eq('id', e.course_id).maybeSingle();
                             if (cData) studentEnrolledCourses.push(cData.title || cData.course_code);
+                        }
+                    } else {
+                        const { data: en2 } = await mySupabase.from('course_enrollments').select('course_id').eq('student_id', studentId);
+                        if (en2) {
+                            for (let e of en2) {
+                                const { data: cData } = await mySupabase.from('courses').select('title, course_code').eq('id', e.course_id).maybeSingle();
+                                if (cData) studentEnrolledCourses.push(cData.title || cData.course_code);
+                            }
                         }
                     }
                 }
@@ -352,7 +366,6 @@
             }
         }
 
-        // ฟังก์ชันแปลง Target Value (หากเป็น ID/Code คอร์ส ให้เปลี่ยนเป็นชื่อคอร์สเต็มๆ)
         function formatCourseTargetValue(targetValue) {
             if (!targetValue) return '-';
             const parts = targetValue.split(',');
@@ -396,18 +409,28 @@
                 const tVal = a.target_value || '';
                 const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
 
+                // ถ้าเป็นประกาศทั่วไป หรือไม่ได้กำหนด target ให้แสดงเลย
                 if (tType === 'all' || !tType) return true;
+
+                // ถ้าเป็นประกาศประเภท exam แต่ไม่มีการระบุ target ที่เข้มงวด ให้แสดงเพื่อความชัวร์
+                if (a.category === 'exam' && (!tVal || tType === 'all')) return true;
+
                 if (tType === 'level') {
                     const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
-                    return studentGrade && tVal.toLowerCase().includes(studentGrade.toLowerCase());
+                    if (!studentGrade) return true; // หากข้อมูลเกรดนักเรียนยังไม่โหลด ให้แสดงไว้ก่อนไม่ให้ประกาศหาย
+                    return tVal.toLowerCase().includes(studentGrade.toLowerCase());
                 }
                 if (tType === 'course') {
-                    const targetCourses = tVal.split(',').map(c => c.trim());
-                    return studentEnrolledCourses.some(c => targetCourses.includes(c));
+                    if (studentEnrolledCourses.length === 0) return true; // หากข้อมูลคอร์สยังโหลดไม่เสร็จ ให้แสดงไว้ก่อน
+                    const targetCourses = tVal.split(',').map(c => c.trim().toLowerCase());
+                    return studentEnrolledCourses.some(c => targetCourses.includes(c.toLowerCase()));
                 }
                 if (tType === 'specific') {
                     const targetStudents = tVal.split(',').map(s => s.trim());
-                    return targetStudents.includes(String(studentId)) || (currentStudentData && targetStudents.includes(String(currentStudentData.username)));
+                    const uuidMatch = currentStudentData?.id && targetStudents.includes(String(currentStudentData.id));
+                    const idMatch = targetStudents.includes(String(studentId));
+                    const usernameMatch = currentStudentData?.username && targetStudents.includes(String(currentStudentData.username));
+                    return uuidMatch || idMatch || usernameMatch || targetStudents.length === 0;
                 }
                 return true;
             });
@@ -624,7 +647,7 @@
         }
 
         async function deleteAnnouncement(id) {
-            const res = await Swal.fire({
+                    const res = await Swal.fire({
                 title: 'ลบประกาศนี้?',
                 text: 'การกระทำนี้จะไม่สามารถกู้คืนได้',
                 icon: 'warning',
