@@ -29,3 +29,32 @@ async function createNotification(type, title, description, targetUrl = 'admin.h
         console.error('Notification Error:', err);
     }
 }
+
+
+async function autoPostAnnouncement(category, title, content, targetType = 'all', targetValue = '') {
+    try {
+        const payload = {
+            category: category, // 'exam', 'consult', หรือ 'video'
+            title: title,
+            content: content,
+            target_type: targetType, // 'all', 'level', 'course', 'specific'
+            target_value: targetValue,
+            created_at: new Date().toISOString()
+        };
+
+        // บันทึกลงตาราง announcements
+        const { error } = await mySupabase.from('announcements').insert([payload]);
+        if (error) throw error;
+
+        // บันทึกลงตาราง notifications (ถ้ามีไว้แจ้งเตือนกระดิ่งแจ้งเตือนนักเรียน)
+        await mySupabase.from('notifications').insert([{
+            type: category,
+            message: `${title}: ${content.substring(0, 60)}...`,
+            created_at: new Date().toISOString()
+        }]);
+
+        console.log('Auto-announcement created successfully');
+    } catch (err) {
+        console.error('Failed to auto-create announcement:', err);
+    }
+}
