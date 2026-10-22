@@ -178,6 +178,29 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
+        // ⚡ Helper สำหรับโพสต์ประกาศอัตโนมัติ (Exam Open Announcement)
+        async function autoPostAnnouncement(category, title, content, targetType = 'all', targetValue = '') {
+            try {
+                const payload = {
+                    category: category, // 'exam'
+                    title: title,
+                    content: content,
+                    target_type: targetType, // 'course' หรือ 'all'
+                    target_value: targetValue,
+                    created_at: new Date().toISOString()
+                };
+
+                await mySupabase.from('announcements').insert([payload]);
+                await mySupabase.from('notifications').insert([{
+                    type: category,
+                    message: `${title}: ${content.substring(0, 60)}...`,
+                    created_at: new Date().toISOString()
+                }]);
+            } catch (err) {
+                console.error('Failed to auto-create announcement:', err);
+            }
+        }
+
         function goBack() {
             if (filterCourseId) {
                 window.location.href = `admin_course_detail.html?id=${filterCourseId}`;
@@ -261,11 +284,9 @@
             let allExams = exams || [];
             const now = new Date();
 
-            // ⚡ ตรวจสอบและอัปเดตอัตโนมัติ: ถ้าตั้งเวลา (countdown) แล้วถึงเวลาแล้ว ให้เปลี่ยนเป็น public ทันที
             for (let e of allExams) {
                 if (e.status === 'countdown' && e.start_time && new Date(e.start_time) <= now) {
                     e.status = 'public';
-                    // อัปเดตในฐานข้อมูลแบบเบื้องหลัง (Background Update)
                     mySupabase.from('exams').update({ status: 'public' }).eq('id', e.id).then(() => {});
                 }
             }
@@ -598,7 +619,6 @@
         }
 
         function getStatusBadge(e) {
-            // ถ้าเลยเวลา start_time แล้ว ให้มองเป็นเปิดบริการ (Public) ทันที
             if (e.status === 'public' || (e.status === 'countdown' && e.start_time && new Date(e.start_time) <= new Date())) {
                 return '<span class="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] border border-emerald-200 dark:border-emerald-800">เปิดบริการ</span>';
             }
@@ -793,6 +813,23 @@
                 } else {
                     const { error } = await mySupabase.from('exams').insert([formValues]);
                     resError = error;
+
+                    // ⚡ โพสต์ประกาศอัตโนมัติเมื่อสร้างชุดข้อสอบใหม่สำเร็จ
+                    if (!resError) {
+                        let targetCourseVal = '';
+                        let targetTypeVal = 'all';
+                        if (formValues.course_id && formValues.course_id.length > 0) {
+                            targetCourseVal = formValues.course_id[0];
+                            targetTypeVal = 'course';
+                        }
+                        await autoPostAnnouncement(
+                            'exam',
+                            `📝 แจ้งเปิดข้อสอบใหม่: ${formValues.title}`,
+                            `ทางระบบได้เปิดชุดข้อสอบใหม่ "${formValues.title}" รหัสข้อสอบ (${formValues.exam_code}) เรียบร้อยแล้ว ขอให้นักเรียนทุกคนเตรียมตัวเข้าทำข้อสอบตามกำหนดเวลา`,
+                            targetTypeVal,
+                            targetCourseVal
+                        );
+                    }
                 }
 
                 if (!resError) {
