@@ -65,7 +65,6 @@
         .action-btn-delete { background-color: rgba(239, 68, 68, 0.1); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.2); }
         .action-btn-delete:hover { background-color: #dc2626; color: #ffffff; }
         
-        /* กำหนดสัดส่วน 16:9 (1920x1080) สำหรับภาพพรีวิวในฟีด */
         .preview-image-container {
             aspect-ratio: 16 / 9;
             width: 100%;
@@ -100,7 +99,7 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            <!-- ฝั่งซ้าย: ฟอร์มสร้าง/แก้ไขประกาศ (ซ่อนอัตโนมัติสำหรับนักเรียน) -->
+            <!-- ฝั่งซ้าย: ฟอร์มสร้าง/แก้ไขประกาศ (สำหรับแอดมิน/เจ้าหน้าที่) -->
             <div id="creatorSection" class="lg:col-span-5 modern-card p-8 rounded-3xl sticky top-28">
                 <div class="flex items-center gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div class="w-14 h-14 bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-sky-500/30">
@@ -108,20 +107,67 @@
                     </div>
                     <div>
                         <h2 class="text-xl font-bold text-slate-900 dark:text-white" id="formTitle">สร้างประกาศใหม่</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">เนื้อหาและไฟล์แนบจะส่งถึงหน้านักเรียนทันที</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">เลือกประเภทประกาศและการแจ้งเตือน</p>
                     </div>
                 </div>
 
-                <form id="announcementForm" onsubmit="handleFormSubmit(event)" class="space-y-5">
+                <form id="announcementForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
                     <input type="hidden" id="editAnnouncementId">
+                    
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">ประเภทประกาศ <span class="text-red-500">*</span></label>
+                        <select id="annCategory" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-sm outline-none font-bold">
+                            <option value="general">📢 ประกาศทั่วไป / ข่าวสาร</option>
+                            <option value="exam">📝 แจ้งเปิดข้อสอบใหม่</option>
+                            <option value="consult">💬 แจ้งเปิดระบบ Consult / ปรึกษา</option>
+                            <option value="video">🎬 แจ้งอัปโหลดคลิปบทเรียนใหม่</option>
+                        </select>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">หัวข้อประกาศ <span class="text-red-500">*</span></label>
-                        <input type="text" id="annTitle" required placeholder="เช่น กำหนดการสอบกลางภาค..." class="w-full px-4 py-3.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm transition-all shadow-sm">
+                        <input type="text" id="annTitle" required placeholder="เช่น เปิดข้อสอบชุดที่ 1..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm transition-all shadow-sm">
                     </div>
+
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">เนื้อหาประกาศ <span class="text-red-500">*</span></label>
-                        <textarea id="annContent" required rows="5" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-none transition-all shadow-sm leading-relaxed"></textarea>
+                        <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-none transition-all shadow-sm leading-relaxed"></textarea>
                     </div>
+
+                    <!-- ส่วนเลือกกลุ่มเป้าหมาย -->
+                    <div class="p-4 bg-sky-50/50 dark:bg-slate-800/50 rounded-2xl border border-sky-100 dark:border-slate-700 space-y-3">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-sky-700 dark:text-sky-400">
+                            <i class="fas fa-bullseye mr-1"></i> เลือกกลุ่มเป้าหมายนักเรียน
+                        </label>
+                        <select id="targetType" onchange="handleTargetTypeChange()" class="w-full px-4 py-3 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-sm outline-none font-medium">
+                            <option value="all">📢 ทุกคนในระบบ (ประกาศทั่วไป)</option>
+                            <option value="level">🏫 ตามระดับชั้น (เช่น ม.1, ม.2, ม.3)</option>
+                            <option value="course">📚 ตามคอร์สเรียน (เลือกคอร์ส)</option>
+                            <option value="specific">👤 รายบุคคล (เลือกรายชื่อนักเรียน)</option>
+                        </select>
+
+                        <div id="levelContainer" class="hidden">
+                            <input type="text" id="targetLevelValue" placeholder="ระบุระดับชั้น เช่น ม.3, ม.2/4" class="w-full px-4 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none">
+                        </div>
+
+                        <div id="courseSelectContainer" class="hidden space-y-2">
+                            <p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">เลือกคอร์สเรียนที่ต้องการ:</p>
+                            <div id="courseCheckboxes" class="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-white dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
+                                <span class="text-xs text-slate-400">กำลังโหลดคอร์ส...</span>
+                            </div>
+                        </div>
+
+                        <div id="studentSelectContainer" class="hidden space-y-2">
+                            <div class="flex items-center justify-between">
+                                <p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">เลือกนักเรียนเป้าหมาย:</p>
+                                <input type="text" id="searchStudentInput" onkeyup="filterStudentCheckboxes()" placeholder="ค้นหาชื่อ/รหัส..." class="px-2.5 py-1 text-[11px] bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-lg outline-none w-36">
+                            </div>
+                            <div id="studentCheckboxes" class="max-h-48 overflow-y-auto space-y-1.5 p-2 bg-white dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
+                                <span class="text-xs text-slate-400">กำลังโหลดรายชื่อนักเรียน...</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">แนบไฟล์ / รูปภาพ (สูงสุด 5 ไฟล์)</label>
                         <input type="file" id="annFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-600 hover:file:bg-sky-100 dark:file:bg-slate-800 dark:file:text-sky-400 cursor-pointer">
@@ -129,10 +175,10 @@
                     </div>
 
                     <div class="flex gap-3 pt-2">
-                        <button type="submit" id="submitBtn" class="flex-1 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white py-4 rounded-2xl font-bold btn-glow transition-all text-sm flex items-center justify-center gap-2">
+                        <button type="submit" id="submitBtn" class="flex-1 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white py-3.5 rounded-2xl font-bold btn-glow transition-all text-sm flex items-center justify-center gap-2">
                             <i class="fas fa-paper-plane"></i> โพสต์ประกาศ
                         </button>
-                        <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden px-6 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all">
+                        <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden px-6 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all">
                             ยกเลิก
                         </button>
                     </div>
@@ -176,6 +222,8 @@
         let userRole = 'admin';
         let currentStudentData = null;
         let studentEnrolledCourses = [];
+        let allCoursesList = [];
+        let allStudentsList = [];
         let coursesMap = {};
 
         const htmlElement = document.documentElement;
@@ -195,11 +243,31 @@
             // โหลดข้อมูลคอร์สเก็บไว้แปลงชื่อ
             const { data: courses } = await mySupabase.from('courses').select('id, title, course_code');
             if (courses) {
+                allCoursesList = courses;
                 coursesMap = {};
                 courses.forEach(c => {
                     coursesMap[c.id] = c.title;
                     coursesMap[c.course_code] = c.title;
                 });
+
+                const container = document.getElementById('courseCheckboxes');
+                if (container) {
+                    container.innerHTML = courses.map(c => {
+                        const cTitle = c.title || c.course_code || 'คอร์สเรียน';
+                        return `
+                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded">
+                                <input type="checkbox" name="courseCheckbox" value="${cTitle}" class="rounded text-sky-600 focus:ring-sky-500">
+                                <span class="dark:text-slate-200">${cTitle}</span>
+                            </label>
+                        `;
+                    }).join('') || '<span class="text-xs text-slate-400">ไม่พบข้อมูลคอร์สเรียน</span>';
+                }
+            }
+
+            const { data: students } = await mySupabase.from('profiles').select('*');
+            if (students) {
+                allStudentsList = students.filter(s => !isUserAdmin(s));
+                renderStudentCheckboxes(allStudentsList);
             }
 
             userRole = localStorage.getItem('role') || localStorage.getItem('user_role') || 'admin';
@@ -227,6 +295,61 @@
             }
 
             loadAnnouncements();
+        }
+
+        function isUserAdmin(profileObj) {
+            if (!profileObj) return false;
+            const role = String(profileObj.role || profileObj.user_role || '').toLowerCase();
+            const email = String(profileObj.email || '').toLowerCase();
+            if (role === 'admin' || role === 'teacher' || role === 'instructor') return true;
+            if (email.includes('admin') || email.includes('teacher')) return true;
+            return false;
+        }
+
+        function renderStudentCheckboxes(students) {
+            const container = document.getElementById('studentCheckboxes');
+            if (!container) return;
+            if (!students || students.length === 0) {
+                container.innerHTML = '<span class="text-xs text-slate-400">ไม่พบรายชื่อนักเรียน</span>';
+                return;
+            }
+
+            container.innerHTML = students.map(s => {
+                const sName = s.full_name || (s.first_name ? `${s.first_name} ${s.last_name || ''}` : '') || s.username || 'นักเรียน';
+                const sId = s.id || s.student_id;
+                const sUser = s.username || s.student_id || '-';
+                const sGrade = s.grade_level || s.grade ? ` (${s.grade_level || s.grade})` : '';
+                return `
+                    <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded student-item">
+                        <input type="checkbox" name="studentCheckbox" value="${sId}" class="rounded text-sky-600 focus:ring-sky-500">
+                        <span class="dark:text-slate-200">${sName}${sGrade} [${sUser}]</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function filterStudentCheckboxes() {
+            const keyword = document.getElementById('searchStudentInput').value.toLowerCase();
+            const filtered = allStudentsList.filter(s => {
+                const text = `${s.full_name || ''} ${s.first_name || ''} ${s.username || ''} ${s.student_id || ''} ${s.grade_level || ''}`.toLowerCase();
+                return text.includes(keyword);
+            });
+            renderStudentCheckboxes(filtered);
+        }
+
+        function handleTargetTypeChange() {
+            const val = document.getElementById('targetType').value;
+            document.getElementById('levelContainer').classList.add('hidden');
+            document.getElementById('courseSelectContainer').classList.add('hidden');
+            document.getElementById('studentSelectContainer').classList.add('hidden');
+
+            if (val === 'level') {
+                document.getElementById('levelContainer').classList.remove('hidden');
+            } else if (val === 'course') {
+                document.getElementById('courseSelectContainer').classList.remove('hidden');
+            } else if (val === 'specific') {
+                document.getElementById('studentSelectContainer').classList.remove('hidden');
+            }
         }
 
         // ฟังก์ชันแปลง Target Value (หากเป็น ID/Code คอร์ส ให้เปลี่ยนเป็นชื่อคอร์สเต็มๆ)
@@ -308,6 +431,18 @@
             feed.innerHTML = filteredAnns.map(a => {
                 const dateStr = new Date(a.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
                 const titleText = a.title || 'ประกาศจากทางโรงเรียน';
+                const category = a.category || a.announcement_type || 'general';
+
+                let categoryBadge = '';
+                if (category === 'exam') {
+                    categoryBadge = `<span class="bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-900"><i class="fas fa-file-pen mr-1"></i> แจ้งเปิดข้อสอบ</span>`;
+                } else if (category === 'consult') {
+                    categoryBadge = `<span class="bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900"><i class="fas fa-comments mr-1"></i> เปิดระบบ Consult</span>`;
+                } else if (category === 'video') {
+                    categoryBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-play-circle mr-1"></i> อัปโหลดคลิปใหม่</span>`;
+                } else {
+                    categoryBadge = `<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700"><i class="fas fa-bullhorn mr-1"></i> ประกาศทั่วไป</span>`;
+                }
 
                 let targetBadge = '';
                 if (a.target_type === 'level') {
@@ -348,18 +483,19 @@
                         <div class="absolute top-0 left-0 w-2.5 h-full bg-gradient-to-b from-sky-500 to-indigo-600"></div>
                         <div class="flex justify-between items-start mb-4 pl-3">
                             <div>
-                                <div class="flex items-center gap-2 mb-1 flex-wrap">
-                                    <h4 class="font-bold text-lg text-slate-900 dark:text-white">${titleText}</h4>
+                                <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                                    ${categoryBadge}
                                     ${targetBadge}
                                 </div>
-                                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5"><i class="far fa-clock"></i> ${dateStr}</span>
+                                <h4 class="font-bold text-lg text-slate-900 dark:text-white">${titleText}</h4>
+                                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5 mt-1"><i class="far fa-clock"></i> ${dateStr}</span>
                             </div>
                             ${isStaff ? `
                                 <div class="flex gap-2">
-                                    <button onclick="prepareEdit('${a.id}', '${safeTitle}', '${safeContent}')" class="action-btn-edit px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                                    <button type="button" onclick="prepareEdit('${a.id}', '${safeTitle}', '${safeContent}', '${a.target_type || 'all'}', \`${a.target_value || ''}\`, '${category}')" class="action-btn-edit px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
                                         <i class="fas fa-pen-to-square"></i> แก้ไข
                                     </button>
-                                    <button onclick="deleteAnnouncement('${a.id}')" class="action-btn-delete px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                                    <button type="button" onclick="deleteAnnouncement('${a.id}')" class="action-btn-delete px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
                                         <i class="fas fa-trash-can"></i> ลบ
                                     </button>
                                 </div>
@@ -386,10 +522,23 @@
         async function handleFormSubmit(e) {
             e.preventDefault();
             const editId = document.getElementById('editAnnouncementId').value;
+            const category = document.getElementById('annCategory').value;
             const title = document.getElementById('annTitle').value;
             const content = document.getElementById('annContent').value;
-            const fileInput = document.getElementById('annFiles');
+            const targetType = document.getElementById('targetType').value;
+            let targetValue = '';
 
+            if (targetType === 'level') {
+                targetValue = document.getElementById('targetLevelValue').value;
+            } else if (targetType === 'course') {
+                const checkedCourses = Array.from(document.querySelectorAll('input[name="courseCheckbox"]:checked')).map(cb => cb.value);
+                targetValue = checkedCourses.join(',');
+            } else if (targetType === 'specific') {
+                const checkedStudents = Array.from(document.querySelectorAll('input[name="studentCheckbox"]:checked')).map(cb => cb.value);
+                targetValue = checkedStudents.join(',');
+            }
+
+            const fileInput = document.getElementById('annFiles');
             if (fileInput.files.length > 5) {
                 Swal.fire('จำกัดจำนวนไฟล์', 'แนบไฟล์ได้สูงสุดไม่เกิน 5 ไฟล์ครับ', 'warning');
                 return;
@@ -412,15 +561,23 @@
                 }
             }
 
-            let payload = { title, content };
+            let payload = { title, content, category, target_type: targetType, target_value: targetValue };
             if (attachmentUrls.length > 0) payload.attachments = attachmentUrls;
 
             if (editId) {
                 if (attachmentUrls.length === 0) delete payload.attachments;
-                await mySupabase.from('announcements').update(payload).eq('id', editId);
+                const { error } = await mySupabase.from('announcements').update(payload).eq('id', editId);
+                if (error) {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                    return;
+                }
                 Swal.fire({ icon: 'success', title: 'แก้ไขประกาศสำเร็จ', timer: 1500, showConfirmButton: false });
             } else {
-                await mySupabase.from('announcements').insert([payload]);
+                const { error } = await mySupabase.from('announcements').insert([payload]);
+                if (error) {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                    return;
+                }
                 await mySupabase.from('notifications').insert([{ type: 'announcement', message: `${title}: ${content.substring(0, 50)}...` }]);
                 Swal.fire({ icon: 'success', title: 'โพสต์ประกาศสำเร็จ', timer: 1500, showConfirmButton: false });
             }
@@ -429,10 +586,28 @@
             loadAnnouncements();
         }
 
-        function prepareEdit(id, title, content) {
+        function prepareEdit(id, title, content, targetType, targetValue, category) {
             document.getElementById('editAnnouncementId').value = id;
+            document.getElementById('annCategory').value = category || 'general';
             document.getElementById('annTitle').value = title;
             document.getElementById('annContent').value = content.replace(/\\n/g, '\n');
+            document.getElementById('targetType').value = targetType;
+            handleTargetTypeChange();
+
+            if (targetType === 'level') {
+                document.getElementById('targetLevelValue').value = targetValue;
+            } else if (targetType === 'course') {
+                const values = targetValue.split(',');
+                document.querySelectorAll('input[name="courseCheckbox"]').forEach(cb => {
+                    cb.checked = values.includes(cb.value);
+                });
+            } else if (targetType === 'specific') {
+                const values = targetValue.split(',');
+                document.querySelectorAll('input[name="studentCheckbox"]').forEach(cb => {
+                    cb.checked = values.includes(cb.value);
+                });
+            }
+
             document.getElementById('formTitle').textContent = 'แก้ไขประกาศ';
             document.getElementById('cancelEditBtn').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -441,8 +616,11 @@
         function resetForm() {
             document.getElementById('announcementForm').reset();
             document.getElementById('editAnnouncementId').value = '';
+            document.getElementById('annCategory').value = 'general';
             document.getElementById('formTitle').textContent = 'สร้างประกาศใหม่';
             document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.querySelectorAll('input[name="courseCheckbox"], input[name="studentCheckbox"]').forEach(cb => cb.checked = false);
+            handleTargetTypeChange();
         }
 
         async function deleteAnnouncement(id) {
