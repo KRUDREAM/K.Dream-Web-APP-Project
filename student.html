@@ -116,7 +116,7 @@
                     <i class="fas fa-book-reader"></i> <span class="hidden md:inline">คอร์ส</span>
                 </button>
 
-                <button onclick="openNotificationsModal()" class="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="การแจ้งเตือน">
+                <button onclick="openNotificationsModal()" class="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="ประกาศและการแจ้งเตือน">
                     <i class="fas fa-bell text-xs"></i>
                     <span id="notifBadge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center shadow-md hidden animate-pulse">0</span>
                 </button>
@@ -132,9 +132,6 @@
                     
                     <div id="userDropdownMenu" class="hidden absolute right-0 mt-2 w-52 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl py-2 z-50 text-xs font-semibold">
                         <div class="px-4 py-2 border-b border-slate-100 dark:border-slate-800 text-slate-400 text-[10px]">เมนูจัดการ</div>
-                        <button onclick="goToAnnouncementPage()" class="w-full text-left px-4 py-2.5 hover:bg-sky-50 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                            <i class="fas fa-bullhorn text-sky-500 w-4"></i> ศูนย์ประกาศ & ข่าวสาร
-                        </button>
                         <button onclick="openProfileSettingsModal()" class="w-full text-left px-4 py-2.5 hover:bg-sky-50 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
                             <i class="fas fa-cog text-sky-500 w-4"></i> ตั้งค่าข้อมูลส่วนตัว
                         </button>
@@ -421,6 +418,14 @@
 
     </main>
 
+    <!-- Modal สำหรับขยายดูรูปภาพประกาศในประกาศ -->
+    <div id="imageModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4" onclick="closeImageModal()">
+        <div class="relative max-w-5xl max-h-[90vh]">
+            <button class="absolute -top-10 right-0 text-white text-2xl font-bold hover:text-sky-400" onclick="closeImageModal()"><i class="fas fa-xmark"></i></button>
+            <img id="modalImg" src="" class="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain">
+        </div>
+    </div>
+
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
@@ -430,11 +435,12 @@
         let currentStudentId = null;
         let currentStudentName = 'นักเรียน';
         let currentStudentData = null;
+        let studentEnrolledCourses = [];
         let allExams = [];
         let allCourses = [];
         let enrolledCoursesList = [];        
         let activeEnrolledCoursesList = [];    
-        let activeEnrolledCourseIds = [];      
+        let activeEnrolledCourseIds = [];     
         let categoriesMap = {};
         let userAttempts = [];
         let examQuestionCounts = {};
@@ -686,31 +692,92 @@
 
         async function openNotificationsModal() {
             const isDark = document.documentElement.classList.contains('dark');
-            Swal.fire({ title: 'กำลังโหลดการแจ้งเตือน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            Swal.fire({ title: 'กำลังโหลดประกาศและการแจ้งเตือน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            const { data: notifs } = await mySupabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(20);
+            // ดึงข้อมูลประกาศทั้งหมดจากตาราง announcements เพื่อให้ตรงกับหน้า announcement.html
+            const { data: anns } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
 
             let notifHtml = '';
-            if (!notifs || notifs.length === 0) {
-                notifHtml = `<div class="py-12 text-center text-slate-400 space-y-2"><i class="fas fa-bell-slash text-3xl text-sky-500"></i><p class="text-xs">ไม่มีการแจ้งเตือนในขณะนี้</p></div>`;
+            
+            // เพิ่มปุ่มทางลัดไปหน้า announcement.html เต็มรูปแบบไว้ด้านบนสุด
+            let headerBtnHtml = `
+                <div class="mb-4 pb-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">ศูนย์รวมข่าวสารและประกาศทั้งหมด</span>
+                    <button onclick="goToAnnouncementPage()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm">
+                        <i class="fas fa-bullhorn"></i> เปิดหน้าประกาศเต็ม <i class="fas fa-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+            `;
+
+            if (!anns || anns.length === 0) {
+                notifHtml = headerBtnHtml + `<div class="py-12 text-center text-slate-400 space-y-2"><i class="fas fa-bullhorn text-3xl text-sky-500"></i><p class="text-xs">ยังไม่มีประกาศในระบบขณะนี้</p></div>`;
             } else {
-                notifHtml = `<div class="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1 text-left">`;
-                notifs.forEach(n => {
-                    const timeStr = new Date(n.created_at).toLocaleString('th-TH');
-                    const unreadClass = n.is_read ? 'bg-white dark:bg-darkinput border-slate-200 dark:border-slate-800' : 'bg-sky-50 dark:bg-sky-950/30 border-sky-300 dark:border-sky-900';
-                    notifHtml += `
-                        <div class="p-3.5 rounded-2xl border ${unreadClass} flex flex-col justify-between space-y-2 shadow-sm transition-all">
-                            <div class="flex justify-between items-start gap-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full ${n.is_read ? 'bg-slate-300' : 'bg-sky-500 animate-pulse'}"></span>
-                                    <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">${n.title || 'ประกาศใหม่'}</h4>
+                let filteredAnns = anns.filter(a => {
+                    const tType = a.target_type || 'all';
+                    const tVal = a.target_value || '';
+                    if (tType === 'all' || !tType) return true;
+                    if (tType === 'level') {
+                        const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
+                        if (!studentGrade) return true;
+                        return tVal.toLowerCase().includes(studentGrade.toLowerCase());
+                    }
+                    if (tType === 'course') {
+                        if (studentEnrolledCourses.length === 0) return true;
+                        const targetCourses = tVal.split(',').map(c => c.trim().toLowerCase());
+                        return studentEnrolledCourses.some(c => targetCourses.includes(c.toLowerCase()));
+                    }
+                    if (tType === 'specific') {
+                        const targetStudents = tVal.split(',').map(s => s.trim());
+                        return targetStudents.includes(String(currentStudentId)) || targetStudents.length === 0;
+                    }
+                    return true;
+                });
+
+                if (filteredAnns.length === 0) filteredAnns = anns; // Fallback ถ้ากรองแล้วไม่พบ ให้แสดงทั้งหมด
+
+                notifHtml = headerBtnHtml + `<div class="space-y-3 max-h-[60vh] overflow-y-auto pr-1 text-left">`;
+                filteredAnns.forEach(a => {
+                    const timeStr = new Date(a.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+                    const category = a.category || 'general';
+
+                    let catBadge = '';
+                    if (category === 'exam') {
+                        catBadge = `<span class="bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-900"><i class="fas fa-file-pen mr-1"></i> แจ้งเปิดข้อสอบ</span>`;
+                    } else if (category === 'consult') {
+                        catBadge = `<span class="bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-900"><i class="fas fa-comments mr-1"></i> เปิด Consult</span>`;
+                    } else if (category === 'video') {
+                        catBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2 py-0.5 rounded border border-sky-200 dark:border-sky-900"><i class="fas fa-play-circle mr-1"></i> คลิปบทเรียน</span>`;
+                    } else {
+                        catBadge = `<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700"><i class="fas fa-bullhorn mr-1"></i> ประกาศทั่วไป</span>`;
+                    }
+
+                    let attachPreview = '';
+                    if (a.attachments && Array.isArray(a.attachments) && a.attachments.length > 0) {
+                        const firstUrl = a.attachments[0];
+                        const isImg = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(firstUrl);
+                        if (isImg) {
+                            attachPreview = `
+                                <div class="mt-2 rounded-xl overflow-hidden aspect-video max-h-40 border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-darkinput cursor-pointer" onclick="openImageModal('${firstUrl}')">
+                                    <img src="${firstUrl}" class="w-full h-full object-cover">
                                 </div>
-                                <span class="text-[10px] text-slate-400">${timeStr}</span>
+                            `;
+                        }
+                    }
+
+                    notifHtml += `
+                        <div class="p-4 rounded-2xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm transition-all">
+                            <div class="flex justify-between items-start gap-2">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    ${catBadge}
+                                    <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">${a.title || 'ประกาศจากโรงเรียน'}</h4>
+                                </div>
+                                <span class="text-[10px] text-slate-400 shrink-0"><i class="far fa-clock"></i> ${timeStr}</span>
                             </div>
-                            <p class="text-xs text-slate-600 dark:text-slate-300 font-light">${n.message}</p>
-                            <div class="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
-                                <button onclick="markAsReadAndAction('${n.id}', '${n.related_url || ''}')" class="text-sky-600 font-bold hover:underline">
-                                    ${n.related_url ? 'เปิดดูรายละเอียด <i class="fas fa-arrow-right text-[10px]"></i>' : 'รับทราบ'}
+                            <p class="text-xs text-slate-600 dark:text-slate-300 font-light whitespace-pre-line leading-relaxed">${a.content || ''}</p>
+                            ${attachPreview}
+                            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                                <button onclick="goToAnnouncementPage()" class="text-xs font-bold text-sky-600 hover:underline flex items-center gap-1">
+                                    อ่านรายละเอียดทั้งหมด <i class="fas fa-arrow-right text-[10px]"></i>
                                 </button>
                             </div>
                         </div>
@@ -720,22 +787,27 @@
             }
 
             Swal.fire({
-                title: `<span class="text-base font-extrabold text-sky-700 dark:text-sky-400">🔔 การแจ้งเตือน</span>`,
+                title: `<span class="text-base font-extrabold text-sky-700 dark:text-sky-400">📢 ศูนย์รวมประกาศ & ข่าวสาร</span>`,
                 html: notifHtml,
-                width: '550px',
+                width: '650px',
                 confirmButtonText: 'ปิดหน้าต่าง',
                 confirmButtonColor: '#0284c7',
                 background: isDark ? '#090d16' : '#ffffff',
                 color: isDark ? '#f1f5f9' : '#1e293b'
             });
+
+            // ทำเครื่องหมายว่าอ่านการแจ้งเตือนแล้วเมื่อเปิด Modal นี้
+            await mySupabase.from('notifications').update({ is_read: true }).eq('is_read', false);
             loadStudentNotificationsCount();
         }
 
-        async function markAsReadAndAction(notifId, relatedUrl) {
-            await mySupabase.from('notifications').update({ is_read: true }).eq('id', notifId);
-            loadStudentNotificationsCount();
-            Swal.close();
-            if (relatedUrl && relatedUrl.trim() !== '') window.location.href = relatedUrl;
+        function openImageModal(url) {
+            document.getElementById('modalImg').src = url;
+            document.getElementById('imageModal').classList.remove('hidden');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
         }
 
         async function openProfileSettingsModal() {
@@ -924,6 +996,7 @@
 
             const enrolledCourseIds = [...new Set(enrollments.map(e => String(e.course_id || e.courseid || '')))].filter(id => id !== '');
             enrolledCoursesList = allCourses.filter(c => enrolledCourseIds.includes(String(c.id)));
+            studentEnrolledCourses = enrolledCoursesList.map(c => c.title || c.course_code);
 
             const now = Date.now();
             activeEnrolledCoursesList = enrolledCoursesList.filter(c => !c.expires_at || new Date(c.expires_at).getTime() >= now);
@@ -1452,8 +1525,7 @@
             const selectedExamIds = Array.from(document.querySelectorAll('input[name="analyticsExamCheckbox"]:checked')).map(cb => cb.value);
             const filteredAttempts = completedAttempts.filter(att => selectedExamIds.includes(att.exam_id));
 
-            // Fetch questions for selected exam IDs to calculate real category performance
-            let categoryStats = {}; // { tag: { total: 0, correct: 0 } }
+            let categoryStats = {}; 
             if (selectedExamIds.length > 0) {
                 const { data: qData } = await mySupabase.from('questions').select('*').in('exam_id', selectedExamIds);
                 const questionsList = qData || [];
@@ -1481,7 +1553,7 @@
             let categoryArray = Object.entries(categoryStats).map(([tag, stat]) => {
                 const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
                 return { tag, total: stat.total, correct: stat.correct, pct };
-            }).sort((a, b) => b.pct - a.pct); // Highest to lowest
+            }).sort((a, b) => b.pct - a.pct);
 
             if (categoryArray.length > 0) {
                 document.getElementById('strongCategoryMetric').textContent = categoryArray[0].tag;
