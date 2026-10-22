@@ -178,22 +178,39 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        // ⚡ Helper สำหรับโพสต์ประกาศอัตโนมัติ (Exam Open Announcement)
-        async function autoPostAnnouncement(category, title, content, targetType = 'all', targetValue = '') {
+        // ⚡ ฟังก์ชันโพสต์ประกาศอัตโนมัติ (ดึงชื่อคอร์สจริงมาแสดงแทนรหัส)
+        async function autoPostAnnouncementForExam(examTitle, examCode, courseId, status) {
+            if (status !== 'public') return; // โพสต์เฉพาะตอนที่สถานะเป็น public (เปิดบริการทันที)
             try {
+                let courseName = 'ทุกคอร์สเรียน';
+                let targetTypeVal = 'all';
+                let targetCourseVal = '';
+
+                if (courseId) {
+                    let cId = Array.isArray(courseId) ? courseId[0] : courseId;
+                    if (cId && coursesMap[cId]) {
+                        courseName = coursesMap[cId].title; // ใช้ชื่อคอร์สเต็มๆ
+                        targetTypeVal = 'course';
+                        targetCourseVal = cId;
+                    }
+                }
+
                 const payload = {
-                    category: category, // 'exam'
-                    title: title,
-                    content: content,
-                    target_type: targetType, // 'course' หรือ 'all'
-                    target_value: targetValue,
+                    category: 'exam',
+                    title: `📝 แจ้งเปิดข้อสอบใหม่: ${examTitle}`,
+                    content: `ทางระบบได้เปิดชุดข้อสอบใหม่ "${examTitle}" (รหัส: ${examCode}) ในวิชา "${courseName}" เรียบร้อยแล้ว ขอให้นักเรียนทุกคนเตรียมตัวเข้าทำข้อสอบตามกำหนดเวลา`,
+                    target_type: targetTypeVal,
+                    target_value: targetCourseVal,
                     created_at: new Date().toISOString()
                 };
 
                 await mySupabase.from('announcements').insert([payload]);
                 await mySupabase.from('notifications').insert([{
-                    type: category,
-                    message: `${title}: ${content.substring(0, 60)}...`,
+                    type: 'exam',
+                    title: `[ประกาศ] แจ้งเปิดข้อสอบใหม่: ${examTitle}`,
+                    description: `เปิดชุดข้อสอบใหม่ในวิชา ${courseName}`,
+                    target_url: 'admin.html',
+                    is_read: false,
                     created_at: new Date().toISOString()
                 }]);
             } catch (err) {
@@ -807,29 +824,25 @@
                 Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 
                 let resError = null;
+                let wasNotPublishedBefore = !isEdit || examData.status !== 'public';
+
                 if (isEdit) {
                     const { error } = await mySupabase.from('exams').update(formValues).eq('id', examData.id);
                     resError = error;
                 } else {
                     const { error } = await mySupabase.from('exams').insert([formValues]);
                     resError = error;
+                }
 
-                    // ⚡ โพสต์ประกาศอัตโนมัติเมื่อสร้างชุดข้อสอบใหม่สำเร็จ
-                    if (!resError) {
-                        let targetCourseVal = '';
-                        let targetTypeVal = 'all';
-                        if (formValues.course_id && formValues.course_id.length > 0) {
-                            targetCourseVal = formValues.course_id[0];
-                            targetTypeVal = 'course';
-                        }
-                        await autoPostAnnouncement(
-                            'exam',
-                            `📝 แจ้งเปิดข้อสอบใหม่: ${formValues.title}`,
-                            `ทางระบบได้เปิดชุดข้อสอบใหม่ "${formValues.title}" รหัสข้อสอบ (${formValues.exam_code}) เรียบร้อยแล้ว ขอให้นักเรียนทุกคนเตรียมตัวเข้าทำข้อสอบตามกำหนดเวลา`,
-                            targetTypeVal,
-                            targetCourseVal
-                        );
-                    }
+                // ⚡ โพสต์ประกาศอัตโนมัติเฉพาะตอนเปลี่ยนมาเป็นสถานะ public หรือเปิดข้อสอบใหม่แบบ public
+                if (!resError && formValues.status === 'public' && wasNotPublishedBefore) {
+                    let targetCourseVal = formValues.course_id?.[0] || '';
+                    await autoPostAnnouncementForExam(
+                        formValues.title,
+                        formValues.exam_code,
+                        targetCourseVal,
+                        formValues.status
+                    );
                 }
 
                 if (!resError) {
