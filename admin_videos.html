@@ -168,6 +168,27 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
+        // ⚡ ฟังก์ชันสำหรับโพสต์ประกาศแจ้งเตือนอัตโนมัติเมื่อเพิ่มวิดีโอบทเรียนใหม่
+        async function autoPostAnnouncement(category, title, content, targetType = 'all', targetValue = '') {
+            try {
+                await mySupabase.from('announcements').insert([{
+                    category: category,
+                    title: title,
+                    content: content,
+                    target_type: targetType,
+                    target_value: targetValue,
+                    created_at: new Date().toISOString()
+                }]);
+                await mySupabase.from('notifications').insert([{
+                    type: category,
+                    message: `${title}: ${content.substring(0, 60)}...`,
+                    created_at: new Date().toISOString()
+                }]);
+            } catch (err) {
+                console.error('Failed to auto-create announcement:', err);
+            }
+        }
+
         function goBackToCourse() {
             if (selectedCourseId && selectedCourseId !== 'all') {
                 window.location.href = `admin_course_detail.html?id=${selectedCourseId}`;
@@ -180,7 +201,6 @@
             Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             try {
-                // ดึงข้อมูลคอร์สทั้งหมด
                 const courseRes = await mySupabase.from('courses').select('id, title, course_code').order('title');
                 allCourses = courseRes.data || [];
 
@@ -194,7 +214,6 @@
                     }
                 }
 
-                // ดึงข้อมูลบทเรียนทั้งหมด
                 const lessonRes = await mySupabase.from('course_lessons').select('*');
                 let fetchedVideos = lessonRes.data || [];
 
@@ -345,6 +364,17 @@
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
                     return;
                 }
+
+                // ⚡ โพสต์ประกาศอัตโนมัติเมื่อเพิ่มวิดีโอใหม่
+                const targetCourseObj = allCourses.find(c => String(c.id) === String(formValues.course_id));
+                const courseNameStr = targetCourseObj ? targetCourseObj.title : 'คอร์สเรียน';
+                await autoPostAnnouncement(
+                    'video',
+                    `🎥 เพิ่มวิดีโอบทเรียนใหม่: ${formValues.title}`,
+                    `ทางระบบได้เพิ่มวิดีโอบทเรียนใหม่ "${formValues.title}" ในคอร์ส "${courseNameStr}" เรียบร้อยแล้ว สามารถเข้ามารับชมได้ทันที`,
+                    'course',
+                    formValues.course_id
+                );
 
                 Swal.fire({ icon: 'success', title: 'เพิ่มวิดีโอสำเร็จ!', timer: 1200, showConfirmButton: false });
                 initVideoManagement();
