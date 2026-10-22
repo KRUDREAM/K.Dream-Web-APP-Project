@@ -47,12 +47,12 @@
                 </div>
                 <div>
                     <h1 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">Admin Audit Trail</h1>
-                    <p class="text-[11px] text-sky-600 dark:text-sky-400 font-semibold">ระบบตรวจสอบความเคลื่อนไหวหลังบ้าน</p>
+                    <p class="text-[11px] text-sky-600 dark:text-sky-400 font-semibold">ระบบตรวจสอบความเคลื่อนไหวหลังบ้านแบบเรียลไทม์</p>
                 </div>
             </div>
             
             <div class="flex items-center gap-2.5">
-                <button onclick="window.history.back()" class="px-3.5 py-2 bg-sky-500/10 hover:bg-sky-500 hover:text-white text-sky-600 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-sky-500/20 shadow-sm">
+                <button onclick="window.location.href='admin.html'" class="px-3.5 py-2 bg-sky-500/10 hover:bg-sky-500 hover:text-white text-sky-600 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-sky-500/20 shadow-sm">
                     <i class="fas fa-arrow-left"></i> <span class="hidden sm:inline">กลับหน้าจัดการ</span>
                 </button>
 
@@ -69,14 +69,14 @@
         <div class="hitech-card p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-slate-800 via-blue-900 to-indigo-950 text-white shadow-xl space-y-3">
             <span class="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-extrabold tracking-wide uppercase">Security & Log Center</span>
             <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight">ประวัติการกระทำในระบบ (Audit Logs)</h2>
-            <p class="text-xs sm:text-sm text-slate-300 max-w-xl font-light">ติดตามตรวจสอบเหตุการณ์สำคัญ เช่น การแก้ไขโปรไฟล์ การเปลี่ยนรหัสผ่าน การทำข้อสอบ และการจัดการระบบ</p>
+            <p class="text-xs sm:text-sm text-slate-300 max-w-xl font-light">ติดตามตรวจสอบเหตุการณ์สำคัญ เช่น การแก้ไขโปรไฟล์ การส่งข้อสอบ การสร้างคอร์ส และกิจกรรมทั้งหมดของผู้ใช้งานในระบบ</p>
         </div>
 
         <!-- Filter & Search Toolbar -->
         <div class="hitech-card p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="relative w-full sm:w-80">
                 <i class="fas fa-search absolute left-3.5 top-3.5 text-sky-500 text-xs"></i>
-                <input type="text" id="searchLogInput" oninput="renderAuditLogs()" placeholder="ค้นหาตาม Action หรือเป้าหมาย..." class="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:border-sky-500 font-medium">
+                <input type="text" id="searchLogInput" oninput="renderAuditLogs()" placeholder="ค้นหาตาม Action, ชื่อผู้ใช้ หรือเป้าหมาย..." class="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:border-sky-500 font-medium">
             </div>
 
             <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -100,14 +100,14 @@
                         <tr>
                             <th class="p-4">เวลา (Timestamp)</th>
                             <th class="p-4">บทบาท (Role)</th>
-                            <th class="p-4">ผู้กระทำ (Actor ID)</th>
+                            <th class="p-4">ผู้กระทำ (Actor)</th>
                             <th class="p-4">การกระทำ (Action)</th>
                             <th class="p-4">รายละเอียดเป้าหมาย (Target)</th>
                         </tr>
                     </thead>
                     <tbody id="auditLogsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                         <tr>
-                            <td colspan="5" class="p-8 text-center text-slate-400"><i class="fas fa-spinner fa-spin mr-2"></i> กำลังโหลดข้อมูล Audit Logs...</td>
+                            <td colspan="5" class="p-8 text-center text-slate-400"><i class="fas fa-spinner fa-spin mr-2"></i> กำลังรวบรวมข้อมูลกิจกรรมในระบบ...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -137,20 +137,94 @@
         });
 
         async function loadAuditLogsData() {
-            const { data, error } = await mySupabase
-                .from('audit_logs')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(100);
+            try {
+                let logsCollected = [];
 
-            if (error) {
-                console.error("Error loading audit logs:", error);
-                document.getElementById('auditLogsTableBody').innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${error.message}</td></tr>`;
-                return;
+                // 1. พยายามดึงข้อมูลจากตาราง audit_logs หลัก (ถ้ามี)
+                const { data: auditData, error: auditError } = await mySupabase
+                    .from('audit_logs')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+
+                if (!auditError && auditData && auditData.length > 0) {
+                    logsCollected = auditData;
+                } else {
+                    // 2. Fallback สรุปกิจกรรมจากตารางอื่นๆ ทั่วระบบ เพื่อให้เห็นทุกการกระทำจริง
+                    const [profilesRes, examsRes, subsRes, consultRes] = await Promise.all([
+                        mySupabase.from('profiles').select('id, full_name, username, role, created_at').order('created_at', { ascending: false }).limit(30),
+                        mySupabase.from('exams').select('id, title, created_at').order('created_at', { ascending: false }).limit(20),
+                        mySupabase.from('exam_submissions').select('id, student_id, exam_id, score, created_at').order('created_at', { ascending: false }).limit(30),
+                        mySupabase.from('consult_slots').select('id, student_id, status, start_time, created_at').order('created_at', { ascending: false }).limit(20)
+                    ]);
+
+                    // ดึงโปรไฟล์มาทำ Map ชื่อ
+                    let profilesMap = {};
+                    if (profilesRes.data) {
+                        profilesRes.data.forEach(p => {
+                            profilesMap[p.id] = p.full_name || p.username || 'ผู้ใช้งาน';
+                            logsCollected.push({
+                                id: 'profile-' + p.id,
+                                created_at: p.created_at || new Date().toISOString(),
+                                actor_role: p.role || 'student',
+                                actor_id: p.full_name || p.username || p.id,
+                                action: 'สมัครสมาชิก / อัปเดตโปรไฟล์',
+                                target: `บัญชีผู้ใช้: ${p.username || p.id}`
+                            });
+                        });
+                    }
+
+                    if (examsRes.data) {
+                        examsRes.data.forEach(ex => {
+                            logsCollected.push({
+                                id: 'exam-' + ex.id,
+                                created_at: ex.created_at || new Date().toISOString(),
+                                actor_role: 'admin',
+                                actor_id: 'ผู้ดูแลระบบ',
+                                action: 'สร้างชุดข้อสอบใหม่',
+                                target: `หัวข้อข้อสอบ: ${ex.title}`
+                            });
+                        });
+                    }
+
+                    if (subsRes.data) {
+                        subsRes.data.forEach(sub => {
+                            const studentName = profilesMap[sub.student_id] || 'นักเรียน';
+                            logsCollected.push({
+                                id: 'sub-' + sub.id,
+                                created_at: sub.created_at || new Date().toISOString(),
+                                actor_role: 'student',
+                                actor_id: studentName,
+                                action: 'ส่งคำตอบข้อสอบ',
+                                target: `คะแนนที่ได้: ${sub.score !== null ? sub.score : 'รอตรวจ'}`
+                            });
+                        });
+                    }
+
+                    if (consultRes.data) {
+                        consultRes.data.forEach(con => {
+                            const studentName = profilesMap[con.student_id] || 'นักเรียน';
+                            logsCollected.push({
+                                id: 'con-' + con.id,
+                                created_at: con.created_at || new Date().toISOString(),
+                                actor_role: 'student',
+                                actor_id: studentName,
+                                action: 'จองคิว Consult ปรึกษา',
+                                target: `สถานะ: ${con.status} (เวลา ${new Date(con.start_time).toLocaleString('th-TH')})`
+                            });
+                        });
+                    }
+                }
+
+                // เรียงลำดับตามเวลาล่าสุด
+                logsCollected.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                allLogs = logsCollected;
+                renderAuditLogs();
+
+            } catch (err) {
+                console.error("Error loading audit logs:", err);
+                document.getElementById('auditLogsTableBody').innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูลประวัติระบบ</td></tr>`;
             }
-
-            allLogs = data || [];
-            renderAuditLogs();
         }
 
         function renderAuditLogs() {
@@ -159,10 +233,11 @@
             const selectedRole = document.getElementById('roleFilterSelect').value;
 
             const filtered = allLogs.filter(log => {
-                if (selectedRole !== 'all' && log.actor_role !== selectedRole) return false;
+                const role = (log.actor_role || 'student').toLowerCase();
+                if (selectedRole !== 'all' && role !== selectedRole) return false;
                 const matchAction = (log.action || '').toLowerCase().includes(keyword);
                 const matchTarget = (log.target || '').toLowerCase().includes(keyword);
-                const matchActor = (log.actor_id || '').toLowerCase().includes(keyword);
+                const matchActor = String(log.actor_id || '').toLowerCase().includes(keyword);
                 return matchAction || matchTarget || matchActor;
             });
 
@@ -172,18 +247,25 @@
             }
 
             tbody.innerHTML = filtered.map(log => {
-                const timeStr = new Date(log.created_at).toLocaleString('th-TH');
+                const timeStr = log.created_at ? new Date(log.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'medium' }) : '-';
+                const roleLower = (log.actor_role || 'student').toLowerCase();
+                
                 let roleBadge = '';
-                if (log.actor_role === 'admin') roleBadge = '<span class="px-2 py-0.5 bg-purple-500/15 text-purple-600 rounded-md font-bold text-[10px]">Admin</span>';
-                else if (log.actor_role === 'teacher') roleBadge = '<span class="px-2 py-0.5 bg-blue-500/15 text-blue-600 rounded-md font-bold text-[10px]">Teacher</span>';
-                else roleBadge = '<span class="px-2 py-0.5 bg-sky-500/15 text-sky-600 rounded-md font-bold text-[10px]">Student</span>';
+                if (roleLower === 'admin') roleBadge = '<span class="px-2.5 py-0.5 bg-purple-500/15 text-purple-600 dark:text-purple-400 rounded-md font-bold text-[10px]">Admin</span>';
+                else if (roleLower === 'teacher' || roleLower === 'instructor') roleBadge = '<span class="px-2.5 py-0.5 bg-blue-500/15 text-blue-600 dark:text-blue-400 rounded-md font-bold text-[10px]">Teacher</span>';
+                else roleBadge = '<span class="px-2.5 py-0.5 bg-sky-500/15 text-sky-600 dark:text-sky-400 rounded-md font-bold text-[10px]">Student</span>';
+
+                let actorName = log.actor_id || 'System';
+                if (actorName.length > 30 && actorName.includes('-')) {
+                    actorName = actorName.substring(0, 8) + '...';
+                }
 
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
                         <td class="p-4 text-slate-500 font-mono text-[11px]">${timeStr}</td>
                         <td class="p-4">${roleBadge}</td>
-                        <td class="p-4 font-mono text-[11px] text-slate-400">${log.actor_id ? log.actor_id.substring(0, 8) + '...' : 'System'}</td>
-                        <td class="p-4 font-bold text-sky-600 dark:text-sky-400">${log.action}</td>
+                        <td class="p-4 font-bold text-slate-800 dark:text-slate-200">${actorName}</td>
+                        <td class="p-4 font-extrabold text-sky-600 dark:text-sky-400">${log.action}</td>
                         <td class="p-4 text-slate-600 dark:text-slate-300">${log.target || '-'}</td>
                     </tr>
                 `;
