@@ -139,8 +139,8 @@
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let studentsList = [];
-        let coursesMap = {}; // เก็บข้อมูลคอร์สทั้งหมด id -> title/code
-        let studentEnrollmentsMap = {}; // studentId -> array of course objects
+        let coursesMap = {}; 
+        let studentEnrollmentsMap = {}; 
         let currentSortField = 'created_at';
         let currentSortAsc = false;
 
@@ -170,36 +170,37 @@
             Swal.fire({ title: 'กำลังโหลดบัญชีผู้ใช้...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             
             try {
-                // 1. โหลดข้อมูลคอร์สทั้งหมดก่อน เพื่อเอามาจับคู่ชื่อคอร์ส
+                // 1. โหลดข้อมูลคอร์สทั้งหมดที่มีอยู่จริงในระบบ
                 const { data: coursesData } = await mySupabase.from('courses').select('id, title, course_code');
+                coursesMap = {};
                 if (coursesData) {
                     coursesData.forEach(c => {
                         coursesMap[String(c.id)] = c;
                     });
                 }
 
-                // 2. โหลดข้อมูลการลงทะเบียน (enrollments / course_enrollments)
+                // 2. โหลดข้อมูลการลงทะเบียน
                 let enrollsData = [];
                 const eRes1 = await mySupabase.from('enrollments').select('*');
                 if (eRes1.data) enrollsData = [...enrollsData, ...eRes1.data];
                 const eRes2 = await mySupabase.from('course_enrollments').select('*');
                 if (eRes2.data) enrollsData = [...enrollsData, ...eRes2.data];
 
-                // จัดกลุ่มคอร์สตาม student_id
+                // จัดกลุ่มคอร์สตาม student_id (กรองเฉพาะคอร์สที่มีอยู่จริงใน coursesMap เท่านั้น เพื่อตัดคอร์สที่ถูกลบออกไปแล้ว)
                 studentEnrollmentsMap = {};
                 enrollsData.forEach(en => {
                     const sId = String(en.student_id || en.user_id || '');
                     const cId = String(en.course_id || '');
-                    if (sId && cId) {
+                    // ถ้าคอร์สยังอยู่จริงในระบบ (ไม่ถูกลบ) ถึงจะนำมาแสดง
+                    if (sId && cId && coursesMap[cId]) {
                         if (!studentEnrollmentsMap[sId]) studentEnrollmentsMap[sId] = [];
-                        // ป้องกันการใส่ซ้ำ
                         if (!studentEnrollmentsMap[sId].includes(cId)) {
                             studentEnrollmentsMap[sId].push(cId);
                         }
                     }
                 });
 
-                // 3. โหลดโปรไฟล์นักเรียนผ่าน RPC หรือ fallback
+                // 3. โหลดโปรไฟล์นักเรียน
                 const { data: profiles, error } = await mySupabase.rpc('get_students_with_auth_created');
                 if (error) {
                     const { data: fallbackProfiles } = await mySupabase.from('profiles').select('*');
@@ -252,7 +253,6 @@
                 const grade = String(s.grade_level || s.grade || '').toLowerCase();
                 const school = String(s.school || '').toLowerCase();
 
-                // ค้นหาจากชื่อคอร์สที่นักเรียนลงทะเบียนด้วย
                 const sId = String(s.id);
                 const enrolledCIds = studentEnrollmentsMap[sId] || [];
                 let courseMatch = false;
@@ -304,7 +304,6 @@
                 const rawDate = s.created_at;
                 const createdAtStr = rawDate ? new Date(rawDate).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-';
 
-                // ดึงรายการคอร์สที่ลงทะเบียน
                 const enrolledCIds = studentEnrollmentsMap[sId] || [];
                 let coursesHtml = '';
                 if (enrolledCIds.length === 0) {
