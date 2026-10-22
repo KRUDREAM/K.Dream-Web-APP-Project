@@ -134,13 +134,20 @@
 
             <!-- Video Player Panel -->
             <div id="mainPlayerPanel" class="flex-1 w-full hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-3 sm:space-y-4 flex flex-col">
+                <!-- ปุ่มเรียกแถบรายการกลับมา เมื่อซ่อน sidebar -->
+                <div id="showSidebarTrigger" class="hidden">
+                    <button onclick="toggleSidebar()" class="px-4 py-2 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2">
+                        <i class="fas fa-columns"></i> 📂 แสดงรายการบทเรียน & เอกสาร
+                    </button>
+                </div>
+
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-2.5 border-b border-slate-200 dark:border-slate-800 gap-2.5">
                     <h3 id="currentPlayingTitle" class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 truncate pr-2 w-full sm:w-auto">
                         <i class="fas fa-play-circle text-sky-500 shrink-0"></i> <span class="truncate">กรุณาเลือกบทเรียนจากรายการด้านซ้าย</span>
                     </h3>
                     <div class="flex items-center gap-1 bg-slate-100 dark:bg-darkinput p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] shrink-0">
                         <button onclick="setVideoOrientation('landscape')" id="btnLandscape" class="px-2.5 py-1 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm"><i class="fas fa-desktop"></i> แนวนอน</button>
-                        <button onclick="setVideoOrientation('portrait')" id="btnPortrait" class="px-2.5 py-1 rounded-lg font-bold transition-all text-slate-600 dark:text-slate-300"><i class="fas fa-mobile-screen"></i> แนวตั้ง</button>
+                        <button onclick="setVideoOrientation('portrait')" id="btnPortrait" class="px-2.5 py-1 rounded-lg font-bold transition-all text-slate-600 dark:text-slate-300 hover:text-sky-500 flex items-center gap-1"><i class="fas fa-mobile-screen"></i> แนวตั้ง</button>
                     </div>
                 </div>
 
@@ -201,12 +208,18 @@
             isSidebarOpen = !isSidebarOpen;
             const sidebar = document.getElementById('sidebarPanel');
             const toggleText = document.getElementById('sidebarToggleText');
+            const showTrigger = document.getElementById('showSidebarTrigger');
+
             if (isSidebarOpen) {
-                sidebar.classList.remove('hidden'); sidebar.classList.add('flex');
+                sidebar.classList.remove('hidden'); 
+                sidebar.classList.add('flex');
                 if(toggleText) toggleText.textContent = 'ซ่อนรายการ';
+                if(showTrigger) showTrigger.classList.add('hidden');
             } else {
-                sidebar.classList.remove('flex'); sidebar.classList.add('hidden');
+                sidebar.classList.remove('flex'); 
+                sidebar.classList.add('hidden');
                 if(toggleText) toggleText.textContent = 'แสดงรายการ';
+                if(showTrigger) showTrigger.classList.remove('hidden');
             }
         }
 
