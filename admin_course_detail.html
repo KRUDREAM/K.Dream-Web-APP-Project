@@ -1078,33 +1078,42 @@ async function openAddLessonModal(type) {
                     created_at: new Date().toISOString()
                 };
 
-                // 1. บันทึกลงตารางบทเรียน course_lessons ก่อนเป็นหลัก
+                // 1. บันทึกลงตารางบทเรียน course_lessons
                 const { error } = await mySupabase.from('course_lessons').insert([payload]);
                 
                 if (!error) {
-                    Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1000, showConfirmButton: false });
-                    
-                    // 2. งานรอง (สร้างประกาศ & บันทึก Log) ให้วิ่งทำงานเบื้องหลังพร้อมกันแบบขนาน (Parallel) เพื่อความรวดเร็ว
+                    // 2. สร้างประกาศลงตาราง announcements แบบปลอดภัย (ป้องกัน Error 400 จากโครงสร้างคอลัมน์)
                     const announcementTitle = formValues.isVideo 
                         ? `🎬 มีวิดีโอย้อนหลังใหม่: ${formValues.title}` 
                         : `📁 มีเอกสาร PDF ใหม่: ${formValues.title}`;
-
-                    Promise.all([
-                        mySupabase.from('announcements').insert([{
+                    
+                    try {
+                        await mySupabase.from('announcements').insert([{
                             title: announcementTitle,
-                            content: `อัปเดตเนื้อหาใหม่ในคอร์ส: ${currentCourse ? currentCourse.title : 'คอร์สเรียน'}`,
-                            type: formValues.isVideo ? 'video' : 'pdf',
                             created_at: new Date().toISOString()
-                        }]),
-                        typeof logSystemAction === 'function' ? logSystemAction(
-                            'ADMIN_ADD_COURSE_LESSON', 
-                            `แอดมินเพิ่ม${formValues.isVideo ? 'วิดีโอ' : 'เอกสาร'} "${formValues.title}" ในคอร์ส`, 
-                            { course_id: courseId, title: formValues.title }
-                        ) : Promise.resolve()
-                    ]).catch(err => console.error("Background task error:", err));
+                        }]);
+                    } catch (annErr) {
+                        console.error("Announcement insert error:", annErr);
+                    }
 
+                    // 3. บันทึกระบบ Log (ถ้ามีฟังก์ชัน)
+                    if (typeof logSystemAction === 'function') {
+                        try {
+                            await logSystemAction(
+                                'ADMIN_ADD_COURSE_LESSON', 
+                                `แอดมินเพิ่ม${formValues.isVideo ? 'วิดีโอ' : 'เอกสาร'} "${formValues.title}" ในคอร์ส`, 
+                                { course_id: courseId, title: formValues.title }
+                            );
+                        } catch (logErr) {
+                            console.error("Log error:", logErr);
+                        }
+                    }
+
+                    Swal.fire({ icon: 'success', title: 'บันทึกและสร้างประกาศสำเร็จ!', timer: 1200, showConfirmButton: false });
                     loadLessons();
-                    loadSystemNotifications();
+                    if (typeof loadSystemNotifications === 'function') {
+                        loadSystemNotifications();
+                    }
                 } else {
                     Swal.fire('บันทึกล้มเหลว', `<code class="text-xs text-red-400 font-mono">${error.message}</code>`, 'error');
                 }
