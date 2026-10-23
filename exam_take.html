@@ -57,7 +57,7 @@
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-16" oncontextmenu="return false;">
 
-    <!-- 🌟 แผงภาพรวมข้อสอบ ลอยอยู่กึ่งกลางซ้าย พร้อมปุ่มซ่อน/แสดง และปุ่มส่งข้อสอบ -->
+    <!-- 🌟 แผงภาพรวมข้อสอบ ลอยอยู่กึ่งกลางซ้าย พร้อมปุ่มซ่อน/แสดง -->
     <div id="leftFloatOverview" class="fixed left-3 top-1/2 -translate-y-1/2 z-40 hidden lg:flex items-center transition-all duration-300">
         <div id="overviewCardBody" class="hitech-card rounded-2xl p-3 shadow-2xl backdrop-blur-md bg-white/95 dark:bg-darkbox/95 border border-sky-500/40 w-52 space-y-2.5 transition-all duration-300">
             <div class="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
@@ -76,15 +76,8 @@
                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> ธง</span>
             </div>
 
-            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto pr-1 hide-scrollbar">
+            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-56 overflow-y-auto pr-1 hide-scrollbar">
                 <!-- Populated dynamically -->
-            </div>
-
-            <!-- ปุ่มส่งข้อสอบย้ายมาไว้ที่แถบด้านซ้าย -->
-            <div class="pt-2 border-t border-slate-200 dark:border-slate-800">
-                <button onclick="confirmSubmitExam()" id="submitExamBtnLeft" class="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5">
-                    <i class="fas fa-paper-plane"></i> ส่งข้อสอบ
-                </button>
             </div>
         </div>
 
@@ -93,6 +86,7 @@
         </button>
     </div>
 
+    <!-- 🌟 แถบ Navbar ด้านบน พร้อมย้ายปุ่มส่งข้อสอบมาไว้ใกล้ Progress Bar -->
     <nav class="glass-nav fixed w-full top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center gap-2">
             <div class="flex items-center gap-3 min-w-0">
@@ -105,8 +99,13 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-3 shrink-0">
-                <div class="hidden md:flex flex-col gap-1 w-32">
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                <!-- ปุ่มส่งข้อสอบย้ายมาไว้บน Navbar ข้าง ๆ Progress Bar -->
+                <button onclick="confirmSubmitExam()" class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 shrink-0">
+                    <i class="fas fa-paper-plane"></i> <span class="hidden sm:inline">ส่งข้อสอบ</span>
+                </button>
+
+                <div class="hidden md:flex flex-col gap-1 w-28 sm:w-32">
                     <div class="flex justify-between text-[10px] font-bold">
                         <span id="autoSaveStatus" class="text-emerald-500 flex items-center gap-1"><i class="fas fa-check-circle"></i> บันทึกแล้ว</span>
                         <span id="navProgressText" class="text-slate-400">0/0</span>
@@ -172,10 +171,6 @@
                         </h2>
                         <p id="choiceFormatSubLabel" class="text-[11px] text-slate-400 mt-0.5">รูปแบบตัวเลือก: กำลังโหลด...</p>
                     </div>
-                    <!-- ปุ่มส่งข้อสอบบนมือถือหรือจอเล็ก -->
-                    <button onclick="confirmSubmitExam()" id="submitExamBtnMobile" class="lg:hidden px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs rounded-xl shadow-md">
-                        <i class="fas fa-paper-plane"></i> ส่งข้อสอบ
-                    </button>
                 </div>
 
                 <div id="questionsListContainer" class="space-y-3">
@@ -947,7 +942,7 @@
         }
 
         async function confirmSubmitExam() {
-            if (isSubmitting) return; // ป้องกันการกดซ้ำระหว่างประมวลผล
+            if (isSubmitting) return;
 
             let unanswered = [];
             currentQuestions.forEach((q, idx) => {
@@ -1002,7 +997,6 @@
             }
         }
 
-        // 🌟 ปรับปรุงฟังก์ชัน submitExam ให้เร็วขึ้น ป้องกันลูปค้าง และล็อกการส่งซ้ำ
         async function submitExam(isTimeout = false) {
             if (isSubmitting) return;
             isSubmitting = true;
@@ -1087,7 +1081,6 @@
 
             const attemptId = newAttempt.id;
 
-            // บันทึกคำตอบแบบ Batch Insert เพื่อความเร็วและป้องกันการค้าง
             const answersPayloads = currentQuestions.map(q => {
                 const studentAns = studentAnswers[q.id];
                 const isEssay = q.question_type === 'essay';
