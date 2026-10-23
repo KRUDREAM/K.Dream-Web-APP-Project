@@ -180,7 +180,7 @@
 
         // ⚡ ฟังก์ชันโพสต์ประกาศอัตโนมัติ (ดึงชื่อคอร์สจริงมาแสดงแทนรหัส)
         async function autoPostAnnouncementForExam(examTitle, examCode, courseId, status) {
-            if (status !== 'public') return; // โพสต์เฉพาะตอนที่สถานะเป็น public (เปิดบริการทันที)
+            if (status !== 'public') return;
             try {
                 let courseName = 'ทุกคอร์สเรียน';
                 let targetTypeVal = 'all';
@@ -189,7 +189,7 @@
                 if (courseId) {
                     let cId = Array.isArray(courseId) ? courseId[0] : courseId;
                     if (cId && coursesMap[cId]) {
-                        courseName = coursesMap[cId].title; // ใช้ชื่อคอร์สเต็มๆ
+                        courseName = coursesMap[cId].title;
                         targetTypeVal = 'course';
                         targetCourseVal = cId;
                     }
@@ -829,12 +829,21 @@
                 if (isEdit) {
                     const { error } = await mySupabase.from('exams').update(formValues).eq('id', examData.id);
                     resError = error;
+                    
+                    // 🌟 บันทึก Log ฝั่ง Admin: แก้ไขข้อสอบ
+                    if (!resError && typeof logSystemAction === 'function') {
+                        await logSystemAction('ADMIN_UPDATE_EXAM', `แอดมินแก้ไขชุดข้อสอบ: ${formValues.title}`, { exam_id: examData.id });
+                    }
                 } else {
                     const { error } = await mySupabase.from('exams').insert([formValues]);
                     resError = error;
+                    
+                    // 🌟 บันทึก Log ฝั่ง Admin: สร้างข้อสอบใหม่
+                    if (!resError && typeof logSystemAction === 'function') {
+                        await logSystemAction('ADMIN_CREATE_EXAM', `แอดมินสร้างชุดข้อสอบใหม่: ${formValues.title}`, { title: formValues.title });
+                    }
                 }
 
-                // ⚡ โพสต์ประกาศอัตโนมัติเฉพาะตอนเปลี่ยนมาเป็นสถานะ public หรือเปิดข้อสอบใหม่แบบ public
                 if (!resError && formValues.status === 'public' && wasNotPublishedBefore) {
                     let targetCourseVal = formValues.course_id?.[0] || '';
                     await autoPostAnnouncementForExam(
@@ -898,7 +907,13 @@
 
         async function deleteExam(id) {
             if ((await Swal.fire({ title: 'ยืนยันลบชุดข้อสอบนี้?', icon: 'warning', showCancelButton: true })).isConfirmed) {
-                await mySupabase.from('exams').delete().eq('id', id);
+                const { error } = await mySupabase.from('exams').delete().eq('id', id);
+                
+                // 🌟 บันทึก Log ฝั่ง Admin: ลบข้อสอบ
+                if (!error && typeof logSystemAction === 'function') {
+                    await logSystemAction('ADMIN_DELETE_EXAM', `แอดมินลบชุดข้อสอบ ID: ${id}`, { exam_id: id });
+                }
+
                 loadExams();
             }
         }
