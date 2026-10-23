@@ -48,19 +48,24 @@ async function autoPostAnnouncement(category, title, content, targetType = 'all'
 
 async function logSystemAction(actionType, description, metadata = {}) {
     try {
-        const studentId = localStorage.getItem('student_id') || localStorage.getItem('id') || 'guest';
-        const studentName = document.getElementById('studentNavName')?.textContent || localStorage.getItem('student_name') || 'ไม่ระบุชื่อ';
-        const userRole = localStorage.getItem('role') || 'student';
+        // ดึงชื่อและบทบาทจาก localStorage หรือหน้าจอ
+        const userId = localStorage.getItem('user_id') || localStorage.getItem('student_id') || 'admin';
+        const userName = localStorage.getItem('admin_name') || localStorage.getItem('student_name') || document.getElementById('adminNavName')?.textContent || 'ผู้ดูแลระบบ';
+        const userRole = localStorage.getItem('role') || 'admin'; // ถ้าอยู่หน้าแอดมิน role จะเป็น admin
 
-        await mySupabase.from('audit_logs').insert([{
-            user_id: studentId,
-            user_name: studentName,
-            role: userRole,
-            action_type: actionType,
-            description: description,
-            metadata: metadata
-        }]);
+        if (typeof mySupabase !== 'undefined') {
+            await mySupabase.from('audit_logs').insert([{
+                user_id: userId,
+                user_name: userName,
+                role: userRole,
+                action_type: actionType,
+                description: description,
+                metadata: metadata
+            }]);
+        }
     } catch (err) {
-        console.warn("Failed to log action:", err);
+        console.warn("Failed to log admin action:", err);
     }
 }
+
+
