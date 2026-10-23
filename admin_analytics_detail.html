@@ -47,6 +47,8 @@
         .dark .glow-badge-sky { background: rgba(2, 132, 199, 0.2); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); }
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
+        .hide-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .hide-scrollbar::-webkit-scrollbar-thumb { background: rgba(2, 132, 199, 0.3); border-radius: 9999px; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-24">
@@ -119,10 +121,10 @@
             </div>
         </div>
 
-        <!-- Charts Layout -->
+        <!-- Charts Layout (Difficulty Chart side-by-side with Compact Ranking Table) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Difficulty Chart with Dropdown Toggle (Default to Incorrect) -->
-            <div class="lg:col-span-12 hitech-card p-6 rounded-3xl space-y-4">
+            <!-- Difficulty Chart with Dropdown Toggle (Left: 8 Cols) -->
+            <div class="lg:col-span-8 hitech-card p-6 rounded-3xl space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 id="diffChartTitle" class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                         <i class="fas fa-chart-bar text-sky-500"></i> สถิติความยาก-ง่ายรายข้อ (% ผู้ตอบผิด)
@@ -135,6 +137,33 @@
                 <div class="relative h-64 w-full"><canvas id="questionDifficultyChart"></canvas></div>
             </div>
 
+            <!-- Compact Ranking Table (Right: 4 Cols) -->
+            <div class="lg:col-span-4 hitech-card p-6 rounded-3xl space-y-4 flex flex-col">
+                <div class="flex justify-between items-center pb-2 border-b border-sky-500/20">
+                    <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-trophy text-amber-500"></i> อันดับคะแนน (Ranking)
+                    </h3>
+                    <span id="rankingCountBadge" class="text-[10px] font-bold px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-md">-- คน</span>
+                </div>
+                <div class="overflow-y-auto max-h-64 hide-scrollbar flex-1">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 dark:bg-slate-800/80 font-bold border-b dark:border-slate-700 text-[11px]">
+                                <th class="p-2 text-center w-12">อันดับ</th>
+                                <th class="p-2">ชื่อ-นามสกุล</th>
+                                <th class="p-2 text-center">คะแนน</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compactRankingTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                            <tr><td colspan="3" class="text-center py-6 text-slate-400">กำลังโหลด...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Secondary Charts Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <!-- Score Spread / Distribution Chart -->
             <div class="lg:col-span-8 hitech-card p-6 rounded-3xl space-y-4">
                 <div class="flex justify-between items-center">
@@ -216,6 +245,16 @@
             } else {
                 window.location.href = 'admin_analytics.html';
             }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
 
         function parseChoiceIndex(val) {
@@ -302,6 +341,7 @@
             document.getElementById('statAvgPercent').textContent = `${avgPercent}%`;
 
             renderDifficultyChart();
+            renderCompactRankingTable();
             renderScoreSpreadChart(scores, maxScore);
             renderScoreDistributionChart(scores, maxScore);
             renderSubmissionsTable();
@@ -360,6 +400,59 @@
                     scales: { y: { beginAtZero: true, max: 100 } }
                 }
             });
+        }
+
+        // Render Compact Ranking Table with shared ranking for ties
+        function renderCompactRankingTable() {
+            const tbody = document.getElementById('compactRankingTableBody');
+            const countBadge = document.getElementById('rankingCountBadge');
+            if (!tbody) return;
+
+            if (allAttempts.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-slate-400 text-xs">ยังไม่มีข้อมูลผู้สอบ</td></tr>`;
+                if (countBadge) countBadge.textContent = '0 คน';
+                return;
+            }
+
+            // Sort attempts by score descending
+            const sortedAttempts = [...allAttempts].sort((a, b) => {
+                const scoreA = a.total_score !== undefined && a.total_score !== null ? Number(a.total_score) : (Number(a.score) || 0);
+                const scoreB = b.total_score !== undefined && b.total_score !== null ? Number(b.total_score) : (Number(b.score) || 0);
+                return scoreB - scoreA;
+            });
+
+            if (countBadge) countBadge.textContent = `${sortedAttempts.length} คน`;
+
+            let currentRank = 1;
+            tbody.innerHTML = sortedAttempts.map((att, idx) => {
+                const score = att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0);
+                if (idx > 0) {
+                    const prevScore = sortedAttempts[idx - 1].total_score !== undefined && sortedAttempts[idx - 1].total_score !== null ? Number(sortedAttempts[idx - 1].total_score) : (Number(sortedAttempts[idx - 1].score) || 0);
+                    if (score < prevScore) {
+                        currentRank = idx + 1;
+                    }
+                }
+
+                const sId = att.student_id || att.user_id;
+                const profile = allStudentsMap[String(sId)] || {};
+                const fullName = (profile.first_name || profile.name || profile.full_name || '').trim() + 
+                                 (profile.last_name ? ' ' + profile.last_name : '') || 
+                                 att.student_name || att.full_name || 'ไม่ระบุชื่อ';
+                const max = allQuestions.length || 10;
+
+                let rankBadge = `<span class="font-mono font-bold">${currentRank}</span>`;
+                if (currentRank === 1) rankBadge = `<span class="px-2 py-0.5 bg-amber-500/10 text-amber-500 font-extrabold rounded-md text-[11px]">🥇 1</span>`;
+                else if (currentRank === 2) rankBadge = `<span class="px-2 py-0.5 bg-slate-300/20 text-slate-500 dark:text-slate-400 font-extrabold rounded-md text-[11px]">🥈 2</span>`;
+                else if (currentRank === 3) rankBadge = `<span class="px-2 py-0.5 bg-amber-700/10 text-amber-600 font-extrabold rounded-md text-[11px]">🥉 3</span>`;
+
+                return `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td class="p-2 text-center">${rankBadge}</td>
+                        <td class="p-2 font-medium truncate max-w-[140px]" title="${escapeHtml(fullName)}">${escapeHtml(fullName)}</td>
+                        <td class="p-2 text-center font-mono font-bold text-indigo-600 dark:text-indigo-400">${score}/${max}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function renderScoreSpreadChart(scores, maxScore) {
@@ -487,8 +580,8 @@
                 const profile = allStudentsMap[String(sId)] || {};
                 
                 const fullName = (profile.first_name || profile.name || profile.full_name || '').trim() + 
-                                 (profile.last_name ? ' ' + profile.last_name : '') || 
-                                 att.student_name || att.full_name || 'ไม่ระบุชื่อ';
+                           (profile.last_name ? ' ' + profile.last_name : '') || 
+                           att.student_name || att.full_name || 'ไม่ระบุชื่อ';
                 
                 const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
                 const score = att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0);
@@ -499,7 +592,7 @@
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-3 font-mono font-bold">${idx + 1}</td>
                         <td class="p-3 font-mono text-sky-600">${studentIdCode}</td>
-                        <td class="p-3 font-bold">${fullName}</td>
+                        <td class="p-3 font-bold">${escapeHtml(fullName)}</td>
                         <td class="p-3 text-center font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${score} / ${max}</td>
                         <td class="p-3 text-center text-slate-400 text-[11px]">${dateStr}</td>
                         <td class="p-3 text-center">
@@ -528,7 +621,6 @@
             renderSubmissionsTable();
         }
 
-        // ฟังก์ชันประเมินระดับเกณฑ์ตามเปอร์เซ็นต์หมวดหมู่ (ตรวจสอบว่าเปิดใช้งานเกณฑ์หรือไม่)
         function evaluateCategoryCriteria(categoryName, categoryPct) {
             if (!currentExam || !currentExam.enable_grading_criteria || !Array.isArray(currentExam.grading_criteria) || currentExam.grading_criteria.length === 0) {
                 return null;
@@ -555,7 +647,7 @@
                 let evalLevel = evaluateCategoryCriteria(cat, parseFloat(pct));
                 return `
                     <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
-                        <td style="padding: 8px;"><b>${cat}</b></td>
+                        <td style="padding: 8px;"><b>${escapeHtml(cat)}</b></td>
                         <td style="padding: 8px; text-align: center;">${stat.correct} / ${stat.total}</td>
                         <td style="padding: 8px; text-align: center; font-weight: bold; color: #0284c7;">${pct}%</td>
                         ${hasCriteria ? `<td style="padding: 8px; text-align: center;">${evalLevel || '-'}</td>` : ''}
@@ -572,7 +664,7 @@
                 <html lang="th">
                 <head>
                     <meta charset="UTF-8">
-                    <title>รายงานผลการสอบ - ${studentName}</title>
+                    <title>รายงานผลการสอบ - ${escapeHtml(studentName)}</title>
                     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
                     <style>
                         body { font-family: 'Prompt', sans-serif; padding: 30px; color: #1e293b; background: #ffffff; }
@@ -585,10 +677,10 @@
                 <body>
                     <div class="header-box">
                         <h2>ใบรายงานผลและวิเคราะห์ผลการสอบรายบุคคล</h2>
-                        <p><b>ชื่อชุดข้อสอบ:</b> ${currentExam ? currentExam.title : '-'}</p>
-                        <p><b>รหัสนักเรียน:</b> ${studentIdCode} | <b>ชื่อ-นามสกุล:</b> ${studentName}</p>
+                        <p><b>ชื่อชุดข้อสอบ:</b> ${escapeHtml(currentExam ? currentExam.title : '-')}</p>
+                        <p><b>รหัสนักเรียน:</b> ${escapeHtml(studentIdCode)} | <b>ชื่อ-นามสกุล:</b> ${escapeHtml(studentName)}</p>
                         <p><b>คะแนนรวมที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">${score} / ${maxScore}</span> คะแนน (${totalPct}%)</p>
-                        ${hasCriteria && overallEval ? `<p><b>ผลการประเมินภาพรวม:</b> <span style="color: #0284c7; font-weight: bold;">${overallEval}</span></p>` : ''}
+                        ${hasCriteria && overallEval ? `<p><b>ผลการประเมินภาพรวม:</b> <span style="color: #0284c7; font-weight: bold;">${escapeHtml(overallEval)}</span></p>` : ''}
                     </div>
                     <h3>คะแนน${hasCriteria ? 'และเกณฑ์การประเมิน' : ''}แยกตามหมวดหมู่เนื้อหา</h3>
                     <table>
@@ -653,11 +745,11 @@
                 return `
                     <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40'} space-y-1.5 text-xs text-left">
                         <div class="flex justify-between font-extrabold">
-                            <span class="text-slate-800 dark:text-slate-100">ข้อที่ ${q.question_number} [${catTag}]: ${q.question_text || q.content || 'โจทย์คำถาม'}</span>
+                            <span class="text-slate-800 dark:text-slate-100">ข้อที่ ${q.question_number} [${escapeHtml(catTag)}]: ${escapeHtml(q.question_text || q.content || 'โจทย์คำถาม')}</span>
                             <span class="${isCorrect ? 'text-emerald-500' : 'text-rose-500'}">${isCorrect ? '✅ ถูกต้อง' : '❌ ตอบผิด'}</span>
                         </div>
                         <div class="text-[11px] text-slate-500 dark:text-slate-400">
-                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${displayUserAns}</span> | เฉลย: <span class="font-bold text-emerald-600">${displayCorrectAns}</span>
+                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(displayUserAns)}</span> | เฉลย: <span class="font-bold text-emerald-600">${escapeHtml(displayCorrectAns)}</span>
                         </div>
                     </div>
                 `;
@@ -670,8 +762,8 @@
                 let levelName = evaluateCategoryCriteria(cat, parseFloat(pct));
                 return `
                     <div class="p-2.5 bg-sky-500/5 border border-sky-500/20 rounded-xl flex justify-between items-center text-[11px]">
-                        <div><b>หมวด:</b> ${cat}</div>
-                        <div>คะแนน: <b>${stat.correct}/${stat.total}</b> (<span class="text-sky-600 font-bold">${pct}%</span>)${hasCriteria && levelName ? ` -> ระดับ: <span class="font-bold text-purple-600 dark:text-purple-400">${levelName}</span>` : ''}</div>
+                        <div><b>หมวด:</b> ${escapeHtml(cat)}</div>
+                        <div>คะแนน: <b>${stat.correct}/${stat.total}</b> (<span class="text-sky-600 font-bold">${pct}%</span>)${hasCriteria && levelName ? ` -> ระดับ: <span class="font-bold text-purple-600 dark:text-purple-400">${escapeHtml(levelName)}</span>` : ''}</div>
                     </div>
                 `;
             }).join('');
@@ -683,8 +775,8 @@
                     <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1 text-xs">
                         <div class="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 flex justify-between items-center">
                             <div>
-                                <div class="font-extrabold text-sky-600 dark:text-sky-400">${currentExam.title}</div>
-                                <div class="text-slate-500">นักเรียน: <strong>${name} (${studentIdCode})</strong></div>
+                                <div class="font-extrabold text-sky-600 dark:text-sky-400">${escapeHtml(currentExam.title)}</div>
+                                <div class="text-slate-500">นักเรียน: <strong>${escapeHtml(name)} (${escapeHtml(studentIdCode)})</strong></div>
                             </div>
                             <div class="text-right font-extrabold text-indigo-600 dark:text-indigo-400 text-sm">
                                 ${score} / ${maxScore} คะแนน
