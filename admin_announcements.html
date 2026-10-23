@@ -281,13 +281,12 @@
             }
         }
 
-        // ฟังก์ชันแปลง Target Value (หากเป็น ID คอร์ส ให้เปลี่ยนเป็นชื่อคอร์สเต็มๆ)
         function formatCourseTargetValue(targetValue) {
             if (!targetValue) return '-';
             const parts = targetValue.split(',');
             const formattedParts = parts.map(part => {
                 const trimmed = part.trim();
-                return coursesMap[trimmed] || trimmed; // ถ้าตรงกับ ID/Code ให้ดึงชื่อคอร์ส ถ้าไม่ตรงให้แสดงค่าเดิม
+                return coursesMap[trimmed] || trimmed;
             });
             return formattedParts.join(', ');
         }
@@ -504,6 +503,12 @@
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
                     return;
                 }
+
+                // 🌟 บันทึก Log ฝั่ง Admin: แก้ไขประกาศ
+                if (typeof logSystemAction === 'function') {
+                    await logSystemAction('ADMIN_UPDATE_ANNOUNCEMENT', `แอดมินแก้ไขประกาศ: ${title}`, { announcement_id: editId });
+                }
+
                 Swal.fire({ icon: 'success', title: 'แก้ไขประกาศสำเร็จ', timer: 1500, showConfirmButton: false });
             } else {
                 const { error } = await mySupabase.from('announcements').insert([payload]);
@@ -512,6 +517,12 @@
                     return;
                 }
                 await mySupabase.from('notifications').insert([{ type: 'announcement', message: `${title}: ${content.substring(0, 50)}...` }]);
+
+                // 🌟 บันทึก Log ฝั่ง Admin: สร้างประกาศใหม่
+                if (typeof logSystemAction === 'function') {
+                    await logSystemAction('ADMIN_CREATE_ANNOUNCEMENT', `แอดมินสร้างประกาศใหม่: ${title}`, { title: title, category: category });
+                }
+
                 Swal.fire({ icon: 'success', title: 'โพสต์ประกาศสำเร็จ', timer: 1500, showConfirmButton: false });
             }
 
@@ -568,7 +579,13 @@
             });
 
             if (res.isConfirmed) {
-                await mySupabase.from('announcements').delete().eq('id', id);
+                const { error } = await mySupabase.from('announcements').delete().eq('id', id);
+
+                // 🌟 บันทึก Log ฝั่ง Admin: ลบประกาศ
+                if (!error && typeof logSystemAction === 'function') {
+                    await logSystemAction('ADMIN_DELETE_ANNOUNCEMENT', `แอดมินลบประกาศ ID: ${id}`, { announcement_id: id });
+                }
+
                 Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1200, showConfirmButton: false });
                 loadAnnouncements();
             }
