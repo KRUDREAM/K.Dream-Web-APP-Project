@@ -217,9 +217,7 @@
         let enableGradingCriteria = false;
         let gradingCriteriaList = [];
 
-        // ฟังก์ชันคำนวณเวลาที่ใช้ไปอย่างแม่นยำและยืดหยุ่น
         function calculateTimeSpentMinutes(attempt, exam) {
-            // 1. ตรวจสอบฟิลด์เวลาที่ใช้โดยตรง
             if (attempt.time_spent !== undefined && attempt.time_spent !== null && !isNaN(attempt.time_spent)) {
                 const val = Number(attempt.time_spent);
                 return val > 60 ? val / 60 : val;
@@ -233,7 +231,6 @@
                 return val > 60 ? val / 60 : val;
             }
 
-            // 2. ใช้เวลาตั้งต้นจาก exam (duration / time_limit / exam_duration) ลบด้วย remaining_time หรือ time_remaining
             const remTime = attempt.remaining_time !== undefined && attempt.remaining_time !== null ? attempt.remaining_time : attempt.time_remaining;
             const examDur = exam ? (exam.duration || exam.time_limit || exam.exam_duration) : null;
 
@@ -247,13 +244,11 @@
                 if (spent >= 0) return spent;
             }
 
-            // 3. ใช้ duration ใน attempt ถ้ามี
             if (attempt.duration !== undefined && attempt.duration !== null && !isNaN(attempt.duration)) {
                 const val = Number(attempt.duration);
                 return val > 60 ? val / 60 : val;
             }
 
-            // 4. คำนวณจากช่วงเวลาระหว่างเริ่มต้นทำ (started_at / created_at) ถึงเวลาส่ง (submitted_at / submission_time)
             const start = attempt.started_at || attempt.created_at || attempt.start_time;
             const end = attempt.submitted_at || attempt.submission_time || attempt.completed_at || attempt.updated_at;
             if (start && end) {
@@ -266,7 +261,7 @@
             return 0;
         }
 
-        // Custom Chart.js Plugin for Vertical Reference Line matching Admin style
+        // Custom Chart.js Plugin with safe boundary checking and padding spacing
         const verticalLinePlugin = {
             id: 'verticalLine',
             afterDraw(chart) {
@@ -292,8 +287,18 @@
                     ctx.save();
                     ctx.font = 'bold 11px Prompt, sans-serif';
                     ctx.fillStyle = opt.color || '#f59e0b';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(opt.label, xCoord, chartArea.top - 8);
+                    
+                    let align = 'center';
+                    let renderX = xCoord;
+                    if (xCoord - 45 < chartArea.left) {
+                        align = 'left';
+                        renderX = chartArea.left + 2;
+                    } else if (xCoord + 45 > chartArea.right) {
+                        align = 'right';
+                        renderX = chartArea.right - 2;
+                    }
+                    ctx.textAlign = align;
+                    ctx.fillText(opt.label, renderX, chartArea.top - 10);
                     ctx.restore();
                 }
             }
@@ -430,7 +435,6 @@
                 document.getElementById('navTitle').textContent = cachedExamTitle;
                 document.getElementById('subTime').innerHTML = '<i class="fas fa-clock mr-1 text-sky-500"></i> เวลาส่ง: ' + new Date(attempt.submission_time || attempt.submitted_at || Date.now()).toLocaleString('th-TH');
 
-                // คำนวณเวลาที่ใช้ไปโดยเรียกใช้ฟังก์ชัน calculateTimeSpentMinutes ที่รองรับครบถ้วน
                 const timeSpentMin = calculateTimeSpentMinutes(attempt, exam);
                 const timeSpentText = timeSpentMin > 0 ? `${timeSpentMin.toFixed(1)} นาที` : 'ไม่ระบุ';
                 document.getElementById('timeSpentSpan').innerHTML = `<i class="fas fa-hourglass-half mr-1 text-amber-500"></i> เวลาที่ใช้: ${timeSpentText}`;
@@ -790,6 +794,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        layout: { padding: { top: 25 } }, // เพิ่ม padding ด้านบนเพื่อให้ป้ายชื่อค่าเฉลี่ยไม่ชนหรือล้นขอบ
                         plugins: {
                             legend: { display: false },
                             verticalLine: {
