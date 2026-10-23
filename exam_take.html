@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMS | ศูนย์สอบออนไลน์</title>
+    <title>KRUDREAM LAND | ศูนย์สอบออนไลน์</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -129,23 +129,26 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
-            <!-- ฝั่งซ้าย: PDF Viewer พร้อมปุ่มซูมเข้า-ออก -->
+            <!-- ฝั่งซ้าย: PDF Viewer รองรับการซูมด้วยเมาส์และนิ้ว -->
             <div id="pdfViewerCard" class="hidden lg:col-span-8 hitech-card p-4 rounded-3xl space-y-3 sticky top-24">
                 <div class="flex justify-between items-center flex-wrap gap-2">
-                    <h3 class="font-bold text-xs text-red-600 flex items-center gap-1.5"><i class="fas fa-file-pdf"></i> เอกสารข้อสอบ (ความคมชัดสูง)</h3>
+                    <h3 class="font-bold text-xs text-red-600 flex items-center gap-1.5"><i class="fas fa-file-pdf"></i> เอกสารข้อสอบ (ซูมด้วยเมาส์หรือนิ้วได้)</h3>
                     
                     <div class="flex items-center gap-2">
                         <div class="flex items-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 shadow-sm">
-                            <button onclick="adjustPdfZoom(-0.25)" class="w-7 h-7 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-500 font-bold rounded-lg transition-all" title="ซูมออก"><i class="fas fa-search-minus text-xs"></i></button>
+                            <button onclick="zoomOut()" class="w-7 h-7 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-500 font-bold rounded-lg transition-all" title="ซูมออก"><i class="fas fa-search-minus text-xs"></i></button>
                             <span id="pdfZoomLabel" class="px-2 text-[11px] font-mono font-bold text-slate-500">100%</span>
-                            <button onclick="adjustPdfZoom(0.25)" class="w-7 h-7 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-500 font-bold rounded-lg transition-all" title="ซูมเข้า"><i class="fas fa-search-plus text-xs"></i></button>
+                            <button onclick="zoomIn()" class="w-7 h-7 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-500 font-bold rounded-lg transition-all" title="ซูมเข้า"><i class="fas fa-search-plus text-xs"></i></button>
+                            <button onclick="resetZoom()" class="px-2 text-[10px] font-bold text-slate-500 hover:text-sky-500" title="รีเซ็ตขนาด">Reset</button>
                         </div>
                         <span class="px-2.5 py-1 bg-red-500/10 text-red-600 text-[10px] font-bold rounded-lg border border-red-500/20"><i class="fas fa-shield-alt mr-1"></i> ป้องกันดาวน์โหลด</span>
                     </div>
                 </div>
 
-                <div id="pdfContainer" class="w-full h-[76vh] bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-y-auto border p-4 flex flex-col items-center gap-4 select-none" oncontextmenu="return false;">
-                    <div class="text-slate-400 text-xs py-20">กำลังเรนเดอร์เอกสารข้อสอบความคมชัดสูง...</div>
+                <div id="pdfContainer" class="w-full h-[76vh] bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-auto border p-4 relative select-none cursor-grab active:cursor-grabbing" oncontextmenu="return false;">
+                    <div id="pdfScaleWrapper" class="transition-transform duration-75 origin-top-left flex flex-col items-center gap-4 w-full">
+                        <div class="text-slate-400 text-xs py-20">กำลังเรนเดอร์เอกสารข้อสอบความคมชัดสูง...</div>
+                    </div>
                 </div>
             </div>
 
@@ -194,7 +197,7 @@
         let isOverviewHidden = false;
 
         let pdfGlobalDoc = null;
-        let currentPdfScale = 2.0;
+        let currentZoom = 1.0; // ซูมด้วยสเกล CSS ทันที ไหลลื่น
 
         let tabSwitchCount = 0;
         const MAX_ALLOWED_VIOLATIONS = 3;
@@ -401,6 +404,7 @@
                 if (rightCard) rightCard.className = 'lg:col-span-4 hitech-card p-5 rounded-3xl space-y-5';
                 if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-list-check text-sky-500"></i> กระดาษคำตอบ`;
                 loadAndRenderPDF(exam.pdf_url);
+                initPdfZoomInteractions();
             } else {
                 if (pdfCard) pdfCard.classList.add('hidden');
                 if (rightCard) rightCard.className = 'lg:col-span-12 hitech-card p-6 rounded-3xl space-y-6 max-w-4xl mx-auto w-full';
@@ -478,46 +482,106 @@
         }
 
         async function loadAndRenderPDF(url) {
-            const container = document.getElementById('pdfContainer');
+            const container = document.getElementById('pdfScaleWrapper');
             container.innerHTML = `<div class="text-slate-400 text-xs py-20">กำลังโหลดเอกสารข้อสอบ...</div>`;
             try {
                 const loadingTask = pdfjsLib.getDocument(url);
                 pdfGlobalDoc = await loadingTask.promise;
-                renderPDFPages();
+                container.innerHTML = '';
+
+                for (let pageNum = 1; pageNum <= pdfGlobalDoc.numPages; pageNum++) {
+                    const page = await pdfGlobalDoc.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 2.5 }); // ความคมชัดสูงเริ่มต้น
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    canvas.style.width = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.className = 'shadow-md rounded-lg mb-4 bg-white';
+                    
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    container.appendChild(canvas);
+                }
+                updateZoomUI();
             } catch (err) {
                 console.error(err);
                 container.innerHTML = `<div class="text-red-500 text-xs py-10">ไม่สามารถโหลดเอกสารข้อสอบได้ กรุณาติดต่อผู้คุมสอบ</div>`;
             }
         }
 
-        async function renderPDFPages() {
-            if (!pdfGlobalDoc) return;
-            const container = document.getElementById('pdfContainer');
-            container.innerHTML = '';
+        // 🌟 ฟังก์ชันจัดการซูมด้วยเมาส์ (Mouse Wheel & Touch Pinch)
+        function initPdfZoomInteractions() {
+            const pdfContainer = document.getElementById('pdfContainer');
+            if (!pdfContainer) return;
 
-            for (let pageNum = 1; pageNum <= pdfGlobalDoc.numPages; pageNum++) {
-                const page = await pdfGlobalDoc.getPage(pageNum);
-                const viewport = page.getViewport({ scale: currentPdfScale });
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                canvas.style.width = '100%';
-                canvas.style.height = 'auto';
-                canvas.className = 'shadow-md rounded-lg mb-4 bg-white';
-                
-                await page.render({ canvasContext: context, viewport: viewport }).promise;
-                container.appendChild(canvas);
-            }
+            // ซูมด้วย Mouse Wheel (เมื่อกด Ctrl หรือเลื่อนปกติในกล่อง PDF)
+            pdfContainer.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const zoomIntensity = 0.1;
+                if (e.deltaY < 0) {
+                    currentZoom = Math.min(currentZoom + zoomIntensity, 4.0);
+                } else {
+                    currentZoom = Math.max(currentZoom - zoomIntensity, 0.5);
+                }
+                updateZoomUI();
+            }, { passive: false });
 
-            document.getElementById('pdfZoomLabel').textContent = `${Math.round(currentPdfScale * 50)}%`;
+            // ซูมด้วยนิ้วบนหน้าจอทัชสกรีน (Pinch-to-zoom)
+            let initialDistance = null;
+            pdfContainer.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 2) {
+                    initialDistance = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                }
+            });
+
+            pdfContainer.addEventListener('touchmove', function(e) {
+                if (e.touches.length === 2 && initialDistance !== null) {
+                    e.preventDefault();
+                    const currentDistance = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    const factor = currentDistance / initialDistance;
+                    currentZoom = Math.min(Math.max(currentZoom * (factor > 1 ? 1.04 : 0.96), 0.5), 4.0);
+                    initialDistance = currentDistance;
+                    updateZoomUI();
+                }
+            }, { passive: false });
+
+            pdfContainer.addEventListener('touchend', function() {
+                initialDistance = null;
+            });
         }
 
-        function adjustPdfZoom(amount) {
-            currentPdfScale += amount;
-            if (currentPdfScale < 1.0) currentPdfScale = 1.0;
-            if (currentPdfScale > 4.5) currentPdfScale = 4.5;
-            renderPDFPages();
+        function updateZoomUI() {
+            const wrapper = document.getElementById('pdfScaleWrapper');
+            if (wrapper) {
+                wrapper.style.transform = `scale(${currentZoom})`;
+                wrapper.style.transformOrigin = 'top center';
+            }
+            const label = document.getElementById('pdfZoomLabel');
+            if (label) {
+                label.textContent = `${Math.round(currentZoom * 100)}%`;
+            }
+        }
+
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom + 0.25, 4.0);
+            updateZoomUI();
+        }
+
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom - 0.25, 0.5);
+            updateZoomUI();
+        }
+
+        function resetZoom() {
+            currentZoom = 1.0;
+            updateZoomUI();
         }
 
         async function loadQuestions() {
