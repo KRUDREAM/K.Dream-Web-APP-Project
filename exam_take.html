@@ -57,7 +57,7 @@
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-16" oncontextmenu="return false;">
 
-    <!-- 🌟 แผงภาพรวมข้อสอบ ลอยอยู่กึ่งกลางซ้าย พร้อมปุ่มซ่อน/แสดง -->
+    <!-- 🌟 แผงภาพรวมข้อสอบ ลอยอยู่กึ่งกลางซ้าย พร้อมปุ่มซ่อน/แสดง และปุ่มส่งข้อสอบ -->
     <div id="leftFloatOverview" class="fixed left-3 top-1/2 -translate-y-1/2 z-40 hidden lg:flex items-center transition-all duration-300">
         <div id="overviewCardBody" class="hitech-card rounded-2xl p-3 shadow-2xl backdrop-blur-md bg-white/95 dark:bg-darkbox/95 border border-sky-500/40 w-52 space-y-2.5 transition-all duration-300">
             <div class="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
@@ -76,8 +76,15 @@
                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> ธง</span>
             </div>
 
-            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-56 overflow-y-auto pr-1 hide-scrollbar">
+            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto pr-1 hide-scrollbar">
                 <!-- Populated dynamically -->
+            </div>
+
+            <!-- ปุ่มส่งข้อสอบย้ายมาไว้ที่แถบด้านซ้าย -->
+            <div class="pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button onclick="confirmSubmitExam()" id="submitExamBtnLeft" class="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5">
+                    <i class="fas fa-paper-plane"></i> ส่งข้อสอบ
+                </button>
             </div>
         </div>
 
@@ -135,7 +142,6 @@
                     <h3 class="font-bold text-xs text-red-600 flex items-center gap-1.5"><i class="fas fa-file-pdf"></i> เอกสารข้อสอบ (คลิกค้างแล้วลากดูได้อิสระ)</h3>
                     
                     <div class="flex items-center gap-2 flex-wrap">
-                        <!-- ปุ่มล็อกซูม -->
                         <button onclick="toggleZoomLock()" id="lockZoomBtn" class="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 flex items-center gap-1 transition-all">
                             <i class="fas fa-lock-open"></i> ล็อกซูม
                         </button>
@@ -166,7 +172,8 @@
                         </h2>
                         <p id="choiceFormatSubLabel" class="text-[11px] text-slate-400 mt-0.5">รูปแบบตัวเลือก: กำลังโหลด...</p>
                     </div>
-                    <button onclick="confirmSubmitExam()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5">
+                    <!-- ปุ่มส่งข้อสอบบนมือถือหรือจอเล็ก -->
+                    <button onclick="confirmSubmitExam()" id="submitExamBtnMobile" class="lg:hidden px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs rounded-xl shadow-md">
                         <i class="fas fa-paper-plane"></i> ส่งข้อสอบ
                     </button>
                 </div>
@@ -200,10 +207,11 @@
         let halfTimeTriggered = false;
         let fiveMinsTriggered = false;
         let isOverviewHidden = false;
+        let isSubmitting = false; // ตัวแปรป้องกันการส่งซ้ำซ้อน (Double Submit Lock)
 
         let pdfGlobalDoc = null;
         let currentZoom = 1.0;
-        let isZoomLocked = false; // สถานะล็อกการซูม
+        let isZoomLocked = false;
 
         let tabSwitchCount = 0;
         const MAX_ALLOWED_VIOLATIONS = 3;
@@ -384,9 +392,7 @@
                     if (savedFlags) {
                         flaggedQuestions = JSON.parse(savedFlags);
                     }
-                } catch(e) {
-                    console.error("Load local backup error:", e);
-                }
+                } catch(e) {}
             }
 
             if (!isPreview) {
@@ -461,7 +467,7 @@
         }
 
         async function handleExamViolation(reason) {
-            if (isPreview) return;
+            if (isPreview || isSubmitting) return;
             tabSwitchCount++;
 
             try {
@@ -472,9 +478,7 @@
                     attempt_count: tabSwitchCount,
                     created_at: new Date().toISOString()
                 }]);
-            } catch (err) {
-                console.warn("Log violation warning:", err);
-            }
+            } catch (err) {}
 
             if (tabSwitchCount < MAX_ALLOWED_VIOLATIONS) {
                 Swal.fire({
@@ -523,12 +527,10 @@
                 }
                 updateZoomUI();
             } catch (err) {
-                console.error(err);
                 container.innerHTML = `<div class="text-red-500 text-xs py-10">ไม่สามารถโหลดเอกสารข้อสอบได้ กรุณาติดต่อผู้คุมสอบ</div>`;
             }
         }
 
-        // 🌟 ระบบจัดการลากเลื่อนอิสระ (Free Pan) และ ซูม
         function initPdfZoomAndPanInteractions() {
             const container = document.getElementById('pdfContainer');
             if (!container) return;
@@ -536,7 +538,6 @@
             let isDragging = false;
             let startX, startY, scrollLeft, scrollTop;
 
-            // ซูมด้วยเมาส์
             container.addEventListener('wheel', function(e) {
                 if (isZoomLocked) return;
                 e.preventDefault();
@@ -549,7 +550,6 @@
                 updateZoomUI();
             }, { passive: false });
 
-            // คลิกค้างแล้วลากเลื่อน (Drag to Pan) ทั่วหน้ากระดาษ
             container.addEventListener('mousedown', (e) => {
                 isDragging = true;
                 container.classList.add('cursor-grabbing');
@@ -559,25 +559,16 @@
                 scrollTop = container.scrollTop;
             });
 
-            container.addEventListener('mouseleave', () => {
-                isDragging = false;
-                container.classList.remove('cursor-grabbing');
-            });
-
-            container.addEventListener('mouseup', () => {
-                isDragging = false;
-                container.classList.remove('cursor-grabbing');
-            });
+            container.addEventListener('mouseleave', () => { isDragging = false; container.classList.remove('cursor-grabbing'); });
+            container.addEventListener('mouseup', () => { isDragging = false; container.classList.remove('cursor-grabbing'); });
 
             container.addEventListener('mousemove', (e) => {
                 if (!isDragging) return;
                 e.preventDefault();
                 const x = e.pageX - container.offsetLeft;
                 const y = e.pageY - container.offsetTop;
-                const walkX = x - startX;
-                const walkY = y - startY;
-                container.scrollLeft = scrollLeft - walkX;
-                container.scrollTop = scrollTop - walkY;
+                container.scrollLeft = scrollLeft - (x - startX);
+                container.scrollTop = scrollTop - (y - startY);
             });
         }
 
@@ -588,28 +579,12 @@
                 wrapper.style.transformOrigin = 'top left';
             }
             const label = document.getElementById('pdfZoomLabel');
-            if (label) {
-                label.textContent = `${Math.round(currentZoom * 100)}%`;
-            }
+            if (label) label.textContent = `${Math.round(currentZoom * 100)}%`;
         }
 
-        function zoomIn() {
-            if (isZoomLocked) return;
-            currentZoom = Math.min(currentZoom + 0.25, 4.0);
-            updateZoomUI();
-        }
-
-        function zoomOut() {
-            if (isZoomLocked) return;
-            currentZoom = Math.max(currentZoom - 0.25, 0.5);
-            updateZoomUI();
-        }
-
-        function resetZoom() {
-            if (isZoomLocked) return;
-            currentZoom = 1.0;
-            updateZoomUI();
-        }
+        function zoomIn() { if (isZoomLocked) return; currentZoom = Math.min(currentZoom + 0.25, 4.0); updateZoomUI(); }
+        function zoomOut() { if (isZoomLocked) return; currentZoom = Math.max(currentZoom - 0.25, 0.5); updateZoomUI(); }
+        function resetZoom() { if (isZoomLocked) return; currentZoom = 1.0; updateZoomUI(); }
 
         async function loadQuestions() {
             const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
@@ -630,10 +605,8 @@
         function updateAutoSaveStatus() {
             const autoSaveEl = document.getElementById('autoSaveStatus');
             if (!autoSaveEl) return;
-
             autoSaveEl.className = 'text-sky-500 flex items-center gap-1 transition-all';
             autoSaveEl.innerHTML = `<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...`;
-
             setTimeout(() => {
                 autoSaveEl.className = 'text-emerald-500 flex items-center gap-1 transition-all';
                 autoSaveEl.innerHTML = `<i class="fas fa-check-circle"></i> บันทึกแล้ว`;
@@ -659,9 +632,7 @@
             if (navBarText) navBarText.textContent = `${answeredCount}/${total}`;
 
             const floatOverviewCount = document.getElementById('floatOverviewCount');
-            if (floatOverviewCount) {
-                floatOverviewCount.textContent = `${answeredCount}/${total}`;
-            }
+            if (floatOverviewCount) floatOverviewCount.textContent = `${answeredCount}/${total}`;
 
             const gridContainer = document.getElementById('overviewGridContainer');
             if (gridContainer && currentQuestions.length > 0) {
@@ -672,12 +643,8 @@
                     const isFlagged = flaggedQuestions[q.id];
 
                     let bgClass = 'bg-slate-100 dark:bg-darkinput text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-sky-400';
-                    if (isAnswered) {
-                        bgClass = 'bg-emerald-500 text-white border-emerald-600 shadow-sm';
-                    }
-                    if (isFlagged) {
-                        bgClass = 'bg-amber-500 text-white border-amber-600 shadow-sm';
-                    }
+                    if (isAnswered) bgClass = 'bg-emerald-500 text-white border-emerald-600 shadow-sm';
+                    if (isFlagged) bgClass = 'bg-amber-500 text-white border-amber-600 shadow-sm';
 
                     return `
                         <button onclick="scrollToQuestion('${q.id}')" class="h-8 rounded-lg font-bold text-[11px] border flex items-center justify-center transition-all relative ${bgClass}">
@@ -716,7 +683,7 @@
                                     <span class="font-extrabold text-xs text-amber-600 dark:text-amber-400">ข้อที่ ${qNum} (ข้อสอบอัตนัย)</span>
                                     <div class="flex items-center gap-2">
                                         <span class="px-2.5 py-0.5 bg-amber-500 text-white font-bold text-[10px] rounded-lg">เขียนตอบ</span>
-                                        <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}" title="ปักธงข้อที่ไม่มั่นใจ">
+                                        <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
                                             <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
                                         </button>
                                     </div>
@@ -749,7 +716,7 @@
                                 <div class="flex items-center justify-between">
                                     <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400">ข้อที่ ${qNum}</span>
                                     <div class="flex items-center gap-2">
-                                        <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}" title="ปักธงข้อที่ไม่มั่นใจ">
+                                        <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
                                             <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
                                         </button>
                                     </div>
@@ -772,7 +739,7 @@
                                     <span class="font-extrabold text-xs text-amber-600 dark:text-amber-400">ข้อ ${qNum} (อัตนัย)</span>
                                     <div class="flex items-center gap-2">
                                         <span class="px-2 py-0.5 bg-amber-500 text-white font-bold text-[9px] rounded">เขียนตอบ</span>
-                                        <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}" title="ปักธงข้อที่ไม่มั่นใจ">
+                                        <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
                                             <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
                                         </button>
                                     </div>
@@ -798,7 +765,7 @@
                                     <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400 w-8 shrink-0">ข้อ ${qNum}</span>
                                     <div class="flex items-center gap-1.5" id="bubbles-container-${q.id}">${bubblesHtml}</div>
                                 </div>
-                                <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'} shrink-0 ml-2" title="ปักธงข้อที่ไม่มั่นใจ">
+                                <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'} shrink-0 ml-2">
                                     <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : ''}</span>
                                 </button>
                             </div>
@@ -823,17 +790,12 @@
             const flagBtn = document.getElementById(`flag-btn-${qId}`);
             const flagBtnText = document.getElementById(`flag-text-${qId}`);
 
-            if (flagBtn) {
-                flagBtn.className = isFlagged ? 'text-xs text-amber-500 font-bold' : 'text-xs text-slate-400 hover:text-amber-500';
-            }
-            if (flagBtnText) {
-                flagBtnText.textContent = isFlagged ? 'ปักธงแล้ว' : 'ปักธง';
-            }
+            if (flagBtn) flagBtn.className = isFlagged ? 'text-xs text-amber-500 font-bold' : 'text-xs text-slate-400 hover:text-amber-500';
+            if (flagBtnText) flagBtnText.textContent = isFlagged ? 'ปักธงแล้ว' : 'ปักธง';
         }
 
         function selectAnswer(qId, cIdx) {
             const strCIdx = String(cIdx);
-            
             if (studentAnswers[qId] === strCIdx) {
                 delete studentAnswers[qId];
             } else {
@@ -906,15 +868,12 @@
                 const gainNode = audioCtx.createGain();
 
                 oscillator.type = 'sine';
-                
                 if (type === 'half') {
                     oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); 
                     gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); 
                     gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-                    
                     oscillator.connect(gainNode);
                     gainNode.connect(audioCtx.destination);
-                    
                     oscillator.start();
                     oscillator.stop(audioCtx.currentTime + 0.3);
                 } else if (type === 'five_mins') {
@@ -932,22 +891,14 @@
                         osc.stop(now + delay + 0.15);
                     });
                 }
-            } catch (e) {
-                console.log("AudioContext blocked or not supported", e);
-            }
+            } catch (e) {}
         }
 
         function checkTimerAlerts(timeLeftSeconds, totalDurationSeconds) {
             if (!halfTimeTriggered && timeLeftSeconds === Math.floor(totalDurationSeconds / 2)) {
                 halfTimeTriggered = true;
                 playSoftAlertSound('half');
-                Swal.mixin({
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 4000,
-                    timerProgressBar: true
-                }).fire({
+                Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true }).fire({
                     icon: 'info',
                     title: 'เวลาในการทำข้อสอบผ่านไปแล้วครึ่งทาง'
                 });
@@ -956,13 +907,7 @@
             if (!fiveMinsTriggered && timeLeftSeconds === 300) {
                 fiveMinsTriggered = true;
                 playSoftAlertSound('five_mins');
-                Swal.mixin({
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 5000,
-                    timerProgressBar: true
-                }).fire({
+                Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 5000, timerProgressBar: true }).fire({
                     icon: 'warning',
                     title: '⚠️ แจ้งเตือน: เหลือเวลาทำข้อสอบอีก 5 นาทีสุดท้าย!'
                 });
@@ -1002,6 +947,8 @@
         }
 
         async function confirmSubmitExam() {
+            if (isSubmitting) return; // ป้องกันการกดซ้ำระหว่างประมวลผล
+
             let unanswered = [];
             currentQuestions.forEach((q, idx) => {
                 const qNum = q.question_number || (idx + 1);
@@ -1055,7 +1002,11 @@
             }
         }
 
+        // 🌟 ปรับปรุงฟังก์ชัน submitExam ให้เร็วขึ้น ป้องกันลูปค้าง และล็อกการส่งซ้ำ
         async function submitExam(isTimeout = false) {
+            if (isSubmitting) return;
+            isSubmitting = true;
+
             if (timerInterval) clearInterval(timerInterval);
             
             localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
@@ -1093,6 +1044,7 @@
             const studentId = getValidatedStudentId();
 
             if (!studentId || studentId === '00000000-0000-0000-0000-000000000000') {
+                isSubmitting = false;
                 Swal.fire({
                     icon: 'warning',
                     title: 'ข้อมูลผู้ใช้ไม่ถูกต้อง',
@@ -1122,6 +1074,7 @@
                 .single();
 
             if (attemptError || !newAttempt) {
+                isSubmitting = false;
                 console.error("Attempt Error:", attemptError);
                 Swal.fire({
                     icon: 'error',
@@ -1134,7 +1087,8 @@
 
             const attemptId = newAttempt.id;
 
-            for (const q of currentQuestions) {
+            // บันทึกคำตอบแบบ Batch Insert เพื่อความเร็วและป้องกันการค้าง
+            const answersPayloads = currentQuestions.map(q => {
                 const studentAns = studentAnswers[q.id];
                 const isEssay = q.question_type === 'essay';
                 let qScore = 0;
@@ -1145,28 +1099,18 @@
                     }
                 }
 
-                const answerPayload = {
+                return {
                     attempt_id: attemptId,
                     question_id: q.id,
-                    score: qScore
+                    score: qScore,
+                    selected_option_index: (!isEssay && studentAns !== undefined && studentAns !== null && studentAns !== '') ? parseInt(studentAns) : null,
+                    subjective_answer: isEssay ? (studentAns || '') : null
                 };
+            });
 
-                if (!isEssay) {
-                    answerPayload.selected_option_index = (studentAns !== undefined && studentAns !== null && studentAns !== '') ? parseInt(studentAns) : null;
-                    answerPayload.subjective_answer = null;
-                } else {
-                    answerPayload.selected_option_index = null;
-                    answerPayload.subjective_answer = studentAns || '';
-                }
-
-                await mySupabase.from('exam_answers').insert([answerPayload]);
+            if (answersPayloads.length > 0) {
+                await mySupabase.from('exam_answers').insert(answersPayloads);
             }
-
-            await logSystemAction('SUBMIT_EXAM', `ส่งข้อสอบ ${examTitle} ได้ ${score} คะแนน`, { 
-        exam_id: examId, 
-        score: score, 
-        max_score: maxScore 
-    });
             
             Swal.fire({
                 icon: 'success',
