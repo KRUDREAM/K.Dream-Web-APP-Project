@@ -92,51 +92,53 @@
         </div>
     </nav>
 
-    <main class="max-w-[96rem] mx-auto px-4 pt-24 space-y-4">
+    <main class="max-w-[96rem] mx-auto px-4 pt-20 space-y-4">
         
         <div id="previewBanner" class="hidden p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex justify-between items-center text-xs font-bold text-indigo-600 dark:text-indigo-400">
             <span><i class="fas fa-eye mr-1.5"></i> โหมดดูตัวอย่างข้อสอบ (Preview Mode - คะแนนจะไม่ถูกบันทึก)</span>
             <button onclick="window.close()" class="px-3 py-1 bg-indigo-600 text-white rounded-lg">ปิดหน้าต่างนี้</button>
         </div>
 
-        <!-- 🌟 แผงภาพรวมข้อสอบ (Overview Drawer) สามารถพับเก็บได้ -->
-        <div id="overviewCard" class="hitech-card rounded-2xl p-4 space-y-3">
-            <div class="flex justify-between items-center cursor-pointer select-none" onclick="toggleOverviewDrawer()">
-                <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center text-xs font-bold">
-                        <i class="fas fa-th"></i>
+        <!-- 🌟 แผงภาพรวมข้อสอบแบบลอยตัว (Floating Overview Drawer) -->
+        <div class="sticky top-20 z-30 transition-all duration-300">
+            <div id="overviewCard" class="hitech-card rounded-2xl p-3 shadow-lg backdrop-blur-md bg-white/90 dark:bg-darkbox/90 border border-sky-500/30">
+                <div class="flex justify-between items-center cursor-pointer select-none" onclick="toggleOverviewDrawer()">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center text-[11px] font-bold">
+                            <i class="fas fa-th-large"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-xs text-slate-900 dark:text-white">ภาพรวมข้อสอบ</h3>
+                            <p id="overviewStats" class="text-[10px] text-slate-400">ตอบแล้ว 0 จาก 0 ข้อ (คลิกเพื่อพับ/ขยาย)</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">ภาพรวมข้อสอบ & สถานะการทำ</h3>
-                        <p id="overviewStats" class="text-[10px] text-slate-400">ตอบแล้ว 0 จาก 0 ข้อ (คลิกเพื่อพับ/ขยาย)</p>
+                    <div class="flex items-center gap-3">
+                        <div class="hidden sm:flex items-center gap-2.5 text-[10px] text-slate-500 font-medium">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> ตอบแล้ว</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700 inline-block"></span> ยังไม่ตอบ</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> ปักธง</span>
+                        </div>
+                        <button class="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 hover:bg-sky-500 hover:text-white transition-all text-xs">
+                            <i class="fas fa-chevron-up transition-transform duration-300" id="overviewChevronIcon"></i>
+                        </button>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <div class="hidden sm:flex items-center gap-3 text-[10px] text-slate-500 font-semibold">
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> ตอบแล้ว</span>
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700 inline-block"></span> ยังไม่ตอบ</span>
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> ปักธง</span>
-                    </div>
-                    <button class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 hover:bg-sky-500 hover:text-white transition-all">
-                        <i class="fas fa-chevron-up transition-transform duration-300" id="overviewChevronIcon"></i>
-                    </button>
+                
+                <div id="overviewGridContainer" class="grid grid-cols-8 sm:grid-cols-12 md:grid-cols-16 lg:grid-cols-24 gap-1 pt-2.5 mt-2 border-t border-slate-200 dark:border-slate-800 max-h-32 overflow-y-auto pr-1 hide-scrollbar">
+                    <!-- Populated dynamically -->
                 </div>
-            </div>
-            
-            <div id="overviewGridContainer" class="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-15 lg:grid-cols-20 gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-800 max-h-40 overflow-y-auto pr-1 hide-scrollbar">
-                <!-- Populated dynamically -->
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             <!-- ฝั่งซ้าย: PDF Viewer (จะซ่อนอัตโนมัติหากไม่มีไฟล์ PDF) -->
-            <div id="pdfViewerCard" class="hidden lg:col-span-8 hitech-card p-4 rounded-3xl space-y-3 sticky top-24">
+            <div id="pdfViewerCard" class="hidden lg:col-span-8 hitech-card p-4 rounded-3xl space-y-3 sticky top-36">
                 <div class="flex justify-between items-center">
                     <h3 class="font-bold text-xs text-red-600 flex items-center gap-1.5"><i class="fas fa-file-pdf"></i> เอกสารข้อสอบ (ความคมชัดสูง / ห้ามดาวน์โหลด)</h3>
                     <span class="px-2.5 py-0.5 bg-red-500/10 text-red-600 text-[10px] font-bold rounded-lg border border-red-500/20"><i class="fas fa-shield-alt mr-1"></i> ป้องกันการดาวน์โหลด 100%</span>
                 </div>
-                <div id="pdfContainer" class="w-full h-[74vh] bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-y-auto border p-4 flex flex-col items-center gap-4 select-none" oncontextmenu="return false;">
+                <div id="pdfContainer" class="w-full h-[72vh] bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-y-auto border p-4 flex flex-col items-center gap-4 select-none" oncontextmenu="return false;">
                     <div class="text-slate-400 text-xs py-20">กำลังเรนเดอร์เอกสารข้อสอบความคมชัดสูง...</div>
                 </div>
             </div>
@@ -520,7 +522,6 @@
                 overviewStats.textContent = `ตอบแล้ว ${answeredCount} จาก ${total} ข้อ (${percent}%) (คลิกเพื่อพับ/ขยาย)`;
             }
 
-            // Render Overview Grid
             const gridContainer = document.getElementById('overviewGridContainer');
             if (gridContainer && currentQuestions.length > 0) {
                 gridContainer.innerHTML = currentQuestions.map((q, idx) => {
@@ -538,9 +539,9 @@
                     }
 
                     return `
-                        <button onclick="scrollToQuestion('${q.id}')" class="h-9 rounded-xl font-bold text-xs border flex items-center justify-center transition-all relative ${bgClass}">
+                        <button onclick="scrollToQuestion('${q.id}')" class="h-8 rounded-lg font-bold text-[11px] border flex items-center justify-center transition-all relative ${bgClass}">
                             ${qNum}
-                            ${isFlagged && !isAnswered ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border border-white"></span>' : ''}
+                            ${isFlagged && !isAnswered ? '<span class="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full border border-white"></span>' : ''}
                         </button>
                     `;
                 }).join('');
@@ -709,7 +710,6 @@
         function selectAnswer(qId, cIdx) {
             const strCIdx = String(cIdx);
             
-            // 🌟 รองรับการคลิกซ้ำเพื่อยกเลิกคำตอบ (Deselect)
             if (studentAnswers[qId] === strCIdx) {
                 delete studentAnswers[qId];
             } else {
