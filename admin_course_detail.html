@@ -998,6 +998,15 @@
                 };
                 const { error } = await mySupabase.from('course_lessons').insert([payload]);
                 if (!error) {
+                    // 🌟 บันทึก Log ฝั่ง Admin: เพิ่มบทเรียน/วิดีโอ/เอกสาร
+                    if (typeof logSystemAction === 'function') {
+                        await logSystemAction(
+                            'ADMIN_ADD_COURSE_LESSON', 
+                            `แอดมินเพิ่ม${formValues.isVideo ? 'วิดีโอ' : 'เอกสาร'} "${formValues.title}" ในคอร์ส (${currentCourse ? currentCourse.title : courseId})`, 
+                            { course_id: courseId, title: formValues.title, type: formValues.isVideo ? 'video' : 'pdf' }
+                        );
+                    }
+
                     Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1200, showConfirmButton: false });
                     loadLessons();
                 } else {
@@ -1052,6 +1061,16 @@
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
                     return;
                 }
+
+                // 🌟 บันทึก Log ฝั่ง Admin: แก้ไขวิดีโอ
+                if (typeof logSystemAction === 'function') {
+                    await logSystemAction(
+                        'ADMIN_UPDATE_COURSE_LESSON', 
+                        `แอดมินแก้ไขวิดีโอ "${formValues.title}" ในคอร์ส (${currentCourse ? currentCourse.title : courseId})`, 
+                        { course_id: courseId, lesson_id: videoId, title: formValues.title }
+                    );
+                }
+
                 Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลสำเร็จ!', timer: 1200, showConfirmButton: false });
                 loadLessons();
             }
@@ -1104,6 +1123,16 @@
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
                     return;
                 }
+
+                // 🌟 บันทึก Log ฝั่ง Admin: แก้ไขเอกสาร
+                if (typeof logSystemAction === 'function') {
+                    await logSystemAction(
+                        'ADMIN_UPDATE_COURSE_LESSON', 
+                        `แอดมินแก้ไขเอกสาร "${formValues.title}" ในคอร์ส (${currentCourse ? currentCourse.title : courseId})`, 
+                        { course_id: courseId, lesson_id: fileId, title: formValues.title }
+                    );
+                }
+
                 Swal.fire({ icon: 'success', title: 'อัปเดตไฟล์เอกสารสำเร็จ!', timer: 1200, showConfirmButton: false });
                 loadLessons();
             }
@@ -1112,7 +1141,20 @@
         async function deleteLesson(id) {
             const res = await Swal.fire({ title: 'ยืนยันลบรายการนี้?', text: 'การลบจะไม่สามารถกู้คืนได้', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ยืนยันลบ', cancelButtonText: 'ยกเลิก' });
             if (res.isConfirmed) {
-                await mySupabase.from('course_lessons').delete().eq('id', id);
+                const lessonToDelete = courseLessons.find(l => String(l.id) === String(id));
+                const lessonTitle = lessonToDelete ? lessonToDelete.title : id;
+
+                const { error } = await mySupabase.from('course_lessons').delete().eq('id', id);
+                if (!error) {
+                    // 🌟 บันทึก Log ฝั่ง Admin: ลบบทเรียน/เอกสาร
+                    if (typeof logSystemAction === 'function') {
+                        await logSystemAction(
+                            'ADMIN_DELETE_COURSE_LESSON', 
+                            `แอดมินลบบทเรียน/เอกสาร "${lessonTitle}" จากคอร์ส (${currentCourse ? currentCourse.title : courseId})`, 
+                            { course_id: courseId, lesson_id: id, title: lessonTitle }
+                        );
+                    }
+                }
                 loadLessons();
                 Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false });
             }
@@ -1322,6 +1364,8 @@
             Swal.showLoading();
 
             try {
+                let addedCount = 0;
+                let removedCount = 0;
                 for (const item of window.globalAllStudents) {
                     const chk = document.getElementById(`chk_student_${item.studentId}`);
                     const shouldBeEnrolled = chk ? chk.checked : item.isEnrolled;
@@ -1331,14 +1375,26 @@
                         if (insRes.error) {
                             await mySupabase.from('course_enrollments').insert([{ course_id: courseId, student_id: item.studentId, created_at: new Date().toISOString() }]);
                         }
+                        addedCount++;
                     } else if (!shouldBeEnrolled && item.isEnrolled) {
                         await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
                         await mySupabase.from('course_enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
                         if (item.enrollId) {
                             await mySupabase.from('enrollments').delete().eq('id', item.enrollId);
                         }
+                        removedCount++;
                     }
                 }
+
+                // 🌟 บันทึก Log ฝั่ง Admin: จัดการรายชื่อนักเรียนในคอร์ส
+                if (typeof logSystemAction === 'function') {
+                    await logSystemAction(
+                        'ADMIN_MANAGE_COURSE_STUDENTS', 
+                        `แอดมินอัปเดตรายชื่อนักเรียนในคอร์ส (${currentCourse ? currentCourse.title : courseId}) [เพิ่ม: ${addedCount} คน, เอาออก: ${removedCount} คน]`, 
+                        { course_id: courseId, added_count: addedCount, removed_count: removedCount }
+                    );
+                }
+
                 return true;
             } catch (err) {
                 console.error("Save Batch Error:", err);
