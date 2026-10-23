@@ -199,7 +199,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-6 hitech-card p-6 rounded-3xl space-y-4">
                 <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2 truncate">
-                    <i class="fas fa-clock text-amber-500 shrink-0"></i> สถิติเวลาที่ใช้ทำข้อสอบ (พร้อมเส้นดิ่งเวลาเฉลี่ย)
+                    <i class="fas fa-clock text-amber-500 shrink-0"></i> สถิติเวลาที่ใช้ทำข้อสอบ (ช่วงละ 5 นาที จนถึงเวลาสูงสุด)
                 </h3>
                 <div class="relative h-72 w-full"><canvas id="timeSpentChart"></canvas></div>
             </div>
@@ -363,7 +363,6 @@
         }
 
         function calculateTimeSpentMinutes(att) {
-            // 1. ตรวจสอบฟิลด์เวลาที่ใช้โดยตรง (เช่น time_spent, time_used, used_time)
             if (att.time_spent !== undefined && att.time_spent !== null && !isNaN(att.time_spent)) {
                 const val = Number(att.time_spent);
                 return val > 60 ? val / 60 : val;
@@ -377,14 +376,12 @@
                 return val > 60 ? val / 60 : val;
             }
 
-            // 2. ใช้เวลาตั้งต้นจาก currentExam (duration / time_limit / exam_duration) ลบด้วย remaining_time หรือ time_remaining
             const remTime = att.remaining_time !== undefined && att.remaining_time !== null ? att.remaining_time : att.time_remaining;
             const examDur = currentExam ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : null;
 
             if (remTime !== undefined && remTime !== null && examDur !== undefined && examDur !== null) {
                 const totalMin = Number(examDur);
                 let remMin = Number(remTime);
-                // ถ้าค่า remMin มีค่ามาก (เก็บเป็นวินาที) ให้แปลงเป็นนาที
                 if (remMin > totalMin && remMin > 60) {
                     remMin = remMin / 60;
                 }
@@ -392,13 +389,11 @@
                 if (spent >= 0) return spent;
             }
 
-            // 3. ใช้ duration ใน attempt ถ้ามี
             if (att.duration !== undefined && att.duration !== null && !isNaN(att.duration)) {
                 const val = Number(att.duration);
                 return val > 60 ? val / 60 : val;
             }
 
-            // 4. คำนวณจากช่วงเวลาระหว่างเริ่มต้นทำ (started_at / created_at) ถึงเวลาส่ง (submitted_at / submission_time / updated_at)
             const start = att.started_at || att.created_at || att.start_time;
             const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at;
             if (start && end) {
@@ -759,30 +754,38 @@
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
 
-            let timeBuckets = [0, 0, 0, 0, 0];
-            let timeLabels = ['< 5 นาที', '5-10 นาที', '10-20 นาที', '20-30 นาที', '> 30 นาที'];
+            // กำหนด Max = เวลาที่กำหนดสูงสุดของชุดข้อสอบ (ถ้าไม่มีตั้งต้นที่ 30 นาที)
+            const maxDuration = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
+            
+            let binCount = Math.ceil(maxDuration / 5);
+            if (binCount < 1) binCount = 6;
+
+            let labels = [];
+            let timeBuckets = new Array(binCount).fill(0);
+
+            for (let i = 0; i < binCount; i++) {
+                let startMin = i * 5;
+                let endMin = (i + 1) * 5;
+                labels.push(`${startMin}-${endMin} นาที`);
+            }
 
             globalTimes.forEach(t => {
-                if (t < 5) timeBuckets[0]++;
-                else if (t <= 10) timeBuckets[1]++;
-                else if (t <= 20) timeBuckets[2]++;
-                else if (t <= 30) timeBuckets[3]++;
-                else timeBuckets[4]++;
+                let binIdx = Math.floor(t / 5);
+                if (binIdx >= binCount) binIdx = binCount - 1;
+                if (binIdx < 0) binIdx = 0;
+                timeBuckets[binIdx]++;
             });
 
             let avgTimeVal = globalTimes.length > 0 ? (globalTimes.reduce((a, b) => a + b, 0) / globalTimes.length) : 0;
-            let avgTimeBucketIdx = 0;
-            if (avgTimeVal < 5) avgTimeBucketIdx = 0;
-            else if (avgTimeVal <= 10) avgTimeBucketIdx = 1;
-            else if (avgTimeVal <= 20) avgTimeBucketIdx = 2;
-            else if (avgTimeVal <= 30) avgTimeBucketIdx = 3;
-            else avgTimeBucketIdx = 4;
+            let avgTimeBucketIdx = Math.floor(avgTimeVal / 5);
+            if (avgTimeBucketIdx >= binCount) avgTimeBucketIdx = binCount - 1;
+            if (avgTimeBucketIdx < 0) avgTimeBucketIdx = 0;
 
             if (timeSpentChartInstance) timeSpentChartInstance.destroy();
             timeSpentChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: timeLabels,
+                    labels: labels,
                     datasets: [{
                         label: 'จำนวนนักเรียน (คน)',
                         data: timeBuckets,
