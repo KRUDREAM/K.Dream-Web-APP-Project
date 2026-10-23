@@ -142,17 +142,25 @@
             </div>
         </div>
 
-        <!-- Score Distribution Chart Section -->
+        <!-- Score Distribution Chart Section (Updated to % Bins & Average Line) -->
         <div class="card-box p-6 rounded-2xl space-y-3">
-            <div class="flex justify-between items-center">
-                <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <i class="fas fa-chart-bar text-sky-500"></i> แผนภูมิการกระจายตัวของคะแนนในชั้นเรียน
-                </h3>
-                <span class="text-xs text-slate-500 font-bold" id="totalStudentsText">ผู้เข้าสอบ: -- คน</span>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                    <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-chart-bar text-sky-500"></i> แผนภูมิการกระจายตัวของคะแนน (% ช่วงละ 10%)
+                    </h3>
+                    <p class="text-[11px] text-slate-500 mt-0.5">เปรียบเทียบสัดส่วนคะแนนของนักเรียนเทียบกับค่าเฉลี่ยในชั้นเรียน</p>
+                </div>
+                <div class="flex items-center gap-3 text-xs font-semibold">
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-sky-500 inline-block"></span> คะแนนของคุณ</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-slate-400/60 inline-block"></span> เพื่อนในชั้นเรียน</span>
+                    <span class="flex items-center gap-1.5"><span class="w-4 h-1 bg-amber-500 inline-block rounded"></span> ค่าเฉลี่ยชั้นเรียน</span>
+                </div>
             </div>
-            <div class="h-64 w-full relative">
+            <div class="h-64 sm:h-72 w-full relative pt-2">
                 <canvas id="scoreChart"></canvas>
             </div>
+            <div id="chartLegendInfo" class="text-center text-xs text-slate-500 pt-1 font-medium"></div>
         </div>
 
         <!-- Detailed Questions & Answers Section -->
@@ -309,7 +317,6 @@
                     exam = exRes.data;
                 }
 
-                // ดึงข้อมูลเกณฑ์จากตาราง exams อย่างแม่นยำ (รองรับทั้ง boolean และ string "false")
                 if (exam) {
                     const rawEnable = exam.enable_grading_criteria;
                     enableGradingCriteria = (rawEnable === true || rawEnable === 'true' || rawEnable === 1 || rawEnable === '1');
@@ -585,7 +592,7 @@
                     document.getElementById('maxStat').textContent = studentScore + ' / ' + totalQ;
                     document.getElementById('percentileStat').textContent = 'Top 100%';
                     document.getElementById('totalStudentsText').textContent = 'ผู้เข้าสอบ: 1 คน';
-                    renderChart([studentScore], totalQ, studentScore);
+                    renderPercentageBinsChart([studentScore], totalQ, studentScore);
                     return;
                 }
 
@@ -601,25 +608,72 @@
                 document.getElementById('avgStat').textContent = avg + ' / ' + totalQ;
                 document.getElementById('maxStat').textContent = max + ' / ' + totalQ;
                 document.getElementById('percentileStat').textContent = 'Top ' + percentile + '%';
-                document.getElementById('totalStudentsText').textContent = 'ผู้เข้าสอบทั้งหมด: ' + totalStudents + ' คน';
 
-                renderChart(scores, totalQ, studentScore);
+                renderPercentageBinsChart(scores, totalQ, studentScore);
             } catch (e) {
                 console.error('Analytics Error:', e);
             }
         }
 
-        function renderChart(scores, totalQ, studentScore) {
+        // Updated function to render percentage bins (10% intervals) with student highlight and average line
+        function renderPercentageBinsChart(scores, totalQ, studentScore) {
             try {
-                const labels = [];
-                const dataCounts = [];
-                for (let i = 0; i <= totalQ; i++) {
-                    labels.push(i + ' คะแนน');
-                    dataCounts.push(scores.filter(s => s === i).length);
+                // กำหนดช่วงเปอร์เซ็นต์ 10 ช่วง (0-10%, 11-20%, ..., 91-100%)
+                const bins = [
+                    { label: '0-10%', min: 0, max: 10, count: 0 },
+                    { label: '11-20%', min: 11, max: 20, count: 0 },
+                    { label: '21-30%', min: 21, max: 30, count: 0 },
+                    { label: '31-40%', min: 31, max: 40, count: 0 },
+                    { label: '41-50%', min: 41, max: 50, count: 0 },
+                    { label: '51-60%', min: 51, max: 60, count: 0 },
+                    { label: '61-70%', min: 61, max: 70, count: 0 },
+                    { label: '71-80%', min: 71, max: 80, count: 0 },
+                    { label: '81-90%', min: 81, max: 90, count: 0 },
+                    { label: '91-100%', min: 91, max: 100, count: 0 }
+                ];
+
+                // คำนวณ % คะแนนของนักเรียนแต่ละคน
+                const studentPct = totalQ > 0 ? (studentScore / totalQ) * 100 : 0;
+                let studentBinIndex = -1;
+
+                scores.forEach(s => {
+                    const pct = totalQ > 0 ? (s / totalQ) * 100 : 0;
+                    for (let i = 0; i < bins.length; i++) {
+                        const b = bins[i];
+                        if (i === 0) {
+                            if (pct >= b.min && pct <= b.max) { b.count++; break; }
+                        } else {
+                            if (pct > b.min - 1 && pct <= b.max) { b.count++; break; }
+                        }
+                    }
+                });
+
+                // หาว่านักเรียนปัจจุบันอยู่ช่วงไหน
+                for (let i = 0; i < bins.length; i++) {
+                    const b = bins[i];
+                    if (i === 0) {
+                        if (studentPct >= b.min && studentPct <= b.max) { studentBinIndex = i; break; }
+                    } else {
+                        if (studentPct > b.min - 1 && studentPct <= b.max) { studentBinIndex = i; break; }
+                    }
                 }
 
-                const bgColors = labels.map((_, idx) => idx === studentScore ? '#0284c7' : 'rgba(148, 163, 184, 0.4)');
-                const borderColors = labels.map((_, idx) => idx === studentScore ? '#0369a1' : 'rgba(148, 163, 184, 0.6)');
+                const labels = bins.map(b => b.label);
+                const dataCounts = bins.map(b => b.count);
+
+                // กำหนดสีแท่ง (เน้นแท่งของนักเรียนให้เด่นชัดด้วยสีฟ้าเข้ม)
+                const bgColors = bins.map((_, idx) => idx === studentBinIndex ? '#0284c7' : 'rgba(148, 163, 184, 0.45)');
+                const borderColors = bins.map((_, idx) => idx === studentBinIndex ? '#0369a1' : 'rgba(148, 163, 184, 0.7)');
+
+                // คำนวณค่าเฉลี่ยเป็นเปอร์เซ็นต์ สำหรับทำเส้นค่าเฉลี่ย
+                const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+                const avgPct = totalQ > 0 ? (avgScore / totalQ) * 100 : 0;
+
+                document.getElementById('chartLegendInfo').innerHTML = `
+                    <span class="text-sky-600 dark:text-sky-400 font-bold">คะแนนของคุณ: ${Math.round(studentPct)}%</span> 
+                    (อยู่ช่วง ${studentBinIndex !== -1 ? bins[studentBinIndex].label : '--'}) | 
+                    <span class="text-amber-600 dark:text-amber-400 font-bold">ค่าเฉลี่ยชั้นเรียน: ${avgPct.toFixed(1)}%</span>
+                `;
 
                 const ctx = document.getElementById('scoreChart').getContext('2d');
                 if (chartInstance) chartInstance.destroy();
@@ -628,14 +682,18 @@
                     type: 'bar',
                     data: {
                         labels: labels,
-                        datasets: [{
-                            label: 'จำนวนนักเรียน (คน)',
-                            data: dataCounts,
-                            backgroundColor: bgColors,
-                            borderColor: borderColors,
-                            borderWidth: 2,
-                            borderRadius: 6
-                        }]
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'จำนวนนักเรียน (คน)',
+                                data: dataCounts,
+                                backgroundColor: bgColors,
+                                borderColor: borderColors,
+                                borderWidth: 2,
+                                borderRadius: 6,
+                                order: 2
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
@@ -644,13 +702,23 @@
                             legend: { display: false },
                             tooltip: {
                                 callbacks: {
-                                    afterLabel: (ctx) => ctx.dataIndex === studentScore ? '📍 คะแนนของคุณ' : ''
+                                    title: (ctx) => `ช่วงคะแนน: ${ctx[0].label}`,
+                                    label: (ctx) => ` จำนวนนักเรียน: ${ctx.raw} คน`,
+                                    afterLabel: (ctx) => ctx.dataIndex === studentBinIndex ? '📍 ช่วงคะแนนของคุณ' : ''
                                 }
                             }
                         },
                         scales: {
-                            y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
-                            x: { grid: { display: false } }
+                            y: { 
+                                beginAtZero: true, 
+                                ticks: { stepSize: 1 }, 
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                                title: { display: true, text: 'จำนวนนักเรียน (คน)', font: { family: 'Prompt', size: 11 } }
+                            },
+                            x: { 
+                                grid: { display: false },
+                                title: { display: true, text: 'ช่วงคะแนน (%)', font: { family: 'Prompt', size: 11 } }
+                            }
                         }
                     }
                 });
