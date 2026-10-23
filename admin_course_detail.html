@@ -82,6 +82,14 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
+                    <!-- 🌟 ปุ่มกระดิ่งแจ้งเตือนระบบ (เปิดข้อสอบใหม่ / ลงเทปย้อนหลัง) -->
+                    <div class="relative">
+                        <button onclick="openNotificationsModal()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 hover:bg-purple-600 hover:text-white transition-all shadow-sm relative">
+                            <i class="fas fa-bell text-sm"></i>
+                            <span id="notifBadgeCount" class="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white font-bold text-[10px] rounded-full flex items-center justify-center shadow hidden">0</span>
+                        </button>
+                    </div>
+
                     <button onclick="exportCourseCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5">
                         <i class="fas fa-file-excel"></i> Export สถิติ CSV
                     </button>
@@ -450,6 +458,7 @@
                 allAttempts = (attempts || []).filter(a => activeExamIds.has(String(a.exam_id)));
 
                 await loadEnrolledStudents();
+                await loadSystemNotifications(); // 🌟 โหลดแจ้งเตือนระบบ
 
                 Swal.close();
 
@@ -462,6 +471,89 @@
                 console.error("Init Error:", err);
                 Swal.close();
             }
+        }
+
+        // 🌟 ระบบดึงและแสดงการแจ้งเตือน (เปิดข้อสอบใหม่ / ลงเทปย้อนหลังใหม่)
+        let systemNotifications = [];
+        async function loadSystemNotifications() {
+            try {
+                let notifs = [];
+                // ดึงจากตาราง notifications ถ้ามี หรือจำลองจากการเปิดข้อสอบใหม่ / เทปย้อนหลังใหม่ในคอร์สนี้
+                const { data: dbNotifs } = await mySupabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(20);
+                if (dbNotifs && dbNotifs.length > 0) {
+                    notifs = dbNotifs;
+                } else {
+                    // สร้างการแจ้งเตือนจากข้อมูลจริงในคอร์ส (เช่น ข้อสอบใหม่ & วิดีโอย้อนหลังใหม่)
+                    allExams.forEach(ex => {
+                        notifs.push({
+                            id: `exam_${ex.id}`,
+                            title: `📝 มีชุดข้อสอบใหม่เปิดให้ทำ: ${ex.title}`,
+                            description: `อยู่ในคอร์ส ${currentCourse.title} - รหัส: ${ex.exam_code || 'EXAM'}`,
+                            type: 'exam',
+                            created_at: ex.created_at || new Date().toISOString(),
+                            read: false
+                        });
+                    });
+                    courseLessons.forEach(les => {
+                        if (les.bunny_video_id || les.video_url) {
+                            notifs.push({
+                                id: `lesson_${les.id}`,
+                                title: `🎬 ลงเทปวิดีโอย้อนหลังใหม่: ${les.title}`,
+                                description: `อัปเดตบทเรียนในคอร์ส ${currentCourse.title}`,
+                                type: 'video',
+                                created_at: les.created_at || new Date().toISOString(),
+                                read: false
+                            });
+                        }
+                    });
+                }
+                systemNotifications = notifs;
+                const unreadCount = systemNotifications.filter(n => !n.read).length;
+                const badge = document.getElementById('notifBadgeCount');
+                if (badge) {
+                    if (unreadCount > 0) {
+                        badge.textContent = unreadCount;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            } catch (e) {
+                console.error("Load Notifications Error:", e);
+            }
+        }
+
+        function openNotificationsModal() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const listHtml = systemNotifications.length === 0 
+                ? `<div class="text-center py-10 text-slate-400 text-xs"><i class="fas fa-bell-slash text-2xl mb-2"></i><br>ยังไม่มีการแจ้งเตือนใหม่</div>`
+                : systemNotifications.map(n => `
+                    <div class="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-start gap-3">
+                        <div class="w-9 h-9 rounded-xl ${n.type === 'exam' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-sky-500/10 text-sky-500'} flex items-center justify-center shrink-0 font-bold">
+                            <i class="fas ${n.type === 'exam' ? 'fa-file-signature' : 'fa-video'}"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-xs text-slate-900 dark:text-white">${n.title}</h4>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${n.description}</p>
+                            <span class="text-[10px] text-slate-400 mt-1 block"><i class="far fa-clock mr-1"></i>${new Date(n.created_at).toLocaleString('th-TH')}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+            Swal.fire({
+                title: '🔔 การแจ้งเตือนระบบ (เปิดข้อสอบ & เทปย้อนหลัง)',
+                html: `<div class="space-y-2.5 max-h-[50vh] overflow-y-auto text-left pr-1">${listHtml}</div>`,
+                width: '600px',
+                confirmButtonText: 'ปิดหน้าต่าง',
+                confirmButtonColor: '#0284c7',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b'
+            });
+
+            // ทำเครื่องหมายว่าอ่านแล้ว
+            systemNotifications.forEach(n => n.read = true);
+            const badge = document.getElementById('notifBadgeCount');
+            if (badge) badge.classList.add('hidden');
         }
 
         async function loadLessons() {
@@ -998,7 +1090,6 @@
                 };
                 const { error } = await mySupabase.from('course_lessons').insert([payload]);
                 if (!error) {
-                    // 🌟 บันทึก Log ฝั่ง Admin: เพิ่มบทเรียน/วิดีโอ/เอกสาร
                     if (typeof logSystemAction === 'function') {
                         await logSystemAction(
                             'ADMIN_ADD_COURSE_LESSON', 
@@ -1062,7 +1153,6 @@
                     return;
                 }
 
-                // 🌟 บันทึก Log ฝั่ง Admin: แก้ไขวิดีโอ
                 if (typeof logSystemAction === 'function') {
                     await logSystemAction(
                         'ADMIN_UPDATE_COURSE_LESSON', 
@@ -1124,7 +1214,6 @@
                     return;
                 }
 
-                // 🌟 บันทึก Log ฝั่ง Admin: แก้ไขเอกสาร
                 if (typeof logSystemAction === 'function') {
                     await logSystemAction(
                         'ADMIN_UPDATE_COURSE_LESSON', 
@@ -1146,7 +1235,6 @@
 
                 const { error } = await mySupabase.from('course_lessons').delete().eq('id', id);
                 if (!error) {
-                    // 🌟 บันทึก Log ฝั่ง Admin: ลบบทเรียน/เอกสาร
                     if (typeof logSystemAction === 'function') {
                         await logSystemAction(
                             'ADMIN_DELETE_COURSE_LESSON', 
@@ -1386,7 +1474,6 @@
                     }
                 }
 
-                // 🌟 บันทึก Log ฝั่ง Admin: จัดการรายชื่อนักเรียนในคอร์ส
                 if (typeof logSystemAction === 'function') {
                     await logSystemAction(
                         'ADMIN_MANAGE_COURSE_STUDENTS', 
