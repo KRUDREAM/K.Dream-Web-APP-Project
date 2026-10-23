@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMS | เครื่องมือจัดการโจทย์และเฉลย OMR</title>
+    <title>LMS | เครื่องมือจัดการโจทย์และเฉลย OMR + Audit Log</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -88,6 +88,9 @@
             </div>
             
             <div class="flex items-center gap-2">
+                <button onclick="openAuditLogModal()" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                    <i class="fas fa-history"></i> Audit Log
+                </button>
                 <button onclick="openPreviewStudentModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
                     <i class="fas fa-eye"></i> Preview สอบ
                 </button>
@@ -249,6 +252,81 @@
         let currentExamData = null;
         let gradingCriteriaList = [];
         let enableCriteria = false;
+
+        // Helper function for logging Admin Audit actions
+        async function logAdminAction(actionTitle, detailDesc) {
+            try {
+                const adminName = localStorage.getItem('admin_username') || 
+                                  localStorage.getItem('user_name') || 
+                                  localStorage.getItem('account_name') || 
+                                  localStorage.getItem('full_name') || 
+                                  'ผู้ดูแลระบบ';
+                
+                await mySupabase.from('audit_logs').insert([{
+                    exam_id: examId,
+                    admin_name: adminName,
+                    action: actionTitle,
+                    details: detailDesc,
+                    created_at: new Date().toISOString()
+                }]);
+            } catch (err) {
+                console.warn('Audit log write error:', err);
+            }
+        }
+
+        async function openAuditLogModal() {
+            Swal.fire({ title: 'กำลังโหลดประวัติ Audit Log...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            
+            const { data: logs, error } = await mySupabase
+                .from('audit_logs')
+                .select('*')
+                .eq('exam_id', examId)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                Swal.fire('ไม่สามารถโหลดประวัติได้', error.message, 'error');
+                return;
+            }
+
+            if (!logs || logs.length === 0) {
+                Swal.fire('ไม่พบประวัติ Audit Log', 'ยังไม่มีการบันทึกประวัติการแก้ไขในชุดข้อสอบนี้', 'info');
+                return;
+            }
+
+            const rowsHtml = logs.map(l => {
+                const dateStr = new Date(l.created_at).toLocaleString('th-TH');
+                return `
+                    <tr class="border-b dark:border-slate-800 text-left">
+                        <td class="p-2.5 font-mono text-[11px] text-slate-500">${dateStr}</td>
+                        <td class="p-2.5 font-bold text-sky-600 dark:text-sky-400">${escapeHtml(l.admin_name)}</td>
+                        <td class="p-2.5 font-bold text-emerald-600 dark:text-emerald-400">${escapeHtml(l.action)}</td>
+                        <td class="p-2.5 text-slate-700 dark:text-slate-300 text-[11px]">${escapeHtml(l.details)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            Swal.fire({
+                title: '📜 ประวัติ Audit Log ชุดข้อสอบ',
+                width: '750px',
+                html: `
+                    <div class="max-h-[60vh] overflow-y-auto text-xs">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-b dark:border-slate-800">
+                                    <th class="p-2.5">วันเวลา</th>
+                                    <th class="p-2.5">ผู้ดูแลระบบ</th>
+                                    <th class="p-2.5">กิจกรรม</th>
+                                    <th class="p-2.5">รายละเอียด</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rowsHtml}</tbody>
+                        </table>
+                    </div>
+                `,
+                confirmButtonText: 'ปิดหน้าต่าง',
+                confirmButtonColor: '#0284c7'
+            });
+        }
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -511,6 +589,7 @@
                 console.warn('Supabase columns not found yet, saved locally:', err);
             }
 
+            await logAdminAction('บันทึกเกณฑ์การประเมิน', `อัปเดตเกณฑ์การประเมินผล (เปิดใช้งาน: ${enableCriteria})`);
             Swal.fire({ icon: 'success', title: 'บันทึกเกณฑ์การประเมินสำเร็จ!', timer: 1200, showConfirmButton: false });
             clearModifiedFlag();
         }
@@ -937,8 +1016,10 @@
             if (formValues) {
                 if (isEdit) {
                     await mySupabase.from('questions').update(formValues).eq('id', qData.id);
+                    await logAdminAction('แก้ไขโจทย์', `แก้ไขข้อสอบข้อที่ ${formValues.question_number}`);
                 } else {
                     await mySupabase.from('questions').insert([formValues]);
+                    await logAdminAction('เพิ่มโจทย์ใหม่', `เพิ่มข้อสอบข้อที่ ${formValues.question_number}`);
                 }
                 markAsModified();
                 loadQuestions();
@@ -958,6 +1039,7 @@
 
             if (res.isConfirmed) {
                 await mySupabase.from('questions').delete().eq('id', id);
+                await logAdminAction('ลบโจทย์', `ลบข้อสอบข้อที่ ${qNum}`);
                 markAsModified();
                 loadQuestions();
             }
@@ -1000,6 +1082,7 @@
                     if (pdfInput) pdfInput.value = pdfUrl;
 
                     await mySupabase.from('exams').update({ pdf_url: pdfUrl }).eq('id', examId);
+                    await logAdminAction('อัปโหลด PDF โจทย์', `อัปโหลดไฟล์ PDF: ${file.name}`);
 
                     const previewBtn = document.getElementById('previewPdfBtn');
                     const badge = document.getElementById('pdfStatusBadge');
@@ -1022,6 +1105,7 @@
             const pdfInput = document.getElementById('pdfUrlInput');
             const pdf_url = pdfInput ? pdfInput.value : '';
             await mySupabase.from('exams').update({ pdf_url }).eq('id', examId);
+            await logAdminAction('บันทึก URL PDF', `อัปเดตลิงก์ PDF: ${pdf_url}`);
             markAsModified();
             Swal.fire({ icon: 'success', title: 'บันทึกลิงก์ PDF เรียบร้อย!', timer: 1000, showConfirmButton: false });
         }
@@ -1122,6 +1206,7 @@
                     });
                 }
                 await mySupabase.from('questions').insert(newItems);
+                await logAdminAction('เจนกระดาษ OMR', `สร้างข้อสอบอัตโนมัติ ข้อที่ ${formValues.start} ถึง ${formValues.end}`);
                 markAsModified();
                 loadQuestions();
                 Swal.close();
@@ -1215,6 +1300,7 @@
                 }
             }
 
+            await logAdminAction('บันทึกการแก้ไข & Regrade', `บันทึกข้อมูลและคำนวณคะแนนนักเรียนใหม่สำเร็จ ${successCount} รายการ`);
             clearModifiedFlag();
 
             if (errorLogs.length > 0) {
