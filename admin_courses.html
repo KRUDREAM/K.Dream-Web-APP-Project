@@ -136,7 +136,6 @@
                     }
                 });
 
-                // เก็บ ID นักเรียนทั้งหมดที่มีตัวตนอยู่จริงในระบบ
                 validStudentIds = new Set();
                 if (profilesRes.data) {
                     profilesRes.data.forEach(p => validStudentIds.add(String(p.id)));
@@ -165,7 +164,6 @@
             }
 
             container.innerHTML = coursesList.map(c => {
-                // นับจำนวนนักเรียนที่ไม่ซ้ำกัน (Unique Student ID) และมีตัวตนอยู่จริงในระบบ (กรองบัญชีที่ถูกลบและข้อมูลซ้ำออก)
                 const courseEnrollments = enrollmentsList.filter(e => String(e.course_id) === String(c.id));
                 const uniqueStudentSet = new Set();
                 courseEnrollments.forEach(e => {
@@ -390,9 +388,19 @@
                 if (isEdit) {
                     const res = await mySupabase.from('courses').update(formValues).eq('id', courseId);
                     error = res.error;
+
+                    // 🌟 บันทึก Log ฝั่ง Admin: แก้ไขคอร์สเรียน
+                    if (!error && typeof logSystemAction === 'function') {
+                        await logSystemAction('ADMIN_UPDATE_COURSE', `แอดมินแก้ไขคอร์สเรียน: ${formValues.title} (${formValues.course_code})`, { course_id: courseId, course_code: formValues.course_code, title: formValues.title });
+                    }
                 } else {
                     const res = await mySupabase.from('courses').insert([formValues]);
                     error = res.error;
+
+                    // 🌟 บันทึก Log ฝั่ง Admin: สร้างคอร์สเรียนใหม่
+                    if (!error && typeof logSystemAction === 'function') {
+                        await logSystemAction('ADMIN_CREATE_COURSE', `แอดมินสร้างคอร์สเรียนใหม่: ${formValues.title} (${formValues.course_code})`, { course_code: formValues.course_code, title: formValues.title });
+                    }
                 }
 
                 if (!error) {
@@ -433,7 +441,13 @@
 
             if (isConfirmed) {
                 Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                await mySupabase.from('courses').delete().eq('id', courseId);
+                const { error } = await mySupabase.from('courses').delete().eq('id', courseId);
+
+                // 🌟 บันทึก Log ฝั่ง Admin: ลบคอร์สเรียน
+                if (!error && typeof logSystemAction === 'function') {
+                    await logSystemAction('ADMIN_DELETE_COURSE', `แอดมินลบคอร์สเรียน ID: ${courseId}`, { course_id: courseId });
+                }
+
                 Swal.fire({ icon: 'success', title: 'ลบคอร์สสำเร็จ!', timer: 1000, showConfirmButton: false });
                 initPage();
             }
