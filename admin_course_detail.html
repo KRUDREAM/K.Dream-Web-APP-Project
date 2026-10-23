@@ -1082,34 +1082,35 @@ async function openAddLessonModal(type) {
                 const { error } = await mySupabase.from('course_lessons').insert([payload]);
                 
                 if (!error) {
-                    // 2. สร้างประกาศลงตาราง announcements แบบปลอดภัย (ป้องกัน Error 400 จากโครงสร้างคอลัมน์)
+                    Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1000, showConfirmButton: false });
+
+                    // 2. เรียกใช้ฟังก์ชันกลาง autoPostAnnouncement จาก lms_core.js ทันที
                     const announcementTitle = formValues.isVideo 
                         ? `🎬 มีวิดีโอย้อนหลังใหม่: ${formValues.title}` 
                         : `📁 มีเอกสาร PDF ใหม่: ${formValues.title}`;
                     
-                    try {
-                        await mySupabase.from('announcements').insert([{
-                            title: announcementTitle,
-                            created_at: new Date().toISOString()
-                        }]);
-                    } catch (annErr) {
-                        console.error("Announcement insert error:", annErr);
+                    const announcementContent = `อัปเดตเนื้อหาใหม่ในคอร์ส: ${currentCourse ? currentCourse.title : 'คอร์สเรียน'}`;
+
+                    if (typeof autoPostAnnouncement === 'function') {
+                        // ส่ง category เป็น 'video', title, content และ target เป็นคอร์สนี้
+                        autoPostAnnouncement(
+                            formValues.isVideo ? 'video' : 'document', 
+                            announcementTitle, 
+                            announcementContent, 
+                            'course', 
+                            courseId
+                        ).catch(err => console.error("Auto post announcement error:", err));
                     }
 
-                    // 3. บันทึกระบบ Log (ถ้ามีฟังก์ชัน)
+                    // 3. บันทึก Log ระบบ
                     if (typeof logSystemAction === 'function') {
-                        try {
-                            await logSystemAction(
-                                'ADMIN_ADD_COURSE_LESSON', 
-                                `แอดมินเพิ่ม${formValues.isVideo ? 'วิดีโอ' : 'เอกสาร'} "${formValues.title}" ในคอร์ส`, 
-                                { course_id: courseId, title: formValues.title }
-                            );
-                        } catch (logErr) {
-                            console.error("Log error:", logErr);
-                        }
+                        logSystemAction(
+                            'ADMIN_ADD_COURSE_LESSON', 
+                            `แอดมินเพิ่ม${formValues.isVideo ? 'วิดีโอ' : 'เอกสาร'} "${formValues.title}" ในคอร์ส`, 
+                            { course_id: courseId, title: formValues.title }
+                        ).catch(err => console.error("Log error:", err));
                     }
 
-                    Swal.fire({ icon: 'success', title: 'บันทึกและสร้างประกาศสำเร็จ!', timer: 1200, showConfirmButton: false });
                     loadLessons();
                     if (typeof loadSystemNotifications === 'function') {
                         loadSystemNotifications();
