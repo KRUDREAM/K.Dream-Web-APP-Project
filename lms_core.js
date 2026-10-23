@@ -5,21 +5,22 @@ function getSupabase() {
     return window.mySupabase || (typeof mySupabase !== 'undefined' ? mySupabase : null);
 }
 
-// 1. ฟังก์ชันสร้าง Audit Log เมื่อมีการกระทำใดๆ ในระบบ
-async function logAuditEvent(actionType, moduleName, description) {
+async function logSystemAction(actionType, description, metadata = {}) {
     try {
-        const client = getSupabase();
-        if (!client) return;
+        const studentId = localStorage.getItem('student_id') || localStorage.getItem('id') || 'guest';
+        const studentName = document.getElementById('studentNavName')?.textContent || localStorage.getItem('student_name') || 'ไม่ระบุชื่อ';
+        const userRole = localStorage.getItem('role') || 'student';
 
-        const userName = localStorage.getItem('account_name') || localStorage.getItem('admin_username') || localStorage.getItem('user_name') || 'ผู้ดูแลระบบ';
-        await client.from('audit_logs').insert([{
-            action_type: actionType, // 'CREATE' | 'UPDATE' | 'DELETE' | 'UPLOAD'
-            module: moduleName,      // 'ข้อสอบ' | 'OMR' | 'ประกาศ' | 'Consult' | 'ระบบ'
+        await mySupabase.from('audit_logs').insert([{
+            user_id: studentId,
+            user_name: studentName,
+            role: userRole,
+            action_type: actionType,
             description: description,
-            user_name: userName
+            metadata: metadata
         }]);
     } catch (err) {
-        console.error('Audit Log Error:', err);
+        console.warn("Failed to log action:", err);
     }
 }
 
