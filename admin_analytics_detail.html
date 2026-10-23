@@ -94,7 +94,7 @@
             </div>
         </div>
 
-        <!-- 5 Summary Cards (ส่งแล้ว, คะแนนเฉลี่ย, คะแนนสูงสุด, คะแนนต่ำสุด, มัธยฐาน) -->
+        <!-- 5 Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-users"></i></div>
@@ -176,7 +176,7 @@
 
         <!-- Secondary Charts Layout -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Score Spread / Distribution Chart (Toggleable between Raw vs 10% Range Buckets) -->
+            <!-- Score Spread / Distribution Chart -->
             <div class="lg:col-span-8 hitech-card p-6 rounded-3xl space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
@@ -337,18 +337,29 @@
                 Swal.close();
             }
 
-            document.getElementById('examBadgeCode').textContent = currentExam.exam_code || 'EXAM CODE';
-            document.getElementById('headerExamTitle').textContent = currentExam.title;
-            document.getElementById('headerExamDesc').textContent = currentExam.description || 'ไม่มีคำอธิบายชุดข้อสอบ';
-            document.getElementById('statTotalQuestions').textContent = `${allQuestions.length} ข้อ`;
+            const badgeCodeEl = document.getElementById('examBadgeCode');
+            if (badgeCodeEl) badgeCodeEl.textContent = currentExam.exam_code || 'EXAM CODE';
+
+            const headerTitleEl = document.getElementById('headerExamTitle');
+            if (headerTitleEl) headerTitleEl.textContent = currentExam.title;
+
+            const headerDescEl = document.getElementById('headerExamDesc');
+            if (headerDescEl) headerDescEl.textContent = currentExam.description || 'ไม่มีคำอธิบายชุดข้อสอบ';
+
+            const totalQEl = document.getElementById('statTotalQuestions');
+            if (totalQEl) totalQEl.textContent = `${allQuestions.length} ข้อ`;
 
             computeAndRenderStats();
         }
 
         function computeAndRenderStats() {
             const totalSubmissions = allAttempts.length;
-            document.getElementById('statTotalSubmissionsBanner').textContent = totalSubmissions;
-            document.getElementById('statTotalSubmissions').textContent = totalSubmissions;
+
+            const el1 = document.getElementById('statTotalSubmissionsBanner');
+            if (el1) el1.textContent = totalSubmissions;
+
+            const el2 = document.getElementById('statTotalSubmissions');
+            if (el2) el2.textContent = totalSubmissions;
 
             globalScores = allAttempts.map(a => a.total_score !== undefined && a.total_score !== null ? Number(a.total_score) : (Number(a.score) || 0));
             globalMaxScore = allQuestions.length || 10;
@@ -359,7 +370,6 @@
             let lowestScore = globalScores.length > 0 ? Math.min(...globalScores) : 0;
             let avgPercent = globalMaxScore > 0 ? ((sumScore / (totalSubmissions * globalMaxScore)) * 100).toFixed(1) : '0.0';
 
-            // Calculate Median
             let sortedScores = [...globalScores].sort((a, b) => a - b);
             let medianVal = 0;
             if (sortedScores.length > 0) {
@@ -371,11 +381,16 @@
                 }
             }
 
-            document.getElementById('statAvgScoreBanner').textContent = avgScore;
-            document.getElementById('statAvgScore').textContent = `${avgScore} / ${globalMaxScore}`;
-            document.getElementById('statMaxScore').textContent = `${highestScore} / ${globalMaxScore}`;
-            document.getElementById('statMinScore').textContent = `${lowestScore} / ${globalMaxScore}`;
-            document.getElementById('statMedianScore').textContent = `${medianVal.toFixed(1)} / ${globalMaxScore}`;
+            const setSafeText = (id, text) => {
+                const node = document.getElementById(id);
+                if (node) node.textContent = text;
+            };
+
+            setSafeText('statAvgScoreBanner', avgScore);
+            setSafeText('statAvgScore', `${avgScore} / ${globalMaxScore}`);
+            setSafeText('statMaxScore', `${highestScore} / ${globalMaxScore}`);
+            setSafeText('statMinScore', `${lowestScore} / ${globalMaxScore}`);
+            setSafeText('statMedianScore', `${medianVal.toFixed(1)} / ${globalMaxScore}`);
 
             renderDifficultyChart();
             renderCompactRankingTable();
@@ -385,7 +400,9 @@
         }
 
         function renderDifficultyChart() {
-            const ctx = document.getElementById('questionDifficultyChart').getContext('2d');
+            const canvasEl = document.getElementById('questionDifficultyChart');
+            if (!canvasEl) return;
+            const ctx = canvasEl.getContext('2d');
             const metric = document.getElementById('diffMetricSelect')?.value || 'incorrect';
             const titleEl = document.getElementById('diffChartTitle');
 
@@ -418,7 +435,6 @@
                 return Number(correctPct.toFixed(1));
             });
 
-            // Calculate average percentage line
             let avgPct = percentages.reduce((a, b) => a + b, 0) / (percentages.length || 1);
             let avgLineData = labels.map(() => Number(avgPct.toFixed(1)));
 
@@ -458,7 +474,6 @@
             });
         }
 
-        // Render Compact Ranking Table with shared ranking for ties
         function renderCompactRankingTable() {
             const tbody = document.getElementById('compactRankingTableBody');
             const countBadge = document.getElementById('rankingCountBadge');
@@ -511,14 +526,15 @@
         }
 
         function renderScoreSpreadChart() {
-            const ctx = document.getElementById('scoreSpreadChart').getContext('2d');
+            const canvasEl = document.getElementById('scoreSpreadChart');
+            if (!canvasEl) return;
+            const ctx = canvasEl.getContext('2d');
             const metric = document.getElementById('spreadMetricSelect')?.value || 'raw';
 
             let labels = [];
             let dataValues = [];
 
             if (metric === 'percent') {
-                // 10 percentage buckets: 0-9%, 10-19%, ..., 90-100%
                 labels = ['0-9%', '10-19%', '20-29%', '30-39%', '40-49%', '50-59%', '60-69%', '70-79%', '80-89%', '90-100%'];
                 let buckets = new Array(10).fill(0);
 
@@ -531,7 +547,6 @@
                 });
                 dataValues = buckets;
             } else {
-                // Raw scores (0 to maxScore)
                 let freqMap = {};
                 for (let i = 0; i <= globalMaxScore; i++) {
                     freqMap[i] = 0;
@@ -586,7 +601,9 @@
         }
 
         function renderScoreDistributionChart(scores, maxScore) {
-            const ctx = document.getElementById('scoreDistChart').getContext('2d');
+            const canvasEl = document.getElementById('scoreDistChart');
+            if (!canvasEl) return;
+            const ctx = canvasEl.getContext('2d');
             
             let ranges = [0, 0, 0, 0];
             scores.forEach(s => {
@@ -621,7 +638,7 @@
             const countLbl = document.getElementById('submissionCountLabel');
             if (!tbody) return;
 
-            countLbl.textContent = `แสดง ${filteredAttempts.length} รายการ`;
+            if (countLbl) countLbl.textContent = `แสดง ${filteredAttempts.length} รายการ`;
 
             if (filteredAttempts.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">ยังไม่มีนักเรียนส่งข้อสอบชุดนี้</td></tr>`;
@@ -659,7 +676,8 @@
         }
 
         function filterSubmissions() {
-            const keyword = (document.getElementById('studentSearchInput')?.value || '').trim().toLowerCase();
+            const inputEl = document.getElementById('studentSearchInput');
+            const keyword = (inputEl?.value || '').trim().toLowerCase();
             if (!keyword) {
                 filteredAttempts = [...allAttempts];
             } else {
