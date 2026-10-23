@@ -57,47 +57,35 @@
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-16" oncontextmenu="return false;">
 
-    <!-- 🌟 Left Slide-over Drawer (แผงภาพรวมข้อสอบด้านซ้าย) -->
-    <div id="drawerBackdrop" onclick="toggleLeftDrawer()" class="fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] z-40 hidden transition-opacity"></div>
-    
-    <div id="leftOverviewDrawer" class="fixed top-0 left-0 bottom-0 w-80 z-50 bg-white dark:bg-darkbox border-r border-slate-200 dark:border-slate-800 p-5 shadow-2xl transform -translate-x-full transition-transform duration-300 flex flex-col">
-        <div class="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-            <div class="flex items-center gap-2.5">
-                <div class="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center text-sm font-bold">
-                    <i class="fas fa-th-large"></i>
+    <!-- 🌟 แผงภาพรวมข้อสอบ ลอยอยู่กึ่งกลางซ้ายของจอ (Floating Left Sidebar) -->
+    <div id="leftFloatOverview" class="fixed left-3 top-1/2 -translate-y-1/2 z-35 hidden lg:block transition-all duration-300">
+        <div class="hitech-card rounded-2xl p-3 shadow-xl backdrop-blur-md bg-white/95 dark:bg-darkbox/95 border border-sky-500/40 w-56 space-y-2.5">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center text-[11px] font-bold">
+                        <i class="fas fa-th-large"></i>
+                    </div>
+                    <span class="font-extrabold text-xs text-slate-900 dark:text-white">ภาพรวมข้อสอบ</span>
                 </div>
-                <div>
-                    <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">ภาพรวมข้อสอบ</h3>
-                    <p id="overviewStats" class="text-[10px] text-slate-400">ตอบแล้ว 0 จาก 0 ข้อ</p>
-                </div>
+                <span id="floatOverviewCount" class="text-[10px] font-bold text-sky-600 dark:text-sky-400">0/0</span>
             </div>
-            <button onclick="toggleLeftDrawer()" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition-all">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
+            
+            <div class="flex items-center justify-between text-[10px] text-slate-500 font-medium px-1">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> ตอบ</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700 inline-block"></span> ว่าง</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> ธง</span>
+            </div>
 
-        <div class="flex items-center gap-3 py-3 border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 font-medium shrink-0">
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> ตอบแล้ว</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700 inline-block"></span> ยังไม่ตอบ</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> ปักธง</span>
-        </div>
-
-        <div id="overviewGridContainer" class="grid grid-cols-5 gap-2.5 pt-4 overflow-y-auto flex-1 pr-1 hide-scrollbar">
-            <!-- Populated dynamically -->
+            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-64 overflow-y-auto pr-1 hide-scrollbar">
+                <!-- Populated dynamically -->
+            </div>
         </div>
     </div>
 
     <nav class="glass-nav fixed w-full top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center gap-2">
             <div class="flex items-center gap-3 min-w-0">
-                <!-- 🌟 ปุ่มเปิดแผงภาพรวมด้านซ้าย -->
-                <button onclick="toggleLeftDrawer()" class="px-3 py-2 bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 rounded-xl font-bold text-xs flex items-center gap-1.5 hover:bg-sky-100 dark:hover:bg-sky-900/50 transition-all shadow-sm shrink-0">
-                    <i class="fas fa-th-large text-sm"></i> 
-                    <span class="hidden sm:inline">ภาพรวม</span> 
-                    <span class="px-1.5 py-0.5 bg-sky-500 text-white rounded-md text-[10px]" id="navAnsweredCount">0/0</span>
-                </button>
-
-                <div class="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0 hidden xs:flex">
+                <div class="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0">
                     <i class="fas fa-file-lines"></i>
                 </div>
                 <div class="min-w-0">
@@ -110,7 +98,7 @@
                 <!-- Progress Bar ข้างๆ นาฬิกา -->
                 <div class="hidden md:flex flex-col gap-1 w-28">
                     <div class="flex justify-between text-[10px] text-slate-400 font-bold">
-                        <span>ทำแล้ว</span>
+                        <span id="autoSaveStatus" class="text-emerald-500"><i class="fas fa-check-circle"></i> บันทึกแล้ว</span>
                         <span id="navProgressText">0/0</span>
                     </div>
                     <div class="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -191,7 +179,6 @@
 
         let halfTimeTriggered = false;
         let fiveMinsTriggered = false;
-        let isDrawerOpen = false;
 
         // 🛡️ ตัวแปรระบบ Anti-Cheat (สลับแท็บ)
         let tabSwitchCount = 0;
@@ -221,19 +208,6 @@
                 e.preventDefault();
             }
         });
-
-        function toggleLeftDrawer() {
-            isDrawerOpen = !isDrawerOpen;
-            const drawer = document.getElementById('leftOverviewDrawer');
-            const backdrop = document.getElementById('drawerBackdrop');
-            if (isDrawerOpen) {
-                drawer.classList.remove('-translate-x-full');
-                backdrop.classList.remove('hidden');
-            } else {
-                drawer.classList.add('-translate-x-full');
-                backdrop.classList.add('hidden');
-            }
-        }
 
         function getChoiceLabels(formatType) {
             if (formatType === 'th_num') return ['ก', 'ข', 'ค', 'ง', 'จ'];
@@ -503,7 +477,6 @@
                 box.classList.add('ring-2', 'ring-sky-500');
                 setTimeout(() => box.classList.remove('ring-2', 'ring-sky-500'), 1500);
             }
-            if (isDrawerOpen) toggleLeftDrawer(); // ปิด Drawer อัตโนมัติเมื่อกดเลือกข้อ
         }
 
         function updateExamProgress() {
@@ -521,16 +494,21 @@
             
             const navBarProg = document.getElementById('navProgressBar');
             const navBarText = document.getElementById('navProgressText');
-            const navAnsweredCount = document.getElementById('navAnsweredCount');
             if (navBarProg) navBarProg.style.width = `${percent}%`;
             if (navBarText) navBarText.textContent = `${answeredCount}/${total}`;
-            if (navAnsweredCount) navAnsweredCount.textContent = `${answeredCount}/${total}`;
 
-            const overviewStats = document.getElementById('overviewStats');
-            if (overviewStats) {
-                overviewStats.textContent = `ตอบแล้ว ${answeredCount} จาก ${total} ข้อ (${percent}%)`;
+            const floatOverviewCount = document.getElementById('floatOverviewCount');
+            if (floatOverviewCount) {
+                floatOverviewCount.textContent = `${answeredCount}/${total}`;
             }
 
+            // แสดงสถานะบันทึกแล้วชั่วคราว
+            const autoSave = document.getElementById('autoSaveStatus');
+            if (autoSave) {
+                autoSave.innerHTML = `<i class="fas fa-check-circle"></i> บันทึกแล้ว`;
+            }
+
+            // Render Overview Grid without rebuilding all questions
             const gridContainer = document.getElementById('overviewGridContainer');
             if (gridContainer && currentQuestions.length > 0) {
                 gridContainer.innerHTML = currentQuestions.map((q, idx) => {
@@ -544,13 +522,13 @@
                         bgClass = 'bg-emerald-500 text-white border-emerald-600 shadow-sm';
                     }
                     if (isFlagged) {
-                        bgClass = 'bg-amber-500 text-white border-amber-600 shadow-sm animate-pulse';
+                        bgClass = 'bg-amber-500 text-white border-amber-600 shadow-sm'; // เอา animate-pulse ออกตามต้องการ
                     }
 
                     return `
-                        <button onclick="scrollToQuestion('${q.id}')" class="h-10 rounded-xl font-bold text-xs border flex items-center justify-center transition-all relative ${bgClass}">
+                        <button onclick="scrollToQuestion('${q.id}')" class="h-8 rounded-lg font-bold text-[11px] border flex items-center justify-center transition-all relative ${bgClass}">
                             ${qNum}
-                            ${isFlagged && !isAnswered ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border border-white"></span>' : ''}
+                            ${isFlagged && !isAnswered ? '<span class="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full border border-white"></span>' : ''}
                         </button>
                     `;
                 }).join('');
@@ -630,7 +608,7 @@
                                 
                                 return `
                                     <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-3.5 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
-                                        <div class="w-8 h-8 rounded-lg ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-xs shrink-0">
+                                        <div id="opt-badge-${q.id}-${cIdx}" class="w-8 h-8 rounded-lg ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-xs shrink-0">
                                             ${displayLabel}
                                         </div>
                                         <span class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">${actualText}</span>
@@ -644,7 +622,7 @@
                                         <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400">ข้อที่ ${qNum}</span>
                                         <div class="flex items-center gap-2">
                                             <button onclick="toggleFlag('${q.id}')" class="text-xs ${isFlagged ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}" title="ปักธงข้อที่ไม่มั่นใจ">
-                                                <i class="fas fa-flag"></i> <span class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                                                <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
                                             </button>
                                         </div>
                                     </div>
@@ -652,7 +630,7 @@
                                         ${q.question_text || q.content || ''}
                                     </div>
                                     ${q.image_url ? `<div class="my-2"><img src="${q.image_url}" class="max-h-64 rounded-xl object-contain border" /></div>` : ''}
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1" id="options-container-${q.id}">
                                         ${optionsHtml}
                                     </div>
                                 </div>
@@ -690,7 +668,7 @@
                                 <div id="q-box-${q.id}" class="px-3 py-2 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
                                     <div class="flex items-center gap-3">
                                         <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400 w-8 shrink-0">ข้อ ${qNum}</span>
-                                        <div class="flex items-center gap-1.5">${bubblesHtml}</div>
+                                        <div class="flex items-center gap-1.5" id="bubbles-container-${q.id}">${bubblesHtml}</div>
                                     </div>
                                     <button onclick="toggleFlag('${q.id}')" class="text-xs ${isFlagged ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'} shrink-0 ml-2" title="ปักธงข้อที่ไม่มั่นใจ">
                                         <i class="fas fa-flag"></i>
@@ -712,10 +690,20 @@
             try {
                 localStorage.setItem(`exam_flags_${examId}_${currentStudentId}`, JSON.stringify(flaggedQuestions));
             } catch(e) {}
-            renderQuestionsContainer();
+            
+            // อัปเดต UI เฉพาะปุ่มธงและ Overview โดยไม่ต้องเรนเดอร์ใหม่ทั้งหมด
             updateExamProgress();
+            
+            const qObj = currentQuestions.find(q => q.id === qId);
+            const isFlagged = flaggedQuestions[qId];
+            const flagBtnText = document.getElementById(`flag-text-${qId}`);
+            if (flagBtnText) {
+                flagBtnText.textContent = isFlagged ? 'ปักธงแล้ว' : 'ปักธง';
+                flagBtnText.closest('button').className = `text-xs ${isFlagged ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`;
+            }
         }
 
+        // 🌟 แก้ไขฟังก์ชันเลือกคำตอบให้อัปเดตเฉพาะ DOM ข้อนั้นๆ ไม่ให้เกิดบั๊กเลือกซ้ำ/เด้ง
         function selectAnswer(qId, cIdx) {
             const strCIdx = String(cIdx);
             
@@ -732,7 +720,36 @@
             const box = document.getElementById(`q-box-${qId}`);
             if (box) box.classList.remove('question-unanswered-highlight');
 
-            renderQuestionsContainer();
+            const qObj = currentQuestions.find(q => q.id === qId);
+            const formatType = currentExam?.choice_format || 'num';
+            const standardLabels = getChoiceLabels(formatType);
+            const opts = (qObj && qObj.options && qObj.options.length > 0) ? qObj.options : standardLabels;
+
+            // อัปเดตสไตล์ของตัวเลือกแบบเรียลไทม์ (Smooth & Safe)
+            opts.forEach((_, i) => {
+                const optCard = document.getElementById(`opt-card-${qId}-${i}`);
+                const optBadge = document.getElementById(`opt-badge-${qId}-${i}`);
+                const bubble = document.getElementById(`bubble-${qId}-${i}`);
+
+                if (optCard && optBadge) {
+                    if (String(i) === strCIdx && studentAnswers[qId] !== undefined) {
+                        optCard.className = 'p-3.5 rounded-xl border cursor-pointer transition-all flex items-center gap-3 border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm';
+                        optBadge.className = 'w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-xs shrink-0';
+                    } else {
+                        optCard.className = 'p-3.5 rounded-xl border cursor-pointer transition-all flex items-center gap-3 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400';
+                        optBadge.className = 'w-8 h-8 rounded-lg bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 flex items-center justify-center font-bold text-xs shrink-0';
+                    }
+                }
+
+                if (bubble) {
+                    if (String(i) === strCIdx && studentAnswers[qId] !== undefined) {
+                        bubble.classList.add('active');
+                    } else {
+                        bubble.classList.remove('active');
+                    }
+                }
+            });
+
             updateExamProgress();
         }
 
