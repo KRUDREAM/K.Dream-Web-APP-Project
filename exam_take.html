@@ -51,24 +51,37 @@
             50% { border-color: rgba(239, 68, 68, 0.3); }
             100% { border-color: #ef4444; }
         }
+        .hide-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .hide-scrollbar::-webkit-scrollbar-thumb { background: rgba(2, 132, 199, 0.4); border-radius: 9999px; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-16" oncontextmenu="return false;">
 
     <nav class="glass-nav fixed w-full top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center gap-2">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0">
                     <i class="fas fa-file-lines"></i>
                 </div>
-                <div>
-                    <h1 id="examTitleNav" class="font-extrabold text-sm text-slate-900 dark:text-white">กำลังโหลดข้อสอบ...</h1>
-                    <p id="examSubNav" class="text-[11px] text-slate-500">กรุณารอสักครู่...</p>
+                <div class="min-w-0">
+                    <h1 id="examTitleNav" class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">กำลังโหลดข้อสอบ...</h1>
+                    <p id="examSubNav" class="text-[10px] sm:text-[11px] text-slate-500 truncate">กรุณารอสักครู่...</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-3">
-                <div class="px-4 py-1.5 bg-amber-500/15 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl font-mono font-bold text-xs flex items-center gap-1.5">
+            <div class="flex items-center gap-3 shrink-0">
+                <!-- Progress Bar ข้างๆ นาฬิกา -->
+                <div class="hidden md:flex flex-col gap-1 w-28">
+                    <div class="flex justify-between text-[10px] text-slate-400 font-bold">
+                        <span>ทำแล้ว</span>
+                        <span id="navProgressText">0/0</span>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="navProgressBar" class="bg-sky-500 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="px-3 sm:px-4 py-1.5 bg-amber-500/15 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl font-mono font-bold text-xs flex items-center gap-1.5">
                     <i class="fas fa-clock animate-pulse"></i>
                     <span id="timerDisplay">--:--</span>
                 </div>
@@ -79,11 +92,40 @@
         </div>
     </nav>
 
-    <main class="max-w-[96rem] mx-auto px-4 pt-24 space-y-6">
+    <main class="max-w-[96rem] mx-auto px-4 pt-24 space-y-4">
         
         <div id="previewBanner" class="hidden p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex justify-between items-center text-xs font-bold text-indigo-600 dark:text-indigo-400">
             <span><i class="fas fa-eye mr-1.5"></i> โหมดดูตัวอย่างข้อสอบ (Preview Mode - คะแนนจะไม่ถูกบันทึก)</span>
             <button onclick="window.close()" class="px-3 py-1 bg-indigo-600 text-white rounded-lg">ปิดหน้าต่างนี้</button>
+        </div>
+
+        <!-- 🌟 แผงภาพรวมข้อสอบ (Overview Drawer) สามารถพับเก็บได้ -->
+        <div id="overviewCard" class="hitech-card rounded-2xl p-4 space-y-3">
+            <div class="flex justify-between items-center cursor-pointer select-none" onclick="toggleOverviewDrawer()">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center text-xs font-bold">
+                        <i class="fas fa-th"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">ภาพรวมข้อสอบ & สถานะการทำ</h3>
+                        <p id="overviewStats" class="text-[10px] text-slate-400">ตอบแล้ว 0 จาก 0 ข้อ (คลิกเพื่อพับ/ขยาย)</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="hidden sm:flex items-center gap-3 text-[10px] text-slate-500 font-semibold">
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> ตอบแล้ว</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700 inline-block"></span> ยังไม่ตอบ</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> ปักธง</span>
+                    </div>
+                    <button class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 hover:bg-sky-500 hover:text-white transition-all">
+                        <i class="fas fa-chevron-up transition-transform duration-300" id="overviewChevronIcon"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="overviewGridContainer" class="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-15 lg:grid-cols-20 gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-800 max-h-40 overflow-y-auto pr-1 hide-scrollbar">
+                <!-- Populated dynamically -->
+            </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -94,7 +136,7 @@
                     <h3 class="font-bold text-xs text-red-600 flex items-center gap-1.5"><i class="fas fa-file-pdf"></i> เอกสารข้อสอบ (ความคมชัดสูง / ห้ามดาวน์โหลด)</h3>
                     <span class="px-2.5 py-0.5 bg-red-500/10 text-red-600 text-[10px] font-bold rounded-lg border border-red-500/20"><i class="fas fa-shield-alt mr-1"></i> ป้องกันการดาวน์โหลด 100%</span>
                 </div>
-                <div id="pdfContainer" class="w-full h-[78vh] bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-y-auto border p-4 flex flex-col items-center gap-4 select-none" oncontextmenu="return false;">
+                <div id="pdfContainer" class="w-full h-[74vh] bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-y-auto border p-4 flex flex-col items-center gap-4 select-none" oncontextmenu="return false;">
                     <div class="text-slate-400 text-xs py-20">กำลังเรนเดอร์เอกสารข้อสอบความคมชัดสูง...</div>
                 </div>
             </div>
@@ -141,6 +183,7 @@
 
         let halfTimeTriggered = false;
         let fiveMinsTriggered = false;
+        let isOverviewOpen = true;
 
         // 🛡️ ตัวแปรระบบ Anti-Cheat (สลับแท็บ)
         let tabSwitchCount = 0;
@@ -170,6 +213,19 @@
                 e.preventDefault();
             }
         });
+
+        function toggleOverviewDrawer() {
+            isOverviewOpen = !isOverviewOpen;
+            const grid = document.getElementById('overviewGridContainer');
+            const icon = document.getElementById('overviewChevronIcon');
+            if (isOverviewOpen) {
+                grid.classList.remove('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                grid.classList.add('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            }
+        }
 
         function getChoiceLabels(formatType) {
             if (formatType === 'th_num') return ['ก', 'ข', 'ค', 'ง', 'จ'];
@@ -233,7 +289,6 @@
                 document.getElementById('previewBanner').classList.remove('hidden');
             }
 
-            // 🛑 ป้องกันการทำซ้ำ: ตรวจสอบในฐานข้อมูลว่านักเรียนเคยส่งข้อสอบชุดนี้ไปแล้วหรือยัง
             if (!isPreview && currentStudentId) {
                 try {
                     const { data: prevAttempts, error } = await mySupabase
@@ -274,7 +329,6 @@
                 formatSub.textContent = `รูปแบบตัวเลือก: ${getChoiceFormatLabelText(exam.choice_format)}`;
             }
 
-            // 💾 โหลดคำตอบและสถานะปักธงที่บันทึกไว้ใน localStorage (ป้องกันเผลอรีเฟรช)
             if (!isPreview) {
                 try {
                     const savedAnswers = localStorage.getItem(`exam_answers_${examId}_${currentStudentId}`);
@@ -312,7 +366,6 @@
                 }
             }
 
-            // ตรวจสอบว่ามี PDF หรือไม่ เพื่อปรับ Layout หน้าจอ
             const pdfCard = document.getElementById('pdfViewerCard');
             const rightCard = document.getElementById('rightAnswerCard');
             const answerCardTitle = document.getElementById('answerCardTitle');
@@ -342,13 +395,11 @@
             totalExamSeconds = (currentExam.time_limit || 60) * 60;
             startPersistentTimer(parseInt(startTime, 10), totalExamSeconds);
 
-            // เปิดใช้งานระบบ Anti-Cheat (เมื่อเริ่มทำข้อสอบจริง)
             if (!isPreview) {
                 initAntiCheatSystem();
             }
         }
 
-        // 🛡️ ระบบ Anti-Cheat: ตรวจจับการสลับแท็บและสูญเสียโฟกัส
         function initAntiCheatSystem() {
             document.addEventListener('visibilitychange', function () {
                 if (document.hidden) {
@@ -434,6 +485,66 @@
             const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
             currentQuestions = qs || [];
             renderQuestionsContainer();
+            updateExamProgress();
+        }
+
+        function scrollToQuestion(qId) {
+            const box = document.getElementById(`q-box-${qId}`);
+            if (box) {
+                box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                box.classList.add('ring-2', 'ring-sky-500');
+                setTimeout(() => box.classList.remove('ring-2', 'ring-sky-500'), 1500);
+            }
+        }
+
+        function updateExamProgress() {
+            const total = currentQuestions.length;
+            let answeredCount = 0;
+
+            currentQuestions.forEach(q => {
+                const ans = studentAnswers[q.id];
+                if (ans !== undefined && ans !== null && String(ans).trim() !== '') {
+                    answeredCount++;
+                }
+            });
+
+            const percent = total > 0 ? Math.round((answeredCount / total) * 100) : 0;
+            
+            const navBarProg = document.getElementById('navProgressBar');
+            const navBarText = document.getElementById('navProgressText');
+            if (navBarProg) navBarProg.style.width = `${percent}%`;
+            if (navBarText) navBarText.textContent = `${answeredCount}/${total}`;
+
+            const overviewStats = document.getElementById('overviewStats');
+            if (overviewStats) {
+                overviewStats.textContent = `ตอบแล้ว ${answeredCount} จาก ${total} ข้อ (${percent}%) (คลิกเพื่อพับ/ขยาย)`;
+            }
+
+            // Render Overview Grid
+            const gridContainer = document.getElementById('overviewGridContainer');
+            if (gridContainer && currentQuestions.length > 0) {
+                gridContainer.innerHTML = currentQuestions.map((q, idx) => {
+                    const qNum = q.question_number || (idx + 1);
+                    const ans = studentAnswers[q.id];
+                    const isAnswered = ans !== undefined && ans !== null && String(ans).trim() !== '';
+                    const isFlagged = flaggedQuestions[q.id];
+
+                    let bgClass = 'bg-slate-100 dark:bg-darkinput text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800';
+                    if (isAnswered) {
+                        bgClass = 'bg-emerald-500 text-white border-emerald-600 shadow-sm';
+                    }
+                    if (isFlagged) {
+                        bgClass = 'bg-amber-500 text-white border-amber-600 shadow-sm animate-pulse';
+                    }
+
+                    return `
+                        <button onclick="scrollToQuestion('${q.id}')" class="h-9 rounded-xl font-bold text-xs border flex items-center justify-center transition-all relative ${bgClass}">
+                            ${qNum}
+                            ${isFlagged && !isAnswered ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border border-white"></span>' : ''}
+                        </button>
+                    `;
+                }).join('');
+            }
         }
 
         function renderQuestionsContainer() {
@@ -482,7 +593,6 @@
                     const isFlagged = flaggedQuestions[q.id];
 
                     if (!hasPdf) {
-                        // 🌟 รูปแบบโจทย์ที่พิมพ์ลงระบบ (Direct-Text Quiz UI แบบเต็มจอ)
                         if (isEssay) {
                             htmlContent += `
                                 <div id="q-box-${q.id}" class="p-5 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm relative">
@@ -539,7 +649,6 @@
                             `;
                         }
                     } else {
-                        // 🌟 รูปแบบข้อสอบ PDF (กระดาษคำตอบ OMR Compact)
                         if (isEssay) {
                             htmlContent += `
                                 <div id="q-box-${q.id}" class="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 relative">
@@ -594,10 +703,18 @@
                 localStorage.setItem(`exam_flags_${examId}_${currentStudentId}`, JSON.stringify(flaggedQuestions));
             } catch(e) {}
             renderQuestionsContainer();
+            updateExamProgress();
         }
 
         function selectAnswer(qId, cIdx) {
-            studentAnswers[qId] = String(cIdx);
+            const strCIdx = String(cIdx);
+            
+            // 🌟 รองรับการคลิกซ้ำเพื่อยกเลิกคำตอบ (Deselect)
+            if (studentAnswers[qId] === strCIdx) {
+                delete studentAnswers[qId];
+            } else {
+                studentAnswers[qId] = strCIdx;
+            }
             
             try {
                 localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
@@ -606,49 +723,16 @@
             const box = document.getElementById(`q-box-${qId}`);
             if (box) box.classList.remove('question-unanswered-highlight');
 
-            const qObj = currentQuestions.find(q => q.id === qId);
-            const formatType = currentExam?.choice_format || 'num';
-            const standardLabels = getChoiceLabels(formatType);
-            const opts = (qObj && qObj.options && qObj.options.length > 0) ? qObj.options : standardLabels;
-
-            if (qObj) {
-                opts.forEach((_, i) => {
-                    // รองรับทั้ง OMR Bubble และ Option Card แบบเต็ม
-                    const bubble = document.getElementById(`bubble-${qId}-${i}`);
-                    if (bubble) {
-                        if (String(i) === String(cIdx)) {
-                            bubble.classList.add('active');
-                        } else {
-                            bubble.classList.remove('active');
-                        }
-                    }
-
-                    const optCard = document.getElementById(`opt-card-${qId}-${i}`);
-                    if (optCard) {
-                        if (String(i) === String(cIdx)) {
-                            optCard.classList.add('border-sky-500', 'bg-sky-500/10', 'text-sky-600', 'dark:text-sky-400', 'shadow-sm');
-                            optCard.classList.remove('border-slate-200', 'dark:border-slate-800', 'bg-slate-50/50', 'dark:bg-slate-900/50');
-                            const badge = optCard.querySelector('div');
-                            if (badge) {
-                                badge.classList.add('bg-sky-600', 'text-white');
-                                badge.classList.remove('bg-white', 'dark:bg-darkinput', 'text-slate-700', 'dark:text-slate-300', 'border');
-                            }
-                        } else {
-                            optCard.classList.remove('border-sky-500', 'bg-sky-500/10', 'text-sky-600', 'dark:text-sky-400', 'shadow-sm');
-                            optCard.classList.add('border-slate-200', 'dark:border-slate-800', 'bg-slate-50/50', 'dark:bg-slate-900/50');
-                            const badge = optCard.querySelector('div');
-                            if (badge) {
-                                badge.classList.remove('bg-sky-600', 'text-white');
-                                badge.classList.add('bg-white', 'dark:bg-darkinput', 'text-slate-700', 'dark:text-slate-300', 'border');
-                            }
-                        }
-                    }
-                });
-            }
+            renderQuestionsContainer();
+            updateExamProgress();
         }
 
         function saveEssayAnswer(qId, val) {
-            studentAnswers[qId] = val;
+            if (!val || val.trim() === '') {
+                delete studentAnswers[qId];
+            } else {
+                studentAnswers[qId] = val;
+            }
             
             try {
                 localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
@@ -658,6 +742,7 @@
                 const box = document.getElementById(`q-box-${qId}`);
                 if (box) box.classList.remove('question-unanswered-highlight');
             }
+            updateExamProgress();
         }
 
         function playSoftAlertSound(type = 'half') {
