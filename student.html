@@ -116,10 +116,35 @@
                     <i class="fas fa-book-reader"></i> <span class="hidden md:inline">คอร์ส</span>
                 </button>
 
-                <button onclick="openNotificationsModal()" class="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="ประกาศและการแจ้งเตือน">
-                    <i class="fas fa-bell text-xs"></i>
-                    <span id="notifBadge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center shadow-md hidden animate-pulse">0</span>
-                </button>
+                <!-- 🌟 RE-UI Notification Button & Dropdown -->
+                <div class="relative">
+                    <button onclick="toggleNotifDropdown(event)" class="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="ประกาศและการแจ้งเตือน">
+                        <i class="fas fa-bell text-xs"></i>
+                        <span id="notifBadge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center shadow-md hidden animate-pulse">0</span>
+                    </button>
+
+                    <!-- Notification Dropdown Menu (Latest 5 Items) -->
+                    <div id="notifDropdownMenu" class="hidden absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-3 z-50 text-xs font-semibold">
+                        <div class="px-4 pb-2.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-bell text-sky-500"></i>
+                                <span class="font-extrabold text-slate-900 dark:text-white">การแจ้งเตือนล่าสุด</span>
+                                <span id="notifHeaderCount" class="px-2 py-0.5 bg-sky-500/15 text-sky-600 dark:text-sky-400 rounded-full text-[10px] font-extrabold">0 ใหม่</span>
+                            </div>
+                            <button onclick="markAllNotificationsRead()" class="text-[10px] text-sky-600 dark:text-sky-400 hover:underline font-bold">อ่านทั้งหมดแล้ว</button>
+                        </div>
+                        
+                        <div id="notifDropdownList" class="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                            <div class="px-4 py-8 text-center text-slate-400 text-xs">กำลังโหลดการแจ้งเตือน...</div>
+                        </div>
+
+                        <div class="pt-2 px-3 border-t border-slate-100 dark:border-slate-800">
+                            <button onclick="openNotificationsModal()" class="w-full text-center py-2 bg-sky-50 dark:bg-slate-800 hover:bg-sky-100 text-sky-600 dark:text-sky-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm">
+                                <span>เปิดศูนย์รวมประกาศทั้งหมด</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
                 <button id="themeToggle" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="สลับธีม">
                     <i class="fas fa-moon text-xs" id="themeIcon"></i>
@@ -453,6 +478,7 @@
         let collapsedCategories = {};
         let quickPendingCount = 0;
         let studentTokenBalance = 0;
+        let notificationsDataCache = [];
 
         let chartProgressInstance = null;
         let chartRadarInstance = null;
@@ -475,13 +501,33 @@
         function toggleUserDropdown(event) {
             event.stopPropagation();
             const menu = document.getElementById('userDropdownMenu');
+            const notifMenu = document.getElementById('notifDropdownMenu');
+            if (notifMenu) notifMenu.classList.add('hidden');
             menu.classList.toggle('hidden');
+        }
+
+        function toggleNotifDropdown(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('notifDropdownMenu');
+            const userMenu = document.getElementById('userDropdownMenu');
+            if (userMenu) userMenu.classList.add('hidden');
+
+            const willOpen = menu.classList.contains('hidden');
+            menu.classList.toggle('hidden');
+
+            if (willOpen) {
+                fetchAndRenderNotificationDropdown();
+            }
         }
 
         function closeAllDropdowns(event) {
             const menu = document.getElementById('userDropdownMenu');
             if (menu && !menu.classList.contains('hidden')) {
                 menu.classList.add('hidden');
+            }
+            const notifMenu = document.getElementById('notifDropdownMenu');
+            if (notifMenu && !notifMenu.classList.contains('hidden')) {
+                notifMenu.classList.add('hidden');
             }
         }
 
@@ -586,18 +632,121 @@
 
         async function loadStudentNotificationsCount() {
             try {
-                const { data } = await mySupabase.from('notifications').select('*').eq('is_read', false);
+                const { data: anns } = await mySupabase.from('announcements').select('id, created_at').order('created_at', { ascending: false }).limit(10);
+                let readIds = JSON.parse(localStorage.getItem('student_read_announcements') || '[]');
                 const badge = document.getElementById('notifBadge');
                 
-                if (data && data.length > 0) {
-                    badge.textContent = data.length;
-                    badge.classList.remove('hidden');
+                if (anns && anns.length > 0) {
+                    const unread = anns.filter(a => !readIds.includes(a.id));
+                    if (unread.length > 0) {
+                        badge.textContent = unread.length;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
                 } else {
                     badge.classList.add('hidden');
                 }
             } catch (err) {
                 console.warn("Notification count warning:", err);
             }
+        }
+
+        async function fetchAndRenderNotificationDropdown() {
+            const listContainer = document.getElementById('notifDropdownList');
+            const headerCount = document.getElementById('notifHeaderCount');
+            const badge = document.getElementById('notifBadge');
+
+            try {
+                const { data: anns } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(5);
+                let readIds = JSON.parse(localStorage.getItem('student_read_announcements') || '[]');
+
+                if (!anns || anns.length === 0) {
+                    listContainer.innerHTML = `<div class="px-4 py-8 text-center text-slate-400 text-xs space-y-1"><i class="fas fa-bell-slash text-2xl text-sky-500 mb-1"></i><p>ยังไม่มีการแจ้งเตือนใหม่</p></div>`;
+                    headerCount.textContent = '0 ใหม่';
+                    badge.classList.add('hidden');
+                    return;
+                }
+
+                notificationsDataCache = anns;
+                let unreadCount = anns.filter(a => !readIds.includes(a.id) && !a.is_read).length;
+
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount;
+                    badge.classList.remove('hidden');
+                    headerCount.textContent = `${unreadCount} ใหม่`;
+                } else {
+                    badge.classList.add('hidden');
+                    headerCount.textContent = '0 ใหม่';
+                }
+
+                listContainer.innerHTML = anns.map(a => {
+                    const isUnread = !readIds.includes(a.id) && !a.is_read;
+                    const timeAgo = getTimeAgo(a.created_at);
+                    const category = a.category || 'general';
+
+                    let catIcon = 'fas fa-bullhorn text-sky-500';
+                    if (category === 'exam') catIcon = 'fas fa-file-pen text-indigo-500';
+                    else if (category === 'consult') catIcon = 'fas fa-comments text-emerald-500';
+                    else if (category === 'video') catIcon = 'fas fa-play-circle text-rose-500';
+
+                    return `
+                        <div onclick="clickNotificationItem('${a.id}')" class="p-3 hover:bg-sky-50 dark:hover:bg-slate-800/80 cursor-pointer transition-all flex items-start gap-3 relative">
+                            ${isUnread ? '<span class="absolute top-3.5 right-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-sm"></span>' : ''}
+                            <div class="w-8 h-8 rounded-xl bg-sky-500/10 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
+                                <i class="${catIcon} text-xs"></i>
+                            </div>
+                            <div class="flex-1 min-w-0 space-y-0.5 pr-3">
+                                <h4 class="font-extrabold text-xs text-slate-900 dark:text-white truncate">${a.title || 'ประกาศจากโรงเรียน'}</h4>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-light line-clamp-2 leading-relaxed">${a.content || ''}</p>
+                                <span class="text-[10px] text-slate-400 font-mono block pt-0.5"><i class="far fa-clock mr-1"></i>${timeAgo}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error("Error loading notification dropdown:", err);
+                listContainer.innerHTML = `<div class="px-4 py-6 text-center text-rose-500 text-xs">ไม่สามารถโหลดการแจ้งเตือนได้</div>`;
+            }
+        }
+
+        function clickNotificationItem(annId) {
+            let readIds = JSON.parse(localStorage.getItem('student_read_announcements') || '[]');
+            if (!readIds.includes(annId)) {
+                readIds.push(annId);
+                localStorage.setItem('student_read_announcements', JSON.stringify(readIds));
+            }
+            document.getElementById('notifDropdownMenu').classList.add('hidden');
+            openNotificationsModal();
+        }
+
+        async function markAllNotificationsRead() {
+            if (!notificationsDataCache || notificationsDataCache.length === 0) return;
+            let readIds = JSON.parse(localStorage.getItem('student_read_announcements') || '[]');
+            notificationsDataCache.forEach(a => {
+                if (!readIds.includes(a.id)) readIds.push(a.id);
+            });
+            localStorage.setItem('student_read_announcements', JSON.stringify(readIds));
+            document.getElementById('notifBadge').classList.add('hidden');
+            document.getElementById('notifHeaderCount').textContent = '0 ใหม่';
+            await fetchAndRenderNotificationDropdown();
+            Swal.fire({ icon: 'success', title: 'อ่านการแจ้งเตือนทั้งหมดแล้ว', timer: 1000, showConfirmButton: false });
+        }
+
+        function getTimeAgo(dateString) {
+            const now = new Date();
+            const past = new Date(dateString);
+            const diffMs = now - past;
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+            if (diffMins < 1) return 'เมื่อสักครู่';
+            if (diffMins < 60) return `${diffMins} นาทีที่แล้ว`;
+            if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
+            if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
+            return past.toLocaleDateString('th-TH', { dateStyle: 'medium' });
         }
 
         function openPrivacyPolicyModal() {
@@ -694,12 +843,9 @@
             const isDark = document.documentElement.classList.contains('dark');
             Swal.fire({ title: 'กำลังโหลดประกาศและการแจ้งเตือน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            // ดึงข้อมูลประกาศทั้งหมดจากตาราง announcements เพื่อให้ตรงกับหน้า announcement.html
             const { data: anns } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
 
             let notifHtml = '';
-            
-            // เพิ่มปุ่มทางลัดไปหน้า announcement.html เต็มรูปแบบไว้ด้านบนสุด
             let headerBtnHtml = `
                 <div class="mb-4 pb-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                     <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">ศูนย์รวมข่าวสารและประกาศทั้งหมด</span>
@@ -712,31 +858,8 @@
             if (!anns || anns.length === 0) {
                 notifHtml = headerBtnHtml + `<div class="py-12 text-center text-slate-400 space-y-2"><i class="fas fa-bullhorn text-3xl text-sky-500"></i><p class="text-xs">ยังไม่มีประกาศในระบบขณะนี้</p></div>`;
             } else {
-                let filteredAnns = anns.filter(a => {
-                    const tType = a.target_type || 'all';
-                    const tVal = a.target_value || '';
-                    if (tType === 'all' || !tType) return true;
-                    if (tType === 'level') {
-                        const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
-                        if (!studentGrade) return true;
-                        return tVal.toLowerCase().includes(studentGrade.toLowerCase());
-                    }
-                    if (tType === 'course') {
-                        if (studentEnrolledCourses.length === 0) return true;
-                        const targetCourses = tVal.split(',').map(c => c.trim().toLowerCase());
-                        return studentEnrolledCourses.some(c => targetCourses.includes(c.toLowerCase()));
-                    }
-                    if (tType === 'specific') {
-                        const targetStudents = tVal.split(',').map(s => s.trim());
-                        return targetStudents.includes(String(currentStudentId)) || targetStudents.length === 0;
-                    }
-                    return true;
-                });
-
-                if (filteredAnns.length === 0) filteredAnns = anns; // Fallback ถ้ากรองแล้วไม่พบ ให้แสดงทั้งหมด
-
                 notifHtml = headerBtnHtml + `<div class="space-y-3 max-h-[60vh] overflow-y-auto pr-1 text-left">`;
-                filteredAnns.forEach(a => {
+                anns.forEach(a => {
                     const timeStr = new Date(a.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
                     const category = a.category || 'general';
 
@@ -775,11 +898,6 @@
                             </div>
                             <p class="text-xs text-slate-600 dark:text-slate-300 font-light whitespace-pre-line leading-relaxed">${a.content || ''}</p>
                             ${attachPreview}
-                            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-                                <button onclick="goToAnnouncementPage()" class="text-xs font-bold text-sky-600 hover:underline flex items-center gap-1">
-                                    อ่านรายละเอียดทั้งหมด <i class="fas fa-arrow-right text-[10px]"></i>
-                                </button>
-                            </div>
                         </div>
                     `;
                 });
@@ -796,8 +914,6 @@
                 color: isDark ? '#f1f5f9' : '#1e293b'
             });
 
-            // ทำเครื่องหมายว่าอ่านการแจ้งเตือนแล้วเมื่อเปิด Modal นี้
-            await mySupabase.from('notifications').update({ is_read: true }).eq('is_read', false);
             loadStudentNotificationsCount();
         }
 
