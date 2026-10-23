@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KRUDREAM LAND | ศูนย์สอบออนไลน์</title>
+    <title>LMS | ศูนย์สอบออนไลน์</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -57,9 +57,9 @@
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-16" oncontextmenu="return false;">
 
-    <!-- 🌟 แผงภาพรวมข้อสอบ ลอยอยู่กึ่งกลางซ้ายของจอ (Floating Left Sidebar) -->
-    <div id="leftFloatOverview" class="fixed left-3 top-1/2 -translate-y-1/2 z-35 hidden lg:block transition-all duration-300">
-        <div class="hitech-card rounded-2xl p-3 shadow-xl backdrop-blur-md bg-white/95 dark:bg-darkbox/95 border border-sky-500/40 w-56 space-y-2.5">
+    <!-- 🌟 แผงภาพรวมข้อสอบ ลอยอยู่กึ่งกลางซ้าย พร้อมปุ่มซ่อน/แสดง (Collapsible Floating Sidebar) -->
+    <div id="leftFloatOverview" class="fixed left-3 top-1/2 -translate-y-1/2 z-40 hidden lg:flex items-center transition-all duration-300">
+        <div id="overviewCardBody" class="hitech-card rounded-2xl p-3 shadow-2xl backdrop-blur-md bg-white/95 dark:bg-darkbox/95 border border-sky-500/40 w-52 space-y-2.5 transition-all duration-300">
             <div class="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
                 <div class="flex items-center gap-2">
                     <div class="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center text-[11px] font-bold">
@@ -76,10 +76,15 @@
                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> ธง</span>
             </div>
 
-            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-64 overflow-y-auto pr-1 hide-scrollbar">
+            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-56 overflow-y-auto pr-1 hide-scrollbar">
                 <!-- Populated dynamically -->
             </div>
         </div>
+
+        <!-- ปุ่มสำหรับคลิกซ่อน/แสดงแผงภาพรวม -->
+        <button onclick="toggleOverviewSidebar()" id="toggleSidebarBtn" class="ml-1.5 w-6 h-12 bg-white dark:bg-darkbox border border-slate-200 dark:border-slate-800 rounded-r-xl shadow-md text-slate-500 hover:text-sky-500 flex items-center justify-center text-xs transition-all cursor-pointer" title="ซ่อน/แสดง แผงภาพรวม">
+            <i id="toggleSidebarIcon" class="fas fa-chevron-left"></i>
+        </button>
     </div>
 
     <nav class="glass-nav fixed w-full top-0 z-30">
@@ -95,11 +100,10 @@
             </div>
 
             <div class="flex items-center gap-3 shrink-0">
-                <!-- Progress Bar ข้างๆ นาฬิกา -->
-                <div class="hidden md:flex flex-col gap-1 w-28">
-                    <div class="flex justify-between text-[10px] text-slate-400 font-bold">
-                        <span id="autoSaveStatus" class="text-emerald-500"><i class="fas fa-check-circle"></i> บันทึกแล้ว</span>
-                        <span id="navProgressText">0/0</span>
+                <div class="hidden md:flex flex-col gap-1 w-32">
+                    <div class="flex justify-between text-[10px] font-bold">
+                        <span id="autoSaveStatus" class="text-emerald-500 flex items-center gap-1"><i class="fas fa-check-circle"></i> บันทึกแล้ว</span>
+                        <span id="navProgressText" class="text-slate-400">0/0</span>
                     </div>
                     <div class="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                         <div id="navProgressBar" class="bg-sky-500 h-full transition-all duration-300" style="width: 0%"></div>
@@ -117,7 +121,8 @@
         </div>
     </nav>
 
-    <main class="max-w-[96rem] mx-auto px-4 pt-24 space-y-4">
+    <!-- ปรับ padding-left เล็กน้อยเมื่อมี PDF เพื่อไม่ให้เนื้อหาทับซ้อนกับแถบลอยด้านซ้าย -->
+    <main class="max-w-[96rem] mx-auto px-4 pt-24 space-y-4 lg:pl-16">
         
         <div id="previewBanner" class="hidden p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex justify-between items-center text-xs font-bold text-indigo-600 dark:text-indigo-400">
             <span><i class="fas fa-eye mr-1.5"></i> โหมดดูตัวอย่างข้อสอบ (Preview Mode - คะแนนจะไม่ถูกบันทึก)</span>
@@ -126,7 +131,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
-            <!-- ฝั่งซ้าย: PDF Viewer (จะซ่อนอัตโนมัติหากไม่มีไฟล์ PDF) -->
+            <!-- ฝั่งซ้าย: PDF Viewer -->
             <div id="pdfViewerCard" class="hidden lg:col-span-8 hitech-card p-4 rounded-3xl space-y-3 sticky top-24">
                 <div class="flex justify-between items-center">
                     <h3 class="font-bold text-xs text-red-600 flex items-center gap-1.5"><i class="fas fa-file-pdf"></i> เอกสารข้อสอบ (ความคมชัดสูง / ห้ามดาวน์โหลด)</h3>
@@ -137,7 +142,7 @@
                 </div>
             </div>
 
-            <!-- ฝั่งขวา: กระดาษคำตอบ OMR / หรือพื้นที่แสดงโจทย์เต็มจอ -->
+            <!-- ฝั่งขวา: กระดาษคำตอบ OMR -->
             <div id="rightAnswerCard" class="lg:col-span-4 hitech-card p-5 rounded-3xl space-y-5">
                 <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
                     <div>
@@ -179,8 +184,8 @@
 
         let halfTimeTriggered = false;
         let fiveMinsTriggered = false;
+        let isOverviewHidden = false;
 
-        // 🛡️ ตัวแปรระบบ Anti-Cheat (สลับแท็บ)
         let tabSwitchCount = 0;
         const MAX_ALLOWED_VIOLATIONS = 3;
 
@@ -208,6 +213,33 @@
                 e.preventDefault();
             }
         });
+
+        // ฟังก์ชันสำหรับซ่อน/แสดง แผงภาพรวมข้อสอบด้านซ้าย
+        function toggleOverviewSidebar() {
+            isOverviewHidden = !isOverviewHidden;
+            const cardBody = document.getElementById('overviewCardBody');
+            const toggleIcon = document.getElementById('toggleSidebarIcon');
+            const container = document.getElementById('leftFloatOverview');
+
+            if (isOverviewHidden) {
+                cardBody.style.opacity = '0';
+                cardBody.style.transform = 'translateX(-20px)';
+                cardBody.style.pointerEvents = 'none';
+                cardBody.style.width = '0px';
+                cardBody.style.padding = '0px';
+                cardBody.style.overflow = 'hidden';
+                toggleIcon.className = 'fas fa-chevron-right';
+                container.style.left = '0px';
+            } else {
+                cardBody.style.opacity = '1';
+                cardBody.style.transform = 'translateX(0)';
+                cardBody.style.pointerEvents = 'auto';
+                cardBody.style.width = '13rem'; // w-52
+                cardBody.style.padding = '0.75rem'; // p-3
+                toggleIcon.className = 'fas fa-chevron-left';
+                container.style.left = '0.75rem'; // left-3
+            }
+        }
 
         function getChoiceLabels(formatType) {
             if (formatType === 'th_num') return ['ก', 'ข', 'ค', 'ง', 'จ'];
@@ -479,6 +511,19 @@
             }
         }
 
+        function updateAutoSaveStatus() {
+            const autoSaveEl = document.getElementById('autoSaveStatus');
+            if (!autoSaveEl) return;
+
+            autoSaveEl.className = 'text-sky-500 flex items-center gap-1 transition-all';
+            autoSaveEl.innerHTML = `<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...`;
+
+            setTimeout(() => {
+                autoSaveEl.className = 'text-emerald-500 flex items-center gap-1 transition-all';
+                autoSaveEl.innerHTML = `<i class="fas fa-check-circle"></i> บันทึกแล้ว`;
+            }, 300);
+        }
+
         function updateExamProgress() {
             const total = currentQuestions.length;
             let answeredCount = 0;
@@ -502,13 +547,6 @@
                 floatOverviewCount.textContent = `${answeredCount}/${total}`;
             }
 
-            // แสดงสถานะบันทึกแล้วชั่วคราว
-            const autoSave = document.getElementById('autoSaveStatus');
-            if (autoSave) {
-                autoSave.innerHTML = `<i class="fas fa-check-circle"></i> บันทึกแล้ว`;
-            }
-
-            // Render Overview Grid without rebuilding all questions
             const gridContainer = document.getElementById('overviewGridContainer');
             if (gridContainer && currentQuestions.length > 0) {
                 gridContainer.innerHTML = currentQuestions.map((q, idx) => {
@@ -522,7 +560,7 @@
                         bgClass = 'bg-emerald-500 text-white border-emerald-600 shadow-sm';
                     }
                     if (isFlagged) {
-                        bgClass = 'bg-amber-500 text-white border-amber-600 shadow-sm'; // เอา animate-pulse ออกตามต้องการ
+                        bgClass = 'bg-amber-500 text-white border-amber-600 shadow-sm';
                     }
 
                     return `
@@ -691,10 +729,8 @@
                 localStorage.setItem(`exam_flags_${examId}_${currentStudentId}`, JSON.stringify(flaggedQuestions));
             } catch(e) {}
             
-            // อัปเดต UI เฉพาะปุ่มธงและ Overview โดยไม่ต้องเรนเดอร์ใหม่ทั้งหมด
             updateExamProgress();
             
-            const qObj = currentQuestions.find(q => q.id === qId);
             const isFlagged = flaggedQuestions[qId];
             const flagBtnText = document.getElementById(`flag-text-${qId}`);
             if (flagBtnText) {
@@ -703,7 +739,6 @@
             }
         }
 
-        // 🌟 แก้ไขฟังก์ชันเลือกคำตอบให้อัปเดตเฉพาะ DOM ข้อนั้นๆ ไม่ให้เกิดบั๊กเลือกซ้ำ/เด้ง
         function selectAnswer(qId, cIdx) {
             const strCIdx = String(cIdx);
             
@@ -725,7 +760,6 @@
             const standardLabels = getChoiceLabels(formatType);
             const opts = (qObj && qObj.options && qObj.options.length > 0) ? qObj.options : standardLabels;
 
-            // อัปเดตสไตล์ของตัวเลือกแบบเรียลไทม์ (Smooth & Safe)
             opts.forEach((_, i) => {
                 const optCard = document.getElementById(`opt-card-${qId}-${i}`);
                 const optBadge = document.getElementById(`opt-badge-${qId}-${i}`);
@@ -750,6 +784,7 @@
                 }
             });
 
+            updateAutoSaveStatus();
             updateExamProgress();
         }
 
@@ -768,6 +803,7 @@
                 const box = document.getElementById(`q-box-${qId}`);
                 if (box) box.classList.remove('question-unanswered-highlight');
             }
+            updateAutoSaveStatus();
             updateExamProgress();
         }
 
