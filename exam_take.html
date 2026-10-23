@@ -173,7 +173,7 @@
 
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -193,9 +193,8 @@
         let fiveMinsTriggered = false;
         let isOverviewHidden = false;
 
-        // PDF Zoom Management
         let pdfGlobalDoc = null;
-        let currentPdfScale = 2.0; // ค่าเริ่มต้นความคมชัด 200%
+        let currentPdfScale = 2.0;
 
         let tabSwitchCount = 0;
         const MAX_ALLOWED_VIOLATIONS = 3;
@@ -338,9 +337,10 @@
                 }
             }
 
-            const { data: exam } = await mySupabase.from('exams').select('*').eq('id', examId).single();
-            if (!exam) {
-                Swal.fire('ไม่พบชุดข้อสอบนี้', '', 'error').then(() => window.location.href = 'student.html');
+            const { data: exam, error: examError } = await mySupabase.from('exams').select('*').eq('id', examId).single();
+            if (examError || !exam) {
+                console.error("Exam load error:", examError);
+                Swal.fire('ไม่พบชุดข้อสอบนี้ หรือติดปัญหาการเชื่อมต่อ', '', 'error').then(() => window.location.href = 'student.html');
                 return;
             }
 
