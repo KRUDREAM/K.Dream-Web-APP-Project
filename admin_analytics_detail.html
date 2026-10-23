@@ -172,12 +172,12 @@
             </div>
         </div>
 
-        <!-- Secondary Charts Layout: Score Spread Chart with Line Average (Left 8) & Grade Doughnut (Right 4) -->
+        <!-- Secondary Charts Layout: Score Spread Chart with Vertical Line Average (Left 8) & Grade Doughnut (Right 4) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-8 hitech-card p-6 rounded-3xl space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                        <i class="fas fa-chart-area text-purple-500"></i> กราฟกระจายตัวของคะแนน (พร้อมกราฟเส้นค่าเฉลี่ย)
+                        <i class="fas fa-chart-area text-purple-500"></i> กราฟกระจายตัวของคะแนน (พร้อมเส้นดิ่งค่าเฉลี่ย)
                     </h3>
                     <div class="flex items-center gap-2">
                         <select id="spreadMetricSelect" onchange="renderScoreSpreadChart()" class="px-3 py-1.5 bg-slate-100 dark:bg-darkinput font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-purple-600 dark:text-purple-400">
@@ -195,11 +195,11 @@
             </div>
         </div>
 
-        <!-- Time Analytics Layout: Time Spent with Dashed Avg Line (Left 6) & Score vs Time Scatter (Right 6) -->
+        <!-- Time Analytics Layout: Time Spent with Vertical Line Avg (Left 6) & Score vs Time Scatter (Right 6) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-6 hitech-card p-6 rounded-3xl space-y-4">
                 <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <i class="fas fa-clock text-amber-500"></i> สถิติเวลาที่ใช้ทำข้อสอบ (พร้อมกราฟเส้นเวลาเฉลี่ย)
+                    <i class="fas fa-clock text-amber-500"></i> สถิติเวลาที่ใช้ทำข้อสอบ (พร้อมเส้นดิ่งเวลาเฉลี่ย)
                 </h3>
                 <div class="relative h-72 w-full"><canvas id="timeSpentChart"></canvas></div>
             </div>
@@ -262,6 +262,39 @@
         let spreadChartInstance = null;
         let timeSpentChartInstance = null;
         let scatterChartInstance = null;
+
+        // Custom Chart.js Plugin for Vertical Reference Line matching user reference image
+        const verticalLinePlugin = {
+            id: 'verticalLine',
+            afterDraw(chart) {
+                const opt = chart.config.options.plugins.verticalLine;
+                if (!opt || opt.index === undefined || opt.index === null) return;
+                const { ctx, chartArea, scales } = chart;
+                const meta = chart.getDatasetMeta(0);
+                if (!meta.data || !meta.data[opt.index]) return;
+
+                const xCoord = meta.data[opt.index].x;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(xCoord, chartArea.top);
+                ctx.lineTo(xCoord, chartArea.bottom);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = opt.color || '#f59e0b';
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.restore();
+
+                if (opt.label) {
+                    ctx.save();
+                    ctx.font = 'bold 11px Prompt, sans-serif';
+                    ctx.fillStyle = opt.color || '#f59e0b';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(opt.label, xCoord, chartArea.top - 8);
+                    ctx.restore();
+                }
+            }
+        };
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -583,16 +616,17 @@
             }
 
             let avgScoreVal = globalScores.length > 0 ? (globalScores.reduce((a, b) => a + b, 0) / globalScores.length) : 0;
-            let avgLineData = [];
+            let avgIndex = 0;
 
             if (metric === 'percent') {
                 let avgPct = globalMaxScore > 0 ? (avgScoreVal / globalMaxScore) * 100 : 0;
-                let avgBucketIdx = Math.floor(avgPct / 10);
-                if (avgBucketIdx > 9) avgBucketIdx = 9;
-                avgLineData = labels.map((_, idx) => (idx === avgBucketIdx ? (dataValues[idx] || 1) : null));
+                avgIndex = Math.floor(avgPct / 10);
+                if (avgIndex > 9) avgIndex = 9;
+                if (avgIndex < 0) avgIndex = 0;
             } else {
-                let avgRounded = Math.round(avgScoreVal);
-                avgLineData = labels.map((_, idx) => (idx === avgRounded ? (dataValues[idx] || 1) : null));
+                avgIndex = Math.round(avgScoreVal);
+                if (avgIndex > globalMaxScore) avgIndex = globalMaxScore;
+                if (avgIndex < 0) avgIndex = 0;
             }
 
             if (spreadChartInstance) spreadChartInstance.destroy();
@@ -600,41 +634,27 @@
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [
-                        {
-                            label: 'จำนวนนักเรียน (คน)',
-                            data: dataValues,
-                            backgroundColor: '#8b5cf6',
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            order: 2
-                        },
-                        {
-                            label: `คะแนนเฉลี่ยห้อง (${avgScoreVal.toFixed(1)})`,
-                            data: avgLineData,
-                            type: 'line',
-                            borderColor: '#f59e0b',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            borderDash: [5, 5],
-                            pointRadius: 5,
-                            pointBackgroundColor: '#f59e0b',
-                            pointHoverRadius: 7,
-                            order: 1
-                        }
-                    ]
+                    datasets: [{
+                        label: 'จำนวนนักเรียน (คน)',
+                        data: dataValues,
+                        backgroundColor: '#8b5cf6',
+                        borderRadius: 8,
+                        borderWidth: 1
+                    }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { family: 'Prompt', size: 11 } } },
+                        legend: { display: false },
+                        verticalLine: {
+                            index: avgIndex,
+                            label: `เฉลี่ย ${avgScoreVal.toFixed(1)}`,
+                            color: '#f59e0b'
+                        },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    if (context.dataset.type === 'line') {
-                                        return ` คะแนนเฉลี่ยห้อง: ${avgScoreVal.toFixed(1)} คะแนน`;
-                                    }
                                     return ` จำนวนนักเรียน: ${context.raw} คน`;
                                 }
                             }
@@ -646,7 +666,8 @@
                             ticks: { stepSize: 1 }
                         }
                     }
-                }
+                },
+                plugins: [verticalLinePlugin]
             });
         }
 
@@ -707,54 +728,32 @@
             else if (avgTimeVal <= 30) avgTimeBucketIdx = 3;
             else avgTimeBucketIdx = 4;
 
-            let avgTimeLineData = timeBuckets.map((_, idx) => (idx === avgTimeBucketIdx ? (timeBuckets[idx] || 1) : null));
-
             if (timeSpentChartInstance) timeSpentChartInstance.destroy();
             timeSpentChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: timeLabels,
-                    datasets: [
-                        {
-                            label: 'จำนวนนักเรียน (คน)',
-                            data: timeBuckets,
-                            backgroundColor: '#f59e0b',
-                            borderRadius: 8,
-                            order: 2
-                        },
-                        {
-                            label: `เวลาเฉลี่ย (${avgTimeVal.toFixed(1)} นาที)`,
-                            data: avgTimeLineData,
-                            type: 'line',
-                            borderColor: '#0284c7',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            borderDash: [5, 5],
-                            pointRadius: 5,
-                            pointBackgroundColor: '#0284c7',
-                            pointHoverRadius: 7,
-                            order: 1
-                        }
-                    ]
+                    datasets: [{
+                        label: 'จำนวนนักเรียน (คน)',
+                        data: timeBuckets,
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 8
+                    }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { family: 'Prompt', size: 11 } } },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    if (context.dataset.type === 'line') {
-                                        return ` เวลาเฉลี่ยที่ใช้: ${avgTimeVal.toFixed(1)} นาที`;
-                                    }
-                                    return ` จำนวนนักเรียน: ${context.raw} คน`;
-                                }
-                            }
+                        legend: { display: false },
+                        verticalLine: {
+                            index: avgTimeBucketIdx,
+                            label: `เวลาเฉลี่ย ${avgTimeVal.toFixed(1)} นาที`,
+                            color: '#0284c7'
                         }
                     },
                     scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                }
+                },
+                plugins: [verticalLinePlugin]
             });
         }
 
