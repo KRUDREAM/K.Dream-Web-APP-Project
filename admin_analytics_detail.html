@@ -43,8 +43,6 @@
         .dark .glass-nav { background: rgba(2, 6, 23, 0.88); border-bottom: 1px solid rgba(30, 58, 138, 0.4); }
         .hitech-card { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(186, 230, 253, 0.8); box-shadow: 0 10px 30px -10px rgba(2, 132, 199, 0.08); transition: all 0.25s ease; }
         .dark .hitech-card { background: rgba(9, 13, 22, 0.95); border: 1px solid rgba(30, 58, 138, 0.5); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); }
-        .glow-badge-sky { background: rgba(2, 132, 199, 0.1); color: #0284c7; border: 1px solid rgba(56, 189, 248, 0.3); }
-        .dark .glow-badge-sky { background: rgba(2, 132, 199, 0.2); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); }
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
         .hide-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -86,44 +84,58 @@
             </div>
             <div class="flex items-center gap-3 shrink-0">
                 <div class="p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl text-center">
-                    <div id="statTotalSubmissions" class="text-xl font-extrabold text-sky-600 dark:text-sky-400">0</div>
+                    <div id="statTotalSubmissionsBanner" class="text-xl font-extrabold text-sky-600 dark:text-sky-400">0</div>
                     <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">ส่งแล้ว (คน)</div>
                 </div>
                 <div class="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl text-center">
-                    <div id="statAvgScore" class="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">0.0</div>
+                    <div id="statAvgScoreBanner" class="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">0.0</div>
                     <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">คะแนนเฉลี่ย</div>
                 </div>
             </div>
         </div>
 
-        <!-- Quick Summary Stats -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="hitech-card p-5 rounded-2xl flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-xl"><i class="fas fa-trophy"></i></div>
+        <!-- 5 Summary Cards (ส่งแล้ว, คะแนนเฉลี่ย, คะแนนสูงสุด, คะแนนต่ำสุด, มัธยฐาน) -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-users"></i></div>
                 <div>
-                    <span class="text-xs text-slate-400 font-bold block">คะแนนสูงสุด</span>
-                    <span id="statMaxScore" class="text-lg font-extrabold text-slate-900 dark:text-white">-</span>
+                    <span class="text-[11px] text-slate-400 font-bold block">ส่งแล้ว (คน)</span>
+                    <span id="statTotalSubmissions" class="text-base font-extrabold text-slate-900 dark:text-white">-</span>
                 </div>
             </div>
-            <div class="hitech-card p-5 rounded-2xl flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-xl"><i class="fas fa-chart-pie"></i></div>
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-calculator"></i></div>
                 <div>
-                    <span class="text-xs text-slate-400 font-bold block">คะแนนเฉลี่ยร้อยละ</span>
-                    <span id="statAvgPercent" class="text-lg font-extrabold text-amber-500">-</span>
+                    <span class="text-[11px] text-slate-400 font-bold block">คะแนนเฉลี่ย</span>
+                    <span id="statAvgScore" class="text-base font-extrabold text-indigo-600 dark:text-indigo-400">-</span>
                 </div>
             </div>
-            <div class="hitech-card p-5 rounded-2xl flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-xl"><i class="fas fa-tasks"></i></div>
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-trophy"></i></div>
                 <div>
-                    <span class="text-xs text-slate-400 font-bold block">จำนวนข้อสอบทั้งหมด</span>
-                    <span id="statTotalQuestions" class="text-lg font-extrabold text-purple-600 dark:text-purple-400">- ข้อ</span>
+                    <span class="text-[11px] text-slate-400 font-bold block">คะแนนสูงสุด</span>
+                    <span id="statMaxScore" class="text-base font-extrabold text-emerald-600 dark:text-emerald-400">-</span>
+                </div>
+            </div>
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-arrow-down"></i></div>
+                <div>
+                    <span class="text-[11px] text-slate-400 font-bold block">คะแนนต่ำสุด</span>
+                    <span id="statMinScore" class="text-base font-extrabold text-rose-600 dark:text-rose-400">-</span>
+                </div>
+            </div>
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 col-span-2 sm:col-span-1">
+                <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-chart-line"></i></div>
+                <div>
+                    <span class="text-[11px] text-slate-400 font-bold block">มัธยฐาน (Median)</span>
+                    <span id="statMedianScore" class="text-base font-extrabold text-purple-600 dark:text-purple-400">-</span>
                 </div>
             </div>
         </div>
 
         <!-- Charts Layout (Difficulty Chart side-by-side with Compact Ranking Table) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Difficulty Chart with Dropdown Toggle (Left: 8 Cols) -->
+            <!-- Difficulty Chart with Average Line (Left: 8 Cols) -->
             <div class="lg:col-span-8 hitech-card p-6 rounded-3xl space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 id="diffChartTitle" class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
@@ -164,11 +176,18 @@
 
         <!-- Secondary Charts Layout -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Score Spread / Distribution Chart -->
+            <!-- Score Spread / Distribution Chart (Toggleable between Raw vs 10% Range Buckets) -->
             <div class="lg:col-span-8 hitech-card p-6 rounded-3xl space-y-4">
-                <div class="flex justify-between items-center">
-                    <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2"><i class="fas fa-chart-area text-purple-500"></i> กราฟกระจายตัวของคะแนน (Score Frequency Distribution & Median Marker)</h3>
-                    <span id="medianBadge" class="text-[11px] font-bold px-2.5 py-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-lg">ค่ากลางห้อง (50%): -</span>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-chart-area text-purple-500"></i> กราฟกระจายตัวของคะแนน
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <select id="spreadMetricSelect" onchange="renderScoreSpreadChart()" class="px-3 py-1.5 bg-slate-100 dark:bg-darkinput font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-purple-600 dark:text-purple-400">
+                            <option value="raw" selected>คะแนนดิบ (รายคะแนน)</option>
+                            <option value="percent">ช่วงร้อยละ (สเต็ปละ 10%)</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="relative h-72 w-full"><canvas id="scoreSpreadChart"></canvas></div>
             </div>
@@ -222,6 +241,8 @@
         let allAttempts = [];
         let allStudentsMap = {};
         let filteredAttempts = [];
+        let globalScores = [];
+        let globalMaxScore = 10;
         let diffChartInstance = null;
         let distChartInstance = null;
         let spreadChartInstance = null;
@@ -326,24 +347,40 @@
 
         function computeAndRenderStats() {
             const totalSubmissions = allAttempts.length;
+            document.getElementById('statTotalSubmissionsBanner').textContent = totalSubmissions;
             document.getElementById('statTotalSubmissions').textContent = totalSubmissions;
 
-            let scores = allAttempts.map(a => a.total_score !== undefined && a.total_score !== null ? Number(a.total_score) : (Number(a.score) || 0));
-            
-            let maxScore = allQuestions.length || 10;
-            let sumScore = scores.reduce((acc, curr) => acc + curr, 0);
-            let avgScore = totalSubmissions > 0 ? (sumScore / totalSubmissions).toFixed(1) : '0.0';
-            let highestScore = scores.length > 0 ? Math.max(...scores) : 0;
-            let avgPercent = maxScore > 0 ? ((sumScore / (totalSubmissions * maxScore)) * 100).toFixed(1) : '0.0';
+            globalScores = allAttempts.map(a => a.total_score !== undefined && a.total_score !== null ? Number(a.total_score) : (Number(a.score) || 0));
+            globalMaxScore = allQuestions.length || 10;
 
-            document.getElementById('statAvgScore').textContent = avgScore;
-            document.getElementById('statMaxScore').textContent = `${highestScore} / ${maxScore}`;
-            document.getElementById('statAvgPercent').textContent = `${avgPercent}%`;
+            let sumScore = globalScores.reduce((acc, curr) => acc + curr, 0);
+            let avgScore = totalSubmissions > 0 ? (sumScore / totalSubmissions).toFixed(1) : '0.0';
+            let highestScore = globalScores.length > 0 ? Math.max(...globalScores) : 0;
+            let lowestScore = globalScores.length > 0 ? Math.min(...globalScores) : 0;
+            let avgPercent = globalMaxScore > 0 ? ((sumScore / (totalSubmissions * globalMaxScore)) * 100).toFixed(1) : '0.0';
+
+            // Calculate Median
+            let sortedScores = [...globalScores].sort((a, b) => a - b);
+            let medianVal = 0;
+            if (sortedScores.length > 0) {
+                let mid = Math.floor(sortedScores.length / 2);
+                if (sortedScores.length % 2 === 0) {
+                    medianVal = (sortedScores[mid - 1] + sortedScores[mid]) / 2;
+                } else {
+                    medianVal = sortedScores[mid];
+                }
+            }
+
+            document.getElementById('statAvgScoreBanner').textContent = avgScore;
+            document.getElementById('statAvgScore').textContent = `${avgScore} / ${globalMaxScore}`;
+            document.getElementById('statMaxScore').textContent = `${highestScore} / ${globalMaxScore}`;
+            document.getElementById('statMinScore').textContent = `${lowestScore} / ${globalMaxScore}`;
+            document.getElementById('statMedianScore').textContent = `${medianVal.toFixed(1)} / ${globalMaxScore}`;
 
             renderDifficultyChart();
             renderCompactRankingTable();
-            renderScoreSpreadChart(scores, maxScore);
-            renderScoreDistributionChart(scores, maxScore);
+            renderScoreSpreadChart();
+            renderScoreDistributionChart(globalScores, globalMaxScore);
             renderSubmissionsTable();
         }
 
@@ -381,22 +418,41 @@
                 return Number(correctPct.toFixed(1));
             });
 
+            // Calculate average percentage line
+            let avgPct = percentages.reduce((a, b) => a + b, 0) / (percentages.length || 1);
+            let avgLineData = labels.map(() => Number(avgPct.toFixed(1)));
+
             if (diffChartInstance) diffChartInstance.destroy();
             diffChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        label: metric === 'correct' ? '% ผู้ตอบถูก' : '% ผู้ตอบผิด',
-                        data: percentages,
-                        backgroundColor: metric === 'correct' ? '#0284c7' : '#ef4444',
-                        borderRadius: 8
-                    }]
+                    datasets: [
+                        {
+                            label: metric === 'correct' ? '% ผู้ตอบถูก' : '% ผู้ตอบผิด',
+                            data: percentages,
+                            backgroundColor: metric === 'correct' ? '#0284c7' : '#ef4444',
+                            borderRadius: 8,
+                            order: 2
+                        },
+                        {
+                            label: `เส้นค่าเฉลี่ย (${avgPct.toFixed(1)}%)`,
+                            data: avgLineData,
+                            type: 'line',
+                            borderColor: '#f59e0b',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            order: 1
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { family: 'Prompt', size: 11 } } }
+                    },
                     scales: { y: { beginAtZero: true, max: 100 } }
                 }
             });
@@ -414,7 +470,6 @@
                 return;
             }
 
-            // Sort attempts by score descending
             const sortedAttempts = [...allAttempts].sort((a, b) => {
                 const scoreA = a.total_score !== undefined && a.total_score !== null ? Number(a.total_score) : (Number(a.score) || 0);
                 const scoreB = b.total_score !== undefined && b.total_score !== null ? Number(b.total_score) : (Number(b.score) || 0);
@@ -438,7 +493,7 @@
                 const fullName = (profile.first_name || profile.name || profile.full_name || '').trim() + 
                                  (profile.last_name ? ' ' + profile.last_name : '') || 
                                  att.student_name || att.full_name || 'ไม่ระบุชื่อ';
-                const max = allQuestions.length || 10;
+                const max = globalMaxScore;
 
                 let rankBadge = `<span class="font-mono font-bold">${currentRank}</span>`;
                 if (currentRank === 1) rankBadge = `<span class="px-2 py-0.5 bg-amber-500/10 text-amber-500 font-extrabold rounded-md text-[11px]">🥇 1</span>`;
@@ -455,46 +510,44 @@
             }).join('');
         }
 
-        function renderScoreSpreadChart(scores, maxScore) {
+        function renderScoreSpreadChart() {
             const ctx = document.getElementById('scoreSpreadChart').getContext('2d');
-
-            let freqMap = {};
-            for (let i = 0; i <= maxScore; i++) {
-                freqMap[i] = 0;
-            }
-            scores.forEach(s => {
-                let rounded = Math.round(s);
-                if (rounded > maxScore) rounded = maxScore;
-                if (rounded < 0) rounded = 0;
-                freqMap[rounded] = (freqMap[rounded] || 0) + 1;
-            });
+            const metric = document.getElementById('spreadMetricSelect')?.value || 'raw';
 
             let labels = [];
             let dataValues = [];
-            for (let i = 0; i <= maxScore; i++) {
-                labels.push(`${i} คะแนน`);
-                dataValues.push(freqMap[i]);
-            }
 
-            let sortedScores = [...scores].sort((a, b) => a - b);
-            let medianVal = 0;
-            if (sortedScores.length > 0) {
-                let mid = Math.floor(sortedScores.length / 2);
-                if (sortedScores.length % 2 === 0) {
-                    medianVal = (sortedScores[mid - 1] + sortedScores[mid]) / 2;
-                } else {
-                    medianVal = sortedScores[mid];
+            if (metric === 'percent') {
+                // 10 percentage buckets: 0-9%, 10-19%, ..., 90-100%
+                labels = ['0-9%', '10-19%', '20-29%', '30-39%', '40-49%', '50-59%', '60-69%', '70-79%', '80-89%', '90-100%'];
+                let buckets = new Array(10).fill(0);
+
+                globalScores.forEach(s => {
+                    let pct = globalMaxScore > 0 ? (s / globalMaxScore) * 100 : 0;
+                    let idx = Math.floor(pct / 10);
+                    if (idx > 9) idx = 9;
+                    if (idx < 0) idx = 0;
+                    buckets[idx]++;
+                });
+                dataValues = buckets;
+            } else {
+                // Raw scores (0 to maxScore)
+                let freqMap = {};
+                for (let i = 0; i <= globalMaxScore; i++) {
+                    freqMap[i] = 0;
+                }
+                globalScores.forEach(s => {
+                    let rounded = Math.round(s);
+                    if (rounded > globalMaxScore) rounded = globalMaxScore;
+                    if (rounded < 0) rounded = 0;
+                    freqMap[rounded] = (freqMap[rounded] || 0) + 1;
+                });
+
+                for (let i = 0; i <= globalMaxScore; i++) {
+                    labels.push(`${i} คะแนน`);
+                    dataValues.push(freqMap[i]);
                 }
             }
-            document.getElementById('medianBadge').textContent = `ค่ากลางห้อง (Median): ${medianVal.toFixed(1)} คะแนน`;
-
-            let backgroundColors = labels.map((lbl, idx) => {
-                let scoreNum = idx;
-                if (Math.abs(scoreNum - medianVal) <= 0.5) {
-                    return '#f59e0b';
-                }
-                return '#8b5cf6';
-            });
 
             if (spreadChartInstance) spreadChartInstance.destroy();
             spreadChartInstance = new Chart(ctx, {
@@ -504,7 +557,7 @@
                     datasets: [{
                         label: 'จำนวนนักเรียน (คน)',
                         data: dataValues,
-                        backgroundColor: backgroundColors,
+                        backgroundColor: '#8b5cf6',
                         borderRadius: 8,
                         borderWidth: 1
                     }]
@@ -558,7 +611,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
+                    plugins: { legend: { position: 'bottom', labels: { font: { family: 'Prompt', size: 11 } } } }
                 }
             });
         }
@@ -585,7 +638,7 @@
                 
                 const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
                 const score = att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0);
-                const max = allQuestions.length || 10;
+                const max = globalMaxScore;
                 const dateStr = att.submission_time || att.submitted_at || att.created_at ? new Date(att.submission_time || att.submitted_at || att.created_at).toLocaleString('th-TH') : '-';
 
                 return `
@@ -716,7 +769,7 @@
                          att.student_name || att.full_name || 'นักเรียน';
             const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
             const score = att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0);
-            const maxScore = allQuestions.length || 10;
+            const maxScore = globalMaxScore;
 
             let rawAns = att.answer_saved || att.answers || att.user_answers;
             if (typeof rawAns === 'string') { try { rawAns = JSON.parse(rawAns); } catch(e){} }
