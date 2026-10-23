@@ -115,7 +115,7 @@
         </div>
     </main>
 
-    <script>
+<script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -140,7 +140,7 @@
             try {
                 let logsCollected = [];
 
-                // 1. พยายามดึงข้อมูลจากตาราง audit_logs หลัก (ถ้ามี)
+                // 1. ดึงข้อมูลจากตาราง audit_logs หลักที่เราเพิ่งสร้าง
                 const { data: auditData, error: auditError } = await mySupabase
                     .from('audit_logs')
                     .select('*')
@@ -148,72 +148,57 @@
                     .limit(100);
 
                 if (!auditError && auditData && auditData.length > 0) {
-                    logsCollected = auditData;
-                } else {
-                    // 2. Fallback สรุปกิจกรรมจากตารางอื่นๆ ทั่วระบบ เพื่อให้เห็นทุกการกระทำจริง
-                    const [profilesRes, examsRes, subsRes, consultRes] = await Promise.all([
-                        mySupabase.from('profiles').select('id, full_name, username, role, created_at').order('created_at', { ascending: false }).limit(30),
-                        mySupabase.from('exams').select('id, title, created_at').order('created_at', { ascending: false }).limit(20),
-                        mySupabase.from('exam_submissions').select('id, student_id, exam_id, score, created_at').order('created_at', { ascending: false }).limit(30),
-                        mySupabase.from('consult_slots').select('id, student_id, status, start_time, created_at').order('created_at', { ascending: false }).limit(20)
-                    ]);
-
-                    // ดึงโปรไฟล์มาทำ Map ชื่อ
-                    let profilesMap = {};
-                    if (profilesRes.data) {
-                        profilesRes.data.forEach(p => {
-                            profilesMap[p.id] = p.full_name || p.username || 'ผู้ใช้งาน';
-                            logsCollected.push({
-                                id: 'profile-' + p.id,
-                                created_at: p.created_at || new Date().toISOString(),
-                                actor_role: p.role || 'student',
-                                actor_id: p.full_name || p.username || p.id,
-                                action: 'สมัครสมาชิก / อัปเดตโปรไฟล์',
-                                target: `บัญชีผู้ใช้: ${p.username || p.id}`
-                            });
+                    auditData.forEach(item => {
+                        logsCollected.push({
+                            id: item.id,
+                            created_at: item.created_at,
+                            actor_role: item.role || 'student',
+                            actor_id: item.user_name || item.user_id || 'ผู้ใช้งาน',
+                            action: item.action_type || 'SYSTEM_ACTION',
+                            target: item.description || '-'
                         });
-                    }
+                    });
+                }
 
-                    if (examsRes.data) {
-                        examsRes.data.forEach(ex => {
-                            logsCollected.push({
-                                id: 'exam-' + ex.id,
-                                created_at: ex.created_at || new Date().toISOString(),
-                                actor_role: 'admin',
-                                actor_id: 'ผู้ดูแลระบบ',
-                                action: 'สร้างชุดข้อสอบใหม่',
-                                target: `หัวข้อข้อสอบ: ${ex.title}`
-                            });
-                        });
-                    }
+                // 2. ดึงข้อมูลสำรองจากตารางอื่นๆ เพิ่มเติม (เหมือนของเดิมคุณ เพื่อให้เห็นข้อมูลครอบคลุม)
+                const [profilesRes, examsRes, subsRes] = await Promise.all([
+                    mySupabase.from('profiles').select('id, full_name, username, role, created_at').order('created_at', { ascending: false }).limit(20),
+                    mySupabase.from('exams').select('id, title, created_at').order('created_at', { ascending: false }).limit(10),
+                    mySupabase.from('exam_submissions').select('id, student_id, score, created_at').order('created_at', { ascending: false }).limit(20)
+                ]);
 
-                    if (subsRes.data) {
-                        subsRes.data.forEach(sub => {
-                            const studentName = profilesMap[sub.student_id] || 'นักเรียน';
-                            logsCollected.push({
-                                id: 'sub-' + sub.id,
-                                created_at: sub.created_at || new Date().toISOString(),
-                                actor_role: 'student',
-                                actor_id: studentName,
-                                action: 'ส่งคำตอบข้อสอบ',
-                                target: `คะแนนที่ได้: ${sub.score !== null ? sub.score : 'รอตรวจ'}`
-                            });
-                        });
-                    }
+                let profilesMap = {};
+                if (profilesRes.data) {
+                    profilesRes.data.forEach(p => {
+                        profilesMap[p.id] = p.full_name || p.username || 'ผู้ใช้งาน';
+                    });
+                }
 
-                    if (consultRes.data) {
-                        consultRes.data.forEach(con => {
-                            const studentName = profilesMap[con.student_id] || 'นักเรียน';
-                            logsCollected.push({
-                                id: 'con-' + con.id,
-                                created_at: con.created_at || new Date().toISOString(),
-                                actor_role: 'student',
-                                actor_id: studentName,
-                                action: 'จองคิว Consult ปรึกษา',
-                                target: `สถานะ: ${con.status} (เวลา ${new Date(con.start_time).toLocaleString('th-TH')})`
-                            });
+                if (examsRes.data) {
+                    examsRes.data.forEach(ex => {
+                        logsCollected.push({
+                            id: 'exam-' + ex.id,
+                            created_at: ex.created_at || new Date().toISOString(),
+                            actor_role: 'admin',
+                            actor_id: 'ผู้ดูแลระบบ',
+                            action: 'CREATE_EXAM',
+                            target: `สร้างชุดข้อสอบ: ${ex.title}`
                         });
-                    }
+                    });
+                }
+
+                if (subsRes.data) {
+                    subsRes.data.forEach(sub => {
+                        const studentName = profilesMap[sub.student_id] || 'นักเรียน';
+                        logsCollected.push({
+                            id: 'sub-' + sub.id,
+                            created_at: sub.created_at || new Date().toISOString(),
+                            actor_role: 'student',
+                            actor_id: studentName,
+                            action: 'SUBMIT_EXAM',
+                            target: `ส่งข้อสอบ ได้คะแนน: ${sub.score !== null ? sub.score : 'รอตรวจ'}`
+                        });
+                    });
                 }
 
                 // เรียงลำดับตามเวลาล่าสุด
