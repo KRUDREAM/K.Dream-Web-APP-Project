@@ -57,10 +57,47 @@
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-16" oncontextmenu="return false;">
 
-    <nav class="glass-nav fixed w-full top-0 z-40">
+    <!-- 🌟 Left Slide-over Drawer (แผงภาพรวมข้อสอบด้านซ้าย) -->
+    <div id="drawerBackdrop" onclick="toggleLeftDrawer()" class="fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] z-40 hidden transition-opacity"></div>
+    
+    <div id="leftOverviewDrawer" class="fixed top-0 left-0 bottom-0 w-80 z-50 bg-white dark:bg-darkbox border-r border-slate-200 dark:border-slate-800 p-5 shadow-2xl transform -translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center text-sm font-bold">
+                    <i class="fas fa-th-large"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">ภาพรวมข้อสอบ</h3>
+                    <p id="overviewStats" class="text-[10px] text-slate-400">ตอบแล้ว 0 จาก 0 ข้อ</p>
+                </div>
+            </div>
+            <button onclick="toggleLeftDrawer()" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition-all">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="flex items-center gap-3 py-3 border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 font-medium shrink-0">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> ตอบแล้ว</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700 inline-block"></span> ยังไม่ตอบ</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> ปักธง</span>
+        </div>
+
+        <div id="overviewGridContainer" class="grid grid-cols-5 gap-2.5 pt-4 overflow-y-auto flex-1 pr-1 hide-scrollbar">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <nav class="glass-nav fixed w-full top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center gap-2">
             <div class="flex items-center gap-3 min-w-0">
-                <div class="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0">
+                <!-- 🌟 ปุ่มเปิดแผงภาพรวมด้านซ้าย -->
+                <button onclick="toggleLeftDrawer()" class="px-3 py-2 bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 rounded-xl font-bold text-xs flex items-center gap-1.5 hover:bg-sky-100 dark:hover:bg-sky-900/50 transition-all shadow-sm shrink-0">
+                    <i class="fas fa-th-large text-sm"></i> 
+                    <span class="hidden sm:inline">ภาพรวม</span> 
+                    <span class="px-1.5 py-0.5 bg-sky-500 text-white rounded-md text-[10px]" id="navAnsweredCount">0/0</span>
+                </button>
+
+                <div class="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0 hidden xs:flex">
                     <i class="fas fa-file-lines"></i>
                 </div>
                 <div class="min-w-0">
@@ -92,53 +129,22 @@
         </div>
     </nav>
 
-    <main class="max-w-[96rem] mx-auto px-4 pt-20 space-y-4">
+    <main class="max-w-[96rem] mx-auto px-4 pt-24 space-y-4">
         
         <div id="previewBanner" class="hidden p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex justify-between items-center text-xs font-bold text-indigo-600 dark:text-indigo-400">
             <span><i class="fas fa-eye mr-1.5"></i> โหมดดูตัวอย่างข้อสอบ (Preview Mode - คะแนนจะไม่ถูกบันทึก)</span>
             <button onclick="window.close()" class="px-3 py-1 bg-indigo-600 text-white rounded-lg">ปิดหน้าต่างนี้</button>
         </div>
 
-        <!-- 🌟 แผงภาพรวมข้อสอบแบบลอยตัว (Floating Overview Drawer) -->
-        <div class="sticky top-20 z-30 transition-all duration-300">
-            <div id="overviewCard" class="hitech-card rounded-2xl p-3 shadow-lg backdrop-blur-md bg-white/90 dark:bg-darkbox/90 border border-sky-500/30">
-                <div class="flex justify-between items-center cursor-pointer select-none" onclick="toggleOverviewDrawer()">
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center text-[11px] font-bold">
-                            <i class="fas fa-th-large"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-extrabold text-xs text-slate-900 dark:text-white">ภาพรวมข้อสอบ</h3>
-                            <p id="overviewStats" class="text-[10px] text-slate-400">ตอบแล้ว 0 จาก 0 ข้อ (คลิกเพื่อพับ/ขยาย)</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div class="hidden sm:flex items-center gap-2.5 text-[10px] text-slate-500 font-medium">
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> ตอบแล้ว</span>
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700 inline-block"></span> ยังไม่ตอบ</span>
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> ปักธง</span>
-                        </div>
-                        <button class="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 hover:bg-sky-500 hover:text-white transition-all text-xs">
-                            <i class="fas fa-chevron-up transition-transform duration-300" id="overviewChevronIcon"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="overviewGridContainer" class="grid grid-cols-8 sm:grid-cols-12 md:grid-cols-16 lg:grid-cols-24 gap-1 pt-2.5 mt-2 border-t border-slate-200 dark:border-slate-800 max-h-32 overflow-y-auto pr-1 hide-scrollbar">
-                    <!-- Populated dynamically -->
-                </div>
-            </div>
-        </div>
-
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             <!-- ฝั่งซ้าย: PDF Viewer (จะซ่อนอัตโนมัติหากไม่มีไฟล์ PDF) -->
-            <div id="pdfViewerCard" class="hidden lg:col-span-8 hitech-card p-4 rounded-3xl space-y-3 sticky top-36">
+            <div id="pdfViewerCard" class="hidden lg:col-span-8 hitech-card p-4 rounded-3xl space-y-3 sticky top-24">
                 <div class="flex justify-between items-center">
                     <h3 class="font-bold text-xs text-red-600 flex items-center gap-1.5"><i class="fas fa-file-pdf"></i> เอกสารข้อสอบ (ความคมชัดสูง / ห้ามดาวน์โหลด)</h3>
                     <span class="px-2.5 py-0.5 bg-red-500/10 text-red-600 text-[10px] font-bold rounded-lg border border-red-500/20"><i class="fas fa-shield-alt mr-1"></i> ป้องกันการดาวน์โหลด 100%</span>
                 </div>
-                <div id="pdfContainer" class="w-full h-[72vh] bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-y-auto border p-4 flex flex-col items-center gap-4 select-none" oncontextmenu="return false;">
+                <div id="pdfContainer" class="w-full h-[78vh] bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-y-auto border p-4 flex flex-col items-center gap-4 select-none" oncontextmenu="return false;">
                     <div class="text-slate-400 text-xs py-20">กำลังเรนเดอร์เอกสารข้อสอบความคมชัดสูง...</div>
                 </div>
             </div>
@@ -185,7 +191,7 @@
 
         let halfTimeTriggered = false;
         let fiveMinsTriggered = false;
-        let isOverviewOpen = true;
+        let isDrawerOpen = false;
 
         // 🛡️ ตัวแปรระบบ Anti-Cheat (สลับแท็บ)
         let tabSwitchCount = 0;
@@ -216,16 +222,16 @@
             }
         });
 
-        function toggleOverviewDrawer() {
-            isOverviewOpen = !isOverviewOpen;
-            const grid = document.getElementById('overviewGridContainer');
-            const icon = document.getElementById('overviewChevronIcon');
-            if (isOverviewOpen) {
-                grid.classList.remove('hidden');
-                icon.style.transform = 'rotate(0deg)';
+        function toggleLeftDrawer() {
+            isDrawerOpen = !isDrawerOpen;
+            const drawer = document.getElementById('leftOverviewDrawer');
+            const backdrop = document.getElementById('drawerBackdrop');
+            if (isDrawerOpen) {
+                drawer.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
             } else {
-                grid.classList.add('hidden');
-                icon.style.transform = 'rotate(180deg)';
+                drawer.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
             }
         }
 
@@ -497,6 +503,7 @@
                 box.classList.add('ring-2', 'ring-sky-500');
                 setTimeout(() => box.classList.remove('ring-2', 'ring-sky-500'), 1500);
             }
+            if (isDrawerOpen) toggleLeftDrawer(); // ปิด Drawer อัตโนมัติเมื่อกดเลือกข้อ
         }
 
         function updateExamProgress() {
@@ -514,12 +521,14 @@
             
             const navBarProg = document.getElementById('navProgressBar');
             const navBarText = document.getElementById('navProgressText');
+            const navAnsweredCount = document.getElementById('navAnsweredCount');
             if (navBarProg) navBarProg.style.width = `${percent}%`;
             if (navBarText) navBarText.textContent = `${answeredCount}/${total}`;
+            if (navAnsweredCount) navAnsweredCount.textContent = `${answeredCount}/${total}`;
 
             const overviewStats = document.getElementById('overviewStats');
             if (overviewStats) {
-                overviewStats.textContent = `ตอบแล้ว ${answeredCount} จาก ${total} ข้อ (${percent}%) (คลิกเพื่อพับ/ขยาย)`;
+                overviewStats.textContent = `ตอบแล้ว ${answeredCount} จาก ${total} ข้อ (${percent}%)`;
             }
 
             const gridContainer = document.getElementById('overviewGridContainer');
@@ -530,7 +539,7 @@
                     const isAnswered = ans !== undefined && ans !== null && String(ans).trim() !== '';
                     const isFlagged = flaggedQuestions[q.id];
 
-                    let bgClass = 'bg-slate-100 dark:bg-darkinput text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800';
+                    let bgClass = 'bg-slate-100 dark:bg-darkinput text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-sky-400';
                     if (isAnswered) {
                         bgClass = 'bg-emerald-500 text-white border-emerald-600 shadow-sm';
                     }
@@ -539,9 +548,9 @@
                     }
 
                     return `
-                        <button onclick="scrollToQuestion('${q.id}')" class="h-8 rounded-lg font-bold text-[11px] border flex items-center justify-center transition-all relative ${bgClass}">
+                        <button onclick="scrollToQuestion('${q.id}')" class="h-10 rounded-xl font-bold text-xs border flex items-center justify-center transition-all relative ${bgClass}">
                             ${qNum}
-                            ${isFlagged && !isAnswered ? '<span class="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full border border-white"></span>' : ''}
+                            ${isFlagged && !isAnswered ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border border-white"></span>' : ''}
                         </button>
                     `;
                 }).join('');
