@@ -560,15 +560,19 @@
 
 async function loadEnrolledStudents() {
     try {
-        // ดึงข้อมูลและนับจำนวนเฉพาะจากตารางหลักตารางเดียวกับหน้า admin_courses.html
-        const { data, error, count } = await mySupabase
-            .from('course_enrollments') // เปลี่ยนชื่อตารางให้ตรงกับหน้า admin_courses.html หากใช้ตารางอื่น
-            .select('*', { count: 'exact', head: true })
+        // ดึงข้อมูลการลงทะเบียนทั้งหมดของคอร์สนี้โดยตรง
+        const { data, error } = await mySupabase
+            .from('course_enrollments') // หากหน้าแอดมินใช้ตาราง enrollments ให้เปลี่ยนชื่อตรงนี้เป็น 'enrollments'
+            .select('*')
             .eq('course_id', courseId);
 
         if (error) throw error;
 
-        const totalCount = count !== null ? count : (data ? data.length : 0);
+        // นับจำนวนแถวที่ได้
+        const totalCount = data ? data.length : 0;
+
+        // บันทึกรายชื่อ (ถ้าต้องการใช้ต่อ)
+        courseEnrolledStudentIds = data ? data.map(item => item.student_id || item.user_id) : [];
 
         // อัปเดตแสดงผลบนหน้าจอ
         const countEl = document.getElementById('courseEnrolledStudentsCount');
@@ -579,6 +583,8 @@ async function loadEnrolledStudents() {
 
     } catch (e) {
         console.error("Error loading enrolled students count:", e);
+        const countEl = document.getElementById('courseEnrolledStudentsCount');
+        if (countEl) countEl.innerText = '0 คน';
     }
 }
         
