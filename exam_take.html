@@ -482,88 +482,97 @@
         }
 
         // 🌟 ระบบ Supabase Realtime Sync สำหรับอัปเดตข้อสอบ/ช้อยส์/Due Date อัตโนมัติระหว่างสอบ
-        function initRealtimeExamSync() {
-            if (!examId || isPreview) return;
+// 🌟 ระบบ Supabase Realtime Sync สำหรับอัปเดตข้อสอบ/ช้อยส์/Due Date อัตโนมัติแบบเรียลไทม์
+function initRealtimeExamSync() {
+    if (!examId || isPreview) return;
 
-            examRealtimeChannel = mySupabase.channel(`public:exam_live_sync_${examId}`)
-                .on('postgres_changes', {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'exams',
-                    filter: `id=eq.${examId}`
-                }, (payload) => {
-                    const updatedExam = payload.new;
-                    const oldDue = currentExam.due_date;
-                    const oldLimit = currentExam.time_limit;
-                    currentExam = updatedExam;
+    if (examRealtimeChannel) {
+        mySupabase.removeChannel(examRealtimeChannel);
+    }
 
-                    document.getElementById('examSubNav').textContent = `รหัส: ${currentExam.exam_code || 'ไม่มี'} | เวลาทำ: ${currentExam.time_limit || 60} นาที`;
-                    const formatSub = document.getElementById('choiceFormatSubLabel');
-                    if (formatSub) {
-                        formatSub.textContent = `รูปแบบตัวเลือก: ${getChoiceFormatLabelText(currentExam.choice_format)}`;
-                    }
+    examRealtimeChannel = mySupabase.channel(`exam_realtime_sync_${examId}`)
+        .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'exams' },
+            (payload) => {
+                const updatedExam = payload.new;
+                // ตรวจสอบว่าเป็นข้อสอบชุดปัจจุบันนี้หรือไม่
+                if (String(updatedExam.id) !== String(examId)) return;
 
-                    // ตรวจสอบการเปลี่ยนแปลง Due Date หรือ Time Limit (เช่น ครูขยายเวลาให้)
-                    if (updatedExam.due_date !== oldDue || updatedExam.time_limit !== oldLimit) {
-                        const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
-                        const startTime = parseInt(localStorage.getItem(timerKey) || Date.now(), 10);
-                        let newTotalSecs = (currentExam.time_limit || 60) * 60;
+                const oldDue = currentExam.due_date;
+                const oldLimit = currentExam.time_limit;
+                currentExam = updatedExam;
 
-                        if (currentExam.due_date && !isPreview) {
-                            const dueDateTime = new Date(currentExam.due_date).getTime();
-                            const secondsUntilDueDate = Math.floor((dueDateTime - startTime) / 1000);
-                            if (secondsUntilDueDate < newTotalSecs) {
-                                newTotalSecs = secondsUntilDueDate > 0 ? secondsUntilDueDate : 0;
-                            }
-                        }
+                document.getElementById('examSubNav').textContent = `รหัส: ${currentExam.exam_code || 'ไม่มี'} | เวลาทำ: ${currentExam.time_limit || 60} นาที`;
+                const formatSub = document.getElementById('choiceFormatSubLabel');
+                if (formatSub) {
+                    formatSub.textContent = `รูปแบบตัวเลือก: ${getChoiceFormatLabelText(currentExam.choice_format)}`;
+                }
 
-                        // หากเวลาเป้าหมายรวมเพิ่มขึ้น (ขยายเวลา) ให้ปรับ totalExamSeconds ทันทีอย่างปลอดภัย
-                        if (newTotalSecs > totalExamSeconds) {
-                            totalExamSeconds = newTotalSecs;
-                            Swal.mixin({
-                                toast: true,
-                                position: 'top-end',
-                                showConfirmButton: false,
-                                timer: 6000,
-                                timerProgressBar: true
-                            }).fire({
-                                icon: 'info',
-                                title: '⏱️ ผู้คุมสอบได้ทำการขยายเวลา / ปรับเปลี่ยนกำหนดส่งข้อสอบเรียบร้อยแล้ว'
-                            });
-                        } else {
-                            totalExamSeconds = newTotalSecs;
+                // กรณีมีการขยายเวลา หรือเปลี่ยน Due Date ระหว่างสอบ
+                if (updatedExam.due_date !== oldDue || updatedExam.time_limit !== oldLimit) {
+                    const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
+                    const startTime = parseInt(localStorage.getItem(timerKey) || Date.now(), 10);
+                    let newTotalSecs = (currentExam.time_limit || 60) * 60;
+
+                    if (currentExam.due_date && !isPreview) {
+                        const dueDateTime = new Date(currentExam.due_date).getTime();
+                        const secondsUntilDueDate = Math.floor((dueDateTime - startTime) / 1000);
+                        if (secondsUntilDueDate < newTotalSecs) {
+                            newTotalSecs = secondsUntilDueDate > 0 ? secondsUntilDueDate : 0;
                         }
                     }
 
-                    // รีเรนเดอร์ช้อยส์/รูปแบบใหม่หากมีการเปลี่ยนแปลง
-                    renderQuestionsContainer();
-                })
-                .on('postgres_changes', {
-                    event: '*',
-                    schema: 'public',
-                    table: 'questions',
-                    filter: `exam_id=eq.${examId}`
-                }, async () => {
-                    // โหลดโจทย์และช้อยส์ใหม่เมื่อมีการแก้ไขข้อสอบโดยผู้คุมสอบ (คงคำตอบเก่าของนักเรียนไว้ไม่ให้หาย)
-                    const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
-                    if (qs) {
-                        currentQuestions = qs;
-                        renderQuestionsContainer();
-                        updateExamProgress();
+                    if (newTotalSecs > totalExamSeconds) {
+                        totalExamSeconds = newTotalSecs;
                         Swal.mixin({
                             toast: true,
                             position: 'top-end',
                             showConfirmButton: false,
-                            timer: 4000
+                            timer: 6000,
+                            timerProgressBar: true
                         }).fire({
                             icon: 'info',
-                            title: '🔄 ชุดข้อสอบหรือตัวเลือกมีการอัปเดตแบบเรียลไทม์'
+                            title: '⏱️ ผู้คุมสอบได้ทำการขยายเวลา / ปรับเปลี่ยนกำหนดส่งข้อสอบเรียบร้อยแล้ว'
                         });
+                    } else {
+                        totalExamSeconds = newTotalSecs;
                     }
-                })
-                .subscribe();
-        }
+                }
 
+                renderQuestionsContainer();
+            }
+        )
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'questions' },
+            async (payload) => {
+                // กรองเฉพาะข้อสอบชุดนี้
+                const row = payload.new || payload.old;
+                if (!row || String(row.exam_id) !== String(examId)) return;
+
+                // โหลดโจทย์ใหม่ทันทีโดยที่คำตอบของนักเรียนไม่หาย
+                const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
+                if (qs) {
+                    currentQuestions = qs;
+                    renderQuestionsContainer();
+                    updateExamProgress();
+                    Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000
+                    }).fire({
+                        icon: 'info',
+                        title: '🔄 โจทย์หรือตัวเลือกถูกอัปเดตเรียบร้อยแล้ว'
+                    });
+                }
+            }
+        )
+        .subscribe((status) => {
+            console.log("Realtime Subscription Status:", status);
+        });
+}
         async function loadAndRenderPDF(url) {
             const container = document.getElementById('pdfScaleWrapper');
             container.innerHTML = `<div class="text-slate-400 text-xs py-20">กำลังโหลดเอกสารข้อสอบ...</div>`;
