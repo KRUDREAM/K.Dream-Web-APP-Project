@@ -709,18 +709,15 @@
             }
         }
 
-        // ฟังก์ชันช่วยดึงและคลีนตัวเลือก (ป้องกันบั๊กเบิิลซ้ำซ้อน)
         function getParsedOptions(qOptions, standardLabels) {
             let raw = qOptions;
             if (typeof raw === 'string') {
                 try { raw = JSON.parse(raw); } catch(e) { raw = raw.split(',').map(s => s.trim()); }
             }
             let list = (Array.isArray(raw) && raw.length > 0) ? raw : standardLabels;
-            // กรองและลบค่าซ้ำ
             return Array.from(new Set(list.map(o => String(o).trim()))).filter(o => o !== '');
         }
 
-        // ฟังก์ชันเรนเดอร์ข้อสอบและตัวเลือกที่ปรับปรุงใหม่
         function renderQuestionsContainer() {
             const container = document.getElementById('questionsListContainer');
             const stepFooter = document.getElementById('stepPaginationFooter');
@@ -779,19 +776,20 @@
                         const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
                         const displayLabel = standardLabels[cIdx] || (cIdx + 1);
                         
-                        // ป้องกันกรณีข้อความตัวเลือกมีตัวอักษรนำซ้ำกับ badge (เช่น ข. ข.กรุงเทพ -> กรุงเทพ)
                         let cleanText = optText;
                         const regex = new RegExp(`^(${displayLabel})[\\.\\)\\-\\:\\s]+`, 'i');
                         if (regex.test(cleanText)) {
                             cleanText = cleanText.replace(regex, '').trim();
                         }
                         
+                        const isJustLabel = (cleanText === String(displayLabel) || cleanText === String(cIdx + 1) || cleanText === String(cIdx));
+
                         return `
                             <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
                                 <div id="opt-badge-${q.id}-${cIdx}" class="w-9 h-9 rounded-xl ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-sm shrink-0">
                                     ${displayLabel}
                                 </div>
-                                <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${cleanText}</span>
+                                <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${isJustLabel ? `ตัวเลือกที่ ${displayLabel}` : cleanText}</span>
                             </div>
                         `;
                     }).join('');
@@ -875,12 +873,14 @@
                                 cleanText = cleanText.replace(regex, '').trim();
                             }
                             
+                            const isJustLabel = (cleanText === String(displayLabel) || cleanText === String(cIdx + 1) || cleanText === String(cIdx));
+
                             return `
                                 <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
                                     <div id="opt-badge-${q.id}-${cIdx}" class="w-9 h-9 rounded-xl ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-sm shrink-0">
                                         ${displayLabel}
                                     </div>
-                                    <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${cleanText}</span>
+                                    <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${isJustLabel ? `ตัวเลือกที่ ${displayLabel}` : cleanText}</span>
                                 </div>
                             `;
                         }).join('');
