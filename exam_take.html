@@ -224,9 +224,6 @@
         let currentZoom = 1.0;
         let isZoomLocked = false;
 
-        let tabSwitchCount = 0;
-        const MAX_ALLOWED_VIOLATIONS = 3;
-
         let currentViewMode = 'scroll'; 
         let currentStepIndex = 0;
 
@@ -309,10 +306,10 @@
 
         function getValidatedStudentId() {
             let studentId = urlParams.get('student_id') || 
-                            localStorage.getItem('id') || 
-                            localStorage.getItem('student_id') || 
-                            localStorage.getItem('user_id') || 
-                            localStorage.getItem('userId') || null;
+                        localStorage.getItem('id') || 
+                        localStorage.getItem('student_id') || 
+                        localStorage.getItem('user_id') || 
+                        localStorage.getItem('userId') || null;
 
             if (!studentId || studentId === '00000000-0000-0000-0000-000000000000') {
                 try {
@@ -455,54 +452,6 @@
 
             totalExamSeconds = (currentExam.time_limit || 60) * 60;
             startPersistentTimer(parseInt(startTime, 10), totalExamSeconds);
-
-            if (!isPreview) {
-                initAntiCheatSystem();
-            }
-        }
-
-        function initAntiCheatSystem() {
-            document.addEventListener('visibilitychange', function () {
-                if (document.hidden) handleExamViolation("ตรวจพบการสลับแท็บหรือออกจากหน้าจอเบราว์เซอร์");
-            });
-            window.addEventListener('blur', function () {
-                if (!document.hidden) handleExamViolation("หน้าต่างข้อสอบสูญเสียการโฟกัส (คลิกออกนอกหน้าจอ)");
-            });
-        }
-
-        async function handleExamViolation(reason) {
-            if (isPreview || isSubmitting) return;
-            tabSwitchCount++;
-
-            try {
-                await mySupabase.from('exam_violation_logs').insert([{
-                    exam_id: examId,
-                    student_id: currentStudentId,
-                    violation_reason: reason,
-                    attempt_count: tabSwitchCount,
-                    created_at: new Date().toISOString()
-                }]);
-            } catch (err) {}
-
-            if (tabSwitchCount < MAX_ALLOWED_VIOLATIONS) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: '⚠️ คำเตือน! ห้ามสลับหน้าจอ',
-                    html: `ระบบตรวจพบพฤติกรรมสลับแท็บ/ออกนอกหน้าจอ<br><b>(ครั้งที่ ${tabSwitchCount} จาก ${MAX_ALLOWED_VIOLATIONS} ครั้ง)</b><br><span class="text-red-500 text-xs">หากครบกำหนด ระบบจะบังคับส่งข้อสอบทันที!</span>`,
-                    confirmButtonText: 'รับทราบและกลับไปทำข้อสอบ',
-                    confirmButtonColor: '#0284c7',
-                    allowOutsideClick: false
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: '❌ ถูกตัดสิทธิ์การสอบ',
-                    text: 'คุณสลับหน้าจอเกินจำนวนครั้งที่กำหนด ระบบได้ทำการส่งข้อสอบอัตโนมัติแล้ว',
-                    confirmButtonText: 'ดูผลคะแนน',
-                    confirmButtonColor: '#ef4444',
-                    allowOutsideClick: false
-                }).then(() => submitExam(true));
-            }
         }
 
         async function loadAndRenderPDF(url) {
@@ -791,7 +740,6 @@
                     `;
                 }
 
-                // 🌟 เพิ่มปุ่มส่งข้อสอบในข้อสุดท้าย (กรณีโหมดทีละข้อ)
                 if (isLastStep) {
                     htmlContent += `
                         <div class="pt-2 flex justify-end">
@@ -807,7 +755,6 @@
                 return;
             }
 
-            // กรณีแสดงแบบเลื่อนลงทั้งหมด (Scroll Mode หรือมี PDF)
             if (stepFooter) stepFooter.classList.add('hidden');
 
             let htmlContent = `<div class="space-y-8">`;
@@ -876,7 +823,6 @@
                         `;
                     }
                 } else {
-                    // กรณีมี PDF แสดงผลกระดาษคำตอบ OMR แบบกะทัดรัดด้านข้าง
                     if (isEssay) {
                         htmlContent += `
                             <div id="q-box-${q.id}" class="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 relative">
@@ -918,7 +864,6 @@
                     }
                 }
 
-                // 🌟 เพิ่มปุ่มส่งข้อสอบไว้ใต้ข้อสุดท้ายในโหมด Scroll / PDF
                 if (isLast) {
                     htmlContent += `
                         <div class="pt-4 pb-2 flex justify-end">
