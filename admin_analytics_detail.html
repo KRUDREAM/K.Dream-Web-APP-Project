@@ -138,11 +138,11 @@
             <div class="lg:col-span-8 hitech-card p-6 rounded-3xl space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 id="diffChartTitle" class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2 truncate">
-                        <i class="fas fa-chart-bar text-sky-500 shrink-0"></i> สถิติความยาก-ง่ายรายข้อ (% ผู้ตอบผิด)
+                        <i class="fas fa-chart-bar text-sky-500 shrink-0"></i> สถิติความยาก-ง่ายรายข้อ (จำนวนผู้ตอบผิด)
                     </h3>
                     <select id="diffMetricSelect" onchange="renderDifficultyChart()" class="px-3.5 py-1.5 bg-slate-100 dark:bg-darkinput font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-sky-600 dark:text-sky-400 shrink-0">
-                        <option value="correct">% ผู้ตอบถูกในแต่ละข้อ</option>
-                        <option value="incorrect" selected>% ผู้ตอบผิดในแต่ละข้อ</option>
+                        <option value="correct">จำนวนผู้ตอบถูก (คน)</option>
+                        <option value="incorrect" selected>จำนวนผู้ตอบผิด (คน)</option>
                     </select>
                 </div>
                 <div class="relative h-64 w-full"><canvas id="questionDifficultyChart"></canvas></div>
@@ -518,11 +518,11 @@
             const titleEl = document.getElementById('diffChartTitle');
 
             if (titleEl) {
-                titleEl.innerHTML = `<i class="fas fa-chart-bar text-sky-500 shrink-0"></i> สถิติความยาก-ง่ายรายข้อ (${metric === 'correct' ? '% ผู้ตอบถูก' : '% ผู้ตอบผิด'})`;
+                titleEl.innerHTML = `<i class="fas fa-chart-bar text-sky-500 shrink-0"></i> สถิติความยาก-ง่ายรายข้อ (${metric === 'correct' ? 'จำนวนผู้ตอบถูก (คน)' : 'จำนวนผู้ตอบผิด (คน)'})`;
             }
             
             let labels = allQuestions.map(q => `ข้อ ${q.question_number}`);
-            let percentages = allQuestions.map(q => {
+            let counts = allQuestions.map(q => {
                 if (allAttempts.length === 0) return 0;
                 let correctCount = 0;
                 allAttempts.forEach(att => {
@@ -539,11 +539,11 @@
                         }
                     }
                 });
-                const correctPct = (correctCount / allAttempts.length) * 100;
+                const incorrectCount = allAttempts.length - correctCount;
                 if (metric === 'incorrect') {
-                    return Number((100 - correctPct).toFixed(1));
+                    return incorrectCount;
                 }
-                return Number(correctPct.toFixed(1));
+                return correctCount;
             });
 
             if (diffChartInstance) diffChartInstance.destroy();
@@ -552,8 +552,8 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: metric === 'correct' ? '% ผู้ตอบถูก' : '% ผู้ตอบผิด',
-                        data: percentages,
+                        label: metric === 'correct' ? 'จำนวนผู้ตอบถูก (คน)' : 'จำนวนผู้ตอบผิด (คน)',
+                        data: counts,
                         backgroundColor: metric === 'correct' ? '#0284c7' : '#ef4444',
                         borderRadius: 8
                     }]
@@ -561,8 +561,22 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, max: 100 } }
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` จำนวน: ${context.raw} คน`;
+                                }
+                            }
+                        }
+                    },
+                    scales: { 
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        } 
+                    }
                 }
             });
         }
@@ -599,8 +613,8 @@
                 const sId = att.student_id || att.user_id;
                 const profile = allStudentsMap[String(sId)] || {};
                 const fullName = (profile.first_name || profile.name || profile.full_name || '').trim() + 
-                                 (profile.last_name ? ' ' + profile.last_name : '') || 
-                                 att.student_name || att.full_name || 'ไม่ระบุชื่อ';
+                               (profile.last_name ? ' ' + profile.last_name : '') || 
+                               att.student_name || att.full_name || 'ไม่ระบุชื่อ';
                 const max = globalMaxScore;
 
                 let rankBadge = `<span class="font-mono font-bold">${currentRank}</span>`;
@@ -754,7 +768,6 @@
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
 
-            // กำหนด Max = เวลาที่กำหนดสูงสุดของชุดข้อสอบ (ถ้าไม่มีตั้งต้นที่ 30 นาที)
             const maxDuration = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
             
             let binCount = Math.ceil(maxDuration / 5);
@@ -883,8 +896,8 @@
                 const profile = allStudentsMap[String(sId)] || {};
                 
                 const fullName = (profile.first_name || profile.name || profile.full_name || '').trim() + 
-                           (profile.last_name ? ' ' + profile.last_name : '') || 
-                           att.student_name || att.full_name || 'ไม่ระบุชื่อ';
+                                  (profile.last_name ? ' ' + profile.last_name : '') || 
+                                  att.student_name || att.full_name || 'ไม่ระบุชื่อ';
                 
                 const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
                 const score = att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0);
@@ -1018,8 +1031,8 @@
             const sId = att.student_id || att.user_id;
             const profile = allStudentsMap[String(sId)] || {};
             const name = (profile.first_name || profile.name || profile.full_name || '').trim() + 
-                         (profile.last_name ? ' ' + profile.last_name : '') || 
-                         att.student_name || att.full_name || 'นักเรียน';
+                           (profile.last_name ? ' ' + profile.last_name : '') || 
+                           att.student_name || att.full_name || 'นักเรียน';
             const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
             const score = att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0);
             const maxScore = globalMaxScore;
