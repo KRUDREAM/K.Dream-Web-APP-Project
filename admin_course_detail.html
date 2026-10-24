@@ -559,39 +559,28 @@
         }
 
 async function loadEnrolledStudents() {
-            let totalStudents = new Set();
-            
-            try {
-                // ดึงข้อมูลจากตารางการลงทะเบียนทั้งสองตาราง
-                const res1 = await mySupabase.from('course_enrollments').select('*').eq('course_id', courseId);
-                const res2 = await mySupabase.from('enrollments').select('*').eq('course_id', courseId);
-                
-                const all = [...(res1.data || []), ...(res2.data || [])];
-                
-                all.forEach(item => {
-                    // ใช้ student_id หรือ user_id ที่อ้างอิงถึงตัวนักเรียน
-                    const sId = String(item.student_id || item.user_id || '');
-                    if (sId) {
-                        // เช็คว่าไม่ใช่บัญชีแอดมิน (ป้องกันกรณีอัปเดตโปรไฟล์แล้วติดนับเพิ่ม)
-                        const profileObj = allProfilesMap[sId];
-                        if (!profileObj || !isUserAdmin(profileObj)) {
-                            totalStudents.add(sId);
-                        }
-                    }
-                });
-            } catch (e) {
-                console.error("Error loading enrolled students:", e);
-            }
+    try {
+        // ดึงข้อมูลและนับจำนวนเฉพาะจากตารางหลักตารางเดียวกับหน้า admin_courses.html
+        const { data, error, count } = await mySupabase
+            .from('course_enrollments') // เปลี่ยนชื่อตารางให้ตรงกับหน้า admin_courses.html หากใช้ตารางอื่น
+            .select('*', { count: 'exact', head: true })
+            .eq('course_id', courseId);
 
-            courseEnrolledStudentIds = Array.from(totalStudents);
-            const count = courseEnrolledStudentIds.length;
+        if (error) throw error;
 
-            const countEl = document.getElementById('courseEnrolledStudentsCount');
-            const badgeEl = document.getElementById('enrolledCountBadge');
-            
-            if (countEl) countEl.innerText = count + ' คน';
-            if (badgeEl) badgeEl.innerText = count;
-        }
+        const totalCount = count !== null ? count : (data ? data.length : 0);
+
+        // อัปเดตแสดงผลบนหน้าจอ
+        const countEl = document.getElementById('courseEnrolledStudentsCount');
+        const badgeEl = document.getElementById('enrolledCountBadge');
+        
+        if (countEl) countEl.innerText = totalCount + ' คน';
+        if (badgeEl) badgeEl.innerText = totalCount;
+
+    } catch (e) {
+        console.error("Error loading enrolled students count:", e);
+    }
+}
         
         function calculateCourseKPIs() {
             const totalSubmissions = allAttempts.length;
