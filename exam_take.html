@@ -709,7 +709,7 @@
             }
         }
 
-        function getParsedOptions(qOptions, standardLabels) {
+function getParsedOptions(qOptions, standardLabels) {
             let raw = qOptions;
             if (typeof raw === 'string') {
                 try { raw = JSON.parse(raw); } catch(e) { raw = raw.split(',').map(s => s.trim()); }
@@ -776,15 +776,9 @@
                         const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
                         const displayLabel = standardLabels[cIdx] || (cIdx + 1);
                         
-                        let cleanText = optText;
-                        const regex = new RegExp(`^(${displayLabel})[\\.\\)\\-\\:\\s]+`, 'i');
-                        if (regex.test(cleanText)) {
-                            cleanText = cleanText.replace(regex, '').trim();
-                        }
-                        
-                        const isJustLabel = (cleanText === String(displayLabel) || cleanText === String(cIdx + 1) || cleanText === String(cIdx) || cleanText === '');
+                        const isDuplicateText = (optText === String(displayLabel) || optText === String(cIdx + 1) || optText === String(cIdx) || optText === '');
 
-                        if (isJustLabel) {
+                        if (isDuplicateText) {
                             return `
                                 <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-center gap-2 ${isSelected ? 'border-sky-500 bg-sky-600 text-white shadow-md' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400 text-slate-800 dark:text-slate-200'}">
                                     <span class="font-bold text-sm sm:text-base">ตัวเลือกที่ ${displayLabel}</span>
@@ -797,7 +791,7 @@
                                 <div id="opt-badge-${q.id}-${cIdx}" class="w-9 h-9 rounded-xl ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-sm shrink-0">
                                     ${displayLabel}
                                 </div>
-                                <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${cleanText}</span>
+                                <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${optText}</span>
                             </div>
                         `;
                     }).join('');
@@ -875,15 +869,9 @@
                             const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
                             const displayLabel = standardLabels[cIdx] || (cIdx + 1);
                             
-                            let cleanText = optText;
-                            const regex = new RegExp(`^(${displayLabel})[\\.\\)\\-\\:\\s]+`, 'i');
-                            if (regex.test(cleanText)) {
-                                cleanText = cleanText.replace(regex, '').trim();
-                            }
-                            
-                            const isJustLabel = (cleanText === String(displayLabel) || cleanText === String(cIdx + 1) || cleanText === String(cIdx) || cleanText === '');
+                            const isDuplicateText = (optText === String(displayLabel) || optText === String(cIdx + 1) || optText === String(cIdx) || optText === '');
 
-                            if (isJustLabel) {
+                            if (isDuplicateText) {
                                 return `
                                     <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-center gap-2 ${isSelected ? 'border-sky-500 bg-sky-600 text-white shadow-md' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400 text-slate-800 dark:text-slate-200'}">
                                         <span class="font-bold text-sm sm:text-base">ตัวเลือกที่ ${displayLabel}</span>
@@ -896,7 +884,7 @@
                                     <div id="opt-badge-${q.id}-${cIdx}" class="w-9 h-9 rounded-xl ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-sm shrink-0">
                                         ${displayLabel}
                                     </div>
-                                    <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${cleanText}</span>
+                                    <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${optText}</span>
                                 </div>
                             `;
                         }).join('');
