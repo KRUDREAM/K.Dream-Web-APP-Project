@@ -114,8 +114,8 @@
             <div class="card-box p-4 rounded-2xl flex items-center gap-3">
                 <div class="w-11 h-11 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-lg">🚀</div>
                 <div>
-                    <span class="text-[10px] text-slate-400 block font-bold uppercase">Percentile</span>
-                    <span class="text-base font-extrabold text-slate-900 dark:text-white" id="percentileStat">Top --%</span>
+                    <span class="text-[10px] text-slate-400 block font-bold uppercase">สูงกว่าคนที่ได้น้อยกว่ากี่ %</span>
+                    <span class="text-base font-extrabold text-slate-900 dark:text-white" id="percentileStat">--%</span>
                 </div>
             </div>
         </div>
@@ -682,7 +682,7 @@
                     document.getElementById('rankStat').textContent = '#1 / 1';
                     document.getElementById('avgStat').textContent = studentScore + ' / ' + totalQ;
                     document.getElementById('maxStat').textContent = studentScore + ' / ' + totalQ;
-                    document.getElementById('percentileStat').textContent = 'Top 100%';
+                    document.getElementById('percentileStat').textContent = '0%';
                     renderPercentageBinsChart([studentScore], totalQ, studentScore);
                     return;
                 }
@@ -693,12 +693,14 @@
                 const rank = sorted.indexOf(studentScore) + 1;
                 const avg = (scores.reduce((a, b) => a + b, 0) / totalStudents).toFixed(1);
                 const max = Math.max(...scores);
-                const percentile = Math.max(1, Math.round((rank / totalStudents) * 100));
+
+                const lowerCount = scores.filter(s => s < studentScore).length;
+                const lowerPct = totalStudents > 0 ? Math.round((lowerCount / totalStudents) * 100) : 0;
 
                 document.getElementById('rankStat').textContent = '#' + (rank > 0 ? rank : 1) + ' / ' + totalStudents;
                 document.getElementById('avgStat').textContent = avg + ' / ' + totalQ;
                 document.getElementById('maxStat').textContent = max + ' / ' + totalQ;
-                document.getElementById('percentileStat').textContent = 'Top ' + percentile + '%';
+                document.getElementById('percentileStat').textContent = lowerPct + '%';
 
                 renderPercentageBinsChart(scores, totalQ, studentScore);
             } catch (e) {
@@ -794,7 +796,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        layout: { padding: { top: 25 } }, // เพิ่ม padding ด้านบนเพื่อให้ป้ายชื่อค่าเฉลี่ยไม่ชนหรือล้นขอบ
+                        layout: { padding: { top: 25 } },
                         plugins: {
                             legend: { display: false },
                             verticalLine: {
