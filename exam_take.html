@@ -709,7 +709,14 @@
             }
         }
 
-function getParsedOptions(qOptions, standardLabels) {
+        function getCleanQuestionText(q) {
+            let raw = q.question_text || q.content || '';
+            let cleaned = raw.replace(/^(?:<[^>]+>)*\s*(?:ข้อที่\s*\d+|ข้อ\s*\d+[\.\)]?)\s*(?:<\/[^>]+>)*\s*/i, '').trim();
+            cleaned = cleaned.replace(/^(?:<[^>]+>)*\s*\d+[\.\)]\s*(?:<\/[^>]+>)*\s*/i, '').trim();
+            return cleaned || raw;
+        }
+
+        function getParsedOptions(qOptions, standardLabels) {
             let raw = qOptions;
             if (typeof raw === 'string') {
                 try { raw = JSON.parse(raw); } catch(e) { raw = raw.split(',').map(s => s.trim()); }
@@ -774,7 +781,6 @@ function getParsedOptions(qOptions, standardLabels) {
                     `;
                 } else {
                     const optionsHtml = opts.map((optText, cIdx) => {
-                        // แก้ไขจุดนี้ให้เช็คเทียบ Index อย่างแม่นยำ ป้องกันการไฮไลต์ซ้ำซ้อน
                         const isSelected = String(studentAnswers[q.id]) === String(cIdx);
                         const displayLabel = standardLabels[cIdx] || (cIdx + 1);
                         
