@@ -1057,6 +1057,40 @@ function renderQuestionsContainer() {
             } catch (e) {}
         }
 
+// 🌟 เพิ่มฟังก์ชันสำหรับเลือกตัวเลือกข้อสอบ
+function selectAnswer(qId, cIdx) {
+    // บันทึกคำตอบลงใน Object
+    studentAnswers[qId] = String(cIdx);
+    
+    try {
+        localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
+    } catch(e) {}
+
+    // เอาไฮไลต์เตือนสีแดงออกเมื่อมีการตอบแล้ว
+    const box = document.getElementById(`q-box-${qId}`);
+    if (box) box.classList.remove('question-unanswered-highlight');
+
+    updateAutoSaveStatus();
+    updateExamProgress();
+    renderQuestionsContainer(); // เรนเดอร์หน้าจอใหม่เพื่อให้ปุ่มแสดงสถานะ Active ทันที
+}
+
+// 🌟 เพิ่มฟังก์ชันสำหรับปักธงข้อสอบ
+function toggleFlag(qId) {
+    if (flaggedQuestions[qId]) {
+        delete flaggedQuestions[qId];
+    } else {
+        flaggedQuestions[qId] = true;
+    }
+
+    try {
+        localStorage.setItem(`exam_flags_${examId}_${currentStudentId}`, JSON.stringify(flaggedQuestions));
+    } catch(e) {}
+
+    updateExamProgress();
+    renderQuestionsContainer();
+}
+        
         function checkTimerAlerts(timeLeftSeconds, totalDurationSeconds) {
             if (!halfTimeTriggered && timeLeftSeconds === Math.floor(totalDurationSeconds / 2)) {
                 halfTimeTriggered = true;
