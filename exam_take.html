@@ -338,121 +338,147 @@
             return true;
         }
 
-        async function initPage() {
-            if (!checkStudentAuth()) return;
-            if (!examId) {
-                Swal.fire('ไม่พบ ID ข้อสอบ', '', 'warning').then(() => window.location.href = 'student.html');
+async function initPage() {
+    if (!checkStudentAuth()) return;
+    if (!examId) {
+        Swal.fire('ไม่พบ ID ข้อสอบ', '', 'warning').then(() => window.location.href = 'student.html');
+        return;
+    }
+
+    currentStudentId = getValidatedStudentId();
+    if (isPreview) {
+        document.getElementById('previewBanner').classList.remove('hidden');
+    }
+
+    if (!isPreview && currentStudentId) {
+        try {
+            const { data: prevAttempts } = await mySupabase
+                .from('exam_attempts')
+                .select('id')
+                .eq('exam_id', examId)
+                .eq('student_id', currentStudentId);
+
+            if (prevAttempts && prevAttempts.length > 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'คุณได้ทำและส่งข้อสอบชุดนี้ไปแล้ว!',
+                    text: 'ไม่อนุญาตให้ทำข้อสอบซ้ำผ่านการเข้าลิงก์เดิม ระบบจะนำคุณกลับสู่หน้าหลัก',
+                    confirmButtonText: 'รับทราบ',
+                    allowOutsideClick: false
+                }).then(() => {
+                    window.location.href = 'student.html';
+                });
                 return;
             }
+        } catch(err) {}
+    }
 
-            currentStudentId = getValidatedStudentId();
-            if (isPreview) {
-                document.getElementById('previewBanner').classList.remove('hidden');
-            }
+    const { data: exam, error: examError } = await mySupabase.from('exams').select('*').eq('id', examId).single();
+    if (examError || !exam) {
+        Swal.fire('ไม่พบชุดข้อสอบนี้ หรือติดปัญหาการเชื่อมต่อ', '', 'error').then(() => window.location.href = 'student.html');
+        return;
+    }
 
-            if (!isPreview && currentStudentId) {
-                try {
-                    const { data: prevAttempts } = await mySupabase
-                        .from('exam_attempts')
-                        .select('id')
-                        .eq('exam_id', examId)
-                        .eq('student_id', currentStudentId);
+    currentExam = exam;
+    document.getElementById('examTitleNav').textContent = exam.title;
+    document.getElementById('examSubNav').textContent = `รหัส: ${exam.exam_code || 'ไม่มี'} | เวลาทำ: ${exam.time_limit || 60} นาที`;
 
-                    if (prevAttempts && prevAttempts.length > 0) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'คุณได้ทำและส่งข้อสอบชุดนี้ไปแล้ว!',
-                            text: 'ไม่อนุญาตให้ทำข้อสอบซ้ำผ่านการเข้าลิงก์เดิม ระบบจะนำคุณกลับสู่หน้าหลัก',
-                            confirmButtonText: 'รับทราบ',
-                            allowOutsideClick: false
-                        }).then(() => {
-                            window.location.href = 'student.html';
-                        });
-                        return;
-                    }
-                } catch(err) {}
-            }
+    // 🌟 1. ตรวจสอบว่าเลย Due Date หรือยังก่อนอนุญาตให้เข้าทำข้อสอบ
+    if (!isPreview && exam.due_date && new Date() > new Date(exam.due_date)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'หมดเขตส่งข้อสอบแล้ว!',
+            text: 'เลยกำหนดเวลาส่ง (Due Date) ของชุดข้อสอบนี้แล้ว ระบบไม่อนุญาตให้เข้าทำข้อสอบ',
+            confirmButtonText: 'กลับหน้าหลัก',
+            allowOutsideClick: false
+        }).then(() => {
+            window.location.href = 'student.html';
+        });
+        return;
+    }
 
-            const { data: exam, error: examError } = await mySupabase.from('exams').select('*').eq('id', examId).single();
-            if (examError || !exam) {
-                Swal.fire('ไม่พบชุดข้อสอบนี้ หรือติดปัญหาการเชื่อมต่อ', '', 'error').then(() => window.location.href = 'student.html');
+    const formatSub = document.getElementById('choiceFormatSubLabel');
+    if (formatSub) {
+        formatSub.textContent = `รูปแบบตัวเลือก: ${getChoiceFormatLabelText(exam.choice_format)}`;
+    }
+
+    if (!isPreview) {
+        try {
+            const savedAnswers = localStorage.getItem(`exam_answers_${examId}_${currentStudentId}`);
+            if (savedAnswers) studentAnswers = JSON.parse(savedAnswers);
+            const savedFlags = localStorage.getItem(`exam_flags_${examId}_${currentStudentId}`);
+            if (savedFlags) flaggedQuestions = JSON.parse(savedFlags);
+        } catch(e) {}
+    }
+
+    if (!isPreview) {
+        const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
+        const existingStartTime = localStorage.getItem(timerKey);
+
+        if (!existingStartTime) {
+            const confirmStart = await Swal.fire({
+                title: `พร้อมเริ่มทำข้อสอบ "${exam.title}" หรือยัง?`,
+                text: `เวลาในการทำข้อสอบ: ${exam.time_limit || 60} นาที เมื่อกดเริ่มเวลานับถอยหลังทันที`,
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: 'เริ่มทำข้อสอบ',
+                cancelButtonText: 'กลับหน้าหลัก',
+                allowOutsideClick: false
+            });
+
+            if (!confirmStart.isConfirmed) {
+                window.location.href = 'student.html';
                 return;
             }
-
-            currentExam = exam;
-            document.getElementById('examTitleNav').textContent = exam.title;
-            document.getElementById('examSubNav').textContent = `รหัส: ${exam.exam_code || 'ไม่มี'} | เวลาทำ: ${exam.time_limit || 60} นาที`;
-            
-            const formatSub = document.getElementById('choiceFormatSubLabel');
-            if (formatSub) {
-                formatSub.textContent = `รูปแบบตัวเลือก: ${getChoiceFormatLabelText(exam.choice_format)}`;
-            }
-
-            if (!isPreview) {
-                try {
-                    const savedAnswers = localStorage.getItem(`exam_answers_${examId}_${currentStudentId}`);
-                    if (savedAnswers) studentAnswers = JSON.parse(savedAnswers);
-                    const savedFlags = localStorage.getItem(`exam_flags_${examId}_${currentStudentId}`);
-                    if (savedFlags) flaggedQuestions = JSON.parse(savedFlags);
-                } catch(e) {}
-            }
-
-            if (!isPreview) {
-                const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
-                const existingStartTime = localStorage.getItem(timerKey);
-
-                if (!existingStartTime) {
-                    const confirmStart = await Swal.fire({
-                        title: `พร้อมเริ่มทำข้อสอบ "${exam.title}" หรือยัง?`,
-                        text: `เวลาในการทำข้อสอบ: ${exam.time_limit || 60} นาที เมื่อกดเริ่มเวลานับถอยหลังทันที`,
-                        icon: 'info',
-                        showCancelButton: true,
-                        confirmButtonText: 'เริ่มทำข้อสอบ',
-                        cancelButtonText: 'กลับหน้าหลัก',
-                        allowOutsideClick: false
-                    });
-
-                    if (!confirmStart.isConfirmed) {
-                        window.location.href = 'student.html';
-                        return;
-                    }
-                }
-            }
-
-            const pdfCard = document.getElementById('pdfViewerCard');
-            const rightCard = document.getElementById('rightAnswerCard');
-            const answerCardTitle = document.getElementById('answerCardTitle');
-            const viewModeToggleContainer = document.getElementById('viewModeToggleContainer');
-
-            const hasPdf = exam.pdf_url && exam.pdf_url.trim() !== '';
-
-            if (hasPdf) {
-                if (pdfCard) pdfCard.classList.remove('hidden');
-                if (rightCard) rightCard.className = 'lg:col-span-4 hitech-card p-6 rounded-3xl space-y-6';
-                if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-list-check text-sky-500"></i> กระดาษคำตอบ`;
-                if (viewModeToggleContainer) viewModeToggleContainer.classList.add('hidden');
-                loadAndRenderPDF(exam.pdf_url);
-                initPdfZoomAndPanInteractions();
-            } else {
-                if (pdfCard) pdfCard.classList.add('hidden');
-                if (rightCard) rightCard.className = 'lg:col-span-12 hitech-card p-8 rounded-3xl space-y-8 max-w-4xl mx-auto w-full';
-                if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-file-lines text-sky-500"></i> แบบทดสอบออนไลน์ & ตัวเลือกคำตอบ`;
-                if (viewModeToggleContainer) viewModeToggleContainer.classList.remove('hidden');
-                if (viewModeToggleContainer) viewModeToggleContainer.style.display = 'flex';
-            }
-
-            await loadQuestions();
-
-            const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
-            let startTime = localStorage.getItem(timerKey);
-            if (!startTime || isPreview) {
-                startTime = Date.now();
-                localStorage.setItem(timerKey, startTime);
-            }
-
-            totalExamSeconds = (currentExam.time_limit || 60) * 60;
-            startPersistentTimer(parseInt(startTime, 10), totalExamSeconds);
         }
+    }
+
+    const pdfCard = document.getElementById('pdfViewerCard');
+    const rightCard = document.getElementById('rightAnswerCard');
+    const answerCardTitle = document.getElementById('answerCardTitle');
+    const viewModeToggleContainer = document.getElementById('viewModeToggleContainer');
+
+    const hasPdf = exam.pdf_url && exam.pdf_url.trim() !== '';
+
+    if (hasPdf) {
+        if (pdfCard) pdfCard.classList.remove('hidden');
+        if (rightCard) rightCard.className = 'lg:col-span-4 hitech-card p-6 rounded-3xl space-y-6';
+        if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-list-check text-sky-500"></i> กระดาษคำตอบ`;
+        if (viewModeToggleContainer) viewModeToggleContainer.classList.add('hidden');
+        loadAndRenderPDF(exam.pdf_url);
+        initPdfZoomAndPanInteractions();
+    } else {
+        if (pdfCard) pdfCard.classList.add('hidden');
+        if (rightCard) rightCard.className = 'lg:col-span-12 hitech-card p-8 rounded-3xl space-y-8 max-w-4xl mx-auto w-full';
+        if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-file-lines text-sky-500"></i> แบบทดสอบออนไลน์ & ตัวเลือกคำตอบ`;
+        if (viewModeToggleContainer) viewModeToggleContainer.classList.remove('hidden');
+        if (viewModeToggleContainer) viewModeToggleContainer.style.display = 'flex';
+    }
+
+    await loadQuestions();
+
+    const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
+    let startTime = localStorage.getItem(timerKey);
+    if (!startTime || isPreview) {
+        startTime = Date.now();
+        localStorage.setItem(timerKey, startTime);
+    }
+
+    totalExamSeconds = (currentExam.time_limit || 60) * 60;
+
+    // 🌟 2. ถ้าระบบมีการตั้ง due_date ให้คำนวณเวลาที่เหลือจนถึง Due Date เป็นเพดานสูงสุด
+    if (currentExam.due_date && !isPreview) {
+        const dueDateTime = new Date(currentExam.due_date).getTime();
+        const secondsUntilDueDate = Math.floor((dueDateTime - parseInt(startTime, 10)) / 1000);
+        
+        // ถ้าเวลาจนถึง Due Date น้อยกว่าเวลาสอบปกติ ให้บีบเวลาสอบเหลือเท่ากับเวลาที่เหลือก่อนหมดเขตพอดี
+        if (secondsUntilDueDate < totalExamSeconds) {
+            totalExamSeconds = secondsUntilDueDate > 0 ? secondsUntilDueDate : 0;
+        }
+    }
+
+    startPersistentTimer(parseInt(startTime, 10), totalExamSeconds);
+}
 
         async function loadAndRenderPDF(url) {
             const container = document.getElementById('pdfScaleWrapper');
