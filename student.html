@@ -116,14 +116,13 @@
                     <i class="fas fa-book-reader"></i> <span class="hidden md:inline">คอร์ส</span>
                 </button>
 
-                <!-- 🌟 RE-UI Notification Button & Dropdown -->
+                <!-- Notification Button & Dropdown -->
                 <div class="relative">
                     <button onclick="toggleNotifDropdown(event)" class="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="ประกาศและการแจ้งเตือน">
                         <i class="fas fa-bell text-xs"></i>
                         <span id="notifBadge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center shadow-md hidden animate-pulse">0</span>
                     </button>
 
-                    <!-- Notification Dropdown Menu (Latest 5 Items) -->
                     <div id="notifDropdownMenu" class="hidden absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-3 z-50 text-xs font-semibold">
                         <div class="px-4 pb-2.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                             <div class="flex items-center gap-2">
@@ -1176,6 +1175,37 @@
                 });
             }
             renderExamCheckboxes();
+
+            // 🌟 เปิดระบบ Realtime Listener คอยฟังการเปลี่ยนแปลงคลังข้อสอบจากแอดมิน
+            initStudentRealtime();
+        }
+
+        // 🌟 ฟังก์ชันเปิดระบบ Realtime คอยฟังการเปลี่ยนแปลงตาราง exams
+        function initStudentRealtime() {
+            mySupabase
+                .channel('student-live-exams')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, async (payload) => {
+                    console.log('ตรวจพบการเปลี่ยนแปลงชุดข้อสอบจากแอดมิน:', payload);
+                    
+                    // โหลดข้อมูลข้อสอบใหม่จาก Supabase ทันที
+                    const { data: exams } = await mySupabase.from('exams').select('*').order('created_at', { ascending: false });
+                    if (exams) allExams = exams;
+
+                    renderExamCatalog();
+                    renderExamHistory();
+                    
+                    Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3500,
+                        timerProgressBar: true
+                    }).fire({
+                        icon: 'success',
+                        title: '📚 รายการข้อสอบมีการอัปเดตจากผู้ดูแลระบบ'
+                    });
+                })
+                .subscribe();
         }
 
         function updateCountdownsLive() {
@@ -1236,9 +1266,14 @@
             const quickPendingContainer = document.getElementById('quickPendingContainer');
             const quickPendingSection = document.getElementById('quickPendingSection');
             const keyword = document.getElementById('searchExamInput').value.toLowerCase();
+            const now = new Date();
 
             const availableExams = allExams.filter(exam => {
                 if (exam.status === 'draft') return false;
+                
+                // 🌟 ตรวจสอบ Due Date ถ้าเกินกำหนดแล้วจะไม่แสดงในรายการปกติ
+                if (exam.due_date && new Date(exam.due_date) < now) return false;
+
                 const examCourseId = String(exam.course_id || exam.courseid || '');
                 
                 if (activeEnrolledCourseIds.length > 0 && examCourseId && !activeEnrolledCourseIds.includes(examCourseId)) return false;
@@ -1257,6 +1292,7 @@
 
             const activeExams = allExams.filter(e => {
                 if (e.status === 'draft') return false;
+                if (e.due_date && new Date(e.due_date) < now) return false;
                 const examCourseId = String(e.course_id || e.courseid || '');
                 if (activeEnrolledCourseIds.length > 0 && examCourseId && !activeEnrolledCourseIds.includes(examCourseId)) return false;
                 if (selectedGlobalCourseId !== 'all') return examCourseId === String(selectedGlobalCourseId);
@@ -1423,7 +1459,6 @@
 
             const questionCount = examQuestionCounts[examId] || 'ไม่ระบุ';
             const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
-            const maxAttempts = exam.max_attempts || exam.attempts_allowed || 'ไม่จำกัด';
             const isDark = document.documentElement.classList.contains('dark');
 
             const { value: confirmed } = await Swal.fire({
@@ -1451,7 +1486,7 @@
                             <ul class="list-disc list-inside space-y-0.5 text-slate-700 dark:text-slate-300">
                                 <li>ระบบจะทำการ <strong>จับเวลาถอยหลัง</strong> ทันที พร้อมมีเสียงและข้อความแจ้งเตือนเมื่อผ่านไปครึ่งทางและเหลือ 5 นาทีสุดท้าย</li>
                                 <li><strong>ระบบป้องกันการแชร์บัญชี / ล็อกอินซ้อน (Single Session)</strong> อนุญาตให้ทำข้อสอบได้ทีละ 1 อุปกรณ์เท่านั้น</li>
-                                <li>เมื่อครบกำหนดเวลา ระบบจะทำการส่งข้อสอบโดยอัตโนมัติ</li>
+                                <li>เมื่อครบกำหนดเวลา หรือเลยกำหนด <strong>Due Date</strong> ระบบจะทำการส่งข้อสอบโดยอัตโนมัติ</li>
                             </ul>
                         </div>
                     </div>
@@ -1467,7 +1502,6 @@
             });
 
             if (confirmed) {
-                await logSystemAction('START_EXAM', `กดเข้าห้องสอบ: ${exam.title}`, { exam_id: examId });
                 window.location.href = `exam_take.html?exam_id=${examId}&student_id=${currentStudentId}`;
             }
         }
