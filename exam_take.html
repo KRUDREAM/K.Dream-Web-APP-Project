@@ -57,7 +57,7 @@
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-20" oncontextmenu="return false;">
 
-    <!-- 🌟 แผงภาพรวมข้อสอบ ลอยอยู่กึ่งกลางซ้าย พร้อมปุ่มซ่อน/แสดง -->
+    <!-- แผงภาพรวมข้อสอบ ลอยอยู่กึ่งกลางซ้าย พร้อมปุ่มซ่อน/แสดง -->
     <div id="leftFloatOverview" class="fixed left-3 top-1/2 -translate-y-1/2 z-40 hidden lg:flex items-center transition-all duration-300">
         <div id="overviewCardBody" class="hitech-card rounded-2xl p-3.5 shadow-2xl backdrop-blur-md bg-white/95 dark:bg-darkbox/95 border border-sky-500/40 w-52 space-y-3 transition-all duration-300">
             <div class="flex justify-between items-center pb-2.5 border-b border-slate-200 dark:border-slate-800">
@@ -86,7 +86,7 @@
         </button>
     </div>
 
-    <!-- 🌟 แถบ Navbar ด้านบน -->
+    <!-- แถบ Navbar ด้านบน -->
     <nav class="glass-nav fixed w-full top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center gap-2">
             <div class="flex items-center gap-3 min-w-0">
@@ -171,7 +171,7 @@
                         <p id="choiceFormatSubLabel" class="text-[11px] text-slate-400 mt-1">รูปแบบตัวเลือก: กำลังโหลด...</p>
                     </div>
 
-                    <!-- 🌟 ปุ่มสลับโหมดการแสดงผล -->
+                    <!-- ปุ่มสลับโหมดการแสดงผล -->
                     <div id="viewModeToggleContainer" class="hidden items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px]">
                         <button onclick="switchViewMode('scroll')" id="modeScrollBtn" class="px-3 py-1.5 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm">เลื่อนลง</button>
                         <button onclick="switchViewMode('step')" id="modeStepBtn" class="px-3 py-1.5 rounded-lg font-bold transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white">ทีละข้อ</button>
@@ -476,103 +476,42 @@
             }
 
             startPersistentTimer(parseInt(startTime, 10), totalExamSeconds);
-
-            // 🌟 เปิดระบบ Realtime ดักฟังการอัปเดตข้อสอบ, ช้อยส์ และ Due Date จากผู้คุมสอบแบบเรียลไทม์
             initRealtimeExamSync();
         }
 
-        // 🌟 ระบบ Supabase Realtime Sync สำหรับอัปเดตข้อสอบ/ช้อยส์/Due Date อัตโนมัติระหว่างสอบ
-// 🌟 ระบบ Supabase Realtime Sync สำหรับอัปเดตข้อสอบ/ช้อยส์/Due Date อัตโนมัติแบบเรียลไทม์
-function initRealtimeExamSync() {
-    if (!examId || isPreview) return;
+        function initRealtimeExamSync() {
+            if (!examId || isPreview) return;
+            if (examRealtimeChannel) mySupabase.removeChannel(examRealtimeChannel);
 
-    if (examRealtimeChannel) {
-        mySupabase.removeChannel(examRealtimeChannel);
-    }
-
-    examRealtimeChannel = mySupabase.channel(`exam_realtime_sync_${examId}`)
-        .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'exams' },
-            (payload) => {
-                const updatedExam = payload.new;
-                // ตรวจสอบว่าเป็นข้อสอบชุดปัจจุบันนี้หรือไม่
-                if (String(updatedExam.id) !== String(examId)) return;
-
-                const oldDue = currentExam.due_date;
-                const oldLimit = currentExam.time_limit;
-                currentExam = updatedExam;
-
-                document.getElementById('examSubNav').textContent = `รหัส: ${currentExam.exam_code || 'ไม่มี'} | เวลาทำ: ${currentExam.time_limit || 60} นาที`;
-                const formatSub = document.getElementById('choiceFormatSubLabel');
-                if (formatSub) {
-                    formatSub.textContent = `รูปแบบตัวเลือก: ${getChoiceFormatLabelText(currentExam.choice_format)}`;
-                }
-
-                // กรณีมีการขยายเวลา หรือเปลี่ยน Due Date ระหว่างสอบ
-                if (updatedExam.due_date !== oldDue || updatedExam.time_limit !== oldLimit) {
-                    const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
-                    const startTime = parseInt(localStorage.getItem(timerKey) || Date.now(), 10);
-                    let newTotalSecs = (currentExam.time_limit || 60) * 60;
-
-                    if (currentExam.due_date && !isPreview) {
-                        const dueDateTime = new Date(currentExam.due_date).getTime();
-                        const secondsUntilDueDate = Math.floor((dueDateTime - startTime) / 1000);
-                        if (secondsUntilDueDate < newTotalSecs) {
-                            newTotalSecs = secondsUntilDueDate > 0 ? secondsUntilDueDate : 0;
+            examRealtimeChannel = mySupabase.channel(`exam_realtime_sync_${examId}`)
+                .on(
+                    'postgres_changes',
+                    { event: 'UPDATE', schema: 'public', table: 'exams' },
+                    (payload) => {
+                        const updatedExam = payload.new;
+                        if (String(updatedExam.id) !== String(examId)) return;
+                        currentExam = updatedExam;
+                        document.getElementById('examSubNav').textContent = `รหัส: ${currentExam.exam_code || 'ไม่มี'} | เวลาทำ: ${currentExam.time_limit || 60} นาที`;
+                        renderQuestionsContainer();
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'questions' },
+                    async (payload) => {
+                        const row = payload.new || payload.old;
+                        if (!row || String(row.exam_id) !== String(examId)) return;
+                        const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
+                        if (qs) {
+                            currentQuestions = qs;
+                            renderQuestionsContainer();
+                            updateExamProgress();
                         }
                     }
+                )
+                .subscribe();
+        }
 
-                    if (newTotalSecs > totalExamSeconds) {
-                        totalExamSeconds = newTotalSecs;
-                        Swal.mixin({
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 6000,
-                            timerProgressBar: true
-                        }).fire({
-                            icon: 'info',
-                            title: '⏱️ ผู้คุมสอบได้ทำการขยายเวลา / ปรับเปลี่ยนกำหนดส่งข้อสอบเรียบร้อยแล้ว'
-                        });
-                    } else {
-                        totalExamSeconds = newTotalSecs;
-                    }
-                }
-
-                renderQuestionsContainer();
-            }
-        )
-        .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'questions' },
-            async (payload) => {
-                // กรองเฉพาะข้อสอบชุดนี้
-                const row = payload.new || payload.old;
-                if (!row || String(row.exam_id) !== String(examId)) return;
-
-                // โหลดโจทย์ใหม่ทันทีโดยที่คำตอบของนักเรียนไม่หาย
-                const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
-                if (qs) {
-                    currentQuestions = qs;
-                    renderQuestionsContainer();
-                    updateExamProgress();
-                    Swal.mixin({
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 3000
-                    }).fire({
-                        icon: 'info',
-                        title: '🔄 โจทย์หรือตัวเลือกถูกอัปเดตเรียบร้อยแล้ว'
-                    });
-                }
-            }
-        )
-        .subscribe((status) => {
-            console.log("Realtime Subscription Status:", status);
-        });
-}
         async function loadAndRenderPDF(url) {
             const container = document.getElementById('pdfScaleWrapper');
             container.innerHTML = `<div class="text-slate-400 text-xs py-20">กำลังโหลดเอกสารข้อสอบ...</div>`;
@@ -770,243 +709,234 @@ function initRealtimeExamSync() {
             }
         }
 
-// 🌟 ปรับปรุงฟังก์ชันเรนเดอร์ให้ตรวจสอบความซ้ำซ้อนของตัวเลือก (ป้องกันบั๊กขึ้น 2 ตัวเลือก)
-// 🌟 ปรับปรุงฟังก์ชันเรนเดอร์ให้แสดงข้อความตัวเลือกจริงได้อย่างถูกต้องและไม่ซ้ำซ้อน
-function renderQuestionsContainer() {
-    const container = document.getElementById('questionsListContainer');
-    const stepFooter = document.getElementById('stepPaginationFooter');
-    const indicatorText = document.getElementById('stepIndicatorText');
-    const prevBtn = document.getElementById('prevStepBtn');
-    const nextBtn = document.getElementById('nextStepBtn');
+        // ฟังก์ชันเรนเดอร์ข้อสอบและตัวเลือก
+        function renderQuestionsContainer() {
+            const container = document.getElementById('questionsListContainer');
+            const stepFooter = document.getElementById('stepPaginationFooter');
+            const indicatorText = document.getElementById('stepIndicatorText');
+            const prevBtn = document.getElementById('prevStepBtn');
+            const nextBtn = document.getElementById('nextStepBtn');
 
-    if (currentQuestions.length === 0) {
-        container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">ยังไม่มีรายการโจทย์ในชุดข้อสอบนี้</div>`;
-        if (stepFooter) stepFooter.classList.add('hidden');
-        return;
-    }
+            if (currentQuestions.length === 0) {
+                container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">ยังไม่มีรายการโจทย์ในชุดข้อสอบนี้</div>`;
+                if (stepFooter) stepFooter.classList.add('hidden');
+                return;
+            }
 
-    const formatType = currentExam?.choice_format || 'num';
-    const standardLabels = getChoiceLabels(formatType);
-    const hasPdf = currentExam?.pdf_url && currentExam.pdf_url.trim() !== '';
+            const formatType = currentExam?.choice_format || 'num';
+            const standardLabels = getChoiceLabels(formatType);
+            const hasPdf = currentExam?.pdf_url && currentExam.pdf_url.trim() !== '';
 
-    if (!hasPdf && currentViewMode === 'step') {
-        if (stepFooter) stepFooter.classList.remove('hidden');
-        if (indicatorText) indicatorText.textContent = `ข้อ ${currentStepIndex + 1} / ${currentQuestions.length}`;
-        if (prevBtn) prevBtn.disabled = currentStepIndex === 0;
-        if (nextBtn) nextBtn.disabled = currentStepIndex === currentQuestions.length - 1;
+            if (!hasPdf && currentViewMode === 'step') {
+                if (stepFooter) stepFooter.classList.remove('hidden');
+                if (indicatorText) indicatorText.textContent = `ข้อ ${currentStepIndex + 1} / ${currentQuestions.length}`;
+                if (prevBtn) prevBtn.disabled = currentStepIndex === 0;
+                if (nextBtn) nextBtn.disabled = currentStepIndex === currentQuestions.length - 1;
 
-        const q = currentQuestions[currentStepIndex];
-        if (!q) return;
-        const isEssay = q.question_type === 'essay';
-        
-        // ดึงตัวเลือกและกรองไม่ให้ซ้ำกัน
-        let rawOpts = (q.options && q.options.length > 0) ? q.options : standardLabels;
-        let opts = Array.from(new Set(rawOpts));
-
-        const qNum = q.question_number || (currentStepIndex + 1);
-        const isFlagged = flaggedQuestions[q.id];
-        const isLastStep = (currentStepIndex === currentQuestions.length - 1);
-
-        let htmlContent = `<div class="space-y-6">`;
-
-        if (isEssay) {
-            htmlContent += `
-                <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-5 shadow-sm relative">
-                    <div class="flex items-center justify-between">
-                        <span class="font-extrabold text-sm text-amber-600 dark:text-amber-400">ข้อที่ ${qNum} (ข้อสอบอัตนัย)</span>
-                        <div class="flex items-center gap-2">
-                            <span class="px-3 py-1 bg-amber-500 text-white font-bold text-xs rounded-lg">เขียนตอบ</span>
-                            <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
-                                <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-loose pt-1">
-                        ${q.question_text || q.content || 'คำถามอัตนัย'}
-                    </div>
-                    ${q.image_url ? `<div class="my-4"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
-                    <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="6" class="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm leading-relaxed outline-none focus:border-sky-500" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
-                </div>
-            `;
-        } else {
-            const optionsHtml = opts.map((optText, cIdx) => {
-                const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
-                const displayLabel = standardLabels[cIdx] || (cIdx + 1);
-                // 🌟 แก้ไขให้แสดงข้อความตัวเลือกจริง (optText) โดยตรง ไม่ถูกบังคับแปลงเป็นเลข index
-                const actualText = optText !== undefined && optText !== null && String(optText).trim() !== '' ? optText : `ตัวเลือกที่ ${displayLabel}`;
+                const q = currentQuestions[currentStepIndex];
+                if (!q) return;
+                const isEssay = q.question_type === 'essay';
                 
-                return `
-                    <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
-                        <div id="opt-badge-${q.id}-${cIdx}" class="w-9 h-9 rounded-xl ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-sm shrink-0">
-                            ${displayLabel}
-                        </div>
-                        <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${actualText}</span>
-                    </div>
-                `;
-            }).join('');
+                let opts = (q.options && q.options.length > 0) ? q.options : standardLabels;
+                const qNum = q.question_number || (currentStepIndex + 1);
+                const isFlagged = flaggedQuestions[q.id];
+                const isLastStep = (currentStepIndex === currentQuestions.length - 1);
 
-            htmlContent += `
-                <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
-                    <div class="flex items-center justify-between">
-                        <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum} จาก ${currentQuestions.length}</span>
-                        <div class="flex items-center gap-2">
-                            <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
-                                <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                let htmlContent = `<div class="space-y-6">`;
+
+                if (isEssay) {
+                    htmlContent += `
+                        <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-5 shadow-sm relative">
+                            <div class="flex items-center justify-between">
+                                <span class="font-extrabold text-sm text-amber-600 dark:text-amber-400">ข้อที่ ${qNum} (ข้อสอบอัตนัย)</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-3 py-1 bg-amber-500 text-white font-bold text-xs rounded-lg">เขียนตอบ</span>
+                                    <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
+                                        <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-loose pt-1">
+                                ${q.question_text || q.content || 'คำถามอัตนัย'}
+                            </div>
+                            ${q.image_url ? `<div class="my-4"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
+                            <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="6" class="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm leading-relaxed outline-none focus:border-sky-500" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
+                        </div>
+                    `;
+                } else {
+                    const optionsHtml = opts.map((optText, cIdx) => {
+                        const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
+                        const displayLabel = standardLabels[cIdx] || (cIdx + 1);
+                        
+                        return `
+                            <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
+                                <div id="opt-badge-${q.id}-${cIdx}" class="w-9 h-9 rounded-xl ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-sm shrink-0">
+                                    ${displayLabel}
+                                </div>
+                                <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${optText}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    htmlContent += `
+                        <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum} จาก ${currentQuestions.length}</span>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
+                                        <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-loose">
+                                ${q.question_text || q.content || ''}
+                            </div>
+                            ${q.image_url ? `<div class="my-4"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
+                            <div class="grid grid-cols-1 gap-3.5 pt-2" id="options-container-${q.id}">
+                                ${optionsHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (isLastStep) {
+                    htmlContent += `
+                        <div class="pt-2 flex justify-end">
+                            <button onclick="confirmSubmitExam()" class="px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl transition-all flex items-center gap-2">
+                                <i class="fas fa-paper-plane"></i> ส่งข้อสอบ (เสร็จสิ้นทุกข้อแล้ว)
                             </button>
                         </div>
-                    </div>
-                    <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-loose">
-                        ${q.question_text || q.content || ''}
-                    </div>
-                    ${q.image_url ? `<div class="my-4"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
-                    <div class="grid grid-cols-1 gap-3.5 pt-2" id="options-container-${q.id}">
-                        ${optionsHtml}
-                    </div>
-                </div>
-            `;
-        }
+                    `;
+                }
 
-        if (isLastStep) {
-            htmlContent += `
-                <div class="pt-2 flex justify-end">
-                    <button onclick="confirmSubmitExam()" class="px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl transition-all flex items-center gap-2">
-                        <i class="fas fa-paper-plane"></i> ส่งข้อสอบ (เสร็จสิ้นทุกข้อแล้ว)
-                    </button>
-                </div>
-            `;
-        }
+                htmlContent += `</div>`;
+                container.innerHTML = htmlContent;
+                return;
+            }
 
-        htmlContent += `</div>`;
-        container.innerHTML = htmlContent;
-        return;
-    }
+            if (stepFooter) stepFooter.classList.add('hidden');
 
-    if (stepFooter) stepFooter.classList.add('hidden');
+            let htmlContent = `<div class="space-y-8">`;
 
-    let htmlContent = `<div class="space-y-8">`;
+            currentQuestions.forEach((q, idx) => {
+                const isEssay = q.question_type === 'essay';
+                let opts = (q.options && q.options.length > 0) ? q.options : standardLabels;
 
-    currentQuestions.forEach((q, idx) => {
-        const isEssay = q.question_type === 'essay';
-        let rawOpts = (q.options && q.options.length > 0) ? q.options : standardLabels;
-        let opts = Array.from(new Set(rawOpts));
+                const qNum = q.question_number || (idx + 1);
+                const isFlagged = flaggedQuestions[q.id];
+                const isLast = (idx === currentQuestions.length - 1);
 
-        const qNum = q.question_number || (idx + 1);
-        const isFlagged = flaggedQuestions[q.id];
-        const isLast = (idx === currentQuestions.length - 1);
+                if (!hasPdf) {
+                    if (isEssay) {
+                        htmlContent += `
+                            <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-5 shadow-sm relative">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-extrabold text-sm text-amber-600 dark:text-amber-400">ข้อที่ ${qNum} (ข้อสอบอัตนัย)</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-3 py-1 bg-amber-500 text-white font-bold text-xs rounded-lg">เขียนตอบ</span>
+                                        <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
+                                            <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-loose pt-1">
+                                    ${q.question_text || q.content || 'คำถามอัตนัย'}
+                                </div>
+                                ${q.image_url ? `<div class="my-4"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
+                                <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="5" class="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm leading-relaxed outline-none focus:border-sky-500" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
+                            </div>
+                        `;
+                    } else {
+                        const optionsHtml = opts.map((optText, cIdx) => {
+                            const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
+                            const displayLabel = standardLabels[cIdx] || (cIdx + 1);
+                            
+                            return `
+                                <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
+                                    <div id="opt-badge-${q.id}-${cIdx}" class="w-9 h-9 rounded-xl ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-sm shrink-0">
+                                        ${displayLabel}
+                                    </div>
+                                    <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${optText}</span>
+                                </div>
+                            `;
+                        }).join('');
 
-        if (!hasPdf) {
-            if (isEssay) {
-                htmlContent += `
-                    <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-5 shadow-sm relative">
-                        <div class="flex items-center justify-between">
-                            <span class="font-extrabold text-sm text-amber-600 dark:text-amber-400">ข้อที่ ${qNum} (ข้อสอบอัตนัย)</span>
-                            <div class="flex items-center gap-2">
-                                <span class="px-3 py-1 bg-amber-500 text-white font-bold text-xs rounded-lg">เขียนตอบ</span>
-                                <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
-                                    <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                        htmlContent += `
+                            <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum}</span>
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
+                                            <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-loose">
+                                    ${q.question_text || q.content || ''}
+                                </div>
+                                ${q.image_url ? `<div class="my-4"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2" id="options-container-${q.id}">
+                                    ${optionsHtml}
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    if (isEssay) {
+                        htmlContent += `
+                            <div id="q-box-${q.id}" class="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 relative">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-extrabold text-xs text-amber-600 dark:text-amber-400">ข้อ ${qNum} (อัตนัย)</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 bg-amber-500 text-white font-bold text-[9px] rounded">เขียนตอบ</span>
+                                        <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
+                                            <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800/60 p-3 rounded-xl border leading-relaxed">${q.question_text || q.content || 'คำถามอัตนัย'}</div>
+                                <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="3" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl text-xs outline-none leading-relaxed" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
+                            </div>
+                        `;
+                    } else {
+                        const bubblesHtml = opts.map((optText, cIdx) => {
+                            const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
+                            const displayLabel = standardLabels[cIdx] || (cIdx + 1);
+                            return `
+                                <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="bubble-${q.id}-${cIdx}" class="omr-bubble-compact ${isSelected ? 'active' : ''}">
+                                    ${displayLabel}
+                                </div>
+                            `;
+                        }).join('');
+
+                        htmlContent += `
+                            <div id="q-box-${q.id}" class="px-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                                <div class="flex items-center gap-3.5">
+                                    <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400 w-8 shrink-0">ข้อ ${qNum}</span>
+                                    <div class="flex items-center gap-2.5" id="bubbles-container-${q.id}">${bubblesHtml}</div>
+                                </div>
+                                <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'} shrink-0 ml-2">
+                                    <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : ''}</span>
                                 </button>
                             </div>
-                        </div>
-                        <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-loose pt-1">
-                            ${q.question_text || q.content || 'คำถามอัตนัย'}
-                        </div>
-                        ${q.image_url ? `<div class="my-4"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
-                        <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="5" class="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm leading-relaxed outline-none focus:border-sky-500" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
-                    </div>
-                `;
-            } else {
-                const optionsHtml = opts.map((optText, cIdx) => {
-                    const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
-                    const displayLabel = standardLabels[cIdx] || (cIdx + 1);
-                    // 🌟 แก้ไขให้แสดงข้อความตัวเลือกจริง (optText) โดยตรง
-                    const actualText = optText !== undefined && optText !== null && String(optText).trim() !== '' ? optText : `ตัวเลือกที่ ${displayLabel}`;
-                    
-                    return `
-                        <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
-                            <div id="opt-badge-${q.id}-${cIdx}" class="w-9 h-9 rounded-xl ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-sm shrink-0">
-                                ${displayLabel}
-                            </div>
-                            <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${actualText}</span>
+                        `;
+                    }
+                }
+
+                if (isLast) {
+                    htmlContent += `
+                        <div class="pt-4 pb-2 flex justify-end">
+                            <button onclick="confirmSubmitExam()" class="px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl transition-all flex items-center gap-2.5">
+                                <i class="fas fa-paper-plane text-base"></i> ส่งข้อสอบ (เสร็จสิ้นทุกข้อ)
+                            </button>
                         </div>
                     `;
-                }).join('');
+                }
+            });
 
-                htmlContent += `
-                    <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
-                        <div class="flex items-center justify-between">
-                            <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum}</span>
-                            <div class="flex items-center gap-2">
-                                <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
-                                    <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-loose">
-                            ${q.question_text || q.content || ''}
-                        </div>
-                        ${q.image_url ? `<div class="my-4"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2" id="options-container-${q.id}">
-                            ${optionsHtml}
-                        </div>
-                    </div>
-                `;
-            }
-        } else {
-            if (isEssay) {
-                htmlContent += `
-                    <div id="q-box-${q.id}" class="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 relative">
-                        <div class="flex items-center justify-between">
-                            <span class="font-extrabold text-xs text-amber-600 dark:text-amber-400">ข้อ ${qNum} (อัตนัย)</span>
-                            <div class="flex items-center gap-2">
-                                <span class="px-2 py-0.5 bg-amber-500 text-white font-bold text-[9px] rounded">เขียนตอบ</span>
-                                <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
-                                    <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800/60 p-3 rounded-xl border leading-relaxed">${q.question_text || q.content || 'คำถามอัตนัย'}</div>
-                        <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="3" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl text-xs outline-none leading-relaxed" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
-                    </div>
-                `;
-            } else {
-                const bubblesHtml = opts.map((cLabel, cIdx) => {
-                    const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === cLabel;
-                    const displayLabel = standardLabels[cIdx] || cLabel;
-                    return `
-                        <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="bubble-${q.id}-${cIdx}" class="omr-bubble-compact ${isSelected ? 'active' : ''}">
-                            ${displayLabel}
-                        </div>
-                    `;
-                }).join('');
-
-                htmlContent += `
-                    <div id="q-box-${q.id}" class="px-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                        <div class="flex items-center gap-3.5">
-                            <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400 w-8 shrink-0">ข้อ ${qNum}</span>
-                            <div class="flex items-center gap-2.5" id="bubbles-container-${q.id}">${bubblesHtml}</div>
-                        </div>
-                        <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'} shrink-0 ml-2">
-                            <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : ''}</span>
-                        </button>
-                    </div>
-                `;
-            }
+            htmlContent += `</div>`;
+            container.innerHTML = htmlContent;
         }
-
-        if (isLast) {
-            htmlContent += `
-                <div class="pt-4 pb-2 flex justify-end">
-                    <button onclick="confirmSubmitExam()" class="px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl transition-all flex items-center gap-2.5">
-                        <i class="fas fa-paper-plane text-base"></i> ส่งข้อสอบ (เสร็จสิ้นทุกข้อ)
-                    </button>
-                </div>
-            `;
-        }
-    });
-
-    htmlContent += `</div>`;
-    container.innerHTML = htmlContent;
-}
         
         function saveEssayAnswer(qId, val) {
             if (!val || val.trim() === '') {
@@ -1060,39 +990,37 @@ function renderQuestionsContainer() {
             } catch (e) {}
         }
 
-// 🌟 เพิ่มฟังก์ชันสำหรับเลือกตัวเลือกข้อสอบ
-function selectAnswer(qId, cIdx) {
-    // บันทึกคำตอบลงใน Object
-    studentAnswers[qId] = String(cIdx);
-    
-    try {
-        localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
-    } catch(e) {}
+        // ฟังก์ชันเลือกตัวเลือก
+        function selectAnswer(qId, cIdx) {
+            studentAnswers[qId] = String(cIdx);
+            
+            try {
+                localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
+            } catch(e) {}
 
-    // เอาไฮไลต์เตือนสีแดงออกเมื่อมีการตอบแล้ว
-    const box = document.getElementById(`q-box-${qId}`);
-    if (box) box.classList.remove('question-unanswered-highlight');
+            const box = document.getElementById(`q-box-${qId}`);
+            if (box) box.classList.remove('question-unanswered-highlight');
 
-    updateAutoSaveStatus();
-    updateExamProgress();
-    renderQuestionsContainer(); // เรนเดอร์หน้าจอใหม่เพื่อให้ปุ่มแสดงสถานะ Active ทันที
-}
+            updateAutoSaveStatus();
+            updateExamProgress();
+            renderQuestionsContainer();
+        }
 
-// 🌟 เพิ่มฟังก์ชันสำหรับปักธงข้อสอบ
-function toggleFlag(qId) {
-    if (flaggedQuestions[qId]) {
-        delete flaggedQuestions[qId];
-    } else {
-        flaggedQuestions[qId] = true;
-    }
+        // ฟังก์ชันปักธง
+        function toggleFlag(qId) {
+            if (flaggedQuestions[qId]) {
+                delete flaggedQuestions[qId];
+            } else {
+                flaggedQuestions[qId] = true;
+            }
 
-    try {
-        localStorage.setItem(`exam_flags_${examId}_${currentStudentId}`, JSON.stringify(flaggedQuestions));
-    } catch(e) {}
+            try {
+                localStorage.setItem(`exam_flags_${examId}_${currentStudentId}`, JSON.stringify(flaggedQuestions));
+            } catch(e) {}
 
-    updateExamProgress();
-    renderQuestionsContainer();
-}
+            updateExamProgress();
+            renderQuestionsContainer();
+        }
         
         function checkTimerAlerts(timeLeftSeconds, totalDurationSeconds) {
             if (!halfTimeTriggered && timeLeftSeconds === Math.floor(totalDurationSeconds / 2)) {
@@ -1120,11 +1048,10 @@ function toggleFlag(qId) {
 
             timerInterval = setInterval(() => {
                 const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-                // 🌟 ใช้ totalExamSeconds แบบไดนามิก รองรับการขยายเวลาจากผู้คุมสอบกลางคันได้ทันที
-                const remainingSeconds = totalExamSeconds - elapsedSeconds;
+                const remainingSeconds = totalDurationSeconds - elapsedSeconds;
                 currentRemainingSeconds = remainingSeconds > 0 ? remainingSeconds : 0;
 
-                checkTimerAlerts(currentRemainingSeconds, totalExamSeconds);
+                checkTimerAlerts(currentRemainingSeconds, totalDurationSeconds);
 
                 if (remainingSeconds <= 0) {
                     clearInterval(timerInterval);
