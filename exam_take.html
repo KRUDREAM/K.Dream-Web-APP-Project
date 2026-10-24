@@ -771,6 +771,7 @@ function initRealtimeExamSync() {
         }
 
 // 🌟 ปรับปรุงฟังก์ชันเรนเดอร์ให้ตรวจสอบความซ้ำซ้อนของตัวเลือก (ป้องกันบั๊กขึ้น 2 ตัวเลือก)
+// 🌟 ปรับปรุงฟังก์ชันเรนเดอร์ให้แสดงข้อความตัวเลือกจริงได้อย่างถูกต้องและไม่ซ้ำซ้อน
 function renderQuestionsContainer() {
     const container = document.getElementById('questionsListContainer');
     const stepFooter = document.getElementById('stepPaginationFooter');
@@ -798,7 +799,7 @@ function renderQuestionsContainer() {
         if (!q) return;
         const isEssay = q.question_type === 'essay';
         
-        // กรองตัวเลือกให้ไม่ซ้ำซ้อนกันเด็ดขาด (Deduplicate options)
+        // ดึงตัวเลือกและกรองไม่ให้ซ้ำกัน
         let rawOpts = (q.options && q.options.length > 0) ? q.options : standardLabels;
         let opts = Array.from(new Set(rawOpts));
 
@@ -831,7 +832,8 @@ function renderQuestionsContainer() {
             const optionsHtml = opts.map((optText, cIdx) => {
                 const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
                 const displayLabel = standardLabels[cIdx] || (cIdx + 1);
-                const actualText = (typeof optText === 'string' && optText.trim() !== '' && isNaN(optText)) ? optText : `ตัวเลือกที่ ${displayLabel}`;
+                // 🌟 แก้ไขให้แสดงข้อความตัวเลือกจริง (optText) โดยตรง ไม่ถูกบังคับแปลงเป็นเลข index
+                const actualText = optText !== undefined && optText !== null && String(optText).trim() !== '' ? optText : `ตัวเลือกที่ ${displayLabel}`;
                 
                 return `
                     <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
@@ -886,7 +888,7 @@ function renderQuestionsContainer() {
     currentQuestions.forEach((q, idx) => {
         const isEssay = q.question_type === 'essay';
         let rawOpts = (q.options && q.options.length > 0) ? q.options : standardLabels;
-        let opts = Array.from(new Set(rawOpts)); // ป้องกันตัวเลือกเบิ้ล
+        let opts = Array.from(new Set(rawOpts));
 
         const qNum = q.question_number || (idx + 1);
         const isFlagged = flaggedQuestions[q.id];
@@ -916,7 +918,8 @@ function renderQuestionsContainer() {
                 const optionsHtml = opts.map((optText, cIdx) => {
                     const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
                     const displayLabel = standardLabels[cIdx] || (cIdx + 1);
-                    const actualText = (typeof optText === 'string' && optText.trim() !== '' && isNaN(optText)) ? optText : `ตัวเลือกที่ ${displayLabel}`;
+                    // 🌟 แก้ไขให้แสดงข้อความตัวเลือกจริง (optText) โดยตรง
+                    const actualText = optText !== undefined && optText !== null && String(optText).trim() !== '' ? optText : `ตัวเลือกที่ ${displayLabel}`;
                     
                     return `
                         <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
@@ -1004,7 +1007,7 @@ function renderQuestionsContainer() {
     htmlContent += `</div>`;
     container.innerHTML = htmlContent;
 }
-
+        
         function saveEssayAnswer(qId, val) {
             if (!val || val.trim() === '') {
                 delete studentAnswers[qId];
