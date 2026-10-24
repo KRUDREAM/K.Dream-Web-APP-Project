@@ -226,7 +226,7 @@
 
         let currentViewMode = 'scroll'; 
         let currentStepIndex = 0;
-        let realtimeChannel = null;
+        let examRealtimeChannel = null;
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -477,34 +477,91 @@
 
             startPersistentTimer(parseInt(startTime, 10), totalExamSeconds);
 
-            // 🌟 ตั้งค่าระบบ Realtime Supabase Channel
-            initRealtimeSync();
+            // 🌟 เปิดระบบ Realtime ดักฟังการอัปเดตข้อสอบ, ช้อยส์ และ Due Date จากผู้คุมสอบแบบเรียลไทม์
+            initRealtimeExamSync();
         }
 
-        // 🌟 ฟังก์ชันจัดการ Realtime Sync ระหว่างเครื่อง/แท็บ และสถานะห้องสอบ
-        function initRealtimeSync() {
-            if (!examId || isPreview || !currentStudentId) return;
+        // 🌟 ระบบ Supabase Realtime Sync สำหรับอัปเดตข้อสอบ/ช้อยส์/Due Date อัตโนมัติระหว่างสอบ
+        function initRealtimeExamSync() {
+            if (!examId || isPreview) return;
 
-            realtimeChannel = mySupabase.channel(`exam_live_${examId}_${currentStudentId}`, {
-                config: { broadcast: { self: false } }
-            });
+            examRealtimeChannel = mySupabase.channel(`public:exam_live_sync_${examId}`)
+                .on('postgres_changes', {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'exams',
+                    filter: `id=eq.${examId}`
+                }, (payload) => {
+                    const updatedExam = payload.new;
+                    const oldDue = currentExam.due_date;
+                    const oldLimit = currentExam.time_limit;
+                    currentExam = updatedExam;
 
-            realtimeChannel
-                .on('broadcast', { event: 'force_submit' }, () => {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'ผู้คุมสอบสั่งยุติการสอบ',
-                        text: 'ระบบกำลังส่งคำตอบอัตโนมัติ...',
-                        timer: 2000,
-                        showConfirmButton: false,
-                        allowOutsideClick: false
-                    }).then(() => submitExam(true));
-                })
-                .subscribe((status) => {
-                    if (status === 'SUBSCRIBED') {
-                        console.log('Realtime exam channel connected successfully.');
+                    document.getElementById('examSubNav').textContent = `รหัส: ${currentExam.exam_code || 'ไม่มี'} | เวลาทำ: ${currentExam.time_limit || 60} นาที`;
+                    const formatSub = document.getElementById('choiceFormatSubLabel');
+                    if (formatSub) {
+                        formatSub.textContent = `รูปแบบตัวเลือก: ${getChoiceFormatLabelText(currentExam.choice_format)}`;
                     }
-                });
+
+                    // ตรวจสอบการเปลี่ยนแปลง Due Date หรือ Time Limit (เช่น ครูขยายเวลาให้)
+                    if (updatedExam.due_date !== oldDue || updatedExam.time_limit !== oldLimit) {
+                        const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
+                        const startTime = parseInt(localStorage.getItem(timerKey) || Date.now(), 10);
+                        let newTotalSecs = (currentExam.time_limit || 60) * 60;
+
+                        if (currentExam.due_date && !isPreview) {
+                            const dueDateTime = new Date(currentExam.due_date).getTime();
+                            const secondsUntilDueDate = Math.floor((dueDateTime - startTime) / 1000);
+                            if (secondsUntilDueDate < newTotalSecs) {
+                                newTotalSecs = secondsUntilDueDate > 0 ? secondsUntilDueDate : 0;
+                            }
+                        }
+
+                        // หากเวลาเป้าหมายรวมเพิ่มขึ้น (ขยายเวลา) ให้ปรับ totalExamSeconds ทันทีอย่างปลอดภัย
+                        if (newTotalSecs > totalExamSeconds) {
+                            totalExamSeconds = newTotalSecs;
+                            Swal.mixin({
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 6000,
+                                timerProgressBar: true
+                            }).fire({
+                                icon: 'info',
+                                title: '⏱️ ผู้คุมสอบได้ทำการขยายเวลา / ปรับเปลี่ยนกำหนดส่งข้อสอบเรียบร้อยแล้ว'
+                            });
+                        } else {
+                            totalExamSeconds = newTotalSecs;
+                        }
+                    }
+
+                    // รีเรนเดอร์ช้อยส์/รูปแบบใหม่หากมีการเปลี่ยนแปลง
+                    renderQuestionsContainer();
+                })
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'questions',
+                    filter: `exam_id=eq.${examId}`
+                }, async () => {
+                    // โหลดโจทย์และช้อยส์ใหม่เมื่อมีการแก้ไขข้อสอบโดยผู้คุมสอบ (คงคำตอบเก่าของนักเรียนไว้ไม่ให้หาย)
+                    const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
+                    if (qs) {
+                        currentQuestions = qs;
+                        renderQuestionsContainer();
+                        updateExamProgress();
+                        Swal.mixin({
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 4000
+                        }).fire({
+                            icon: 'info',
+                            title: '🔄 ชุดข้อสอบหรือตัวเลือกมีการอัปเดตแบบเรียลไทม์'
+                        });
+                    }
+                })
+                .subscribe();
         }
 
         async function loadAndRenderPDF(url) {
@@ -728,6 +785,7 @@
                 if (nextBtn) nextBtn.disabled = currentStepIndex === currentQuestions.length - 1;
 
                 const q = currentQuestions[currentStepIndex];
+                if (!q) return;
                 const isEssay = q.question_type === 'essay';
                 const opts = (q.options && q.options.length > 0) ? q.options : standardLabels;
                 const qNum = q.question_number || (currentStepIndex + 1);
@@ -1069,13 +1127,15 @@
 
         function startPersistentTimer(startTime, totalDurationSeconds) {
             const display = document.getElementById('timerDisplay');
+            if (timerInterval) clearInterval(timerInterval);
 
             timerInterval = setInterval(() => {
                 const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-                const remainingSeconds = totalDurationSeconds - elapsedSeconds;
+                // 🌟 ใช้ totalExamSeconds แบบไดนามิก รองรับการขยายเวลาจากผู้คุมสอบกลางคันได้ทันที
+                const remainingSeconds = totalExamSeconds - elapsedSeconds;
                 currentRemainingSeconds = remainingSeconds > 0 ? remainingSeconds : 0;
 
-                checkTimerAlerts(currentRemainingSeconds, totalDurationSeconds);
+                checkTimerAlerts(currentRemainingSeconds, totalExamSeconds);
 
                 if (remainingSeconds <= 0) {
                     clearInterval(timerInterval);
@@ -1160,7 +1220,7 @@
             isSubmitting = true;
 
             if (timerInterval) clearInterval(timerInterval);
-            if (realtimeChannel) mySupabase.removeChannel(realtimeChannel);
+            if (examRealtimeChannel) mySupabase.removeChannel(examRealtimeChannel);
             
             localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
             localStorage.removeItem(`exam_answers_${examId}_${currentStudentId}`);
