@@ -559,22 +559,23 @@
         }
 
 async function loadEnrolledStudents() {
+    console.log("Current courseId:", courseId); // เช็คว่าค่า courseId มีจริงไหม
+    
     try {
-        // ดึงข้อมูลการลงทะเบียนทั้งหมดของคอร์สนี้โดยตรง
         const { data, error } = await mySupabase
-            .from('course_enrollments') // หากหน้าแอดมินใช้ตาราง enrollments ให้เปลี่ยนชื่อตรงนี้เป็น 'enrollments'
+            .from('course_enrollments') // ลองเช็คชื่อตารางใน Supabase อีกครั้ง
             .select('*')
             .eq('course_id', courseId);
 
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase Error:", error); // เช็ค Error ที่ตีกลับมาจาก Supabase
+            throw error;
+        }
 
-        // นับจำนวนแถวที่ได้
+        console.log("Fetched enrollments data:", data); // เช็คว่าดึงข้อมูลมาได้ไหม
+
         const totalCount = data ? data.length : 0;
 
-        // บันทึกรายชื่อ (ถ้าต้องการใช้ต่อ)
-        courseEnrolledStudentIds = data ? data.map(item => item.student_id || item.user_id) : [];
-
-        // อัปเดตแสดงผลบนหน้าจอ
         const countEl = document.getElementById('courseEnrolledStudentsCount');
         const badgeEl = document.getElementById('enrolledCountBadge');
         
@@ -583,8 +584,6 @@ async function loadEnrolledStudents() {
 
     } catch (e) {
         console.error("Error loading enrolled students count:", e);
-        const countEl = document.getElementById('courseEnrolledStudentsCount');
-        if (countEl) countEl.innerText = '0 คน';
     }
 }
         
