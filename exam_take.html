@@ -32,8 +32,8 @@
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
 
         .omr-bubble-compact {
-            width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 11px; cursor: pointer; transition: all 0.15s ease; border: 2px solid #cbd5e1;
+            width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.15s ease; border: 2px solid #cbd5e1;
             background-color: #ffffff; color: #334155;
         }
         .dark .omr-bubble-compact { border-color: #334155; background-color: #0f172a; color: #94a3b8; }
@@ -86,7 +86,7 @@
         </button>
     </div>
 
-    <!-- 🌟 แถบ Navbar ด้านบน พร้อมย้ายปุ่มส่งข้อสอบมาไว้ใกล้ Progress Bar -->
+    <!-- 🌟 แถบ Navbar ด้านบน -->
     <nav class="glass-nav fixed w-full top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center gap-2">
             <div class="flex items-center gap-3 min-w-0">
@@ -100,7 +100,6 @@
             </div>
 
             <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-                <!-- ปุ่มส่งข้อสอบย้ายมาไว้บน Navbar ข้าง ๆ Progress Bar -->
                 <button onclick="confirmSubmitExam()" class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 shrink-0">
                     <i class="fas fa-paper-plane"></i> <span class="hidden sm:inline">ส่งข้อสอบ</span>
                 </button>
@@ -135,7 +134,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
-            <!-- ฝั่งซ้าย: PDF Viewer พร้อมระบบล็อกซูม & ลากเลื่อนอิสระ -->
+            <!-- ฝั่งซ้าย: PDF Viewer -->
             <div id="pdfViewerCard" class="hidden lg:col-span-8 hitech-card p-4 rounded-3xl space-y-3 sticky top-24">
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <h3 class="font-bold text-xs text-red-600 flex items-center gap-1.5"><i class="fas fa-file-pdf"></i> เอกสารข้อสอบ (คลิกค้างแล้วลากดูได้อิสระ)</h3>
@@ -162,19 +161,36 @@
                 </div>
             </div>
 
-            <!-- ฝั่งขวา: กระดาษคำตอบ OMR / โจทย์ข้อสอบ -->
+            <!-- ฝั่งขวา: กระดาษคำตอบ OMR / โจทย์ข้อสอบ (เพิ่มโหมดเลือกเลื่อนลง หรือ กดทีละข้อ) -->
             <div id="rightAnswerCard" class="lg:col-span-4 hitech-card p-5 rounded-3xl space-y-5">
-                <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 flex-wrap gap-2">
                     <div>
                         <h2 id="answerCardTitle" class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
                             <i class="fas fa-list-check text-sky-500"></i> กระดาษคำตอบ
                         </h2>
                         <p id="choiceFormatSubLabel" class="text-[11px] text-slate-400 mt-0.5">รูปแบบตัวเลือก: กำลังโหลด...</p>
                     </div>
+
+                    <!-- 🌟 ปุ่มสลับโหมดการแสดงผล (เฉพาะกรณีทำแบบไม่มี PDF) -->
+                    <div id="viewModeToggleContainer" class="hidden items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px]">
+                        <button onclick="switchViewMode('scroll')" id="modeScrollBtn" class="px-2.5 py-1 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm">เลื่อนลง</button>
+                        <button onclick="switchViewMode('step')" id="modeStepBtn" class="px-2.5 py-1 rounded-lg font-bold transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white">ทีละข้อ</button>
+                    </div>
                 </div>
 
-                <div id="questionsListContainer" class="space-y-3">
+                <div id="questionsListContainer" class="space-y-4">
                     <div class="text-center py-10 text-slate-400 text-xs">กรุณากดเริ่มทำข้อสอบเพื่อแสดงชุดข้อสอบ</div>
+                </div>
+
+                <!-- ปุ่มควบคุมสำหรับโหมดทีละข้อ (Step-by-step navigation controls) -->
+                <div id="stepPaginationFooter" class="hidden pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                    <button onclick="prevStepQuestion()" id="prevStepBtn" class="px-4 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i class="fas fa-arrow-left"></i> ข้อก่อนหน้า
+                    </button>
+                    <span id="stepIndicatorText" class="font-mono font-bold text-xs text-sky-600 dark:text-sky-400">ข้อ 1 / 10</span>
+                    <button onclick="nextStepQuestion()" id="nextStepBtn" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+                        ข้อถัดไป <i class="fas fa-arrow-right"></i>
+                    </button>
                 </div>
             </div>
 
@@ -202,7 +218,7 @@
         let halfTimeTriggered = false;
         let fiveMinsTriggered = false;
         let isOverviewHidden = false;
-        let isSubmitting = false; // ตัวแปรป้องกันการส่งซ้ำซ้อน (Double Submit Lock)
+        let isSubmitting = false;
 
         let pdfGlobalDoc = null;
         let currentZoom = 1.0;
@@ -210,6 +226,10 @@
 
         let tabSwitchCount = 0;
         const MAX_ALLOWED_VIOLATIONS = 3;
+
+        // ตัวแปรควบคุมโหมดแสดงผลคำถาม ('scroll' หรือ 'step')
+        let currentViewMode = 'scroll'; 
+        let currentStepIndex = 0;
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -306,7 +326,6 @@
 
         function checkStudentAuth() {
             if (isPreview) return true;
-
             const studentId = getValidatedStudentId();
             if (!studentId || studentId === '00000000-0000-0000-0000-000000000000') {
                 Swal.fire({
@@ -331,14 +350,13 @@
             }
 
             currentStudentId = getValidatedStudentId();
-
             if (isPreview) {
                 document.getElementById('previewBanner').classList.remove('hidden');
             }
 
             if (!isPreview && currentStudentId) {
                 try {
-                    const { data: prevAttempts, error } = await mySupabase
+                    const { data: prevAttempts } = await mySupabase
                         .from('exam_attempts')
                         .select('id')
                         .eq('exam_id', examId)
@@ -356,14 +374,11 @@
                         });
                         return;
                     }
-                } catch(err) {
-                    console.error("Check previous attempt error:", err);
-                }
+                } catch(err) {}
             }
 
             const { data: exam, error: examError } = await mySupabase.from('exams').select('*').eq('id', examId).single();
             if (examError || !exam) {
-                console.error("Exam load error:", examError);
                 Swal.fire('ไม่พบชุดข้อสอบนี้ หรือติดปัญหาการเชื่อมต่อ', '', 'error').then(() => window.location.href = 'student.html');
                 return;
             }
@@ -380,13 +395,9 @@
             if (!isPreview) {
                 try {
                     const savedAnswers = localStorage.getItem(`exam_answers_${examId}_${currentStudentId}`);
-                    if (savedAnswers) {
-                        studentAnswers = JSON.parse(savedAnswers);
-                    }
+                    if (savedAnswers) studentAnswers = JSON.parse(savedAnswers);
                     const savedFlags = localStorage.getItem(`exam_flags_${examId}_${currentStudentId}`);
-                    if (savedFlags) {
-                        flaggedQuestions = JSON.parse(savedFlags);
-                    }
+                    if (savedFlags) flaggedQuestions = JSON.parse(savedFlags);
                 } catch(e) {}
             }
 
@@ -415,6 +426,7 @@
             const pdfCard = document.getElementById('pdfViewerCard');
             const rightCard = document.getElementById('rightAnswerCard');
             const answerCardTitle = document.getElementById('answerCardTitle');
+            const viewModeToggleContainer = document.getElementById('viewModeToggleContainer');
 
             const hasPdf = exam.pdf_url && exam.pdf_url.trim() !== '';
 
@@ -422,12 +434,15 @@
                 if (pdfCard) pdfCard.classList.remove('hidden');
                 if (rightCard) rightCard.className = 'lg:col-span-4 hitech-card p-5 rounded-3xl space-y-5';
                 if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-list-check text-sky-500"></i> กระดาษคำตอบ`;
+                if (viewModeToggleContainer) viewModeToggleContainer.classList.add('hidden'); // มี PDF ไม่ต้องมีปุ่มสลับโหมด
                 loadAndRenderPDF(exam.pdf_url);
                 initPdfZoomAndPanInteractions();
             } else {
                 if (pdfCard) pdfCard.classList.add('hidden');
                 if (rightCard) rightCard.className = 'lg:col-span-12 hitech-card p-6 rounded-3xl space-y-6 max-w-4xl mx-auto w-full';
                 if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-file-lines text-sky-500"></i> แบบทดสอบออนไลน์ & ตัวเลือกคำตอบ`;
+                if (viewModeToggleContainer) viewModeToggleContainer.classList.remove('flex'); // แสดงปุ่มสลับโหมด
+                if (viewModeToggleContainer) viewModeToggleContainer.style.display = 'flex';
             }
 
             await loadQuestions();
@@ -449,15 +464,10 @@
 
         function initAntiCheatSystem() {
             document.addEventListener('visibilitychange', function () {
-                if (document.hidden) {
-                    handleExamViolation("ตรวจพบการสลับแท็บหรือออกจากหน้าจอเบราว์เซอร์");
-                }
+                if (document.hidden) handleExamViolation("ตรวจพบการสลับแท็บหรือออกจากหน้าจอเบราว์เซอร์");
             });
-
             window.addEventListener('blur', function () {
-                if (!document.hidden) {
-                    handleExamViolation("หน้าต่างข้อสอบสูญเสียการโฟกัส (คลิกออกนอกหน้าจอ)");
-                }
+                if (!document.hidden) handleExamViolation("หน้าต่างข้อสอบสูญเสียการโฟกัส (คลิกออกนอกหน้าจอ)");
             });
         }
 
@@ -492,9 +502,7 @@
                     confirmButtonText: 'ดูผลคะแนน',
                     confirmButtonColor: '#ef4444',
                     allowOutsideClick: false
-                }).then(() => {
-                    submitExam(true);
-                });
+                }).then(() => submitExam(true));
             }
         }
 
@@ -529,7 +537,6 @@
         function initPdfZoomAndPanInteractions() {
             const container = document.getElementById('pdfContainer');
             if (!container) return;
-
             let isDragging = false;
             let startX, startY, scrollLeft, scrollTop;
 
@@ -556,7 +563,6 @@
 
             container.addEventListener('mouseleave', () => { isDragging = false; container.classList.remove('cursor-grabbing'); });
             container.addEventListener('mouseup', () => { isDragging = false; container.classList.remove('cursor-grabbing'); });
-
             container.addEventListener('mousemove', (e) => {
                 if (!isDragging) return;
                 e.preventDefault();
@@ -589,11 +595,57 @@
         }
 
         function scrollToQuestion(qId) {
-            const box = document.getElementById(`q-box-${qId}`);
-            if (box) {
-                box.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                box.classList.add('ring-2', 'ring-sky-500');
-                setTimeout(() => box.classList.remove('ring-2', 'ring-sky-500'), 1500);
+            if (currentExam?.pdf_url && currentExam.pdf_url.trim() !== '') {
+                const box = document.getElementById(`q-box-${qId}`);
+                if (box) {
+                    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    box.classList.add('ring-2', 'ring-sky-500');
+                    setTimeout(() => box.classList.remove('ring-2', 'ring-sky-500'), 1500);
+                }
+            } else {
+                if (currentViewMode === 'step') {
+                    const idx = currentQuestions.findIndex(q => q.id === qId);
+                    if (idx !== -1) {
+                        currentStepIndex = idx;
+                        renderQuestionsContainer();
+                    }
+                } else {
+                    const box = document.getElementById(`q-box-${qId}`);
+                    if (box) {
+                        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        box.classList.add('ring-2', 'ring-sky-500');
+                        setTimeout(() => box.classList.remove('ring-2', 'ring-sky-500'), 1500);
+                    }
+                }
+            }
+        }
+
+        function switchViewMode(mode) {
+            currentViewMode = mode;
+            const scrollBtn = document.getElementById('modeScrollBtn');
+            const stepBtn = document.getElementById('modeStepBtn');
+
+            if (mode === 'scroll') {
+                scrollBtn.className = 'px-2.5 py-1 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm';
+                stepBtn.className = 'px-2.5 py-1 rounded-lg font-bold transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white';
+            } else {
+                stepBtn.className = 'px-2.5 py-1 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm';
+                scrollBtn.className = 'px-2.5 py-1 rounded-lg font-bold transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white';
+            }
+            renderQuestionsContainer();
+        }
+
+        function nextStepQuestion() {
+            if (currentStepIndex < currentQuestions.length - 1) {
+                currentStepIndex++;
+                renderQuestionsContainer();
+            }
+        }
+
+        function prevStepQuestion() {
+            if (currentStepIndex > 0) {
+                currentStepIndex--;
+                renderQuestionsContainer();
             }
         }
 
@@ -653,8 +705,14 @@
 
         function renderQuestionsContainer() {
             const container = document.getElementById('questionsListContainer');
+            const stepFooter = document.getElementById('stepPaginationFooter');
+            const indicatorText = document.getElementById('stepIndicatorText');
+            const prevBtn = document.getElementById('prevStepBtn');
+            const nextBtn = document.getElementById('nextStepBtn');
+
             if (currentQuestions.length === 0) {
                 container.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">ยังไม่มีรายการโจทย์ในชุดข้อสอบนี้</div>`;
+                if (stepFooter) stepFooter.classList.add('hidden');
                 return;
             }
 
@@ -662,7 +720,86 @@
             const standardLabels = getChoiceLabels(formatType);
             const hasPdf = currentExam?.pdf_url && currentExam.pdf_url.trim() !== '';
 
-            let htmlContent = `<div class="space-y-4">`;
+            // กรณีแสดงแบบทีละข้อ (Step Mode) และไม่มี PDF
+            if (!hasPdf && currentViewMode === 'step') {
+                if (stepFooter) stepFooter.classList.remove('hidden');
+                if (indicatorText) indicatorText.textContent = `ข้อ ${currentStepIndex + 1} / ${currentQuestions.length}`;
+                if (prevBtn) prevBtn.disabled = currentStepIndex === 0;
+                if (nextBtn) nextBtn.disabled = currentStepIndex === currentQuestions.length - 1;
+
+                const q = currentQuestions[currentStepIndex];
+                const isEssay = q.question_type === 'essay';
+                const opts = (q.options && q.options.length > 0) ? q.options : standardLabels;
+                const qNum = q.question_number || (currentStepIndex + 1);
+                const isFlagged = flaggedQuestions[q.id];
+
+                let htmlContent = `<div class="space-y-4">`;
+
+                if (isEssay) {
+                    htmlContent += `
+                        <div id="q-box-${q.id}" class="p-6 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm relative">
+                            <div class="flex items-center justify-between">
+                                <span class="font-extrabold text-sm text-amber-600 dark:text-amber-400">ข้อที่ ${qNum} (ข้อสอบอัตนัย)</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-3 py-1 bg-amber-500 text-white font-bold text-xs rounded-lg">เขียนตอบ</span>
+                                    <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
+                                        <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-relaxed pt-1">
+                                ${q.question_text || q.content || 'คำถามอัตนัย'}
+                            </div>
+                            ${q.image_url ? `<div class="my-3"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
+                            <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="5" class="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm leading-relaxed outline-none focus:border-sky-500" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
+                        </div>
+                    `;
+                } else {
+                    const optionsHtml = opts.map((optText, cIdx) => {
+                        const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
+                        const displayLabel = standardLabels[cIdx] || (cIdx + 1);
+                        const actualText = (typeof optText === 'string' && optText.trim() !== '' && isNaN(optText)) ? optText : `ตัวเลือกที่ ${displayLabel}`;
+                        
+                        return `
+                            <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4 rounded-xl border cursor-pointer transition-all flex items-center gap-3.5 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
+                                <div id="opt-badge-${q.id}-${cIdx}" class="w-9 h-9 rounded-xl ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-sm shrink-0">
+                                    ${displayLabel}
+                                </div>
+                                <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${actualText}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    htmlContent += `
+                        <div id="q-box-${q.id}" class="p-6 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-5 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum} จาก ${currentQuestions.length}</span>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
+                                        <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-relaxed">
+                                ${q.question_text || q.content || ''}
+                            </div>
+                            ${q.image_url ? `<div class="my-3"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
+                            <div class="grid grid-cols-1 gap-3 pt-2" id="options-container-${q.id}">
+                                ${optionsHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                htmlContent += `</div>`;
+                container.innerHTML = htmlContent;
+                return;
+            }
+
+            // กรณีแสดงแบบเลื่อนลงทั้งหมด (Scroll Mode หรือมี PDF)
+            if (stepFooter) stepFooter.classList.add('hidden');
+
+            let htmlContent = `<div class="space-y-6">`;
 
             currentQuestions.forEach((q, idx) => {
                 const isEssay = q.question_type === 'essay';
@@ -673,21 +810,21 @@
                 if (!hasPdf) {
                     if (isEssay) {
                         htmlContent += `
-                            <div id="q-box-${q.id}" class="p-5 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm relative">
+                            <div id="q-box-${q.id}" class="p-6 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm relative">
                                 <div class="flex items-center justify-between">
-                                    <span class="font-extrabold text-xs text-amber-600 dark:text-amber-400">ข้อที่ ${qNum} (ข้อสอบอัตนัย)</span>
+                                    <span class="font-extrabold text-sm text-amber-600 dark:text-amber-400">ข้อที่ ${qNum} (ข้อสอบอัตนัย)</span>
                                     <div class="flex items-center gap-2">
-                                        <span class="px-2.5 py-0.5 bg-amber-500 text-white font-bold text-[10px] rounded-lg">เขียนตอบ</span>
+                                        <span class="px-3 py-1 bg-amber-500 text-white font-bold text-xs rounded-lg">เขียนตอบ</span>
                                         <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
-                                            <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                                            <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
                                         </button>
                                     </div>
                                 </div>
-                                <div class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white leading-relaxed">
+                                <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-relaxed pt-1">
                                     ${q.question_text || q.content || 'คำถามอัตนัย'}
                                 </div>
-                                ${q.image_url ? `<div class="my-2"><img src="${q.image_url}" class="max-h-64 rounded-xl object-contain border" /></div>` : ''}
-                                <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="4" class="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:border-sky-500" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
+                                ${q.image_url ? `<div class="my-3"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
+                                <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="4" class="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm leading-relaxed outline-none focus:border-sky-500" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
                             </div>
                         `;
                     } else {
@@ -697,36 +834,37 @@
                             const actualText = (typeof optText === 'string' && optText.trim() !== '' && isNaN(optText)) ? optText : `ตัวเลือกที่ ${displayLabel}`;
                             
                             return `
-                                <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-3.5 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
-                                    <div id="opt-badge-${q.id}-${cIdx}" class="w-8 h-8 rounded-lg ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-xs shrink-0">
+                                <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4 rounded-xl border cursor-pointer transition-all flex items-center gap-3.5 ${isSelected ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400'}">
+                                    <div id="opt-badge-${q.id}-${cIdx}" class="w-9 h-9 rounded-xl ${isSelected ? 'bg-sky-600 text-white' : 'bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'} flex items-center justify-center font-bold text-sm shrink-0">
                                         ${displayLabel}
                                     </div>
-                                    <span class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">${actualText}</span>
+                                    <span class="text-sm sm:text-base font-normal text-slate-800 dark:text-slate-200 leading-relaxed">${actualText}</span>
                                 </div>
                             `;
                         }).join('');
 
                         htmlContent += `
-                            <div id="q-box-${q.id}" class="p-5 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3.5 shadow-sm">
+                            <div id="q-box-${q.id}" class="p-6 bg-white dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 space-y-5 shadow-sm">
                                 <div class="flex items-center justify-between">
-                                    <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400">ข้อที่ ${qNum}</span>
+                                    <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum}</span>
                                     <div class="flex items-center gap-2">
                                         <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
-                                            <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
+                                            <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
                                         </button>
                                     </div>
                                 </div>
-                                <div class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white leading-relaxed">
+                                <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-relaxed">
                                     ${q.question_text || q.content || ''}
                                 </div>
-                                ${q.image_url ? `<div class="my-2"><img src="${q.image_url}" class="max-h-64 rounded-xl object-contain border" /></div>` : ''}
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1" id="options-container-${q.id}">
+                                ${q.image_url ? `<div class="my-3"><img src="${q.image_url}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1" id="options-container-${q.id}">
                                     ${optionsHtml}
                                 </div>
                             </div>
                         `;
                     }
                 } else {
+                    // กรณีมี PDF แสดงผลกระดาษคำตอบ OMR แบบกะทัดรัดด้านข้าง
                     if (isEssay) {
                         htmlContent += `
                             <div id="q-box-${q.id}" class="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 relative">
@@ -739,8 +877,8 @@
                                         </button>
                                     </div>
                                 </div>
-                                <div class="text-[11px] font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800/60 p-2.5 rounded-xl border">${q.question_text || q.content || 'คำถามอัตนัย'}</div>
-                                <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="3" class="w-full p-2.5 bg-white dark:bg-slate-800 border rounded-xl text-xs outline-none" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
+                                <div class="text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800/60 p-2.5 rounded-xl border leading-relaxed">${q.question_text || q.content || 'คำถามอัตนัย'}</div>
+                                <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value)" rows="3" class="w-full p-2.5 bg-white dark:bg-slate-800 border rounded-xl text-xs outline-none leading-relaxed" placeholder="พิมพ์คำตอบของคุณที่นี่...">${studentAnswers[q.id] || ''}</textarea>
                             </div>
                         `;
                     } else {
@@ -755,10 +893,10 @@
                         }).join('');
 
                         htmlContent += `
-                            <div id="q-box-${q.id}" class="px-3 py-2 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                            <div id="q-box-${q.id}" class="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
                                 <div class="flex items-center gap-3">
                                     <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400 w-8 shrink-0">ข้อ ${qNum}</span>
-                                    <div class="flex items-center gap-1.5" id="bubbles-container-${q.id}">${bubblesHtml}</div>
+                                    <div class="flex items-center gap-2" id="bubbles-container-${q.id}">${bubblesHtml}</div>
                                 </div>
                                 <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'} shrink-0 ml-2">
                                     <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-[10px]">${isFlagged ? 'ปักธงแล้ว' : ''}</span>
@@ -816,11 +954,11 @@
 
                 if (optCard && optBadge) {
                     if (String(i) === strCIdx && studentAnswers[qId] !== undefined) {
-                        optCard.className = 'p-3.5 rounded-xl border cursor-pointer transition-all flex items-center gap-3 border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm';
-                        optBadge.className = 'w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-xs shrink-0';
+                        optCard.className = 'p-4 rounded-xl border cursor-pointer transition-all flex items-center gap-3.5 border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 shadow-sm';
+                        optBadge.className = 'w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shrink-0';
                     } else {
-                        optCard.className = 'p-3.5 rounded-xl border cursor-pointer transition-all flex items-center gap-3 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400';
-                        optBadge.className = 'w-8 h-8 rounded-lg bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 flex items-center justify-center font-bold text-xs shrink-0';
+                        optCard.className = 'p-4 rounded-xl border cursor-pointer transition-all flex items-center gap-3.5 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:border-sky-400';
+                        optBadge.className = 'w-9 h-9 rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 flex items-center justify-center font-bold text-sm shrink-0';
                     }
                 }
 
@@ -1069,7 +1207,6 @@
 
             if (attemptError || !newAttempt) {
                 isSubmitting = false;
-                console.error("Attempt Error:", attemptError);
                 Swal.fire({
                     icon: 'error',
                     title: 'Supabase Error!',
@@ -1080,7 +1217,6 @@
             }
 
             const attemptId = newAttempt.id;
-
             const answersPayloads = currentQuestions.map(q => {
                 const studentAns = studentAnswers[q.id];
                 const isEssay = q.question_type === 'essay';
