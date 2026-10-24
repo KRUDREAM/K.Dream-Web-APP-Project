@@ -749,10 +749,7 @@ function getParsedOptions(qOptions, standardLabels) {
                 const qNum = q.question_number || (currentStepIndex + 1);
                 const isFlagged = flaggedQuestions[q.id];
                 const isLastStep = (currentStepIndex === currentQuestions.length - 1);
-
-                // ตัดคำนำหน้าในฐานข้อมูลที่ซ้ำซ้อนออก เช่น "ข้อที่ 1", "ข้อ 1."
-                let rawQText = q.question_text || q.content || '';
-                const cleanQText = rawQText.replace(/^(ข้อที่\s*\d+|ข้อ\s*\d+[\.\)]?)\s*/i, '').trim();
+                const cleanQText = getCleanQuestionText(q);
 
                 let htmlContent = `<div class="space-y-6">`;
 
@@ -777,7 +774,8 @@ function getParsedOptions(qOptions, standardLabels) {
                     `;
                 } else {
                     const optionsHtml = opts.map((optText, cIdx) => {
-                        const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
+                        // แก้ไขจุดนี้ให้เช็คเทียบ Index อย่างแม่นยำ ป้องกันการไฮไลต์ซ้ำซ้อน
+                        const isSelected = String(studentAnswers[q.id]) === String(cIdx);
                         const displayLabel = standardLabels[cIdx] || (cIdx + 1);
                         
                         const trimmedOpt = String(optText).trim();
@@ -848,9 +846,7 @@ function getParsedOptions(qOptions, standardLabels) {
                 const qNum = q.question_number || (idx + 1);
                 const isFlagged = flaggedQuestions[q.id];
                 const isLast = (idx === currentQuestions.length - 1);
-
-                let rawQText = q.question_text || q.content || '';
-                const cleanQText = rawQText.replace(/^(ข้อที่\s*\d+|ข้อ\s*\d+[\.\)]?)\s*/i, '').trim();
+                const cleanQText = getCleanQuestionText(q);
 
                 if (!hasPdf) {
                     if (isEssay) {
@@ -874,7 +870,7 @@ function getParsedOptions(qOptions, standardLabels) {
                         `;
                     } else {
                         const optionsHtml = opts.map((optText, cIdx) => {
-                            const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
+                            const isSelected = String(studentAnswers[q.id]) === String(cIdx);
                             const displayLabel = standardLabels[cIdx] || (cIdx + 1);
                             
                             const trimmedOpt = String(optText).trim();
@@ -937,7 +933,7 @@ function getParsedOptions(qOptions, standardLabels) {
                         `;
                     } else {
                         const bubblesHtml = opts.map((optText, cIdx) => {
-                            const isSelected = studentAnswers[q.id] === String(cIdx) || studentAnswers[q.id] === optText;
+                            const isSelected = String(studentAnswers[q.id]) === String(cIdx);
                             const displayLabel = standardLabels[cIdx] || (cIdx + 1);
                             return `
                                 <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="bubble-${q.id}-${cIdx}" class="omr-bubble-compact ${isSelected ? 'active' : ''}">
