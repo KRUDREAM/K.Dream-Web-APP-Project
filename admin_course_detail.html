@@ -558,23 +558,29 @@
             renderFiles(files);
         }
 
-        async function loadEnrolledStudents() {
+async function loadEnrolledStudents() {
             let totalStudents = new Set();
             
             try {
-                const res1 = await mySupabase.from('course_enrollments').select('*');
-                const res2 = await mySupabase.from('enrollments').select('*');
+                // ดึงข้อมูลจากตารางการลงทะเบียนทั้งสองตาราง
+                const res1 = await mySupabase.from('course_enrollments').select('*').eq('course_id', courseId);
+                const res2 = await mySupabase.from('enrollments').select('*').eq('course_id', courseId);
                 
                 const all = [...(res1.data || []), ...(res2.data || [])];
+                
                 all.forEach(item => {
-                    const cId = String(item.course_id || item.courseid || '');
+                    // ใช้ student_id หรือ user_id ที่อ้างอิงถึงตัวนักเรียน
                     const sId = String(item.student_id || item.user_id || '');
-                    if (cId === String(courseId) && sId) {
-                        totalStudents.add(sId);
+                    if (sId) {
+                        // เช็คว่าไม่ใช่บัญชีแอดมิน (ป้องกันกรณีอัปเดตโปรไฟล์แล้วติดนับเพิ่ม)
+                        const profileObj = allProfilesMap[sId];
+                        if (!profileObj || !isUserAdmin(profileObj)) {
+                            totalStudents.add(sId);
+                        }
                     }
                 });
             } catch (e) {
-                console.error("Error:", e);
+                console.error("Error loading enrolled students:", e);
             }
 
             courseEnrolledStudentIds = Array.from(totalStudents);
