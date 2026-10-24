@@ -82,7 +82,7 @@
             <div class="flex items-center gap-3">
                 <button onclick="handleNavigate('admin_exams.html')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all"><i class="fas fa-arrow-left text-sm"></i></button>
                 <div>
-                    <h1 id="examTitleHeader" class="font-extrabold text-base text-slate-900 dark:text-white">จัดการโจทย์และเฉลย OMR</h1>
+                    <h1 id="examTitleHeader" class="font-extrabold text-base text-slate-900 dark:text-white">จัดการโจทย์และเฉลย</h1>
                     <p id="examSubHeader" class="text-[11px] text-slate-500">กำลังโหลด...</p>
                 </div>
             </div>
@@ -101,7 +101,7 @@
 
     <main class="max-w-7xl mx-auto px-4 pt-20 space-y-6">
         
-        <!-- PDF Upload Panel -->
+        <!-- PDF Upload Panel (จะถูกซ่อนอัตโนมัติหากเลือกเป็นพิมพ์ลงระบบ) -->
         <div id="pdfUploadCard" class="hitech-card p-5 rounded-2xl space-y-3 border-l-4 border-l-red-500">
             <div class="flex justify-between items-center">
                 <h3 class="font-bold text-sm flex items-center gap-2 text-red-600 dark:text-red-400">
@@ -176,7 +176,8 @@
             </div>
         </div>
 
-        <div class="hitech-card p-4 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-l-4 border-l-sky-500">
+        <!-- OMR Sheet Card Header (จะถูกซ่อนอัตโนมัติหากเลือกเป็นพิมพ์ลงระบบ) -->
+        <div id="omrHeaderCard" class="hitech-card p-4 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-l-4 border-l-sky-500">
             <div>
                 <h3 class="font-bold text-sm text-sky-600 dark:text-sky-400 flex items-center gap-2">
                     <i class="fas fa-grip-vertical"></i> กระดาษคำตอบคอมพิวเตอร์ (OMR Sheet 4 ข้อ/แถว)
@@ -190,7 +191,8 @@
 
         <div id="categorySummaryChips" class="flex flex-wrap gap-2 pt-1"></div>
 
-        <div class="hitech-card p-6 rounded-2xl space-y-4">
+        <!-- OMR Grid Container (จะถูกซ่อนอัตโนมัติหากเลือกเป็นพิมพ์ลงระบบ) -->
+        <div id="omrSectionCard" class="hitech-card p-6 rounded-2xl space-y-4">
             <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
                 <h3 class="font-bold text-base flex items-center gap-2"><i class="fas fa-check-double text-sky-500"></i> กระดาษทำเฉลย OMR</h3>
                 <span class="text-xs text-slate-400">จัดวาง 4 ข้อต่อแถว</span>
@@ -200,6 +202,7 @@
             </div>
         </div>
 
+        <!-- Question Accordion Section -->
         <div class="hitech-card p-6 rounded-2xl space-y-4">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div>
@@ -253,7 +256,6 @@
         let gradingCriteriaList = [];
         let enableCriteria = false;
 
-        // Helper function for logging Admin Audit actions
         async function logAdminAction(actionTitle, detailDesc) {
             try {
                 const adminName = localStorage.getItem('admin_username') || 
@@ -461,6 +463,21 @@
                 const subtitle = document.getElementById('choiceFormatSubtitle');
                 if (subtitle) {
                     subtitle.textContent = `ฝนเฉลย OMR | รูปแบบตัวเลือก: ${getChoiceFormatLabelText(data.choice_format)}`;
+                }
+
+                // 🌟 ตรวจสอบโหมดจัดสอบ หากเป็นพิมพ์ลงระบบ (online) ให้ซ่อนส่วน PDF และ OMR ทันที
+                const pdfUploadCard = document.getElementById('pdfUploadCard');
+                const omrHeaderCard = document.getElementById('omrHeaderCard');
+                const omrSectionCard = document.getElementById('omrSectionCard');
+
+                if (data.delivery_type === 'online') {
+                    if (pdfUploadCard) pdfUploadCard.classList.add('hidden');
+                    if (omrHeaderCard) omrHeaderCard.classList.add('hidden');
+                    if (omrSectionCard) omrSectionCard.classList.add('hidden');
+                } else {
+                    if (pdfUploadCard) pdfUploadCard.classList.remove('hidden');
+                    if (omrHeaderCard) omrHeaderCard.classList.remove('hidden');
+                    if (omrSectionCard) omrSectionCard.classList.remove('hidden');
                 }
                 
                 if (data.pdf_url) {
@@ -716,7 +733,7 @@
                 const qNum = q.question_number || (idx+1);
                 const categoryBadge = q.category_tag ? `<span class="px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-600 font-bold text-[10px]">${escapeHtml(q.category_tag)}</span>` : '';
                 const imgTag = q.image_url ? `<div class="mb-2"><img src="${escapeHtml(q.image_url)}" class="max-h-48 rounded-xl border border-slate-300 shadow-sm"></div>` : '';
-                const qText = escapeHtml(q.question_text || q.content || 'คำถามในกระดาษ OMR');
+                const qText = escapeHtml(q.question_text || q.content || 'คำถามในระบบ');
                 const qId = q.id;
 
                 return `
@@ -926,7 +943,7 @@
                             <div>
                                 <label class="block font-bold mb-1">ประเภทข้อสอบ</label>
                                 <select id="qType" onchange="toggleQuestionTypeModal(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800">
-                                    <option value="multiple_choice" ${qData?.question_type !== 'essay' ? 'selected' : ''}>ปรนัย OMR</option>
+                                    <option value="multiple_choice" ${qData?.question_type !== 'essay' ? 'selected' : ''}>ปรนัย</option>
                                     <option value="essay" ${qData?.question_type === 'essay' ? 'selected' : ''}>อัตนัย (ข้อเขียน)</option>
                                 </select>
                             </div>
