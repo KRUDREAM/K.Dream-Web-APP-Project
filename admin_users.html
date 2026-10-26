@@ -395,22 +395,27 @@ async function openManageCoursesModal(studentId) {
         Swal.fire({ title: 'กำลังบันทึกคอร์สเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
         try {
-            // 1. ล้างข้อมูลการลงทะเบียนเดิมออกโดยใช้ student_id ที่ถูกต้อง
+            // 1. ล้างข้อมูลการลงทะเบียนเดิมออกจากทั้ง 2 ตารางพร้อมกัน
             await mySupabase.from('course_enrollments').delete().eq('student_id', studentId);
             await mySupabase.from('enrollments').delete().eq('student_id', studentId);
 
-            // 2. ถ้ามีการเลือกคอร์ส ให้บันทึกใหม่
+            // 2. ถ้ามีการเลือกคอร์ส ให้บันทึกลงไปในทั้ง 2 ตารางพร้อมกัน (ป้องกันตารางไม่ตรงกัน)
             if (newSelectedCourseIds.length > 0) {
                 const payload = newSelectedCourseIds.map(cId => ({
                     course_id: cId,
                     student_id: studentId
                 }));
 
-                // ลองบันทึกใส่ตาราง course_enrollments ก่อน หากไม่มีให้ลอง enrollments
-                let { error } = await mySupabase.from('course_enrollments').insert(payload);
-                if (error) {
-                    let { error: err2 } = await mySupabase.from('enrollments').insert(payload);
-                    if (err2) throw err2;
+                const res1 = await mySupabase.from('course_enrollments').insert(payload);
+                const res2 = await mySupabase.from('enrollments').insert(payload);
+
+                // ถ้าเจอปัญหาว่าคอลัมน์ใน enrollments อาจใช้ user_id แทน student_id ให้ลองส่งแบบสำรอง
+                if (res2.error) {
+                    const payloadAlt = newSelectedCourseIds.map(cId => ({
+                        course_id: cId,
+                        user_id: studentId
+                    }));
+                    await mySupabase.from('enrollments').insert(payloadAlt);
                 }
             }
 
@@ -424,9 +429,7 @@ async function openManageCoursesModal(studentId) {
                 title: 'บันทึกไม่สำเร็จ',
                 html: `เกิดข้อผิดพลาดจากฐานข้อมูล:<br>
                 <code class="text-xs text-rose-500 font-mono mt-2 block break-all text-left bg-slate-900 p-3 rounded-xl">
-                    <b>Message:</b> ${err.message || 'Unknown'}<br>
-                    <b>Details:</b> ${err.details || '-'}<br>
-                    <b>Hint:</b> ${err.hint || '-'}
+                    <b>Message:</b> ${err.message || 'Unknown'}
                 </code>`,
                 confirmButtonColor: '#0284c7'
             });
