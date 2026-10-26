@@ -344,7 +344,7 @@
         }
 
         // 🌟 ฟังก์ชันจัดการคอร์สเรียนพร้อมระบบแสดง Error ละเอียดกรณีบันทึกไม่ผ่าน
-        async function openManageCoursesModal(studentId) {
+async function openManageCoursesModal(studentId) {
             const student = studentsList.find(s => String(s.id) === String(studentId));
             if (!student) return;
 
@@ -395,52 +395,55 @@
                 Swal.fire({ title: 'กำลังบันทึกคอร์สเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
                 try {
-                    // 1. ลบข้อมูลเก่าออกจากทั้ง 2 ตารางเพื่อเคลียร์ค่าเดิม
-                    await mySupabase.from('enrollments').delete().eq('student_id', studentId);
-                    await mySupabase.from('enrollments').delete().eq('user_id', studentId);
+                    // 1. ล้างข้อมูลการลงทะเบียนเดิมออกก่อน (ลองลบทั้ง 2 ตารางเผื่อไว้)
                     await mySupabase.from('course_enrollments').delete().eq('student_id', studentId);
                     await mySupabase.from('course_enrollments').delete().eq('user_id', studentId);
+                    await mySupabase.from('enrollments').delete().eq('student_id', studentId);
+                    await mySupabase.from('enrollments').delete().eq('user_id', studentId);
 
-                    // 2. ถ้ามีการเลือกคอร์ส ให้ลองบันทึกวนไปทีละรูปแบบจนกว่าจะสำเร็จ
+                    // 2. ถ้ามีการเลือกคอร์ส ให้บันทึกใหม่
                     if (newSelectedCourseIds.length > 0) {
-                        let insertErrorMsg = '';
+                        let success = false;
+                        let lastError = null;
 
-                        let payload1 = newSelectedCourseIds.map(cId => ({ student_id: studentId, course_id: cId }));
-                        let { error: err1 } = await mySupabase.from('course_enrollments').insert(payload1);
+                        // สลับทดลองโครงสร้างคอลัมน์ที่ฐานข้อมูลจริงอาจใช้ (student_id หรือ user_id)
+                        const attempts = [
+                            { table: 'course_enrollments', payload: newSelectedCourseIds.map(cId => ({ course_id: cId, student_id: studentId })) },
+                            { table: 'course_enrollments', payload: newSelectedCourseIds.map(cId => ({ course_id: cId, user_id: studentId })) },
+                            { table: 'enrollments', payload: newSelectedCourseIds.map(cId => ({ course_id: cId, student_id: studentId })) },
+                            { table: 'enrollments', payload: newSelectedCourseIds.map(cId => ({ course_id: cId, user_id: studentId })) }
+                        ];
 
-                        if (err1) {
-                            insertErrorMsg += `[course_enrollments/student_id]: ${err1.message} `;
-                            let payload2 = newSelectedCourseIds.map(cId => ({ user_id: studentId, course_id: cId }));
-                            let { error: err2 } = await mySupabase.from('course_enrollments').insert(payload2);
-
-                            if (err2) {
-                                insertErrorMsg += `| [course_enrollments/user_id]: ${err2.message} `;
-                                let payload3 = newSelectedCourseIds.map(cId => ({ student_id: studentId, course_id: cId }));
-                                let { error: err3 } = await mySupabase.from('enrollments').insert(payload3);
-
-                                if (err3) {
-                                    insertErrorMsg += `| [enrollments/student_id]: ${err3.message} `;
-                                    let payload4 = newSelectedCourseIds.map(cId => ({ user_id: studentId, course_id: cId }));
-                                    let { error: err4 } = await mySupabase.from('enrollments').insert(payload4);
-
-                                    if (err4) {
-                                        insertErrorMsg += `| [enrollments/user_id]: ${err4.message}`;
-                                        throw new Error(insertErrorMsg);
-                                    }
-                                }
+                        for (const att of attempts) {
+                            const { error } = await mySupabase.from(att.table).insert(att.payload);
+                            if (!error) {
+                                success = true;
+                                break;
+                            } else {
+                                lastError = error;
+                                console.warn(`Attempt table [${att.table}] failed:`, error);
                             }
+                        }
+
+                        if (!success) {
+                            throw lastError;
                         }
                     }
 
                     Swal.fire({ icon: 'success', title: 'อัปเดตคอร์สเรียนสำเร็จ!', timer: 1200, showConfirmButton: false });
                     initPage();
 
-                } catch (err) {
-                    console.error("Save Courses Error:", err);
+                }احذر (err) {
+                    console.error("Save Courses Error Detail:", err);
                     Swal.fire({
                         icon: 'error',
-                        title: 'บันทึกไม่สำเร็จ',
-                        html: `เกิดข้อผิดพลาดจากฐานข้อมูล:<br><code class="text-xs text-rose-500 font-mono mt-2 block break-all">${err.message}</code>`,
+                        title: 'บันทึกไม่สำเร็จ (Error 400)',
+                        html: `รายละเอียดจาก Supabase:<br>
+                        <code class="text-xs text-rose-500 font-mono mt-2 block break-all text-left bg-slate-900 p-3 rounded-xl">
+                            <b>Message:</b> ${err.message || 'Unknown'}<br>
+                            <b>Details:</b> ${err.details || '-'}<br>
+                            <b>Hint:</b> ${err.hint || '-'}
+                        </code>`,
                         confirmButtonColor: '#0284c7'
                     });
                 }
