@@ -343,7 +343,7 @@
             }).join('');
         }
 
-        // 🌟 แก้ไขฟังก์ชันจัดการคอร์สเรียน ป้องกัน Error 400 จากคอลัมน์ที่ไม่ตรงกันระหว่างตาราง
+        // 🌟 ฟังก์ชันจัดการคอร์สเรียนแบบ Smart Fallback & Type Casting ป้องกัน Error 400
         async function openManageCoursesModal(studentId) {
             const student = studentsList.find(s => String(s.id) === String(studentId));
             if (!student) return;
@@ -391,36 +391,53 @@
             });
 
             if (isConfirmed !== undefined && isConfirmed !== false) {
-                const newSelectedCourseIds = isConfirmed;
+                const rawSelectedIds = isConfirmed;
                 Swal.fire({ title: 'กำลังบันทึกคอร์สเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
                 try {
-                    // 1. ลบข้อมูลการลงทะเบียนเดิมเฉพาะตารางที่มีคอลัมน์นั้นจริง ๆ เพื่อป้องกัน Error 400
-                    try { await mySupabase.from('course_enrollments').delete().eq('student_id', studentId); } catch (e) {}
-                    try { await mySupabase.from('enrollments').delete().eq('student_id', studentId); } catch (e) {}
-                    try { await mySupabase.from('enrollments').delete().eq('user_id', studentId); } catch (e) {}
+                    // แปลง course_id อัตโนมัติ (รองรับทั้ง Integer และ UUID)
+                    const formattedCourseIds = rawSelectedIds.map(cId => {
+                        return /^\d+$/.test(cId) ? parseInt(cId, 10) : cId;
+                    });
 
-                    // 2. ถ้ามีการเลือกคอร์ส ให้บันทึกลงไป
-                    if (newSelectedCourseIds.length > 0) {
-                        const payloadStudentId = newSelectedCourseIds.map(cId => ({
-                            course_id: cId,
-                            student_id: studentId,
-                            created_at: new Date().toISOString()
-                        }));
+                    // 1. ลบข้อมูลเดิมออกจากตารางแบบปลอดภัย (ไม่ให้ขัดจังหวะหากตารางหรือคอลัมน์ใดไม่มีอยู่)
+                    try { await mySupabase.from('course_enrollments').delete().eq('student_id', studentId); } catch(e) {}
+                    try { await mySupabase.from('course_enrollments').delete().eq('user_id', studentId); } catch(e) {}
+                    try { await mySupabase.from('enrollments').delete().eq('student_id', studentId); } catch(e) {}
+                    try { await mySupabase.from('enrollments').delete().eq('user_id', studentId); } catch(e) {}
 
-                        const payloadUserId = newSelectedCourseIds.map(cId => ({
-                            course_id: cId,
-                            user_id: studentId,
-                            created_at: new Date().toISOString()
-                        }));
+                    // 2. ถ้ามีการเลือกคอร์ส ให้บันทึก
+                    if (formattedCourseIds.length > 0) {
+                        let savedOk = false;
 
-                        // บันทึกลง course_enrollments (ใช้ student_id)
-                        await mySupabase.from('course_enrollments').insert(payloadStudentId);
+                        // ชุด Payload หลากหลายรูปแบบเพื่อรองรับโครงสร้างตารางทุกแบบ
+                        const possiblePayloads = [
+                            formattedCourseIds.map(cId => ({ course_id: cId, student_id: studentId })),
+                            formattedCourseIds.map(cId => ({ course_id: cId, user_id: studentId })),
+                            formattedCourseIds.map(cId => ({ course_id: cId, student_id: studentId, created_at: new Date().toISOString() })),
+                            formattedCourseIds.map(cId => ({ course_id: cId, user_id: studentId, created_at: new Date().toISOString() }))
+                        ];
 
-                        // บันทึกลง enrollments (รองรับทั้ง student_id และ user_id)
-                        let enRes = await mySupabase.from('enrollments').insert(payloadStudentId);
-                        if (enRes.error) {
-                            await mySupabase.from('enrollments').insert(payloadUserId);
+                        // วนลูปทดลองบันทึกลง course_enrollments
+                        for (let p of possiblePayloads) {
+                            const { error } = await mySupabase.from('course_enrollments').insert(p);
+                            if (!error) {
+                                savedOk = true;
+                                break;
+                            }
+                        }
+
+                        // วนลูปทดลองบันทึกลง enrollments
+                        for (let p of possiblePayloads) {
+                            const { error } = await mySupabase.from('enrollments').insert(p);
+                            if (!error) {
+                                savedOk = true;
+                                break;
+                            }
+                        }
+
+                        if (!savedOk) {
+                            throw new Error("ไม่สามารถบันทึกข้อมูลลงตารางได้ ตรวจสอบว่าคอลัมน์ใน Supabase ตรงกับ (course_id, student_id/user_id) หรือไม่");
                         }
                     }
 
