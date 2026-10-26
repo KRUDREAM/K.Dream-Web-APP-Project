@@ -829,33 +829,58 @@ function openTermsModal() {
     });
 }
 
+// 🌟 ฟังก์ชันตรวจสอบและบันทึกการยอมรับเงื่อนไขผ่าน Supabase (จำถาวร ไม่เด้งซ้ำ)
 async function checkFirstTimeTerms() {
-    const hasAccepted = localStorage.getItem('student_accepted_terms');
-    if (!hasAccepted) {
-        const isDark = document.documentElement.classList.contains('dark');
-        const { isConfirmed } = await Swal.fire({
-            title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งานระบบ</span>`,
-            html: getDetailedTermsHtml(),
-            confirmButtonText: 'ยอมรับเงื่อนไขและเริ่มต้นใช้งาน',
-            confirmButtonColor: '#0284c7',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            width: '650px',
-            background: isDark ? '#090d16' : '#ffffff',
-            color: isDark ? '#f1f5f9' : '#1e293b',
-            customClass: { popup: 'rounded-3xl shadow-2xl' }
-        });
+    // 1. เช็คจากข้อมูลโปรไฟล์ในฐานข้อมูลก่อน
+    if (currentStudentData && currentStudentData.accepted_terms === true) {
+        localStorage.setItem('student_accepted_terms', 'true');
+        return;
+    }
 
-        if (isConfirmed) {
-            localStorage.setItem('student_accepted_terms', 'true');
-            Swal.fire({
-                icon: 'success',
-                title: 'ยินดีต้อนรับสู่ KRUDREAM LAND!',
-                text: 'คุณได้ยอมรับเงื่อนไขการใช้งานเรียบร้อยแล้ว',
-                timer: 1500,
-                showConfirmButton: false
-            });
+    // 2. เช็คจาก localStorage สำรอง
+    const hasAcceptedLocal = localStorage.getItem('student_accepted_terms');
+    if (hasAcceptedLocal === 'true') {
+        return;
+    }
+
+    // ถ้ายังไม่เคยยอมรับ ให้แสดง Pop-up บังคับอ่าน
+    const isDark = document.documentElement.classList.contains('dark');
+    const { isConfirmed } = await Swal.fire({
+        title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งานระบบ</span>`,
+        html: getDetailedTermsHtml(),
+        confirmButtonText: 'ยอมรับเงื่อนไขและเริ่มต้นใช้งาน',
+        confirmButtonColor: '#0284c7',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        width: '650px',
+        background: isDark ? '#090d16' : '#ffffff',
+        color: isDark ? '#f1f5f9' : '#1e293b',
+        customClass: { popup: 'rounded-3xl shadow-2xl' }
+    });
+
+    if (isConfirmed) {
+        // บันทึกลง localStorage
+        localStorage.setItem('student_accepted_terms', 'true');
+        
+        // บันทึกลง Supabase ฐานข้อมูลจริง เพื่อให้จำข้ามเครื่องและข้ามเซสชันได้ถาวร
+        if (currentStudentId) {
+            try {
+                await mySupabase.from('profiles').update({ accepted_terms: true }).eq('id', currentStudentId);
+                if (currentStudentData) {
+                    currentStudentData.accepted_terms = true;
+                }
+            } catch (err) {
+                console.warn("ไม่สามารถบันทึกสถานะการยอมรับลงฐานข้อมูลได้:", err);
+            }
         }
+
+        Swal.fire({
+            icon: 'success',
+            title: 'ยินดีต้อนรับสู่ KRUDREAM LAND!',
+            text: 'คุณได้ยอมรับเงื่อนไขการใช้งานเรียบร้อยแล้ว',
+            timer: 1500,
+            showConfirmButton: false
+        });
     }
 }
 
