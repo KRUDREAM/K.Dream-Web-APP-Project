@@ -559,28 +559,32 @@
         }
 
 async function loadEnrolledStudents() {
-    console.log("Current courseId:", courseId); // เช็คว่าค่า courseId มีจริงไหม
-    
     try {
-        const { data, error } = await mySupabase
-            .from('course_enrollments') // ลองเช็คชื่อตารางใน Supabase อีกครั้ง
+        // ลองดึงจากตาราง course_enrollments ก่อน
+        let { data, error } = await mySupabase
+            .from('course_enrollments')
             .select('*')
             .eq('course_id', courseId);
 
-        if (error) {
-            console.error("Supabase Error:", error); // เช็ค Error ที่ตีกลับมาจาก Supabase
-            throw error;
+        // ถ้าตาราง course_enrollments ไม่มีหรือเกิด Error ให้ลองดึงจากตาราง enrollments สำรอง
+        if (error || !data) {
+            const fallbackRes = await mySupabase
+                .from('enrollments')
+                .select('*')
+                .eq('course_id', courseId);
+            data = fallbackRes.data || [];
         }
 
-        console.log("Fetched enrollments data:", data); // เช็คว่าดึงข้อมูลมาได้ไหม
+        // กรองเอาเฉพาะ Student ID ที่ถูกต้องเก็บไว้ในตัวแปร global เพื่อใช้คำนวณสถิติ
+        courseEnrolledStudentIds = data.map(item => String(item.student_id || item.user_id)).filter(Boolean);
+        const totalCount = courseEnrolledStudentIds.length;
 
-        const totalCount = data ? data.length : 0;
-
+        // อัปเดตตัวเลขแสดงผลบนหน้าจอ
         const countEl = document.getElementById('courseEnrolledStudentsCount');
         const badgeEl = document.getElementById('enrolledCountBadge');
         
-        if (countEl) countEl.innerText = totalCount + ' คน';
-        if (badgeEl) badgeEl.innerText = totalCount;
+        if (countEl) countEl.textContent = totalCount + ' คน';
+        if (badgeEl) badgeEl.textContent = totalCount;
 
     } catch (e) {
         console.error("Error loading enrolled students count:", e);
