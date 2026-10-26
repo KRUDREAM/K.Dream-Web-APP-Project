@@ -344,6 +344,7 @@
         }
 
         // 🌟 ฟังก์ชันเปิดหน้าต่างจัดการ/เลือกคอร์สเรียนให้นักเรียน
+// 🌟 ฟังก์ชันเปิดหน้าต่างจัดการ/เลือกคอร์สเรียนให้นักเรียน (แบบปรับปรุงใหม่ ป้องกันคอร์สหาย)
         async function openManageCoursesModal(studentId) {
             const student = studentsList.find(s => String(s.id) === String(studentId));
             if (!student) return;
@@ -388,8 +389,7 @@
                 color: isDark ? '#f1f5f9' : '#1e293b',
                 preConfirm: () => {
                     const selectedCheckboxes = document.querySelectorAll('input[name="swalCourseCheckbox"]:checked');
-                    const selectedCourseIds = Array.from(selectedCheckboxes).map(cb => cb.value);
-                    return selectedCourseIds;
+                    return Array.from(selectedCheckboxes).map(cb => cb.value);
                 }
             });
 
@@ -398,28 +398,52 @@
                 Swal.fire({ title: 'กำลังบันทึกคอร์สเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
                 try {
-                    // 1. ลบสิทธิ์การลงทะเบียนเดิมทั้งหมดของนักเรียนคนนี้ก่อน (รองรับตาราง enrollments และ course_enrollments)
+                    // 1. ลบสิทธิ์การลงทะเบียนเดิมทั้งหมดออกก่อน เพื่อเตรียมอัปเดตชุดใหม่
                     await mySupabase.from('enrollments').delete().eq('student_id', studentId);
                     await mySupabase.from('course_enrollments').delete().eq('student_id', studentId);
                     await mySupabase.from('enrollments').delete().eq('user_id', studentId);
                     await mySupabase.from('course_enrollments').delete().eq('user_id', studentId);
 
-                    // 2. เพิ่มคอร์สที่ถูกติ๊กเลือกใหม่เข้าไป
+                    // 2. ถ้ามีการเลือกคอร์ส ให้บันทึกใหม่โดยทดลองสลับรูปแบบตารางและคอลัมน์อัตโนมัติ
                     if (newSelectedCourseIds.length > 0) {
-                        const payload = newSelectedCourseIds.map(cId => ({
-                            student_id: studentId,
-                            course_id: cId
-                        }));
+                        let insertSuccess = false;
 
-                        // ลองบันทึกลงตาราง course_enrollments ก่อน ถ้าไม่ได้ลอง enrollments
-                        let { error: err1 } = await mySupabase.from('course_enrollments').insert(payload);
-                        if (err1) {
-                            await mySupabase.from('enrollments').insert(payload);
+                        // ลองแบบที่ 1: ตาราง course_enrollments ใช้ student_id
+                        let payload = newSelectedCourseIds.map(cId => ({ student_id: studentId, course_id: cId }));
+                        let { error } = await mySupabase.from('course_enrollments').insert(payload);
+                        
+                        if (!error) {
+                            insertSuccess = true;
+                        } else {
+                            // ลองแบบที่ 2: ตาราง course_enrollments ใช้ user_id
+                            payload = newSelectedCourseIds.map(cId => ({ user_id: studentId, course_id: cId }));
+                            let { error: err2 } = await mySupabase.from('course_enrollments').insert(payload);
+                            if (!err2) {
+                                insertSuccess = true;
+                            } else {
+                                // ลองแบบที่ 3: ตาราง enrollments ใช้ student_id
+                                payload = newSelectedCourseIds.map(cId => ({ student_id: studentId, course_id: cId }));
+                                let { error: err3 } = await mySupabase.from('enrollments').insert(payload);
+                                if (!err3) {
+                                    insertSuccess = true;
+                                } else {
+                                    // ลองแบบที่ 4: ตาราง enrollments ใช้ user_id
+                                    payload = newSelectedCourseIds.map(cId => ({ user_id: studentId, course_id: cId }));
+                                    let { error: err4 } = await mySupabase.from('enrollments').insert(payload);
+                                    if (!err4) {
+                                        insertSuccess = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!insertSuccess) {
+                            throw new Error("ไม่สามารถบันทึกข้อมูลลงฐานข้อมูลได้ กรุณาตรวจสอบโครงสร้างตาราง enrollments หรือ course_enrollments ใน Supabase");
                         }
                     }
 
                     Swal.fire({ icon: 'success', title: 'อัปเดตคอร์สเรียนสำเร็จ!', timer: 1200, showConfirmButton: false });
-                    initPage(); // โหลดข้อมูลใหม่ทั้งหมด
+                    initPage(); // โหลดข้อมูลหน้าจอใหม่
 
                 } catch (err) {
                     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
