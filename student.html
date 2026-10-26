@@ -1367,7 +1367,7 @@ async function checkFirstTimeTerms() {
                 .subscribe();
         }
 
-        function updateCountdownsLive() {
+function updateCountdownsLive() {
             const now = Date.now();
 
             document.querySelectorAll('.exam-countdown-timer').forEach(el => {
@@ -1381,6 +1381,27 @@ async function checkFirstTimeTerms() {
                 const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((diff % (1000 * 60)) / 1000);
                 el.textContent = `⏳ เปิดใน: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            });
+
+            // 🌟 อัปเดตตัวนับเวลา Due Date ของข้อสอบแต่ละชุดแบบเรียลไทม์
+            document.querySelectorAll('.exam-duedate-timer').forEach(el => {
+                const dueTime = parseInt(el.getAttribute('data-due-time'));
+                const diff = dueTime - now;
+                if (diff <= 0) {
+                    el.textContent = '❌ เลยกำหนดส่งแล้ว';
+                    el.className = 'text-[10px] sm:text-[11px] font-bold text-rose-500 exam-duedate-timer';
+                    return;
+                }
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+                if (days > 0) {
+                    el.textContent = `⏳ เหลือเวลา: ${days}วัน ${hours}ชม.`;
+                } else {
+                    el.textContent = `⏳ เหลือ: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
             });
 
             if (selectedGlobalCourseId !== 'all' && selectedGlobalCourseId !== 'none') {
@@ -1430,8 +1451,9 @@ async function checkFirstTimeTerms() {
             const availableExams = allExams.filter(exam => {
                 if (exam.status === 'draft') return false;
                 
-                // 🌟 ตรวจสอบ Due Date ถ้าเกินกำหนดแล้วจะไม่แสดงในรายการปกติ
-                if (exam.due_date && new Date(exam.due_date) < now) return false;
+                // 🌟 หากเลย Due Date แล้ว จะไม่ซ่อนจากหน้าจอ แต่จะเปลี่ยนสถานะเป็น "เลยกำหนด" (เพื่อให้เด็กเห็นประวัติหรือรู้ว่าหมดสิทธิ์)
+                // แต่ถ้านักเรียนต้องการให้ซ่อนเลย สามารถเปิดบรรทัดด้านล่างนี้ได้
+                // if (exam.due_date && new Date(exam.due_date) < now) return false;
 
                 const examCourseId = String(exam.course_id || exam.courseid || '');
                 
@@ -1451,7 +1473,6 @@ async function checkFirstTimeTerms() {
 
             const activeExams = allExams.filter(e => {
                 if (e.status === 'draft') return false;
-                if (e.due_date && new Date(e.due_date) < now) return false;
                 const examCourseId = String(e.course_id || e.courseid || '');
                 if (activeEnrolledCourseIds.length > 0 && examCourseId && !activeEnrolledCourseIds.includes(examCourseId)) return false;
                 if (selectedGlobalCourseId !== 'all') return examCourseId === String(selectedGlobalCourseId);
@@ -1466,6 +1487,9 @@ async function checkFirstTimeTerms() {
             document.getElementById('overallProgressBar').style.width = `${progressPercent}%`;
 
             const pendingExamsList = activeExams.filter(exam => {
+                const isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < now.getTime() : false;
+                if (isOverdue) return false; // ไม่เอาอันที่หมดเขตแล้วมาแสดงใน Quick Pending
+
                 const myAttemptsForExam = userAttempts.filter(a => a.exam_id === exam.id);
                 const completedCount = myAttemptsForExam.filter(a => a.status === 'completed' || a.submitted_at || a.submission_time).length;
                 const maxAttempts = exam.max_attempts || exam.attempts_allowed || 0;
@@ -1483,6 +1507,15 @@ async function checkFirstTimeTerms() {
                     const questionCount = examQuestionCounts[exam.id] || 0;
                     const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
                     const isStarred = starredExams.includes(exam.id);
+                    
+                    // แสดง Due Date ใน Quick Pending (ถ้ามี)
+                    let dueDateHtml = '';
+                    if (exam.due_date) {
+                        const dueMs = new Date(exam.due_date).getTime();
+                        const formattedDue = new Date(exam.due_date).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+                        dueDateHtml = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1"><i class="fas fa-hourglass-end"></i> กำหนดส่ง: ${formattedDue}</div>`;
+                    }
+
                     return `
                         <div class="hitech-card exam-card-hover border-l-4 border-l-sky-500 p-4 rounded-2xl flex flex-col justify-between space-y-3 shrink-0 w-64 sm:w-72 snap-start">
                             <div class="space-y-1.5">
@@ -1492,6 +1525,7 @@ async function checkFirstTimeTerms() {
                                 </div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-1">${exam.title}</h3>
                                 <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 font-light">${exam.description || 'ไม่มีคำอธิบาย'}</p>
+                                ${dueDateHtml}
                             </div>
                             <div class="flex justify-between items-center pt-2.5 border-t border-slate-100 dark:border-slate-800">
                                 <span class="text-[10px] text-slate-400">ยังไม่ได้ทำ</span>
@@ -1559,10 +1593,27 @@ async function checkFirstTimeTerms() {
                 let statusBadge = '';
                 let cardHighlightClass = '';
 
-                let isCountdown = exam.start_time ? new Date(exam.start_time).getTime() > Date.now() : (exam.status === 'countdown');
+                const nowMs = Date.now();
+                let isCountdown = exam.start_time ? new Date(exam.start_time).getTime() > nowMs : (exam.status === 'countdown');
                 let startTimeMs = exam.start_time ? new Date(exam.start_time).getTime() : 0;
 
-                if (completedCount > 0) {
+                // 🌟 ตรวจสอบว่าเลย Due Date หรือยัง
+                let isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < nowMs : false;
+                let dueTimeMs = exam.due_date ? new Date(exam.due_date).getTime() : 0;
+                let formattedDueDate = exam.due_date ? new Date(exam.due_date).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : 'ไม่จำกัดเวลา';
+
+                let dueDateDisplayHtml = `
+                    <div class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
+                        <i class="fas fa-hourglass-end text-amber-500"></i> กำหนดส่ง: <span class="font-semibold text-slate-700 dark:text-slate-300">${formattedDueDate}</span>
+                    </div>
+                    ${exam.due_date && !isOverdue ? `<div class="text-[10px] font-bold text-amber-600 dark:text-amber-400 exam-duedate-timer" data-due-time="${dueTimeMs}">กำลังคำนวณเวลา...</div>` : ''}
+                `;
+
+                if (isOverdue) {
+                    cardHighlightClass = 'border-l-4 border-l-rose-500 bg-rose-50/30 dark:bg-rose-950/20';
+                    statusBadge = `<span class="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-rose-500 text-white rounded-lg text-[9px] sm:text-[10px] font-extrabold"><i class="fas fa-ban mr-1"></i> เลยกำหนดส่งแล้ว</span>`;
+                    actionBtnHtml = `<button onclick="handleExamClick('${exam.id}', 'start', null)" class="px-3.5 py-1.5 bg-rose-500/20 text-rose-600 rounded-xl text-xs font-bold border border-rose-500/30">หมดสิทธิ์ทำ</button>`;
+                } else if (completedCount > 0) {
                     cardHighlightClass = 'border-l-4 border-l-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/20';
                     statusBadge = `<span class="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-emerald-500 text-white rounded-lg text-[9px] sm:text-[10px] font-extrabold"><i class="fas fa-check-circle mr-1"></i> เสร็จ (${maxScoreAchieved})</span>`;
                     actionBtnHtml = maxAttempts > 0 && completedCount >= maxAttempts ? `<button disabled class="px-3.5 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-400 rounded-xl text-xs font-bold cursor-not-allowed">เต็มโควต้า</button>` : `<button onclick="handleExamClick('${exam.id}', 'start', null)" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20"><i class="fas fa-redo"></i> ทำซ้ำ</button>`;
@@ -1588,6 +1639,7 @@ async function checkFirstTimeTerms() {
                                 </div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-1">${exam.title}</h3>
                                 <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 font-light">${exam.description || 'ไม่มีคำอธิบาย'}</p>
+                                ${dueDateDisplayHtml}
                             </div>
                             <div class="flex justify-between items-center pt-2.5 border-t border-slate-100 dark:border-slate-800">
                                 <span class="text-[10px] text-slate-400">สิทธิ์: ${completedCount}/${maxAttempts === 0 ? 'ไม่จำกัด' : maxAttempts}</span>
@@ -1602,6 +1654,7 @@ async function checkFirstTimeTerms() {
                                 <div class="flex flex-wrap items-center gap-2">${statusBadge}<span class="text-[10px] sm:text-[11px] text-slate-500 font-bold"><i class="fas fa-list-ol mr-1 text-sky-500"></i> ${questionCount} ข้อ | ${durationMins} นาที</span></div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">${exam.title}</h3>
                                 <p class="text-[11px] text-slate-500 dark:text-slate-400 font-light truncate">${exam.description || 'ไม่มีคำอธิบาย'}</p>
+                                ${dueDateDisplayHtml}
                             </div>
                             <div class="flex items-center gap-2 w-full sm:w-auto justify-end">${starBtnHtml}${actionBtnHtml}</div>
                         </div>
@@ -1615,6 +1668,18 @@ async function checkFirstTimeTerms() {
         async function handleExamClick(examId, action, attemptId) {
             const exam = allExams.find(e => e.id === examId);
             if (!exam) return;
+
+            // 🌟 เช็คว่าถ้าเลย Due Date แล้ว ห้ามเข้าทำข้อสอบ และเด้งเตือนทันที
+            const nowMs = Date.now();
+            if (exam.due_date && new Date(exam.due_date).getTime() < nowMs) {
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'เลยกำหนดส่ง (Due Date)',
+                    text: 'ชุดข้อสอบนี้หมดเขตส่งแล้ว ไม่สามารถเข้าทำข้อสอบได้',
+                    confirmButtonColor: '#0284c7'
+                });
+                return;
+            }
 
             const questionCount = examQuestionCounts[examId] || 'ไม่ระบุ';
             const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
@@ -1664,7 +1729,7 @@ async function checkFirstTimeTerms() {
                 window.location.href = `exam_take.html?exam_id=${examId}&student_id=${currentStudentId}`;
             }
         }
-
+        
         function renderExamHistory() {
             const container = document.getElementById('examHistoryList');
             const keyword = (document.getElementById('searchHistoryInput')?.value || '').toLowerCase();
