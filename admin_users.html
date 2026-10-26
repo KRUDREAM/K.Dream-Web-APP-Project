@@ -179,7 +179,7 @@
                     });
                 }
 
-                // 2. โหลดข้อมูลการลงทะเบียนจากทั้งสองตาราง (enrollments และ course_enrollments)
+                // 2. โหลดข้อมูลการลงทะเบียนจากทั้งสองตาราง
                 let enrollsData = [];
                 const eRes1 = await mySupabase.from('enrollments').select('*');
                 if (eRes1.data) enrollsData = [...enrollsData, ...eRes1.data];
@@ -343,7 +343,7 @@
             }).join('');
         }
 
-        // 🌟 ปรับปรุงฟังก์ชันเลือกและบันทึกคอร์สเรียนให้รองรับทั้งตาราง course_enrollments และ enrollments แบบสมบูรณ์
+        // 🌟 แก้ไขฟังก์ชันจัดการคอร์สเรียน ป้องกัน Error 400 จากคอลัมน์ที่ไม่ตรงกันระหว่างตาราง
         async function openManageCoursesModal(studentId) {
             const student = studentsList.find(s => String(s.id) === String(studentId));
             if (!student) return;
@@ -395,11 +395,10 @@
                 Swal.fire({ title: 'กำลังบันทึกคอร์สเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
                 try {
-                    // 1. ล้างข้อมูลการลงทะเบียนเดิมออกจากทั้งสองตาราง (รองรับทั้งเงื่อนไข student_id และ user_id)
-                    await mySupabase.from('course_enrollments').delete().eq('student_id', studentId);
-                    await mySupabase.from('course_enrollments').delete().eq('user_id', studentId);
-                    await mySupabase.from('enrollments').delete().eq('student_id', studentId);
-                    await mySupabase.from('enrollments').delete().eq('user_id', studentId);
+                    // 1. ลบข้อมูลการลงทะเบียนเดิมเฉพาะตารางที่มีคอลัมน์นั้นจริง ๆ เพื่อป้องกัน Error 400
+                    try { await mySupabase.from('course_enrollments').delete().eq('student_id', studentId); } catch (e) {}
+                    try { await mySupabase.from('enrollments').delete().eq('student_id', studentId); } catch (e) {}
+                    try { await mySupabase.from('enrollments').delete().eq('user_id', studentId); } catch (e) {}
 
                     // 2. ถ้ามีการเลือกคอร์ส ให้บันทึกลงไป
                     if (newSelectedCourseIds.length > 0) {
@@ -415,13 +414,10 @@
                             created_at: new Date().toISOString()
                         }));
 
-                        // พยายามบันทึกลง course_enrollments (ลอง student_id ก่อน ถ้าไม่ได้ให้ลอง user_id)
-                        let ceRes = await mySupabase.from('course_enrollments').insert(payloadStudentId);
-                        if (ceRes.error) {
-                            await mySupabase.from('course_enrollments').insert(payloadUserId);
-                        }
+                        // บันทึกลง course_enrollments (ใช้ student_id)
+                        await mySupabase.from('course_enrollments').insert(payloadStudentId);
 
-                        // พยายามบันทึกลง enrollments (ลอง student_id ก่อน ถ้าไม่ได้ให้ลอง user_id)
+                        // บันทึกลง enrollments (รองรับทั้ง student_id และ user_id)
                         let enRes = await mySupabase.from('enrollments').insert(payloadStudentId);
                         if (enRes.error) {
                             await mySupabase.from('enrollments').insert(payloadUserId);
