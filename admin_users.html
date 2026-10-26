@@ -78,7 +78,7 @@
                 <h2 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                     <i class="fas fa-address-book text-sky-500"></i> รายชื่อบัญชีนักเรียนในระบบ
                 </h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">จัดการสร้างบัญชีผู้ใช้ใหม่, แก้ไขข้อมูลส่วนตัว, ตรวจสอบคอร์สที่ลงทะเบียน และรีเซ็ตรหัสผ่านนักเรียน</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">จัดการสร้างบัญชีผู้ใช้ใหม่, แก้ไขข้อมูลส่วนตัว, เลือกคอร์สเรียน และรีเซ็ตรหัสผ่านนักเรียน</p>
             </div>
             
             <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
@@ -186,12 +186,11 @@
                 const eRes2 = await mySupabase.from('course_enrollments').select('*');
                 if (eRes2.data) enrollsData = [...enrollsData, ...eRes2.data];
 
-                // จัดกลุ่มคอร์สตาม student_id (กรองเฉพาะคอร์สที่มีอยู่จริงใน coursesMap เท่านั้น เพื่อตัดคอร์สที่ถูกลบออกไปแล้ว)
+                // จัดกลุ่มคอร์สตาม student_id
                 studentEnrollmentsMap = {};
                 enrollsData.forEach(en => {
                     const sId = String(en.student_id || en.user_id || '');
                     const cId = String(en.course_id || '');
-                    // ถ้าคอร์สยังอยู่จริงในระบบ (ไม่ถูกลบ) ถึงจะนำมาแสดง
                     if (sId && cId && coursesMap[cId]) {
                         if (!studentEnrollmentsMap[sId]) studentEnrollmentsMap[sId] = [];
                         if (!studentEnrollmentsMap[sId].includes(cId)) {
@@ -330,13 +329,102 @@
                         <td class="p-3 font-mono text-slate-500 text-[11px]">${createdAtStr}</td>
                         <td class="p-3 font-mono text-slate-700 dark:text-slate-300">${lineId}</td>
                         <td class="p-3 text-center">
-                            <button onclick="openEditStudentModal('${s.id}')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs shadow transition-all flex items-center gap-1 mx-auto" title="แก้ไขข้อมูลและรีเซ็ตรหัสผ่าน">
-                                <i class="fas fa-user-pen"></i> แก้ไขข้อมูล
-                            </button>
+                            <div class="flex items-center justify-center gap-1.5">
+                                <button onclick="openManageCoursesModal('${s.id}')" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow transition-all flex items-center gap-1" title="เลือกคอร์สเรียน">
+                                    <i class="fas fa-book-open"></i> เลือกคอร์ส
+                                </button>
+                                <button onclick="openEditStudentModal('${s.id}')" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs shadow transition-all flex items-center gap-1" title="แก้ไขข้อมูลและรีเซ็ตรหัสผ่าน">
+                                    <i class="fas fa-user-pen"></i> แก้ไข
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        // 🌟 ฟังก์ชันเปิดหน้าต่างจัดการ/เลือกคอร์สเรียนให้นักเรียน
+        async function openManageCoursesModal(studentId) {
+            const student = studentsList.find(s => String(s.id) === String(studentId));
+            if (!student) return;
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const studentName = student.full_name || student.username || 'นักเรียน';
+            const currentEnrolled = studentEnrollmentsMap[String(studentId)] || [];
+
+            // ดึงรายการคอร์สทั้งหมดในระบบมาสร้าง Checkbox
+            const allCoursesArray = Object.values(coursesMap);
+
+            let coursesCheckboxHtml = '';
+            if (allCoursesArray.length === 0) {
+                coursesCheckboxHtml = `<div class="text-center py-6 text-slate-400 text-xs">ยังไม่มีคอร์สเรียนในระบบ กรุณาเพิ่มคอร์สก่อน</div>`;
+            } else {
+                coursesCheckboxHtml = `<div class="space-y-2 max-h-[50vh] overflow-y-auto pr-2 text-left">`;
+                allCoursesArray.forEach(c => {
+                    const cIdStr = String(c.id);
+                    const isChecked = currentEnrolled.includes(cIdStr) ? 'checked' : '';
+                    const codeStr = c.course_code ? `[${c.course_code}] ` : '';
+                    coursesCheckboxHtml += `
+                        <label class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-sky-500 transition-all">
+                            <input type="checkbox" name="swalCourseCheckbox" value="${c.id}" ${isChecked} class="w-4 h-4 text-sky-600 rounded focus:ring-sky-500">
+                            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">${codeStr}${c.title}</div>
+                        </label>
+                    `;
+                });
+                coursesCheckboxHtml += `</div>`;
+            }
+
+            const { isConfirmed } = await Swal.fire({
+                title: `<span class="text-base font-extrabold text-sky-700 dark:text-sky-400">📖 จัดการคอร์สเรียน: ${studentName}</span>`,
+                html: `
+                    <p class="text-xs text-slate-500 mb-3 text-left">ติ๊กเลือกคอร์สที่ต้องการให้นักเรียนคนนี้มีสิทธิ์เข้าถึง จากนั้นกดบันทึก</p>
+                    ${coursesCheckboxHtml}
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกคอร์สเรียน',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#0284c7',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                preConfirm: () => {
+                    const selectedCheckboxes = document.querySelectorAll('input[name="swalCourseCheckbox"]:checked');
+                    const selectedCourseIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+                    return selectedCourseIds;
+                }
+            });
+
+            if (isConfirmed !== undefined && isConfirmed !== false) {
+                const newSelectedCourseIds = isConfirmed;
+                Swal.fire({ title: 'กำลังบันทึกคอร์สเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                try {
+                    // 1. ลบสิทธิ์การลงทะเบียนเดิมทั้งหมดของนักเรียนคนนี้ก่อน (รองรับตาราง enrollments และ course_enrollments)
+                    await mySupabase.from('enrollments').delete().eq('student_id', studentId);
+                    await mySupabase.from('course_enrollments').delete().eq('student_id', studentId);
+                    await mySupabase.from('enrollments').delete().eq('user_id', studentId);
+                    await mySupabase.from('course_enrollments').delete().eq('user_id', studentId);
+
+                    // 2. เพิ่มคอร์สที่ถูกติ๊กเลือกใหม่เข้าไป
+                    if (newSelectedCourseIds.length > 0) {
+                        const payload = newSelectedCourseIds.map(cId => ({
+                            student_id: studentId,
+                            course_id: cId
+                        }));
+
+                        // ลองบันทึกลงตาราง course_enrollments ก่อน ถ้าไม่ได้ลอง enrollments
+                        let { error: err1 } = await mySupabase.from('course_enrollments').insert(payload);
+                        if (err1) {
+                            await mySupabase.from('enrollments').insert(payload);
+                        }
+                    }
+
+                    Swal.fire({ icon: 'success', title: 'อัปเดตคอร์สเรียนสำเร็จ!', timer: 1200, showConfirmButton: false });
+                    initPage(); // โหลดข้อมูลใหม่ทั้งหมด
+
+                } catch (err) {
+                    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+                }
+            }
         }
 
         function generateRandomPassword() {
