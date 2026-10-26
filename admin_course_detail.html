@@ -82,7 +82,7 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <!-- ปุ่มกระดิ่งแจ้งเตือนระบบ (เชื่อมกับหน้า admin_announcement.html) -->
+                    <!-- ปุ่มกระดิ่งแจ้งเตือนระบบ -->
                     <div class="relative">
                         <button onclick="openNotificationsModal()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 hover:bg-purple-600 hover:text-white transition-all shadow-sm relative" title="การแจ้งเตือนประกาศ">
                             <i class="fas fa-bell text-sm"></i>
@@ -184,7 +184,7 @@
 
         <hr class="border-slate-200 dark:border-slate-800 my-6">
 
-        <!-- ==================== ANALYTICS DASHBOARD SECTION ==================== -->
+        <!-- ANALYTICS DASHBOARD SECTION -->
         <div class="space-y-6">
             <div class="flex items-center justify-between">
                 <div>
@@ -458,7 +458,7 @@
                 allAttempts = (attempts || []).filter(a => activeExamIds.has(String(a.exam_id)));
 
                 await loadEnrolledStudents();
-                await loadSystemNotifications(); // โหลดรายการประกาศจากตาราง announcements
+                await loadSystemNotifications();
 
                 Swal.close();
 
@@ -473,7 +473,6 @@
             }
         }
 
-        // ระบบดึงและแสดงการประกาศจากตาราง announcements (ลิงก์กับหน้า admin_announcement.html)
         let systemNotifications = [];
         async function loadSystemNotifications() {
             try {
@@ -558,38 +557,34 @@
             renderFiles(files);
         }
 
-async function loadEnrolledStudents() {
-    try {
-        // ลองดึงจากตาราง course_enrollments ก่อน
-        let { data, error } = await mySupabase
-            .from('course_enrollments')
-            .select('*')
-            .eq('course_id', courseId);
+        async function loadEnrolledStudents() {
+            try {
+                let { data, error } = await mySupabase
+                    .from('course_enrollments')
+                    .select('*')
+                    .eq('course_id', courseId);
 
-        // ถ้าตาราง course_enrollments ไม่มีหรือเกิด Error ให้ลองดึงจากตาราง enrollments สำรอง
-        if (error || !data) {
-            const fallbackRes = await mySupabase
-                .from('enrollments')
-                .select('*')
-                .eq('course_id', courseId);
-            data = fallbackRes.data || [];
+                if (error || !data) {
+                    const fallbackRes = await mySupabase
+                        .from('enrollments')
+                        .select('*')
+                        .eq('course_id', courseId);
+                    data = fallbackRes.data || [];
+                }
+
+                courseEnrolledStudentIds = data.map(item => String(item.student_id || item.user_id)).filter(Boolean);
+                const totalCount = courseEnrolledStudentIds.length;
+
+                const countEl = document.getElementById('courseEnrolledStudentsCount');
+                const badgeEl = document.getElementById('enrolledCountBadge');
+                
+                if (countEl) countEl.textContent = totalCount + ' คน';
+                if (badgeEl) badgeEl.textContent = totalCount;
+
+            } catch (e) {
+                console.error("Error loading enrolled students count:", e);
+            }
         }
-
-        // กรองเอาเฉพาะ Student ID ที่ถูกต้องเก็บไว้ในตัวแปร global เพื่อใช้คำนวณสถิติ
-        courseEnrolledStudentIds = data.map(item => String(item.student_id || item.user_id)).filter(Boolean);
-        const totalCount = courseEnrolledStudentIds.length;
-
-        // อัปเดตตัวเลขแสดงผลบนหน้าจอ
-        const countEl = document.getElementById('courseEnrolledStudentsCount');
-        const badgeEl = document.getElementById('enrolledCountBadge');
-        
-        if (countEl) countEl.textContent = totalCount + ' คน';
-        if (badgeEl) badgeEl.textContent = totalCount;
-
-    } catch (e) {
-        console.error("Error loading enrolled students count:", e);
-    }
-}
         
         function calculateCourseKPIs() {
             const totalSubmissions = allAttempts.length;
@@ -1031,8 +1026,7 @@ async function loadEnrolledStudents() {
             });
         }
 
-        // 🌟 เพิ่มวิดีโอ/เอกสาร พร้อมสร้างประกาศในหน้า admin_announcement.html อัตโนมัติ
-async function openAddLessonModal(type) {
+        async function openAddLessonModal(type) {
             const isVideo = type === 'video';
             const isDark = document.documentElement.classList.contains('dark');
 
@@ -1082,13 +1076,11 @@ async function openAddLessonModal(type) {
                     created_at: new Date().toISOString()
                 };
 
-                // 1. บันทึกลงตารางบทเรียน course_lessons
                 const { error } = await mySupabase.from('course_lessons').insert([payload]);
                 
                 if (!error) {
                     Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1000, showConfirmButton: false });
 
-                    // 2. เรียกใช้ฟังก์ชันกลาง autoPostAnnouncement จาก lms_core.js ทันที
                     const announcementTitle = formValues.isVideo 
                         ? `🎬 มีวิดีโอย้อนหลังใหม่: ${formValues.title}` 
                         : `📁 มีเอกสาร PDF ใหม่: ${formValues.title}`;
@@ -1096,7 +1088,6 @@ async function openAddLessonModal(type) {
                     const announcementContent = `อัปเดตเนื้อหาใหม่ในคอร์ส: ${currentCourse ? currentCourse.title : 'คอร์สเรียน'}`;
 
                     if (typeof autoPostAnnouncement === 'function') {
-                        // ส่ง category เป็น 'video', title, content และ target เป็นคอร์สนี้
                         autoPostAnnouncement(
                             formValues.isVideo ? 'video' : 'document', 
                             announcementTitle, 
@@ -1106,7 +1097,6 @@ async function openAddLessonModal(type) {
                         ).catch(err => console.error("Auto post announcement error:", err));
                     }
 
-                    // 3. บันทึก Log ระบบ
                     if (typeof logSystemAction === 'function') {
                         logSystemAction(
                             'ADMIN_ADD_COURSE_LESSON', 
@@ -1305,7 +1295,18 @@ async function openAddLessonModal(type) {
                     const createdAt = p.created_at || p.registered_at || '1970-01-01T00:00:00Z';
                     
                     const isEnrolled = !!enrolledMap[sId];
-                    return { studentId: sId, fullName, username, nickname, gradeLevel, school, createdAt, isEnrolled, enrollId: enrolledMap[sId] || null };
+                    return { 
+                        studentId: sId, 
+                        fullName, 
+                        username, 
+                        nickname, 
+                        gradeLevel, 
+                        school, 
+                        createdAt, 
+                        isEnrolled, 
+                        temporaryChecked: isEnrolled, 
+                        enrollId: enrolledMap[sId] || null 
+                    };
                 });
 
                 renderStudentListModalUI();
@@ -1329,7 +1330,19 @@ async function openAddLessonModal(type) {
             renderStudentListModalUI();
         }
 
+        function syncCheckboxStateToMemory() {
+            if (!window.globalAllStudents) return;
+            window.globalAllStudents.forEach(item => {
+                const chk = document.getElementById(`chk_student_${item.studentId}`);
+                if (chk) {
+                    item.temporaryChecked = chk.checked;
+                }
+            });
+        }
+
         function renderStudentListModalUI() {
+            syncCheckboxStateToMemory();
+
             const list = window.globalAllStudents || [];
             const searchBox = document.getElementById('studentSearchBox');
             const keyword = (searchBox ? searchBox.value : '').trim().toLowerCase();
@@ -1367,7 +1380,7 @@ async function openAddLessonModal(type) {
                     return `
                         <tr class="hover:bg-slate-50/85 dark:hover:bg-slate-800/40 transition-colors border-b dark:border-slate-800/60 cursor-pointer" onclick="toggleCheckbox('${item.studentId}')">
                             <td class="p-3.5 text-center" onclick="event.stopPropagation()">
-                                <input type="checkbox" id="chk_student_${item.studentId}" ${item.isEnrolled ? 'checked' : ''} class="w-4 h-4 text-purple-600 rounded border-slate-300 dark:border-slate-700 focus:ring-purple-500 cursor-pointer">
+                                <input type="checkbox" id="chk_student_${item.studentId}" ${item.temporaryChecked ? 'checked' : ''} class="w-4 h-4 text-purple-600 rounded border-slate-300 dark:border-slate-700 focus:ring-purple-500 cursor-pointer">
                             </td>
                             <td class="p-3.5 font-mono text-purple-600 dark:text-purple-400 font-bold">${item.username}</td>
                             <td class="p-3.5 font-bold text-slate-800 dark:text-slate-200">${item.fullName}</td>
@@ -1440,6 +1453,7 @@ async function openAddLessonModal(type) {
                 background: isDark ? '#090d16' : '#ffffff',
                 color: isDark ? '#f1f5f9' : '#1e293b',
                 preConfirm: async () => {
+                    syncCheckboxStateToMemory();
                     return saveEnrolledStudentsBatch();
                 }
             }).then((result) => {
@@ -1455,12 +1469,14 @@ async function openAddLessonModal(type) {
             const chk = document.getElementById(`chk_student_${studentId}`);
             if (chk) {
                 chk.checked = !chk.checked;
+                syncCheckboxStateToMemory();
             }
         }
 
         function massCheckCheckboxes(checkState) {
             if (!window.globalAllStudents) return;
             window.globalAllStudents.forEach(item => {
+                item.temporaryChecked = checkState;
                 const chk = document.getElementById(`chk_student_${item.studentId}`);
                 if (chk) chk.checked = checkState;
             });
@@ -1474,8 +1490,7 @@ async function openAddLessonModal(type) {
                 let addedCount = 0;
                 let removedCount = 0;
                 for (const item of window.globalAllStudents) {
-                    const chk = document.getElementById(`chk_student_${item.studentId}`);
-                    const shouldBeEnrolled = chk ? chk.checked : item.isEnrolled;
+                    const shouldBeEnrolled = item.temporaryChecked;
 
                     if (shouldBeEnrolled && !item.isEnrolled) {
                         let insRes = await mySupabase.from('enrollments').insert([{ course_id: courseId, student_id: item.studentId, created_at: new Date().toISOString() }]).select();
