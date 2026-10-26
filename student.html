@@ -159,6 +159,9 @@
                         <button onclick="openProfileSettingsModal()" class="w-full text-left px-4 py-2.5 hover:bg-sky-50 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
                             <i class="fas fa-cog text-sky-500 w-4"></i> ตั้งค่าข้อมูลส่วนตัว
                         </button>
+                        <button onclick="openTermsModal()" class="w-full text-left px-4 py-2.5 hover:bg-sky-50 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                            <i class="fas fa-file-contract text-sky-500 w-4"></i> ข้อกำหนดและเงื่อนไข
+                        </button>
                         <button onclick="openPrivacyPolicyModal()" class="w-full text-left px-4 py-2.5 hover:bg-sky-50 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
                             <i class="fas fa-shield-alt text-sky-500 w-4"></i> นโยบายความเป็นส่วนตัว
                         </button>
@@ -441,6 +444,16 @@
         </div>
 
     </main>
+
+    <!-- Footer ส่วนท้ายเว็บไซต์ที่มีลิงก์ข้อกำหนดและนโยบาย -->
+    <footer class="max-w-7xl mx-auto px-3 sm:px-6 py-6 mt-12 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500 gap-2">
+        <div>© 2026 KRUDREAM LAND. All rights reserved.</div>
+        <div class="flex items-center gap-4">
+            <button onclick="openTermsModal()" class="hover:text-sky-600 transition-colors">ข้อกำหนดและเงื่อนไข</button>
+            <span>|</span>
+            <button onclick="openPrivacyPolicyModal()" class="hover:text-sky-600 transition-colors">นโยบายความเป็นส่วนตัว</button>
+        </div>
+    </footer>
 
     <!-- Modal สำหรับขยายดูรูปภาพประกาศในประกาศ -->
     <div id="imageModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4" onclick="closeImageModal()">
@@ -746,6 +759,81 @@
             if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
             if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
             return past.toLocaleDateString('th-TH', { dateStyle: 'medium' });
+        }
+
+        // 🌟 ฟังก์ชันเปิดแสดง Modal ข้อกำหนดและเงื่อนไข (กดอ่านซ้ำได้ตลอด)
+        function openTermsModal() {
+            const isDark = document.documentElement.classList.contains('dark');
+            Swal.fire({
+                title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งาน (Terms & Conditions)</span>`,
+                html: `
+                    <div class="space-y-3 text-left text-xs sm:text-sm max-h-[60vh] overflow-y-auto pr-2">
+                        <p class="text-slate-600 dark:text-slate-300 font-light">
+                            ยินดีต้อนรับสู่ระบบ <strong>KRUDREAM LAND</strong> การเข้าใช้งานระบบนี้ถือว่าท่านยอมรับข้อกำหนดและเงื่อนไขดังต่อไปนี้:
+                        </p>
+                        <div class="space-y-2">
+                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
+                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400">1. การใช้งานบัญชีผู้ใช้</h4>
+                                <p class="text-slate-600 dark:text-slate-300 font-light">ผู้ใช้งานต้องใช้บัญชีของตนเองในการเข้าสู่ระบบ ห้ามแชร์บัญชีให้ผู้อื่นใช้งานร่วมกัน (ระบบรองรับ Single Session ป้องกันการล็อกอินซ้อน)</p>
+                            </div>
+                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
+                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400">2. การทำข้อสอบและความซื่อสัตย์</h4>
+                                <p class="text-slate-600 dark:text-slate-300 font-light">การทำข้อสอบต้องอยู่ภายใต้เวลาและเงื่อนไขที่กำหนด ห้ามทำการทุจริต คัดลอกข้อสอบ หรือแคปหน้าจอเพื่อเผยแพร่ต่อสาธารณะ</p>
+                            </div>
+                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
+                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400">3. การเปลี่ยนแปลงเงื่อนไข</h4>
+                                <p class="text-slate-600 dark:text-slate-300 font-light">ผู้ดูแลระบบขอสงวนสิทธิ์ในการเปลี่ยนแปลง แก้ไข หรือระงับการใช้งานระบบได้ตามความเหมาะสมโดยไม่ต้องแจ้งให้ทราบล่วงหน้า</p>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'รับทราบ',
+                confirmButtonColor: '#0284c7',
+                width: '600px',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                customClass: { popup: 'rounded-3xl shadow-2xl' }
+            });
+        }
+
+        // 🌟 ฟังก์ชันบังคับกดยอมรับครั้งแรก (First-time Acceptance)
+        async function checkFirstTimeTerms() {
+            const hasAccepted = localStorage.getItem('student_accepted_terms');
+            if (!hasAccepted) {
+                const isDark = document.documentElement.classList.contains('dark');
+                const { isConfirmed } = await Swal.fire({
+                    title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งาน</span>`,
+                    html: `
+                        <div class="space-y-3 text-left text-xs sm:text-sm max-h-[60vh] overflow-y-auto pr-2">
+                            <p class="text-slate-600 dark:text-slate-300 font-light">
+                                ยินดีต้อนรับสู่ระบบ <strong>KRUDREAM LAND</strong> ก่อนเริ่มต้นใช้งาน โปรดอ่านและกดยอมรับข้อกำหนดและเงื่อนไขด้านล่างนี้:
+                            </p>
+                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
+                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400">เงื่อนไขการใช้งานระบบ</h4>
+                                <p class="text-slate-600 dark:text-slate-300 font-light">ผู้ใช้ต้องปฏิบัติตามกฎระเบียบการทำข้อสอบ ห้ามทุจริต และรักษาความปลอดภัยของบัญชีผู้ใช้อย่างเคร่งครัด</p>
+                            </div>
+                        </div>
+                    `,
+                    confirmButtonText: 'ยอมรับและเริ่มต้นใช้งาน',
+                    confirmButtonColor: '#0284c7',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    width: '600px',
+                    background: isDark ? '#090d16' : '#ffffff',
+                    color: isDark ? '#f1f5f9' : '#1e293b',
+                    customClass: { popup: 'rounded-3xl shadow-2xl' }
+                });
+
+                if (isConfirmed) {
+                    localStorage.setItem('student_accepted_terms', 'true');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'ยินดีต้อนรับสู่ระบบ!',
+                        timer: 1200,
+                        showConfirmButton: false
+                    });
+                }
+            }
         }
 
         function openPrivacyPolicyModal() {
@@ -1098,6 +1186,9 @@
             const isAuthValid = await authenticateStudent();
             if (!isAuthValid) return;
 
+            // 🌟 ตรวจสอบและแสดงเงื่อนไขการใช้งานรอบแรก
+            await checkFirstTimeTerms();
+
             const { data: coursesData } = await mySupabase.from('courses').select('*');
             allCourses = coursesData || [];
 
@@ -1187,7 +1278,6 @@
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, async (payload) => {
                     console.log('ตรวจพบการเปลี่ยนแปลงชุดข้อสอบจากแอดมิน:', payload);
                     
-                    // โหลดข้อมูลข้อสอบใหม่จาก Supabase ทันที
                     const { data: exams } = await mySupabase.from('exams').select('*').order('created_at', { ascending: false });
                     if (exams) allExams = exams;
 
