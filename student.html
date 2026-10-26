@@ -761,80 +761,103 @@
             return past.toLocaleDateString('th-TH', { dateStyle: 'medium' });
         }
 
-        // 🌟 ฟังก์ชันเปิดแสดง Modal ข้อกำหนดและเงื่อนไข (กดอ่านซ้ำได้ตลอด)
-        function openTermsModal() {
-            const isDark = document.documentElement.classList.contains('dark');
+// 🌟 ฟังก์ชันแสดงข้อกำหนดและเงื่อนไขฉบับเต็ม
+function getDetailedTermsHtml() {
+    return `
+        <div class="space-y-4 text-left text-xs sm:text-sm max-h-[60vh] overflow-y-auto pr-2">
+            <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+                ยินดีต้อนรับสู่ระบบ <strong>KRUDREAM LAND</strong> (ศูนย์การเรียนรู้ออนไลน์และศูนย์สอบอัจฉริยะ) การเข้าสู่ระบบ การลงทะเบียนคอร์สเรียน หรือการทำข้อสอบใดๆ บนแพลตฟอร์มนี้ ถือเป็นการแสดงเจตนาตกลงและยอมรับผูกพันตามข้อกำหนดและเงื่อนไขการใช้งานฉบับนี้โดยสมบูรณ์
+            </p>
+
+            <div class="space-y-3">
+                <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
+                    <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
+                        <i class="fas fa-user-shield"></i> 1. บัญชีผู้ใช้งานและความปลอดภัย (Account Security)
+                    </h4>
+                    <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+                        - ผู้ใช้งานต้องใช้ข้อมูลจริงในการลงทะเบียนและตั้งค่าบัญชีส่วนตัว<br>
+                        - บัญชีผู้ใช้ 1 บัญชี สงวนสิทธิ์การใช้งานสำหรับนักเรียนเจ้าของบัญชีเท่านั้น <strong>ห้ามมิให้มีการแชร์ชื่อผู้ใช้ รหัสผ่าน หรือให้ผู้อื่นเข้าใช้งานร่วมกันเด็ดขาด</strong><br>
+                        - ระบบมีระบบรักษาความปลอดภัย (Single Session) หากตรวจพบการล็อกอินซ้อน ระบบอาจทำการตัดการเชื่อมต่อเพื่อความปลอดภัยของข้อมูล
+                    </p>
+                </div>
+
+                <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
+                    <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
+                        <i class="fas fa-file-signature"></i> 2. กฎระเบียบการทำข้อสอบและการประเมินผล (Exam Rules)
+                    </h4>
+                    <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+                        - การทำข้อสอบทุกชุดต้องอยู่ภายใต้กรอบเวลา ระยะเวลา และจำนวนครั้งที่ผู้ดูแลระบบกำหนด<br>
+                        - ห้ามมิให้ทำการทุจริต คัดลอกข้อสอบ บันทึกภาพหน้าจอ (Screenshot) หรือเผยแพร่เนื้อหาข้อสอบออกสู่ภายนอกในทุกกรณี<br>
+                        - ผลคะแนนและการประเมินผลที่แสดงในระบบถือเป็นที่สิ้นสุด ยกเว้นกรณีที่มีการตรวจสอบพบข้อผิดพลาดทางเทคนิค
+                    </p>
+                </div>
+
+                <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
+                    <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
+                        <i class="fas fa-coins"></i> 3. ระบบสะสม Token และของรางวัล (Reward System)
+                    </h4>
+                    <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+                        - Token หรือคะแนนสะสมที่ได้รับจากการทำกิจกรรมหรือทำข้อสอบ มีไว้สำหรับใช้แลกสิทธิประโยชน์ในคลังของรางวัลของระบบเท่านั้น<br>
+                        - ไม่อนุญาตให้มีการซื้อขาย โอนย้าย หรือแลกเปลี่ยน Token เป็นเงินสดในทุกกรณี และผู้ดูแลระบบขอสงวนสิทธิ์ในการเปลี่ยนแปลงเงื่อนไขของรางวัลโดยไม่ต้องแจ้งให้ทราบล่วงหน้า
+                    </p>
+                </div>
+
+                <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
+                    <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
+                        <i class="fas fa-gavel"></i> 4. การระงับการให้บริการ (Service Termination)
+                    </h4>
+                    <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+                        หากผู้ใช้งานฝ่าฝืนข้อกำหนด ละเมิดสิทธิ์ หรือมีพฤติกรรมที่ส่งผลกระทบต่อความมั่นคงของระบบ ผู้ดูแลระบบมีสิทธิ์ในการระงับ บล็อก หรือลบบัญชีผู้ใช้นั้นๆ โดยทันทีโดยไม่ต้องคืนสิทธิ์หรือค่าใช้จ่ายใดๆ ทั้งสิ้น
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function openTermsModal() {
+    const isDark = document.documentElement.classList.contains('dark');
+    Swal.fire({
+        title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งาน</span>`,
+        html: getDetailedTermsHtml(),
+        confirmButtonText: 'รับทราบ',
+        confirmButtonColor: '#0284c7',
+        width: '650px',
+        background: isDark ? '#090d16' : '#ffffff',
+        color: isDark ? '#f1f5f9' : '#1e293b',
+        customClass: { popup: 'rounded-3xl shadow-2xl' }
+    });
+}
+
+async function checkFirstTimeTerms() {
+    const hasAccepted = localStorage.getItem('student_accepted_terms');
+    if (!hasAccepted) {
+        const isDark = document.documentElement.classList.contains('dark');
+        const { isConfirmed } = await Swal.fire({
+            title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งานระบบ</span>`,
+            html: getDetailedTermsHtml(),
+            confirmButtonText: 'ยอมรับเงื่อนไขและเริ่มต้นใช้งาน',
+            confirmButtonColor: '#0284c7',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            width: '650px',
+            background: isDark ? '#090d16' : '#ffffff',
+            color: isDark ? '#f1f5f9' : '#1e293b',
+            customClass: { popup: 'rounded-3xl shadow-2xl' }
+        });
+
+        if (isConfirmed) {
+            localStorage.setItem('student_accepted_terms', 'true');
             Swal.fire({
-                title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งาน (Terms & Conditions)</span>`,
-                html: `
-                    <div class="space-y-3 text-left text-xs sm:text-sm max-h-[60vh] overflow-y-auto pr-2">
-                        <p class="text-slate-600 dark:text-slate-300 font-light">
-                            ยินดีต้อนรับสู่ระบบ <strong>KRUDREAM LAND</strong> การเข้าใช้งานระบบนี้ถือว่าท่านยอมรับข้อกำหนดและเงื่อนไขดังต่อไปนี้:
-                        </p>
-                        <div class="space-y-2">
-                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
-                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400">1. การใช้งานบัญชีผู้ใช้</h4>
-                                <p class="text-slate-600 dark:text-slate-300 font-light">ผู้ใช้งานต้องใช้บัญชีของตนเองในการเข้าสู่ระบบ ห้ามแชร์บัญชีให้ผู้อื่นใช้งานร่วมกัน (ระบบรองรับ Single Session ป้องกันการล็อกอินซ้อน)</p>
-                            </div>
-                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
-                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400">2. การทำข้อสอบและความซื่อสัตย์</h4>
-                                <p class="text-slate-600 dark:text-slate-300 font-light">การทำข้อสอบต้องอยู่ภายใต้เวลาและเงื่อนไขที่กำหนด ห้ามทำการทุจริต คัดลอกข้อสอบ หรือแคปหน้าจอเพื่อเผยแพร่ต่อสาธารณะ</p>
-                            </div>
-                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
-                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400">3. การเปลี่ยนแปลงเงื่อนไข</h4>
-                                <p class="text-slate-600 dark:text-slate-300 font-light">ผู้ดูแลระบบขอสงวนสิทธิ์ในการเปลี่ยนแปลง แก้ไข หรือระงับการใช้งานระบบได้ตามความเหมาะสมโดยไม่ต้องแจ้งให้ทราบล่วงหน้า</p>
-                            </div>
-                        </div>
-                    </div>
-                `,
-                confirmButtonText: 'รับทราบ',
-                confirmButtonColor: '#0284c7',
-                width: '600px',
-                background: isDark ? '#090d16' : '#ffffff',
-                color: isDark ? '#f1f5f9' : '#1e293b',
-                customClass: { popup: 'rounded-3xl shadow-2xl' }
+                icon: 'success',
+                title: 'ยินดีต้อนรับสู่ KRUDREAM LAND!',
+                text: 'คุณได้ยอมรับเงื่อนไขการใช้งานเรียบร้อยแล้ว',
+                timer: 1500,
+                showConfirmButton: false
             });
         }
-
-        // 🌟 ฟังก์ชันบังคับกดยอมรับครั้งแรก (First-time Acceptance)
-        async function checkFirstTimeTerms() {
-            const hasAccepted = localStorage.getItem('student_accepted_terms');
-            if (!hasAccepted) {
-                const isDark = document.documentElement.classList.contains('dark');
-                const { isConfirmed } = await Swal.fire({
-                    title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งาน</span>`,
-                    html: `
-                        <div class="space-y-3 text-left text-xs sm:text-sm max-h-[60vh] overflow-y-auto pr-2">
-                            <p class="text-slate-600 dark:text-slate-300 font-light">
-                                ยินดีต้อนรับสู่ระบบ <strong>KRUDREAM LAND</strong> ก่อนเริ่มต้นใช้งาน โปรดอ่านและกดยอมรับข้อกำหนดและเงื่อนไขด้านล่างนี้:
-                            </p>
-                            <div class="p-3 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1">
-                                <h4 class="font-extrabold text-sky-600 dark:text-sky-400">เงื่อนไขการใช้งานระบบ</h4>
-                                <p class="text-slate-600 dark:text-slate-300 font-light">ผู้ใช้ต้องปฏิบัติตามกฎระเบียบการทำข้อสอบ ห้ามทุจริต และรักษาความปลอดภัยของบัญชีผู้ใช้อย่างเคร่งครัด</p>
-                            </div>
-                        </div>
-                    `,
-                    confirmButtonText: 'ยอมรับและเริ่มต้นใช้งาน',
-                    confirmButtonColor: '#0284c7',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    width: '600px',
-                    background: isDark ? '#090d16' : '#ffffff',
-                    color: isDark ? '#f1f5f9' : '#1e293b',
-                    customClass: { popup: 'rounded-3xl shadow-2xl' }
-                });
-
-                if (isConfirmed) {
-                    localStorage.setItem('student_accepted_terms', 'true');
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'ยินดีต้อนรับสู่ระบบ!',
-                        timer: 1200,
-                        showConfirmButton: false
-                    });
-                }
-            }
-        }
+    }
+}
 
         function openPrivacyPolicyModal() {
             const isDark = document.documentElement.classList.contains('dark');
