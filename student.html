@@ -642,14 +642,16 @@
             window.location.replace('index.html');
         }
 
+// 🌟 โหลดเฉพาะจำนวนการแจ้งเตือนที่ยังไม่อ่านมาแสดงที่ไอคอน Badge
         async function loadStudentNotificationsCount() {
             try {
-                const { data: anns } = await mySupabase.from('announcements').select('id, created_at').order('created_at', { ascending: false }).limit(10);
+                const { data: anns } = await mySupabase.from('announcements').select('id, created_at').order('created_at', { ascending: false }).limit(20);
                 let readIds = JSON.parse(localStorage.getItem('student_read_announcements') || '[]');
                 const badge = document.getElementById('notifBadge');
                 
                 if (anns && anns.length > 0) {
-                    const unread = anns.filter(a => !readIds.includes(a.id));
+                    // กรองเฉพาะอันที่ยังไม่อ่าน
+                    const unread = anns.filter(a => !readIds.includes(a.id) && !a.is_read);
                     if (unread.length > 0) {
                         badge.textContent = unread.length;
                         badge.classList.remove('hidden');
@@ -664,24 +666,29 @@
             }
         }
 
+        // 🌟 ดึงข้อมูลและแสดงผลเฉพาะประกาศที่ยังไม่อ่านใน Dropdown (หรือแสดงรายการล่าสุดโดยแยกสถานะอ่านแล้ว/ยังไม่อ่าน)
         async function fetchAndRenderNotificationDropdown() {
             const listContainer = document.getElementById('notifDropdownList');
             const headerCount = document.getElementById('notifHeaderCount');
             const badge = document.getElementById('notifBadge');
 
             try {
-                const { data: anns } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(5);
+                const { data: anns } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(10);
                 let readIds = JSON.parse(localStorage.getItem('student_read_announcements') || '[]');
 
                 if (!anns || anns.length === 0) {
-                    listContainer.innerHTML = `<div class="px-4 py-8 text-center text-slate-400 text-xs space-y-1"><i class="fas fa-bell-slash text-2xl text-sky-500 mb-1"></i><p>ยังไม่มีการแจ้งเตือนใหม่</p></div>`;
+                    listContainer.innerHTML = `<div class="px-4 py-8 text-center text-slate-400 text-xs space-y-1"><i class="fas fa-bell-slash text-2xl text-sky-500 mb-1"></i><p>ยังไม่มีการแจ้งเตือน</p></div>`;
                     headerCount.textContent = '0 ใหม่';
                     badge.classList.add('hidden');
                     return;
                 }
 
                 notificationsDataCache = anns;
-                let unreadCount = anns.filter(a => !readIds.includes(a.id) && !a.is_read).length;
+                
+                // กรองเฉพาะอันที่ยังไม่อ่านมาแสดง หรือหากต้องการให้แสดงทั้งหมดแต่เน้นอันยังไม่อ่าน สามารถปรับตรงนี้ได้
+                // ในที่นี้จะแสดง 5 รายการล่าสุด โดยแยกสถานะจุดแดงเฉพาะอันที่ยังไม่อ่านครับ
+                const unreadList = anns.filter(a => !readIds.includes(a.id) && !a.is_read);
+                const unreadCount = unreadList.length;
 
                 if (unreadCount > 0) {
                     badge.textContent = unreadCount;
@@ -692,7 +699,8 @@
                     headerCount.textContent = '0 ใหม่';
                 }
 
-                listContainer.innerHTML = anns.map(a => {
+                // แสดงรายการประกาศ (โดยเน้นแสดงอันที่ยังไม่อ่านขึ้นก่อน หรือแสดง 5 อันล่าสุดพร้อมสถานะ)
+                listContainer.innerHTML = anns.slice(0, 5).map(a => {
                     const isUnread = !readIds.includes(a.id) && !a.is_read;
                     const timeAgo = getTimeAgo(a.created_at);
                     const category = a.category || 'general';
@@ -703,7 +711,7 @@
                     else if (category === 'video') catIcon = 'fas fa-play-circle text-rose-500';
 
                     return `
-                        <div onclick="clickNotificationItem('${a.id}')" class="p-3 hover:bg-sky-50 dark:hover:bg-slate-800/80 cursor-pointer transition-all flex items-start gap-3 relative">
+                        <div onclick="clickNotificationItem('${a.id}')" class="p-3 hover:bg-sky-50 dark:hover:bg-slate-800/80 cursor-pointer transition-all flex items-start gap-3 relative ${isUnread ? 'bg-sky-50/50 dark:bg-slate-800/40 font-bold' : ''}">
                             ${isUnread ? '<span class="absolute top-3.5 right-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-sm"></span>' : ''}
                             <div class="w-8 h-8 rounded-xl bg-sky-500/10 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
                                 <i class="${catIcon} text-xs"></i>
@@ -723,6 +731,7 @@
             }
         }
 
+        // 🌟 เมื่อคลิกที่ประกาศ จะบันทึกว่าอ่านแล้วทันที (จุดแดงจะหายไป)
         function clickNotificationItem(annId) {
             let readIds = JSON.parse(localStorage.getItem('student_read_announcements') || '[]');
             if (!readIds.includes(annId)) {
@@ -730,9 +739,11 @@
                 localStorage.setItem('student_read_announcements', JSON.stringify(readIds));
             }
             document.getElementById('notifDropdownMenu').classList.add('hidden');
+            loadStudentNotificationsCount(); // อัปเดตจำนวน Badge ทันที
             openNotificationsModal();
         }
 
+        // 🌟 กดอ่านทั้งหมดแล้ว (เคลียร์จุดแดงทั้งหมด)
         async function markAllNotificationsRead() {
             if (!notificationsDataCache || notificationsDataCache.length === 0) return;
             let readIds = JSON.parse(localStorage.getItem('student_read_announcements') || '[]');
