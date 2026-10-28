@@ -45,12 +45,15 @@
                         <i class="fas fa-arrow-left"></i>
                     </button>
                     <div>
-                        <h1 class="font-black text-sm sm:text-lg">ระบบตารางสอน & ตารางเรียน</h1>
+                        <h1 class="font-black text-sm sm:text-lg">ระบบตารางสอนแอดมิน</h1>
                         <span class="text-[10px] text-sky-600 dark:text-sky-400 font-extrabold uppercase tracking-wider">Admin Schedule Command Center</span>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-2">
+                    <button onclick="window.location.href='admin_student_schedule.html'" class="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-900 font-bold text-xs rounded-xl hover:bg-purple-100 transition-all flex items-center gap-1.5" title="ดูตารางเรียนนักเรียนรายบุคคล">
+                        <i class="fas fa-user-graduate"></i> ตารางเรียนนักเรียน
+                    </button>
                     <button id="themeToggle" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-sky-500">
                         <i class="fas fa-moon" id="themeIcon"></i>
                     </button>
@@ -79,9 +82,9 @@
                 </div>
 
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1">กรองดูรายบุคคล/ครู/นร.:</label>
-                    <select id="filterPerson" onchange="renderSchedulesView()" class="w-full md:w-64 px-3 py-2 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
-                        <option value="">-- แสดงทั้งหมดทุกคาบ --</option>
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1">กรองดูตามคุณครูผู้สอน:</label>
+                    <select id="filterTeacher" onchange="renderSchedulesView()" class="w-full md:w-64 px-3 py-2 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
+                        <option value="">-- แสดงทั้งหมดทุกคุณครู --</option>
                     </select>
                 </div>
             </div>
@@ -126,12 +129,9 @@
         let allSchedules = [];
         let allSlots = [];
         let allCourses = [];
-        let allEnrollments = [];
-        let allProfiles = [];
-        let viewMode = 'weekly'; // 'weekly' or 'monthly'
+        let viewMode = 'weekly';
         let periodOffset = 0;
 
-        // Dark/Light Mode Init
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
         if (localStorage.getItem('theme') === 'dark') {
@@ -152,12 +152,10 @@
         async function fetchMasterData() {
             Swal.fire({ title: 'กำลังโหลดข้อมูลตาราง...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             
-            const [coursesRes, schedRes, slotRes, enrollRes, profileRes] = await Promise.all([
+            const [coursesRes, schedRes, slotRes] = await Promise.all([
                 supabaseClient.from('courses').select('id, title, color_theme'),
                 supabaseClient.from('course_schedules').select('*, courses(title, color_theme)'),
-                supabaseClient.from('schedule_slots').select('*, courses(title, color_theme)'),
-                supabaseClient.from('enrollments').select('*'),
-                supabaseClient.from('profiles').select('id, full_name, email, role')
+                supabaseClient.from('schedule_slots').select('*, courses(title, color_theme)')
             ]);
             
             Swal.close();
@@ -165,33 +163,17 @@
             allCourses = coursesRes.data || [];
             allSchedules = schedRes.data || [];
             allSlots = slotRes.data || [];
-            allEnrollments = enrollRes.data || [];
-            allProfiles = profileRes.data || [];
 
             populateFilterDropdowns();
             renderSchedulesView();
         }
 
         function populateFilterDropdowns() {
-            const select = document.getElementById('filterPerson');
+            const select = document.getElementById('filterTeacher');
             const teachers = [...new Set(allSchedules.map(s => s.teacher_name))];
             
-            let html = '<option value="">-- แสดงทั้งหมดทุกคาบ (แอดมิน) --</option>';
-            
-            if (teachers.length > 0) {
-                html += `<optgroup label="คุณครูผู้สอน">`;
-                teachers.forEach(t => { if (t) html += `<option value="teacher:${t}">ครู: ${t}</option>`; });
-                html += `</optgroup>`;
-            }
-
-            if (allProfiles.length > 0) {
-                html += `<optgroup label="นักเรียนในระบบ (ดูรายบุคคล)">`;
-                allProfiles.forEach(p => {
-                    html += `<option value="student:${p.id}">นร: ${p.full_name || p.email || 'นักเรียน'}</option>`;
-                });
-                html += `</optgroup>`;
-            }
-
+            let html = '<option value="">-- แสดงทั้งหมดทุกคุณครู --</option>';
+            teachers.forEach(t => { if (t) html += `<option value="${t}">คุณครู: ${t}</option>`; });
             select.innerHTML = html;
         }
 
@@ -209,44 +191,21 @@
         }
 
         function renderSchedulesView() {
-            if (viewMode === 'weekly') {
-                renderHorizontalWeeklyGrid();
-            } else {
-                renderMonthlyGrid();
-            }
+            if (viewMode === 'weekly') renderHorizontalWeeklyGrid();
+            else renderMonthlyGrid();
             renderTimelineList();
         }
 
-        // Helper filter slots based on dropdown selection
         function getFilteredSlots() {
-            const filterVal = document.getElementById('filterPerson').value;
-            if (!filterVal) return allSlots;
-
-            const [type, val] = filterVal.split(':');
-            if (type === 'teacher') {
-                return allSlots.filter(s => s.teacher_name === val);
-            } else if (type === 'student') {
-                // หาคอร์สที่นักเรียนคนนี้ลงทะเบียนผ่าน enrollments (column course_id)
-                const studentEnrollments = allEnrollments.filter(e => e.user_id === val || e.student_id === val);
-                const enrolledCourseIds = studentEnrollments.map(e => e.course_id);
-                return allSlots.filter(s => enrolledCourseIds.includes(s.course_id));
-            }
-            return allSlots;
+            const teacher = document.getElementById('filterTeacher').value;
+            if (!teacher) return allSlots;
+            return allSlots.filter(s => s.teacher_name === teacher);
         }
 
         function getFilteredSchedules() {
-            const filterVal = document.getElementById('filterPerson').value;
-            if (!filterVal) return allSchedules;
-
-            const [type, val] = filterVal.split(':');
-            if (type === 'teacher') {
-                return allSchedules.filter(s => s.teacher_name === val);
-            } else if (type === 'student') {
-                const studentEnrollments = allEnrollments.filter(e => e.user_id === val || e.student_id === val);
-                const enrolledCourseIds = studentEnrollments.map(e => e.course_id);
-                return allSchedules.filter(s => enrolledCourseIds.includes(s.course_id));
-            }
-            return allSchedules;
+            const teacher = document.getElementById('filterTeacher').value;
+            if (!teacher) return allSchedules;
+            return allSchedules.filter(s => s.teacher_name === teacher);
         }
 
         function renderHorizontalWeeklyGrid() {
@@ -289,7 +248,6 @@
 
             weekDays.forEach(d => {
                 const dateStr = d.toISOString().split('T')[0];
-
                 html += `
                     <tr>
                         <td class="p-2.5 border dark:border-slate-800 font-bold bg-slate-50 dark:bg-darkinput sticky left-0 z-10">
@@ -443,6 +401,11 @@
         }
 
         async function openCreateScheduleModal() {
+            if (allCourses.length === 0) {
+                Swal.fire('แจ้งเตือน', 'กรุณาสร้างคอร์สเรียนในระบบก่อนเพิ่มตารางสอน', 'warning');
+                return;
+            }
+
             const courseOptions = allCourses.map(c => `<option value="${c.id}">${c.title}</option>`).join('');
 
             const { value: formValues } = await Swal.fire({
@@ -694,7 +657,6 @@
             }
         }
 
-        // --- Export CSV Function ---
         async function openExportModal() {
             const { value: formValues } = await Swal.fire({
                 title: '📥 Export ข้อมูลปฏิทินเป็น CSV',
