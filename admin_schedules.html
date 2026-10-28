@@ -53,7 +53,11 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap justify-end">
+                    <!-- ปุ่มไปหน้าตารางเรียนนักเรียน -->
+                    <button onclick="window.location.href='student_schedule.html'" class="px-3 py-2 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-900 font-bold text-xs rounded-xl hover:bg-sky-100 transition-all flex items-center gap-1.5">
+                        <i class="fas fa-user-graduate"></i> ดูตารางเรียน นร.
+                    </button>
                     <button id="themeToggle" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-sky-500">
                         <i class="fas fa-moon" id="themeIcon"></i>
                     </button>
@@ -85,9 +89,9 @@
                 </div>
 
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1">กรองดูตามคุณครูผู้สอน:</label>
-                    <select id="filterTeacher" onchange="renderSchedulesView()" class="w-full md:w-64 px-3 py-2 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
-                        <option value="">-- แสดงคาบเรียนทั้งหมดทุกครู --</option>
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1">กรองดูตามคุณครู:</label>
+                    <select id="filterTeacher" onchange="renderSchedulesView()" class="w-full md:w-52 px-3 py-2 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
+                        <option value="">-- ทุกคุณครู --</option>
                     </select>
                 </div>
             </div>
@@ -105,7 +109,7 @@
                 <h3 id="matrixTitle" class="font-extrabold text-sm text-sky-600 dark:text-sky-400 uppercase tracking-wider flex items-center gap-2">
                     <i class="fas fa-calendar-week"></i> ตารางสอนแนวนอน 1 สัปดาห์ (08:00 - 22:00 น.)
                 </h3>
-                <span class="text-xs text-slate-400">วิชาเดียวกันต่อกันยาวต่อเนื่อง | คลิกที่ช่องเพื่อดูรายละเอียด/แก้ไข</span>
+                <span class="text-xs text-slate-400">วิชาเดียวกันต่อกันยาวต่อเนื่อง | คลิกที่ช่องคาบเรียนเพื่อดูรายละเอียดและแก้ไข</span>
             </div>
 
             <div id="matrixContainer" class="min-w-[1100px]">
@@ -115,9 +119,19 @@
 
         <!-- Timeline List View -->
         <div class="hitech-card p-6 rounded-3xl space-y-4">
-            <h3 class="font-extrabold text-sm text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-2">
-                <i class="fas fa-list-ul"></i> รายการคาบเรียนทั้งหมด (Timeline List)
-            </h3>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <h3 class="font-extrabold text-sm text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fas fa-list-ul"></i> รายการคาบเรียนทั้งหมด (Timeline List)
+                </h3>
+                <!-- 🌟 เพิ่มปุ่มเลือกดูตามคอร์สเรียน -->
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <label class="text-xs font-bold text-slate-400 shrink-0">กรองตามคอร์ส:</label>
+                    <select id="filterCourse" onchange="renderTimelineList()" class="w-full sm:w-60 px-3 py-1.5 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
+                        <option value="">-- ทุกคอร์สเรียน --</option>
+                    </select>
+                </div>
+            </div>
+
             <div id="timelineListContainer" class="space-y-3">
                 <!-- Rendered dynamically -->
             </div>
@@ -153,55 +167,45 @@
             setupRealtimeSubscription();
         }
 
-async function fetchMasterData() {
-            try {
-                // ดึงข้อมูลคอร์ส, ตารางสอนหลัก และสล็อตเวลาพร้อมกัน
-                const [coursesRes, schedRes, slotRes] = await Promise.all([
-                    supabaseClient.from('courses').select('id, title'),
-                    supabaseClient.from('course_schedules').select('*, courses(title)'),
-                    supabaseClient.from('schedule_slots').select('*, courses(title)')
-                ]);
+        async function fetchMasterData() {
+            const [coursesRes, schedRes, slotRes] = await Promise.all([
+                supabaseClient.from('courses').select('id, title, color_theme'),
+                supabaseClient.from('course_schedules').select('*, courses(title, color_theme)'),
+                supabaseClient.from('schedule_slots').select('*, courses(title, color_theme)')
+            ]);
 
-                if (coursesRes.error) console.error('Courses Error:', coursesRes.error);
-                if (schedRes.error) console.error('Schedules Error:', schedRes.error);
-                if (slotRes.error) console.error('Slots Error:', slotRes.error);
+            allCourses = coursesRes.data || [];
+            allSchedules = schedRes.data || [];
+            allSlots = slotRes.data || [];
 
-                allCourses = coursesRes.data || [];
-                allSchedules = schedRes.data || [];
-                allSlots = slotRes.data || [];
-
-                populateFilterDropdowns();
-                renderSchedulesView();
-            } catch (err) {
-                console.error('Fetch Master Data Exception:', err);
-            }
+            populateFilterDropdowns();
+            renderSchedulesView();
         }
 
-        // 🌟 Realtime Sync Subscription
         function setupRealtimeSubscription() {
             supabaseClient
                 .channel('admin-schedules-realtime')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => {
-                    fetchMasterData();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => {
-                    fetchMasterData();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => {
-                    fetchMasterData();
-                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => fetchMasterData())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => fetchMasterData())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => fetchMasterData())
                 .subscribe();
         }
 
         function populateFilterDropdowns() {
-            const select = document.getElementById('filterTeacher');
+            // Dropdown ครู
+            const selectTeacher = document.getElementById('filterTeacher');
             const teachers = [...new Set(allSchedules.map(s => s.teacher_name))];
-            
-            let html = '<option value="">-- แสดงคาบเรียนทั้งหมดทุกครู --</option>';
-            teachers.forEach(t => {
-                if (t) html += `<option value="${t}">คุณครู: ${t}</option>`;
+            let teacherHtml = '<option value="">-- ทุกคุณครู --</option>';
+            teachers.forEach(t => { if (t) teacherHtml += `<option value="${t}">คุณครู: ${t}</option>`; });
+            selectTeacher.innerHTML = teacherHtml;
+
+            // Dropdown คอร์ส (สำหรับ Timeline List)
+            const selectCourse = document.getElementById('filterCourse');
+            let courseHtml = '<option value="">-- ทุกคอร์สเรียน --</option>';
+            allCourses.forEach(c => {
+                courseHtml += `<option value="${c.id}">${c.title}</option>`;
             });
-            select.innerHTML = html;
+            selectCourse.innerHTML = courseHtml;
         }
 
         function switchViewMode(mode) {
@@ -233,9 +237,17 @@ async function fetchMasterData() {
         }
 
         function getFilteredSchedules() {
-            const filterVal = document.getElementById('filterTeacher').value;
-            if (!filterVal) return allSchedules;
-            return allSchedules.filter(s => s.teacher_name === filterVal);
+            const teacherFilter = document.getElementById('filterTeacher').value;
+            const courseFilter = document.getElementById('filterCourse').value;
+
+            let result = allSchedules;
+            if (teacherFilter) {
+                result = result.filter(s => s.teacher_name === teacherFilter);
+            }
+            if (courseFilter) {
+                result = result.filter(s => s.course_id === courseFilter);
+            }
+            return result;
         }
 
         function renderHorizontalWeeklyGrid() {
@@ -297,7 +309,6 @@ async function fetchMasterData() {
                     if (matchedSlot) {
                         const parentSched = allSchedules.find(sc => sc.id === matchedSlot.schedule_id) || {};
                         const courseObj = allCourses.find(c => c.id === parentSched.course_id) || {};
-                        // 🌟 ดึงสีประจำคอร์สหลัก หรือสีเฉพาะคาบ
                         const color = courseObj.color_theme || parentSched.color_theme || '#0284c7';
 
                         let span = 1;
@@ -432,7 +443,6 @@ async function fetchMasterData() {
             }).join('');
         }
 
-        // 🌟 หน้าต่างจัดการสีประจำคอร์ส
         async function openCourseColorManager() {
             if (allCourses.length === 0) {
                 Swal.fire('แจ้งเตือน', 'ยังไม่มีคอร์สเรียนในระบบ', 'warning');
@@ -464,11 +474,12 @@ async function fetchMasterData() {
             });
 
             if (confirmed) {
-                Swal.fire({ icon: 'success', title: 'อัปเดตสีประจำคอร์สสำเร็จ!', timer: 2000, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'อัปเดตสีประจำคอร์สสำเร็จ!', timer: 1500, showConfirmButton: false });
                 fetchMasterData();
             }
         }
-async function openCreateScheduleModal() {
+
+        async function openCreateScheduleModal() {
             if (allCourses.length === 0) {
                 Swal.fire({
                     icon: 'warning',
@@ -479,9 +490,7 @@ async function openCreateScheduleModal() {
                     cancelButtonText: 'ปิด',
                     confirmButtonColor: '#0284c7'
                 }).then((result) => {
-                    if (result.isConfirmed) {
-                        window.location.href = 'admin_courses.html';
-                    }
+                    if (result.isConfirmed) window.location.href = 'admin_courses.html';
                 });
                 return;
             }
@@ -516,7 +525,6 @@ async function openCreateScheduleModal() {
                             </div>
                         </div>
 
-                        <!-- 🌟 เปลี่ยนเป็น Checkbox เลือกหลายวันในสัปดาห์ -->
                         <div>
                             <label class="block font-bold mb-1.5">เลือกวันในสัปดาห์ที่เรียน (ติ๊กได้หลายวัน) <span class="text-red-500">*</span></label>
                             <div class="grid grid-cols-4 gap-2 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border dark:border-slate-800">
@@ -562,8 +570,6 @@ async function openCreateScheduleModal() {
                     const description = document.getElementById('swalDesc').value.trim();
                     const teacher_name = document.getElementById('swalTeacher').value.trim();
                     const zoom_link = document.getElementById('swalZoom').value.trim();
-                    
-                    // ดึงค่าวันที่ติ๊กเลือกทั้งหมด
                     const checkedDays = Array.from(document.querySelectorAll('input[name="swalDays"]:checked')).map(el => parseInt(el.value));
 
                     const start_time = document.getElementById('swalStartTime').value + ':00';
@@ -583,7 +589,6 @@ async function openCreateScheduleModal() {
             if (formValues) {
                 Swal.fire({ title: 'กำลังบันทึกและแตกสล็อตเวลา...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 
-                // วนลูปสร้างตามวันที่ติ๊กเลือก
                 for (const day of formValues.days_of_week) {
                     const payload = {
                         course_id: formValues.course_id,
@@ -607,40 +612,8 @@ async function openCreateScheduleModal() {
                     }
                 }
 
-                Swal.fire({ icon: 'success', title: 'สร้างคาบเรียนหลายวันสำเร็จ!', timer: 1500, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'สร้างคาบเรียนสำเร็จ!', timer: 1500, showConfirmButton: false });
             }
-        }
-
-        function generateRecurringSlots(data, scheduleId) {
-            const slots = [];
-            let currentDate = new Date(data.start_date);
-            const endDate = new Date(data.end_date);
-            const targetDay = parseInt(data.day_of_week);
-
-            while (currentDate <= endDate) {
-                if (currentDate.getDay() === targetDay) {
-                    const dateString = currentDate.toISOString().split('T')[0];
-                    let currentTime = new Date(`${dateString}T${data.start_time}`);
-                    const endTime = new Date(`${dateString}T${data.end_time}`);
-
-                    while (currentTime < endTime) {
-                        let slotStartStr = currentTime.toTimeString().split(' ')[0];
-                        currentTime.setMinutes(currentTime.getMinutes() + 30);
-                        let slotEndStr = currentTime.toTimeString().split(' ')[0];
-
-                        slots.push({
-                            schedule_id: scheduleId,
-                            course_id: data.course_id,
-                            slot_date: dateString,
-                            start_time: slotStartStr,
-                            end_time: slotEndStr,
-                            teacher_name: data.teacher_name
-                        });
-                    }
-                }
-                currentDate.setDate(currentDate.getDate() + 1);
-            }
-            return slots;
         }
 
         async function openEditScheduleModal(s) {
@@ -746,12 +719,13 @@ async function openCreateScheduleModal() {
             return slots;
         }
 
+        // 🌟 คลิกช่องในตารางแล้วเปิดดูรายละเอียด พร้อมปุ่มแก้ไข
         function openScheduleDetail(sched) {
             const courseObj = allCourses.find(c => c.id === sched.course_id) || {};
             Swal.fire({
                 title: `📚 ${sched.title}`,
                 html: `
-                    <div class="space-y-2 text-left text-xs">
+                    <div class="space-y-3 text-left text-xs">
                         <p class="text-slate-500">${sched.description || 'ไม่มีรายละเอียด'}</p>
                         <div class="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl space-y-1">
                             <div><b>คอร์สเรียน:</b> ${sched.courses?.title || courseObj.title || '-'}</div>
@@ -759,10 +733,14 @@ async function openCreateScheduleModal() {
                             <div><b>เวลา:</b> ${sched.start_time?.substring(0,5)} - ${sched.end_time?.substring(0,5)} น.</div>
                             <div><b>ช่วงวันที่:</b> ${sched.start_date} ถึง ${sched.end_date}</div>
                         </div>
-                        ${sched.zoom_link ? `<a href="${sched.zoom_link}" target="_blank" class="block w-full py-2.5 bg-blue-600 text-white font-bold text-center rounded-xl hover:bg-blue-700"><i class="fas fa-video"></i> เข้าห้องเรียน Zoom</a>` : ''}
+                        <div class="flex gap-2 pt-2">
+                            ${sched.zoom_link ? `<a href="${sched.zoom_link}" target="_blank" class="flex-1 py-2.5 bg-blue-600 text-white font-bold text-center rounded-xl hover:bg-blue-700"><i class="fas fa-video"></i> Zoom</a>` : ''}
+                            <button onclick="Swal.close(); openEditScheduleModal(${JSON.stringify(sched).replace(/"/g, '&quot;')})" class="flex-1 py-2.5 bg-amber-500 text-white font-bold text-center rounded-xl hover:bg-amber-600"><i class="fas fa-pen"></i> แก้ไขคาบนี้</button>
+                        </div>
                     </div>
                 `,
-                confirmButtonText: 'ปิดหน้าต่าง'
+                showConfirmButton: false,
+                showCloseButton: true
             });
         }
 
@@ -794,7 +772,7 @@ async function openCreateScheduleModal() {
                 cancelButtonText: 'ยกเลิก',
                 confirmButtonColor: '#0284c7',
                 preConfirm: () => {
-                    const start = document.getElementById('exportStart',).value;
+                    const start = document.getElementById('exportStart').value;
                     const end = document.getElementById('exportEnd').value;
                     if (!start || !end) {
                         Swal.showValidationMessage('⚠️ กรุณาเลือกช่วงวันที่ให้ครบถ้วน');
