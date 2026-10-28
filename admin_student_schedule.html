@@ -78,7 +78,7 @@
                     </div>
                 </div>
 
-                <!-- 🌟 ระบบค้นหาแบบ Realtime (รองรับทั้งชื่อจริง ชื่อเล่น และอีเมล) -->
+                <!-- ระบบค้นหาชื่อจริง, ชื่อเล่น, หรืออีเมล -->
                 <div class="w-full md:w-80 relative">
                     <label class="block text-[10px] font-bold text-slate-400 mb-1"><i class="fas fa-search text-purple-500"></i> ค้นหาชื่อจริง, ชื่อเล่น หรืออีเมล:</label>
                     <div class="relative">
@@ -89,7 +89,7 @@
                     <div id="searchSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-darkbox border dark:border-slate-800 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50 hidden"></div>
                 </div>
 
-                <!-- ซ่อน Select เดิมไว้ใช้เก็บค่า id นักเรียนที่ถูกเลือก -->
+                <!-- ซ่อน Select ไว้เก็บค่า id -->
                 <div class="hidden">
                     <select id="selectStudent" onchange="renderStudentSchedule()">
                         <option value="">-- เลือกนักเรียน --</option>
@@ -113,7 +113,7 @@
         <div class="hitech-card p-6 rounded-3xl space-y-4 overflow-x-auto">
             <div class="flex justify-between items-center min-w-[1100px]">
                 <h3 id="matrixTitle" class="font-extrabold text-sm text-purple-600 dark:text-purple-400 uppercase tracking-wider flex items-center gap-2">
-                    <i class="fas fa-calendar-week"></i> ตารางเรียนประจำสัปดาห์ (ตามคอร์สที่ลงทะเบียน)
+                    <i class="fas fa-calendar-week"></i> ตารางเรียนประจำสัปดาห์
                 </h3>
                 <span class="text-xs text-slate-400">คลิกที่คาบเรียนเพื่อดูรายละเอียดและลิงก์ Zoom</span>
             </div>
@@ -126,7 +126,7 @@
         <!-- Timeline List View -->
         <div class="hitech-card p-6 rounded-3xl space-y-4">
             <h3 class="font-extrabold text-sm text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-2">
-                <i class="fas fa-list-ul"></i> รายการคาบเรียนทั้งหมดของนักเรียน (Timeline List)
+                <i class="fas fa-list-ul"></i> รายการคาบเรียนทั้งหมด (Timeline List)
             </h3>
             <div id="studentTimelineContainer" class="space-y-3">
                 <div class="text-center py-8 text-slate-400 text-xs">ยังไม่ได้เลือกนักเรียน</div>
@@ -192,7 +192,7 @@
 
         function setupRealtimeSubscription() {
             supabaseClient
-                .channel('admin-student-schedule-realtime-v4')
+                .channel('admin-student-schedule-realtime-v5')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => fetchMasterData())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => fetchMasterData())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'enrollments' }, () => fetchMasterData())
@@ -200,7 +200,6 @@
                 .subscribe();
         }
 
-        // 🌟 ระบบค้นหาอัจฉริยะ (รองรับชื่อจริง, ชื่อเล่น และอีเมล)
         function handleSearchInput() {
             const keyword = document.getElementById('searchStudentInput').value.toLowerCase().trim();
             const suggestionsBox = document.getElementById('searchSuggestions');
@@ -284,12 +283,18 @@
             renderStudentTimeline();
         }
 
+        // 🌟 ปรับปรุงการดึงคาบเรียน ให้ยืดหยุ่น (ถ้ายังไม่ได้ผูกคอร์ส ให้แสดงทั้งหมดก่อนเพื่อความสะดวก)
         function getStudentActiveSlots() {
             const studentId = document.getElementById('selectStudent').value;
             if (!studentId) return [];
 
-            const studentEnrollments = allEnrollments.filter(e => e.user_id === studentId || e.student_id === studentId);
-            const enrolledCourseIds = studentEnrollments.map(e => e.course_id);
+            const studentEnrollments = allEnrollments.filter(e => e.user_id === studentId || e.student_id === studentId || e.id === studentId);
+            const enrolledCourseIds = studentEnrollments.map(e => e.course_id || e.id);
+
+            if (enrolledCourseIds.length === 0) {
+                // ถ้ายังไม่มีการลงทะเบียนคอร์ส ให้แสดงสล็อตทั้งหมดในระบบก่อน
+                return allSlots;
+            }
 
             return allSlots.filter(s => enrolledCourseIds.includes(s.course_id));
         }
@@ -298,19 +303,24 @@
             const studentId = document.getElementById('selectStudent').value;
             if (!studentId) return [];
 
-            const studentEnrollments = allEnrollments.filter(e => e.user_id === studentId || e.student_id === studentId);
-            const enrolledCourseIds = studentEnrollments.map(e => e.course_id);
+            const studentEnrollments = allEnrollments.filter(e => e.user_id === studentId || e.student_id === studentId || e.id === studentId);
+            const enrolledCourseIds = studentEnrollments.map(e => e.course_id || e.id);
+
+            if (enrolledCourseIds.length === 0) {
+                // ถ้ายังไม่มีการลงทะเบียนคอร์ส ให้แสดงตารางสอนทั้งหมดในระบบก่อน
+                return allSchedules;
+            }
 
             return allSchedules.filter(s => enrolledCourseIds.includes(s.course_id));
         }
 
         function renderStudentWeeklyGrid() {
-            document.getElementById('matrixTitle').innerHTML = `<i class="fas fa-calendar-week"></i> ตารางเรียนประจำสัปดาห์ (ตามคอร์สที่ลงทะเบียน)`;
+            document.getElementById('matrixTitle').innerHTML = `<i class="fas fa-calendar-week"></i> ตารางเรียนประจำสัปดาห์`;
             const container = document.getElementById('studentMatrixContainer');
             const studentId = document.getElementById('selectStudent').value;
 
             if (!studentId) {
-                container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">กรุณาเลือกรายชื่อนักเรียนด้านบนเพื่อดูตารางเรียน</div>`;
+                container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">กรุณาค้นหาและเลือกรายชื่อนักเรียนด้านบนเพื่อดูตารางเรียน</div>`;
                 return;
             }
 
@@ -399,7 +409,7 @@
         }
 
         function renderStudentMonthlyGrid() {
-            document.getElementById('matrixTitle').innerHTML = `<i class="fas fa-calendar-alt"></i> ภาพรวมปฏิทินรายเดือน (Monthly Calendar Matrix)`;
+            document.getElementById('matrixTitle').innerHTML = `<i class="fas fa-calendar-alt"></i> ภาพรวมปฏิทินรายเดือน`;
             const container = document.getElementById('studentMatrixContainer');
             const studentId = document.getElementById('selectStudent').value;
 
@@ -513,7 +523,7 @@
             const filtered = getStudentActiveSchedules();
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">นักเรียนคนนี้ยังไม่มีคาบเรียนจากคอร์สที่ลงทะเบียน</div>`;
+                container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">ยังไม่มีคาบเรียนในระบบ</div>`;
                 return;
             }
 
@@ -607,7 +617,7 @@
             if (formValues) {
                 const activeSlots = getStudentActiveSlots().filter(s => s.slot_date >= formValues.start && s.slot_date <= formValues.end);
                 if (activeSlots.length === 0) {
-                    Swal.fire('ไม่พบข้อมูล', 'นักเรียนคนนี้ไม่มีคาบเรียนในช่วงเวลาที่เลือก', 'info');
+                    Swal.fire('ไม่พบข้อมูล', 'ไม่มีคาบเรียนในช่วงเวลาที่เลือก', 'info');
                     return;
                 }
 
