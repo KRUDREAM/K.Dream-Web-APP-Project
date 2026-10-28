@@ -78,16 +78,27 @@
                     </div>
                 </div>
 
-                <div class="w-full md:w-72">
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1"><i class="fas fa-search text-purple-500"></i> ค้นหาชื่อนักเรียน (Realtime):</label>
-                    <input type="text" id="searchStudentInput" oninput="filterStudentDropdown()" placeholder="พิมพ์ชื่อหรืออีเมล..." class="w-full px-3 py-2 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none focus:border-purple-500 transition-all">
+                <!-- 🌟 ระบบค้นหาแบบ Realtime พร้อมกล่องแนะนำผลลัพธ์ (Autocomplete) -->
+                <div class="w-full md:w-80 relative">
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1"><i class="fas fa-search text-purple-500"></i> ค้นหาชื่อหรืออีเมลนักเรียน:</label>
+                    <div class="relative">
+                        <input type="text" id="searchStudentInput" oninput="handleSearchInput()" placeholder="พิมพ์ชื่อเพื่อค้นหาด่วน..." class="w-full px-3 py-2 pl-8 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none focus:border-purple-500 transition-all">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    </div>
+                    <!-- กล่อง Dropdown รายชื่อที่ค้นพบ -->
+                    <div id="searchSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-darkbox border dark:border-slate-800 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50 hidden"></div>
                 </div>
 
-                <div class="w-full md:w-60">
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1"><i class="fas fa-user-graduate text-purple-500"></i> เลือกรายชื่อนักเรียน:</label>
-                    <select id="selectStudent" onchange="renderStudentSchedule()" class="w-full px-3 py-2 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
-                        <option value="">-- กรุณาเลือกนักเรียน --</option>
+                <!-- ซ่อน Select เดิมไว้ใช้เก็บค่าปัจจุบัน -->
+                <div class="hidden">
+                    <select id="selectStudent" onchange="renderStudentSchedule()">
+                        <option value="">-- เลือกนักเรียน --</option>
                     </select>
+                </div>
+
+                <div id="selectedStudentBadge" class="hidden items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-900 rounded-xl text-xs font-bold text-purple-600 dark:text-purple-400">
+                    <i class="fas fa-user-check"></i> <span id="selectedStudentNameText">นักเรียน</span>
+                    <button onclick="clearSelectedStudent()" class="ml-2 text-rose-500 hover:text-rose-700"><i class="fas fa-times-circle"></i></button>
                 </div>
             </div>
 
@@ -108,7 +119,7 @@
             </div>
 
             <div id="studentMatrixContainer" class="min-w-[1100px]">
-                <div class="text-center py-12 text-slate-400 text-xs">กรุณาเลือกรายชื่อนักเรียนด้านบนเพื่อดูตารางเรียน</div>
+                <div class="text-center py-12 text-slate-400 text-xs">กรุณาค้นหาและเลือกรายชื่อนักเรียนด้านบนเพื่อดูตารางเรียน</div>
             </div>
         </div>
 
@@ -168,12 +179,8 @@
                 allSchedules = schedRes.data || [];
                 allSlots = slotRes.data || [];
                 allEnrollments = enrollRes.data || [];
-                
-                // กรองเฉพาะบัญชีที่ไม่ใช่ admin ออก
                 allProfiles = (profileRes.data || []).filter(p => p.role !== 'admin' && p.role !== 'Admin');
 
-                populateStudentDropdown(allProfiles);
-                
                 const currentStudentId = document.getElementById('selectStudent').value;
                 if (currentStudentId) {
                     renderStudentSchedule();
@@ -185,7 +192,7 @@
 
         function setupRealtimeSubscription() {
             supabaseClient
-                .channel('admin-student-schedule-realtime-v2')
+                .channel('admin-student-schedule-realtime-v3')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => fetchMasterData())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => fetchMasterData())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'enrollments' }, () => fetchMasterData())
@@ -193,27 +200,62 @@
                 .subscribe();
         }
 
-        // ฟังก์ชันกรองรายชื่อนักเรียนแบบ Realtime จากช่องค้นหา
-        function filterStudentDropdown() {
+        // 🌟 ระบบค้นหาแบบ Realtime Autocomplete
+        function handleSearchInput() {
             const keyword = document.getElementById('searchStudentInput').value.toLowerCase().trim();
-            const filteredProfiles = allProfiles.filter(p => {
+            const suggestionsBox = document.getElementById('searchSuggestions');
+
+            if (!keyword) {
+                suggestionsBox.classList.add('hidden');
+                suggestionsBox.innerHTML = '';
+                return;
+            }
+
+            const matched = allProfiles.filter(p => {
                 const name = (p.full_name || '').toLowerCase();
                 const email = (p.email || '').toLowerCase();
                 return name.includes(keyword) || email.includes(keyword);
             });
-            populateStudentDropdown(filteredProfiles);
+
+            if (matched.length === 0) {
+                suggestionsBox.innerHTML = `<div class="p-3 text-xs text-slate-400 text-center">ไม่พบรายชื่อนักเรียนที่ค้นหา</div>`;
+                suggestionsBox.classList.remove('hidden');
+                return;
+            }
+
+            let html = '';
+            matched.forEach(p => {
+                const name = p.full_name || 'ไม่มีชื่อ';
+                const email = p.email || '';
+                html += `
+                    <div onclick="selectStudent('${p.id}', '${name}')" class="p-2.5 hover:bg-purple-50 dark:hover:bg-purple-950/50 cursor-pointer border-b dark:border-slate-800 last:border-none text-xs">
+                        <div class="font-bold text-slate-800 dark:text-slate-200">${name}</div>
+                        <div class="text-[10px] text-slate-400">${email}</div>
+                    </div>
+                `;
+            });
+
+            suggestionsBox.innerHTML = html;
+            suggestionsBox.classList.remove('hidden');
         }
 
-        function populateStudentDropdown(profilesToDisplay) {
-            const select = document.getElementById('selectStudent');
-            const currentValue = select.value;
-            let html = '<option value="">-- กรุณาเลือกนักเรียน --</option>';
-            
-            profilesToDisplay.forEach(p => {
-                const name = p.full_name || p.email || 'นักเรียน';
-                html += `<option value="${p.id}" ${p.id === currentValue ? 'selected' : ''}>${name} (${p.email || ''})</option>`;
-            });
-            select.innerHTML = html;
+        function selectStudent(id, name) {
+            document.getElementById('selectStudent').value = id;
+            document.getElementById('searchStudentInput').value = '';
+            document.getElementById('searchSuggestions').classList.add('hidden');
+
+            document.getElementById('selectedStudentNameText').textContent = name;
+            document.getElementById('selectedStudentBadge').classList.remove('hidden');
+            document.getElementById('selectedStudentBadge').classList.add('flex');
+
+            renderStudentSchedule();
+        }
+
+        function clearSelectedStudent() {
+            document.getElementById('selectStudent').value = '';
+            document.getElementById('selectedStudentBadge').classList.remove('flex');
+            document.getElementById('selectedStudentBadge').classList.add('hidden');
+            renderStudentSchedule();
         }
 
         function switchViewMode(mode) {
@@ -522,6 +564,7 @@
             });
         }
 
+        // 🌟 ปรับปรุงการ Export CSV ให้ยุบรวมเวลาเป็น ช่วงเวลาเริ่ม - สิ้นสุด เต็มคาบ
         async function openExportStudentCSV() {
             const studentId = document.getElementById('selectStudent').value;
             if (!studentId) {
@@ -565,10 +608,32 @@
                     return;
                 }
 
-                let csvContent = "\uFEFF" + "วันที่,เวลาเริ่ม,เวลาสิ้นสุด,หัวข้อการเรียน,คุณครูผู้สอน,ลิงก์ Zoom\n";
+                // จัดกลุ่ม slot ตามวันและ schedule_id เพื่อยุบรวมเวลาให้เป็นช่วงเวลาเต็ม (Start - End)
+                const groupedByDayAndSched = {};
                 activeSlots.forEach(slot => {
-                    const sched = allSchedules.find(sc => sc.id === slot.schedule_id) || {};
-                    csvContent += `"${slot.slot_date}","${slot.start_time}","${slot.end_time}","${sched.title || ''}","${slot.teacher_name}","${sched.zoom_link || ''}"\n`;
+                    const key = `${slot.slot_date}_${slot.schedule_id}`;
+                    if (!groupedByDayAndSched[key]) {
+                        groupedByDayAndSched[key] = {
+                            date: slot.slot_date,
+                            schedule_id: slot.schedule_id,
+                            teacher_name: slot.teacher_name,
+                            start_times: [],
+                            end_times: []
+                        };
+                    }
+                    groupedByDayAndSched[key].start_times.push(slot.start_time);
+                    groupedByDayAndSched[key].end_times.push(slot.end_time);
+                });
+
+                let csvContent = "\uFEFF" + "วันที่,ช่วงเวลา,หัวข้อการเรียน,คุณครูผู้สอน,ลิงก์ Zoom\n";
+                Object.values(groupedByDayAndSched).forEach(item => {
+                    item.start_times.sort();
+                    item.end_times.sort();
+                    const minStart = item.start_times[0].substring(0, 5);
+                    const maxEnd = item.end_times[item.end_times.length - 1].substring(0, 5);
+                    const sched = allSchedules.find(sc => sc.id === item.schedule_id) || {};
+
+                    csvContent += `"${item.date}","${minStart} - ${maxEnd} น.","${sched.title || ''}","${item.teacher_name}","${sched.zoom_link || ''}"\n`;
                 });
 
                 const studentObj = allProfiles.find(p => p.id === studentId) || {};
