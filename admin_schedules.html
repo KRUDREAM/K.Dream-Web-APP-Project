@@ -334,7 +334,7 @@
             container.innerHTML = html;
         }
 
-        function renderMonthlyGrid() {
+function renderMonthlyGrid() {
             document.getElementById('matrixTitle').innerHTML = `<i class="fas fa-calendar-alt"></i> ภาพรวมปฏิทินรายเดือน (Monthly Calendar Matrix)`;
             const container = document.getElementById('matrixContainer');
             const activeSlots = getFilteredSlots();
@@ -376,18 +376,47 @@
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayCount).padStart(2, '0')}`;
                     const daySlots = activeSlots.filter(s => s.slot_date === dateStr);
 
+                    // 🌟 จัดกลุ่มสล็อตเวลาในวันเดียวกันที่มี schedule_id เดียวกัน (ยุบรวมให้เหลืออันเดียว พร้อมโชว์เวลาเริ่ม-จบ)
+                    const groupedMap = {};
+                    daySlots.forEach(slot => {
+                        if (!groupedMap[slot.schedule_id]) {
+                            groupedMap[slot.schedule_id] = {
+                                slot_date: slot.slot_date,
+                                teacher_name: slot.teacher_name,
+                                schedule_id: slot.schedule_id,
+                                start_times: [],
+                                end_times: []
+                            };
+                        }
+                        groupedMap[slot.schedule_id].start_times.push(slot.start_time);
+                        groupedMap[slot.schedule_id].end_times.push(slot.end_time);
+                    });
+
+                    const consolidatedEvents = Object.values(groupedMap).map(item => {
+                        item.start_times.sort();
+                        item.end_times.sort();
+                        return {
+                            ...item,
+                            min_start: item.start_times[0],
+                            max_end: item.end_times[item.end_times.length - 1]
+                        };
+                    });
+
                     html += `
                         <td class="p-2 border dark:border-slate-800 align-top h-28 w-[14%]">
                             <div class="font-bold text-slate-500 mb-1">${dayCount}</div>
                             <div class="space-y-1 overflow-y-auto max-h-20">
                     `;
 
-                    daySlots.forEach(slot => {
-                        const parentSched = allSchedules.find(sc => sc.id === slot.schedule_id) || {};
+                    consolidatedEvents.forEach(ev => {
+                        const parentSched = allSchedules.find(sc => sc.id === ev.schedule_id) || {};
                         const color = '#0284c7';
+                        const startTimeStr = ev.min_start ? ev.min_start.substring(0, 5) : '';
+                        const endTimeStr = ev.max_end ? ev.max_end.substring(0, 5) : '';
+
                         html += `
-                            <div onclick='openScheduleDetail(${JSON.stringify(parentSched)})' class="p-1 rounded text-white text-[10px] font-bold truncate cursor-pointer shadow-sm" style="background-color: ${color};" title="${parentSched.title}">
-                                ${parentSched.start_time?.substring(0,5)} ${parentSched.title}
+                            <div onclick='openScheduleDetail(${JSON.stringify(parentSched)})' class="p-1 rounded text-white text-[10px] font-bold truncate cursor-pointer shadow-sm" style="background-color: ${color};" title="${parentSched.title} (${startTimeStr} - ${endTimeStr})">
+                                ${startTimeStr} - ${endTimeStr} ${parentSched.title || 'คาบเรียน'}
                             </div>
                         `;
                     });
@@ -400,7 +429,6 @@
             html += `</tr></tbody></table>`;
             container.innerHTML = html;
         }
-
         function renderTimelineList() {
             const container = document.getElementById('timelineListContainer');
             const filtered = getFilteredSchedules();
