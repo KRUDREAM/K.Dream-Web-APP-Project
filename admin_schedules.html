@@ -468,13 +468,12 @@ async function fetchMasterData() {
                 fetchMasterData();
             }
         }
-
 async function openCreateScheduleModal() {
             if (allCourses.length === 0) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'ยังไม่มีคอร์สเรียนในระบบ',
-                    text: 'กรุณาสสร้างคอร์สเรียนก่อนเริ่มจัดตารางสอน',
+                    text: 'กรุณาสร้างคอร์สเรียนก่อนเริ่มจัดตารางสอน',
                     showCancelButton: true,
                     confirmButtonText: 'ไปหน้าจัดการคอร์ส',
                     cancelButtonText: 'ปิด',
@@ -490,7 +489,7 @@ async function openCreateScheduleModal() {
             const courseOptions = allCourses.map(c => `<option value="${c.id}">${c.title}</option>`).join('');
 
             const { value: formValues } = await Swal.fire({
-                title: '📅 เพิ่มคาบเรียน',
+                title: '📅 เพิ่มคาบเรียน (เลือกหลายวันในสัปดาห์)',
                 width: '600px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
@@ -516,19 +515,22 @@ async function openCreateScheduleModal() {
                                 <input type="url" id="swalZoom" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-mono text-[11px]" placeholder="https://zoom.us/j/...">
                             </div>
                         </div>
-                        <div class="grid grid-cols-3 gap-2">
-                            <div>
-                                <label class="block font-bold mb-1">วันในสัปดาห์</label>
-                                <select id="swalDayOfWeek" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
-                                    <option value="1">วันจันทร์</option>
-                                    <option value="2">วันอังคาร</option>
-                                    <option value="3">วันพุธ</option>
-                                    <option value="4">วันพฤหัสบดี</option>
-                                    <option value="5">วันศุกร์</option>
-                                    <option value="6">วันเสาร์</option>
-                                    <option value="0">วันอาทิตย์</option>
-                                </select>
+
+                        <!-- 🌟 เปลี่ยนเป็น Checkbox เลือกหลายวันในสัปดาห์ -->
+                        <div>
+                            <label class="block font-bold mb-1.5">เลือกวันในสัปดาห์ที่เรียน (ติ๊กได้หลายวัน) <span class="text-red-500">*</span></label>
+                            <div class="grid grid-cols-4 gap-2 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border dark:border-slate-800">
+                                <label class="flex items-center gap-2 cursor-pointer font-bold"><input type="checkbox" name="swalDays" value="1" class="w-4 h-4 accent-sky-600"> จันทร์</label>
+                                <label class="flex items-center gap-2 cursor-pointer font-bold"><input type="checkbox" name="swalDays" value="2" class="w-4 h-4 accent-sky-600"> อังคาร</label>
+                                <label class="flex items-center gap-2 cursor-pointer font-bold"><input type="checkbox" name="swalDays" value="3" class="w-4 h-4 accent-sky-600"> พุธ</label>
+                                <label class="flex items-center gap-2 cursor-pointer font-bold"><input type="checkbox" name="swalDays" value="4" class="w-4 h-4 accent-sky-600"> พฤหัสบดี</label>
+                                <label class="flex items-center gap-2 cursor-pointer font-bold"><input type="checkbox" name="swalDays" value="5" class="w-4 h-4 accent-sky-600"> ศุกร์</label>
+                                <label class="flex items-center gap-2 cursor-pointer font-bold"><input type="checkbox" name="swalDays" value="6" class="w-4 h-4 accent-sky-600"> เสาร์</label>
+                                <label class="flex items-center gap-2 cursor-pointer font-bold"><input type="checkbox" name="swalDays" value="0" class="w-4 h-4 accent-sky-600"> อาทิตย์</label>
                             </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">เวลาเริ่ม</label>
                                 <input type="time" id="swalStartTime" value="09:00" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
@@ -560,36 +562,85 @@ async function openCreateScheduleModal() {
                     const description = document.getElementById('swalDesc').value.trim();
                     const teacher_name = document.getElementById('swalTeacher').value.trim();
                     const zoom_link = document.getElementById('swalZoom').value.trim();
-                    const day_of_week = document.getElementById('swalDayOfWeek').value;
+                    
+                    // ดึงค่าวันที่ติ๊กเลือกทั้งหมด
+                    const checkedDays = Array.from(document.querySelectorAll('input[name="swalDays"]:checked')).map(el => parseInt(el.value));
+
                     const start_time = document.getElementById('swalStartTime').value + ':00';
                     const end_time = document.getElementById('swalEndTime').value + ':00';
                     const start_date = document.getElementById('swalStartDate').value;
                     const end_date = document.getElementById('swalEndDate').value;
 
-                    if (!title || !teacher_name || !start_date || !end_date) {
-                        Swal.showValidationMessage('⚠️ กรุณากรอกข้อมูลสำคัญให้ครบถ้วน');
+                    if (!title || !teacher_name || !start_date || !end_date || checkedDays.length === 0) {
+                        Swal.showValidationMessage('⚠️ กรุณากรอกข้อมูลให้ครบ และติ๊กเลือกวันอย่างน้อย 1 วัน');
                         return false;
                     }
 
-                    return { course_id, title, description, teacher_name, zoom_link, day_of_week, start_time, end_time, start_date, end_date };
+                    return { course_id, title, description, teacher_name, zoom_link, days_of_week: checkedDays, start_time, end_time, start_date, end_date };
                 }
             });
 
             if (formValues) {
-                Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                const { data: schedRes, error: schedErr } = await supabaseClient.from('course_schedules').insert([formValues]).select().single();
-                if (schedErr) {
-                    Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: schedErr.message });
-                    return;
+                Swal.fire({ title: 'กำลังบันทึกและแตกสล็อตเวลา...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                // วนลูปสร้างตามวันที่ติ๊กเลือก
+                for (const day of formValues.days_of_week) {
+                    const payload = {
+                        course_id: formValues.course_id,
+                        title: formValues.title,
+                        description: formValues.description,
+                        teacher_name: formValues.teacher_name,
+                        zoom_link: formValues.zoom_link,
+                        day_of_week: day,
+                        start_time: formValues.start_time,
+                        end_time: formValues.end_time,
+                        start_date: formValues.start_date,
+                        end_date: formValues.end_date
+                    };
+
+                    const { data: schedRes, error: schedErr } = await supabaseClient.from('course_schedules').insert([payload]).select().single();
+                    if (!schedErr && schedRes) {
+                        const slots = generateRecurringSlots(payload, schedRes.id);
+                        if (slots.length > 0) {
+                            await supabaseClient.from('schedule_slots').insert(slots);
+                        }
+                    }
                 }
 
-                const slots = generateRecurringSlots(formValues, schedRes.id);
-                if (slots.length > 0) {
-                    await supabaseClient.from('schedule_slots').insert(slots);
-                }
-
-                Swal.fire({ icon: 'success', title: 'สร้างคาบเรียนสำเร็จ!', timer: 1500, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'สร้างคาบเรียนหลายวันสำเร็จ!', timer: 1500, showConfirmButton: false });
             }
+        }
+
+        function generateRecurringSlots(data, scheduleId) {
+            const slots = [];
+            let currentDate = new Date(data.start_date);
+            const endDate = new Date(data.end_date);
+            const targetDay = parseInt(data.day_of_week);
+
+            while (currentDate <= endDate) {
+                if (currentDate.getDay() === targetDay) {
+                    const dateString = currentDate.toISOString().split('T')[0];
+                    let currentTime = new Date(`${dateString}T${data.start_time}`);
+                    const endTime = new Date(`${dateString}T${data.end_time}`);
+
+                    while (currentTime < endTime) {
+                        let slotStartStr = currentTime.toTimeString().split(' ')[0];
+                        currentTime.setMinutes(currentTime.getMinutes() + 30);
+                        let slotEndStr = currentTime.toTimeString().split(' ')[0];
+
+                        slots.push({
+                            schedule_id: scheduleId,
+                            course_id: data.course_id,
+                            slot_date: dateString,
+                            start_time: slotStartStr,
+                            end_time: slotEndStr,
+                            teacher_name: data.teacher_name
+                        });
+                    }
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            return slots;
         }
 
         async function openEditScheduleModal(s) {
