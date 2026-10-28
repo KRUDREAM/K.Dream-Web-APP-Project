@@ -460,9 +460,21 @@
             }
         }
 
-        async function openCreateScheduleModal() {
+async function openCreateScheduleModal() {
             if (allCourses.length === 0) {
-                Swal.fire('แจ้งเตือน', 'ยังไม่มีคอร์สเรียนในระบบ กรุณาไปสร้างคอร์สเรียนก่อน', 'warning');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ยังไม่มีคอร์สเรียนในระบบ',
+                    text: 'กรุณาสสร้างคอร์สเรียนก่อนเริ่มจัดตารางสอน',
+                    showCancelButton: true,
+                    confirmButtonText: 'ไปหน้าจัดการคอร์ส',
+                    cancelButtonText: 'ปิด',
+                    confirmButtonColor: '#0284c7'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = 'admin_courses.html';
+                    }
+                });
                 return;
             }
 
