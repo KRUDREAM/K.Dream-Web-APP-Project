@@ -181,13 +181,24 @@
             }
         }
 
-        function setupRealtimeSubscription() {
+function setupRealtimeSubscription() {
             supabaseClient
                 .channel('admin-schedules-realtime')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => fetchMasterData())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => fetchMasterData())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => fetchMasterData())
-                .subscribe();
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, (payload) => {
+                    console.log('Realtime change in course_schedules:', payload);
+                    fetchMasterData();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, (payload) => {
+                    console.log('Realtime change in schedule_slots:', payload);
+                    fetchMasterData();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, (payload) => {
+                    console.log('Realtime change in courses:', payload);
+                    fetchMasterData();
+                })
+                .subscribe((status) => {
+                    console.log('Supabase Realtime Status:', status);
+                });
         }
 
         function populateFilterDropdowns() {
