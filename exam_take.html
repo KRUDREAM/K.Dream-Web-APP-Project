@@ -351,28 +351,30 @@
                 document.getElementById('previewBanner').classList.remove('hidden');
             }
 
-            if (!isPreview && currentStudentId) {
-                try {
-                    const { data: prevAttempts } = await mySupabase
-                        .from('exam_attempts')
-                        .select('id')
-                        .eq('exam_id', examId)
-                        .eq('student_id', currentStudentId);
+if (!isPreview && currentStudentId) {
+    try {
+        // 🌟 ตรวจสอบเฉพาะคนที่ "ส่งข้อสอบแล้วจริงๆ" (status = submitted) เท่านั้น
+        const { data: prevAttempts } = await mySupabase
+            .from('exam_attempts')
+            .select('id, status')
+            .eq('exam_id', examId)
+            .eq('student_id', currentStudentId)
+            .eq('status', 'submitted'); // ล็อกให้เช็กเฉพาะสถานะส่งแล้ว
 
-                    if (prevAttempts && prevAttempts.length > 0) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'คุณได้ทำและส่งข้อสอบชุดนี้ไปแล้ว!',
-                            text: 'ไม่อนุญาตให้ทำข้อสอบซ้ำผ่านการเข้าลิงก์เดิม ระบบจะนำคุณกลับสู่หน้าหลัก',
-                            confirmButtonText: 'รับทราบ',
-                            allowOutsideClick: false
-                        }).then(() => {
-                            window.location.href = 'student.html';
-                        });
-                        return;
-                    }
-                } catch(err) {}
-            }
+        if (prevAttempts && prevAttempts.length > 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'คุณได้ทำและส่งข้อสอบชุดนี้ไปแล้ว!',
+                text: 'ไม่อนุญาตให้ทำข้อสอบซ้ำผ่านการเข้าลิงก์เดิม ระบบจะนำคุณกลับสู่หน้าหลัก',
+                confirmButtonText: 'รับทราบ',
+                allowOutsideClick: false
+            }).then(() => {
+                window.location.href = 'student.html';
+            });
+            return;
+        }
+    } catch(err) {}
+}
 
             const { data: exam, error: examError } = await mySupabase.from('exams').select('*').eq('id', examId).single();
             if (examError || !exam) {
