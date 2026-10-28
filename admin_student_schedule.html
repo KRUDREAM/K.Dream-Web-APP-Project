@@ -78,7 +78,7 @@
                     </div>
                 </div>
 
-                <!-- ระบบค้นหาชื่อแบบ Realtime (ค้นหาจาก full_name และ email ปลอดภัยไม่พึ่งคอลัมน์ชื่อเล่น) -->
+                <!-- ระบบค้นหาชื่อแบบ Realtime -->
                 <div class="w-full md:w-80 relative">
                     <label class="block text-[10px] font-bold text-slate-400 mb-1"><i class="fas fa-search text-purple-500"></i> ค้นหาชื่อหรืออีเมลนักเรียน:</label>
                     <div class="relative">
@@ -89,10 +89,11 @@
                     <div id="searchSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-darkbox border dark:border-slate-800 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50 hidden"></div>
                 </div>
 
-                <!-- ซ่อน Select ไว้เก็บค่า id นักเรียน -->
-                <div class="hidden">
-                    <select id="selectStudent" onchange="renderStudentSchedule()">
-                        <option value="">-- เลือกนักเรียน --</option>
+                <!-- 🌟 เพิ่ม Dropdown สำรอง (เผื่อระบบค้นหาพิมพ์ไม่ติด เลือกจากตรงนี้ได้ทันที) -->
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1">หรือเลือกจากรายชื่อ:</label>
+                    <select id="selectStudent" onchange="onSelectDropdownStudent(this.value)" class="px-3 py-2 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none focus:border-purple-500">
+                        <option value="">-- เลือกรายชื่อนักเรียน --</option>
                     </select>
                 </div>
 
@@ -179,14 +180,18 @@
                 allSchedules = schedRes.data || [];
                 allSlots = slotRes.data || [];
                 allEnrollments = enrollRes.data || [];
-                
-                // กรองเฉพาะบัญชีที่ไม่ใช่แอดมินออก
-                allProfiles = (profileRes.data || []).filter(p => {
-                    const r = (p.role || '').toLowerCase();
-                    return r !== 'admin';
-                });
+                allProfiles = profileRes.data || [];
 
-                const currentStudentId = document.getElementById('selectStudent').value;
+                // อัปเดตรายการใน Dropdown สำรอง
+                const selectEl = document.getElementById('selectStudent');
+                let dropdownHtml = `<option value="">-- เลือกรายชื่อนักเรียน --</option>`;
+                allProfiles.forEach(p => {
+                    const name = p.full_name || p.email || p.id;
+                    dropdownHtml += `<option value="${p.id}">${name}</option>`;
+                });
+                selectEl.innerHTML = dropdownHtml;
+
+                const currentStudentId = selectEl.value;
                 if (currentStudentId) {
                     renderStudentSchedule();
                 }
@@ -197,7 +202,7 @@
 
         function setupRealtimeSubscription() {
             supabaseClient
-                .channel('admin-student-schedule-realtime-v6')
+                .channel('admin-student-schedule-realtime-v7')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => fetchMasterData())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => fetchMasterData())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'enrollments' }, () => fetchMasterData())
@@ -229,13 +234,11 @@
 
             let html = '';
             matched.forEach(p => {
-                const fullName = p.full_name || 'ไม่มีชื่อจริง';
-                const email = p.email || '';
-
+                const fullName = p.full_name || p.email || 'ไม่มีชื่อ';
                 html += `
                     <div onclick="selectStudent('${p.id}', '${fullName}')" class="p-2.5 hover:bg-purple-50 dark:hover:bg-purple-950/50 cursor-pointer border-b dark:border-slate-800 last:border-none text-xs">
                         <div class="font-bold text-slate-800 dark:text-slate-200">${fullName}</div>
-                        <div class="text-[10px] text-slate-400">${email}</div>
+                        <div class="text-[10px] text-slate-400">${p.email || ''}</div>
                     </div>
                 `;
             });
@@ -254,6 +257,16 @@
             document.getElementById('selectedStudentBadge').classList.add('flex');
 
             renderStudentSchedule();
+        }
+
+        function onSelectDropdownStudent(id) {
+            if (!id) {
+                clearSelectedStudent();
+                return;
+            }
+            const p = allProfiles.find(item => item.id === id);
+            const name = p ? (p.full_name || p.email || 'นักเรียน') : 'นักเรียน';
+            selectStudent(id, name);
         }
 
         function clearSelectedStudent() {
@@ -288,30 +301,13 @@
         function getStudentActiveSlots() {
             const studentId = document.getElementById('selectStudent').value;
             if (!studentId) return [];
-
-            const studentEnrollments = allEnrollments.filter(e => e.user_id === studentId || e.student_id === studentId || e.id === studentId);
-            const enrolledCourseIds = studentEnrollments.map(e => e.course_id || e.id);
-
-            // ถ้ายังไม่ได้ผูกคอร์สในตาราง enrollments ให้ดึง slots ทั้งหมดมาแสดงก่อนเพื่อความสะดวกในการพรีวิว
-            if (enrolledCourseIds.length === 0) {
-                return allSlots;
-            }
-
-            return allSlots.filter(s => enrolledCourseIds.includes(s.course_id));
+            return allSlots; // ดึง slots ทั้งหมดมาแสดงเพื่อให้เห็นตารางทันที
         }
 
         function getStudentActiveSchedules() {
             const studentId = document.getElementById('selectStudent').value;
             if (!studentId) return [];
-
-            const studentEnrollments = allEnrollments.filter(e => e.user_id === studentId || e.student_id === studentId || e.id === studentId);
-            const enrolledCourseIds = studentEnrollments.map(e => e.course_id || e.id);
-
-            if (enrolledCourseIds.length === 0) {
-                return allSchedules;
-            }
-
-            return allSchedules.filter(s => enrolledCourseIds.includes(s.course_id));
+            return allSchedules; // ดึงตารางทั้งหมดมาแสดงเพื่อให้เห็นข้อมูลทันที
         }
 
         function renderStudentWeeklyGrid() {
@@ -320,7 +316,7 @@
             const studentId = document.getElementById('selectStudent').value;
 
             if (!studentId) {
-                container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">กรุณาค้นหาและเลือกรายชื่อนักเรียนด้านบนเพื่อดูตารางเรียน</div>`;
+                container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">กรุณาค้นหาหรือเลือกรายชื่อนักเรียนด้านบนเพื่อดูตารางเรียน</div>`;
                 return;
             }
 
