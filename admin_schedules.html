@@ -46,7 +46,7 @@
                     </button>
                     <div>
                         <h1 class="font-black text-sm sm:text-lg">ระบบตารางสอน & ตารางเรียน</h1>
-                        <span class="text-[10px] text-sky-600 dark:text-sky-400 font-extrabold uppercase tracking-wider">Horizontal Matrix (08:00 - 22:00)</span>
+                        <span class="text-[10px] text-sky-600 dark:text-sky-400 font-extrabold uppercase tracking-wider">Admin Schedule Command Center</span>
                     </div>
                 </div>
 
@@ -54,8 +54,11 @@
                     <button id="themeToggle" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-sky-500">
                         <i class="fas fa-moon" id="themeIcon"></i>
                     </button>
+                    <button onclick="openExportModal()" class="px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900 font-bold text-xs rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-1.5">
+                        <i class="fas fa-file-csv"></i> Export CSV
+                    </button>
                     <button onclick="openCreateScheduleModal()" class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs rounded-xl shadow-lg hover:opacity-90 transition-all flex items-center gap-2">
-                        <i class="fas fa-plus"></i> เพิ่มคาบเรียน / Repeat
+                        <i class="fas fa-plus"></i> เพิ่มคาบเรียน
                     </button>
                 </div>
             </div>
@@ -66,30 +69,40 @@
         
         <!-- Controls & Filters -->
         <div class="hitech-card p-5 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-3 w-full md:w-auto">
-                <label class="text-xs font-bold text-slate-500 shrink-0">กรองดูรายบุคคล/ครู:</label>
-                <select id="filterPerson" onchange="renderSchedulesView()" class="w-full md:w-64 px-3 py-2 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
-                    <option value="">-- แสดงทั้งหมดทุกคาบ --</option>
-                </select>
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1">มุมมองการแสดงผล:</label>
+                    <div class="flex rounded-xl bg-slate-100 dark:bg-darkinput p-1 border dark:border-slate-800">
+                        <button id="btnViewWeekly" onclick="switchViewMode('weekly')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 text-white transition-all">รายสัปดาห์</button>
+                        <button id="btnViewMonthly" onclick="switchViewMode('monthly')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 transition-all">รายเดือน</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1">กรองดูรายบุคคล/ครู/นร.:</label>
+                    <select id="filterPerson" onchange="renderSchedulesView()" class="w-full md:w-64 px-3 py-2 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
+                        <option value="">-- แสดงทั้งหมดทุกคาบ --</option>
+                    </select>
+                </div>
             </div>
 
             <div class="flex items-center gap-2 w-full md:w-auto justify-end">
-                <button onclick="changeWeek(-1)" class="px-3 py-2 bg-slate-100 dark:bg-darkinput rounded-xl text-xs font-bold hover:bg-sky-500 hover:text-white transition-all"><i class="fas fa-chevron-left"></i> สัปดาห์ก่อน</button>
-                <span id="currentWeekLabel" class="text-xs font-extrabold px-3 py-2 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 rounded-xl">สัปดาห์นี้</span>
-                <button onclick="changeWeek(1)" class="px-3 py-2 bg-slate-100 dark:bg-darkinput rounded-xl text-xs font-bold hover:bg-sky-500 hover:text-white transition-all">สัปดาห์ถัดไป <i class="fas fa-chevron-right"></i></button>
+                <button onclick="changePeriod(-1)" class="px-3 py-2 bg-slate-100 dark:bg-darkinput rounded-xl text-xs font-bold hover:bg-sky-500 hover:text-white transition-all"><i class="fas fa-chevron-left"></i> ก่อนหน้า</button>
+                <span id="currentPeriodLabel" class="text-xs font-extrabold px-3 py-2 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 rounded-xl">สัปดาห์นี้</span>
+                <button onclick="changePeriod(1)" class="px-3 py-2 bg-slate-100 dark:bg-darkinput rounded-xl text-xs font-bold hover:bg-sky-500 hover:text-white transition-all">ถัดไป <i class="fas fa-chevron-right"></i></button>
             </div>
         </div>
 
-        <!-- Horizontal Weekly Grid View (08:00 - 22:00) -->
+        <!-- Matrix Container -->
         <div class="hitech-card p-6 rounded-3xl space-y-4 overflow-x-auto">
             <div class="flex justify-between items-center min-w-[1100px]">
-                <h3 class="font-extrabold text-sm text-sky-600 dark:text-sky-400 uppercase tracking-wider flex items-center gap-2">
+                <h3 id="matrixTitle" class="font-extrabold text-sm text-sky-600 dark:text-sky-400 uppercase tracking-wider flex items-center gap-2">
                     <i class="fas fa-calendar-week"></i> ตารางสอนแนวนอน 1 สัปดาห์ (08:00 - 22:00 น.)
                 </h3>
                 <span class="text-xs text-slate-400">วิชาเดียวกันต่อกันยาวต่อเนื่อง | คลิกที่ช่องเพื่อดูรายละเอียด/แก้ไข</span>
             </div>
 
-            <div id="horizontalGridContainer" class="min-w-[1100px]">
+            <div id="matrixContainer" class="min-w-[1100px]">
                 <!-- Rendered dynamically -->
             </div>
         </div>
@@ -113,7 +126,10 @@
         let allSchedules = [];
         let allSlots = [];
         let allCourses = [];
-        let weekOffset = 0;
+        let allEnrollments = [];
+        let allProfiles = [];
+        let viewMode = 'weekly'; // 'weekly' or 'monthly'
+        let periodOffset = 0;
 
         // Dark/Light Mode Init
         const htmlElement = document.documentElement;
@@ -130,25 +146,27 @@
         });
 
         async function initSchedulesPage() {
-            await fetchCourses();
-            await fetchSchedulesData();
+            await fetchMasterData();
         }
 
-        async function fetchCourses() {
-            const { data } = await supabaseClient.from('courses').select('id, title');
-            if (data) allCourses = data;
-        }
-
-        async function fetchSchedulesData() {
-            Swal.fire({ title: 'กำลังโหลดตารางเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        async function fetchMasterData() {
+            Swal.fire({ title: 'กำลังโหลดข้อมูลตาราง...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             
-            const { data: schedData } = await supabaseClient.from('course_schedules').select('*, courses(title)');
-            const { data: slotData } = await supabaseClient.from('schedule_slots').select('*, courses(title)');
+            const [coursesRes, schedRes, slotRes, enrollRes, profileRes] = await Promise.all([
+                supabaseClient.from('courses').select('id, title, color_theme'),
+                supabaseClient.from('course_schedules').select('*, courses(title, color_theme)'),
+                supabaseClient.from('schedule_slots').select('*, courses(title, color_theme)'),
+                supabaseClient.from('enrollments').select('*'),
+                supabaseClient.from('profiles').select('id, full_name, email, role')
+            ]);
             
             Swal.close();
 
-            allSchedules = schedData || [];
-            allSlots = slotData || [];
+            allCourses = coursesRes.data || [];
+            allSchedules = schedRes.data || [];
+            allSlots = slotRes.data || [];
+            allEnrollments = enrollRes.data || [];
+            allProfiles = profileRes.data || [];
 
             populateFilterDropdowns();
             renderSchedulesView();
@@ -158,25 +176,86 @@
             const select = document.getElementById('filterPerson');
             const teachers = [...new Set(allSchedules.map(s => s.teacher_name))];
             
-            let html = '<option value="">-- แสดงทั้งหมดทุกคาบ --</option>';
-            teachers.forEach(t => {
-                if (t) html += `<option value="${t}">คุณครู: ${t}</option>`;
-            });
+            let html = '<option value="">-- แสดงทั้งหมดทุกคาบ (แอดมิน) --</option>';
+            
+            if (teachers.length > 0) {
+                html += `<optgroup label="คุณครูผู้สอน">`;
+                teachers.forEach(t => { if (t) html += `<option value="teacher:${t}">ครู: ${t}</option>`; });
+                html += `</optgroup>`;
+            }
+
+            if (allProfiles.length > 0) {
+                html += `<optgroup label="นักเรียนในระบบ (ดูรายบุคคล)">`;
+                allProfiles.forEach(p => {
+                    html += `<option value="student:${p.id}">นร: ${p.full_name || p.email || 'นักเรียน'}</option>`;
+                });
+                html += `</optgroup>`;
+            }
+
             select.innerHTML = html;
         }
 
+        function switchViewMode(mode) {
+            viewMode = mode;
+            periodOffset = 0;
+            document.getElementById('btnViewWeekly').className = mode === 'weekly' ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 text-white transition-all' : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 transition-all';
+            document.getElementById('btnViewMonthly').className = mode === 'monthly' ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 text-white transition-all' : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 transition-all';
+            renderSchedulesView();
+        }
+
+        function changePeriod(direction) {
+            periodOffset += direction;
+            renderSchedulesView();
+        }
+
         function renderSchedulesView() {
-            renderHorizontalGrid();
+            if (viewMode === 'weekly') {
+                renderHorizontalWeeklyGrid();
+            } else {
+                renderMonthlyGrid();
+            }
             renderTimelineList();
         }
 
-        function renderHorizontalGrid() {
-            const container = document.getElementById('horizontalGridContainer');
+        // Helper filter slots based on dropdown selection
+        function getFilteredSlots() {
             const filterVal = document.getElementById('filterPerson').value;
+            if (!filterVal) return allSlots;
 
-            // คำนวณวันในสัปดาห์นี้ (จันทร์ - อาทิตย์)
+            const [type, val] = filterVal.split(':');
+            if (type === 'teacher') {
+                return allSlots.filter(s => s.teacher_name === val);
+            } else if (type === 'student') {
+                // หาคอร์สที่นักเรียนคนนี้ลงทะเบียนผ่าน enrollments (column course_id)
+                const studentEnrollments = allEnrollments.filter(e => e.user_id === val || e.student_id === val);
+                const enrolledCourseIds = studentEnrollments.map(e => e.course_id);
+                return allSlots.filter(s => enrolledCourseIds.includes(s.course_id));
+            }
+            return allSlots;
+        }
+
+        function getFilteredSchedules() {
+            const filterVal = document.getElementById('filterPerson').value;
+            if (!filterVal) return allSchedules;
+
+            const [type, val] = filterVal.split(':');
+            if (type === 'teacher') {
+                return allSchedules.filter(s => s.teacher_name === val);
+            } else if (type === 'student') {
+                const studentEnrollments = allEnrollments.filter(e => e.user_id === val || e.student_id === val);
+                const enrolledCourseIds = studentEnrollments.map(e => e.course_id);
+                return allSchedules.filter(s => enrolledCourseIds.includes(s.course_id));
+            }
+            return allSchedules;
+        }
+
+        function renderHorizontalWeeklyGrid() {
+            document.getElementById('matrixTitle').innerHTML = `<i class="fas fa-calendar-week"></i> ตารางสอนแนวนอน 1 สัปดาห์ (08:00 - 22:00 น.)`;
+            const container = document.getElementById('matrixContainer');
+            const activeSlots = getFilteredSlots();
+
             const currDate = new Date();
-            currDate.setDate(currDate.getDate() + (weekOffset * 7));
+            currDate.setDate(currDate.getDate() + (periodOffset * 7));
             
             const dayOfWeek = currDate.getDay();
             const monday = new Date(currDate);
@@ -189,9 +268,8 @@
                 weekDays.push(d);
             }
 
-            document.getElementById('currentWeekLabel').textContent = `${weekDays[0].toLocaleDateString('th-TH', {day: 'numeric', month: 'short'})} - ${weekDays[6].toLocaleDateString('th-TH', {day: 'numeric', month: 'short', year: 'numeric'})}`;
+            document.getElementById('currentPeriodLabel').textContent = `${weekDays[0].toLocaleDateString('th-TH', {day: 'numeric', month: 'short'})} - ${weekDays[6].toLocaleDateString('th-TH', {day: 'numeric', month: 'short', year: 'numeric'})}`;
 
-            // สร้าง Array เวลา 08:00 ถึง 22:00 (ซอยทีละ 30 นาที)
             const timeSlots = [];
             for (let h = 8; h <= 22; h++) {
                 timeSlots.push(`${String(h).padStart(2, '0')}:00:00`);
@@ -209,11 +287,7 @@
             });
             html += `</tr></thead><tbody>`;
 
-            // วนลูปแสดงแต่ละวัน (แถวแนวตั้ง)
-            weekDays.forEach((d, dayIndex) => {
-                // dayIndex ใน JS: 0=อาทิตย์, 1=จันทร์... แต่ใน DB เราเก็บ 1=จันทร์..0=อาทิตย์
-                // แปลงเป็น format ของ db (0=อาทิตย์, 1=จันทร์ ... 6=เสาร์)
-                const jsDay = d.getDay();
+            weekDays.forEach(d => {
                 const dateStr = d.toISOString().split('T')[0];
 
                 html += `
@@ -224,38 +298,30 @@
                         </td>
                 `;
 
-                // ตรวจสอบ Slot แต่ละช่วงเวลาในวันนั้น
                 let skipCount = 0;
                 for (let i = 0; i < timeSlots.length; i++) {
-                    if (skipCount > 0) {
-                        skipCount--;
-                        continue;
-                    }
+                    if (skipCount > 0) { skipCount--; continue; }
 
                     const time = timeSlots[i];
-                    const matchedSlot = allSlots.find(s => s.slot_date === dateStr && s.start_time === time && (!filterVal || s.teacher_name === filterVal));
+                    const matchedSlot = activeSlots.find(s => s.slot_date === dateStr && s.start_time === time);
 
                     if (matchedSlot) {
                         const parentSched = allSchedules.find(sc => sc.id === matchedSlot.schedule_id) || {};
-                        const color = parentSched.color_theme || '#0284c7';
+                        const courseObj = allCourses.find(c => c.id === parentSched.course_id) || {};
+                        const color = parentSched.color_theme || courseObj.color_theme || '#0284c7';
 
-                        // คำนวณจำนวนช่อง (Colspan) ที่ติดกันยาวต่อเนื่องสำหรับวิชาเดียวกัน
                         let span = 1;
                         for (let j = i + 1; j < timeSlots.length; j++) {
                             const nextTime = timeSlots[j];
-                            const nextSlot = allSlots.find(s => s.slot_date === dateStr && s.start_time === nextTime && s.schedule_id === matchedSlot.schedule_id);
-                            if (nextSlot) {
-                                span++;
-                            } else {
-                                break;
-                            }
+                            const nextSlot = activeSlots.find(s => s.slot_date === dateStr && s.start_time === nextTime && s.schedule_id === matchedSlot.schedule_id);
+                            if (nextSlot) span++; else break;
                         }
                         skipCount = span - 1;
 
                         html += `
                             <td colspan="${span}" class="p-1 border dark:border-slate-800 cursor-pointer" onclick='openScheduleDetail(${JSON.stringify(parentSched)})'>
                                 <div class="p-2 rounded-xl text-white font-bold text-xs shadow-md truncate flex items-center justify-between" style="background-color: ${color};">
-                                    <span class="truncate">${parentSched.title || 'คาบเรียน'} (${parentSched.start_time.substring(0,5)}-${parentSched.end_time.substring(0,5)})</span>
+                                    <span class="truncate">${parentSched.title || 'คาบเรียน'} (${parentSched.start_time?.substring(0,5)}-${parentSched.end_time?.substring(0,5)})</span>
                                     <span class="text-[10px] opacity-90 shrink-0 ml-1">ครู: ${matchedSlot.teacher_name}</span>
                                 </div>
                             </td>
@@ -271,51 +337,116 @@
             container.innerHTML = html;
         }
 
+        function renderMonthlyGrid() {
+            document.getElementById('matrixTitle').innerHTML = `<i class="fas fa-calendar-alt"></i> ภาพรวมปฏิทินรายเดือน (Monthly Calendar Matrix)`;
+            const container = document.getElementById('matrixContainer');
+            const activeSlots = getFilteredSlots();
+
+            const date = new Date();
+            date.setMonth(date.getMonth() + periodOffset);
+            const year = date.getFullYear();
+            const month = date.getMonth();
+
+            document.getElementById('currentPeriodLabel').textContent = date.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const totalDays = new Date(year, month + 1, 0).getDate();
+
+            let html = `
+                <table class="w-full border-collapse text-xs min-w-[900px]">
+                    <thead>
+                        <tr class="bg-slate-100 dark:bg-darkinput text-center">
+                            <th class="p-2 border dark:border-slate-800">อาทิตย์</th>
+                            <th class="p-2 border dark:border-slate-800">จันทร์</th>
+                            <th class="p-2 border dark:border-slate-800">อังคาร</th>
+                            <th class="p-2 border dark:border-slate-800">พุธ</th>
+                            <th class="p-2 border dark:border-slate-800">พฤหัสบดี</th>
+                            <th class="p-2 border dark:border-slate-800">ศุกร์</th>
+                            <th class="p-2 border dark:border-slate-800">เสาร์</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+            `;
+
+            let dayCount = 1;
+            for (let i = 0; i < 42; i++) {
+                if (i % 7 === 0 && i > 0) html += `</tr><tr>`;
+
+                if (i < firstDayIndex || dayCount > totalDays) {
+                    html += `<td class="p-3 border dark:border-slate-800 bg-slate-50/50 dark:bg-darkinput/30 text-slate-300"></td>`;
+                } else {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayCount).padStart(2, '0')}`;
+                    const daySlots = activeSlots.filter(s => s.slot_date === dateStr);
+
+                    html += `
+                        <td class="p-2 border dark:border-slate-800 align-top h-28 w-[14%]">
+                            <div class="font-bold text-slate-500 mb-1">${dayCount}</div>
+                            <div class="space-y-1 overflow-y-auto max-h-20">
+                    `;
+
+                    daySlots.forEach(slot => {
+                        const parentSched = allSchedules.find(sc => sc.id === slot.schedule_id) || {};
+                        const courseObj = allCourses.find(c => c.id === parentSched.course_id) || {};
+                        const color = parentSched.color_theme || courseObj.color_theme || '#0284c7';
+                        html += `
+                            <div onclick='openScheduleDetail(${JSON.stringify(parentSched)})' class="p-1 rounded text-white text-[10px] font-bold truncate cursor-pointer shadow-sm" style="background-color: ${color};" title="${parentSched.title}">
+                                ${parentSched.start_time?.substring(0,5)} ${parentSched.title}
+                            </div>
+                        `;
+                    });
+
+                    html += `</div></td>`;
+                    dayCount++;
+                }
+            }
+
+            html += `</tr></tbody></table>`;
+            container.innerHTML = html;
+        }
+
         function renderTimelineList() {
             const container = document.getElementById('timelineListContainer');
-            const filterVal = document.getElementById('filterPerson').value;
-
-            const filtered = filterVal ? allSchedules.filter(s => s.teacher_name === filterVal) : allSchedules;
+            const filtered = getFilteredSchedules();
 
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">ยังไม่มีรายการคาบเรียนในระบบ</div>`;
                 return;
             }
 
-            container.innerHTML = filtered.map(s => `
-                <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2">
-                            <span class="w-3 h-3 rounded-full" style="background-color: ${s.color_theme || '#0284c7'}"></span>
-                            <h4 class="font-bold text-sm">${s.title}</h4>
-                            <span class="px-2 py-0.5 bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 text-[10px] rounded font-bold">${s.courses?.title || 'คอร์สเรียน'}</span>
+            container.innerHTML = filtered.map(s => {
+                const courseObj = allCourses.find(c => c.id === s.course_id) || {};
+                const color = s.color_theme || courseObj.color_theme || '#0284c7';
+                return `
+                    <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full" style="background-color: ${color}"></span>
+                                <h4 class="font-bold text-sm">${s.title}</h4>
+                                <span class="px-2 py-0.5 bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 text-[10px] rounded font-bold">${s.courses?.title || courseObj.title || 'คอร์สเรียน'}</span>
+                            </div>
+                            <p class="text-xs text-slate-500">${s.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
+                            <div class="text-[11px] text-slate-400 flex flex-wrap gap-3">
+                                <span><i class="fas fa-user-tie"></i> ครู: ${s.teacher_name}</span>
+                                <span><i class="fas fa-calendar"></i> ${s.start_date} ถึง ${s.end_date}</span>
+                                <span><i class="fas fa-clock"></i> ${s.start_time?.substring(0,5)} - ${s.end_time?.substring(0,5)}</span>
+                            </div>
                         </div>
-                        <p class="text-xs text-slate-500">${s.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
-                        <div class="text-[11px] text-slate-400 flex flex-wrap gap-3">
-                            <span><i class="fas fa-user-tie"></i> ครู: ${s.teacher_name}</span>
-                            <span><i class="fas fa-calendar"></i> ${s.start_date} ถึง ${s.end_date}</span>
-                            <span><i class="fas fa-clock"></i> ${s.start_time.substring(0,5)} - ${s.end_time.substring(0,5)}</span>
+                        <div class="flex items-center gap-2 shrink-0">
+                            ${s.zoom_link ? `<a href="${s.zoom_link}" target="_blank" class="px-3 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 transition-all flex items-center gap-1.5"><i class="fas fa-video"></i> Zoom</a>` : ''}
+                            <button onclick='openEditScheduleModal(${JSON.stringify(s)})' class="px-3 py-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 font-bold text-xs"><i class="fas fa-pen"></i> แก้ไข</button>
+                            <button onclick='deleteSchedule("${s.id}")' class="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        ${s.zoom_link ? `<a href="${s.zoom_link}" target="_blank" class="px-3 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 transition-all flex items-center gap-1.5"><i class="fas fa-video"></i> Zoom</a>` : ''}
-                        <button onclick='openEditScheduleModal(${JSON.stringify(s)})' class="px-3 py-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 font-bold text-xs"><i class="fas fa-pen"></i> แก้ไข</button>
-                        <button onclick='deleteSchedule("${s.id}")' class="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100"><i class="fas fa-trash"></i></button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function changeWeek(direction) {
-            weekOffset += direction;
-            renderHorizontalGrid();
+                `;
+            }).join('');
         }
 
         async function openCreateScheduleModal() {
             const courseOptions = allCourses.map(c => `<option value="${c.id}">${c.title}</option>`).join('');
 
             const { value: formValues } = await Swal.fire({
-                title: '📅 เพิ่มคาบเรียน / ระบบ Repeat',
+                title: '📅 เพิ่มคาบเรียน / กำหนดสีคอร์ส',
                 width: '600px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
@@ -337,7 +468,7 @@
                                 <input type="text" id="swalTeacher" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น ครูอั่งเปา">
                             </div>
                             <div>
-                                <label class="block font-bold mb-1">สีประจำวิชา (Theme Color)</label>
+                                <label class="block font-bold mb-1">🎨 เลือกสีประจำคอร์ส/คาบ</label>
                                 <input type="color" id="swalColor" value="#0284c7" class="w-full h-9 px-1 bg-slate-100 dark:bg-slate-800 border rounded-xl cursor-pointer">
                             </div>
                         </div>
@@ -380,7 +511,7 @@
                     </div>
                 `,
                 showCancelButton: true,
-                confirmButtonText: 'บันทึก & สร้างตารางสอน',
+                confirmButtonText: 'บันทึก & สร้างคาบเรียน',
                 cancelButtonText: 'ยกเลิก',
                 confirmButtonColor: '#0284c7',
                 preConfirm: () => {
@@ -406,8 +537,7 @@
             });
 
             if (formValues) {
-                Swal.fire({ title: 'กำลังบันทึกและแตกสล็อตเวลา...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                
+                Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 const { data: schedRes, error: schedErr } = await supabaseClient.from('course_schedules').insert([formValues]).select().single();
                 if (schedErr) {
                     Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: schedErr.message });
@@ -419,8 +549,8 @@
                     await supabaseClient.from('schedule_slots').insert(slots);
                 }
 
-                Swal.fire({ icon: 'success', title: 'สร้างตารางสอนสำเร็จ!', confirmButtonColor: '#0284c7' });
-                fetchSchedulesData();
+                Swal.fire({ icon: 'success', title: 'สร้างคาบเรียนสำเร็จ!', confirmButtonColor: '#0284c7' });
+                fetchMasterData();
             }
         }
 
@@ -450,7 +580,7 @@
                                 <input type="text" id="swalTeacher" value="${s.teacher_name}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
                             </div>
                             <div>
-                                <label class="block font-bold mb-1">สีประจำวิชา</label>
+                                <label class="block font-bold mb-1">🎨 สีประจำคอร์ส</label>
                                 <input type="color" id="swalColor" value="${s.color_theme || '#0284c7'}" class="w-full h-9 px-1 bg-slate-100 dark:bg-slate-800 border rounded-xl cursor-pointer">
                             </div>
                         </div>
@@ -461,11 +591,11 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">เวลาเริ่ม</label>
-                                <input type="time" id="swalStartTime" value="${s.start_time.substring(0,5)}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                                <input type="time" id="swalStartTime" value="${s.start_time?.substring(0,5)}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">เวลาสิ้นสุด</label>
-                                <input type="time" id="swalEndTime" value="${s.end_time.substring(0,5)}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                                <input type="time" id="swalEndTime" value="${s.end_time?.substring(0,5)}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
                             </div>
                         </div>
                     </div>
@@ -494,15 +624,12 @@
             });
 
             if (formValues) {
-                Swal.fire({ title: 'กำลังอัปเดตข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                
-                // 1. Update Master
+                Swal.fire({ title: 'กำลังอัปเดต...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 await supabaseClient.from('course_schedules').update(formValues).eq('id', s.id);
-                // 2. Refresh slots teacher/color if needed
                 await supabaseClient.from('schedule_slots').update({ teacher_name: formValues.teacher_name, course_id: formValues.course_id }).eq('schedule_id', s.id);
 
                 Swal.fire({ icon: 'success', title: 'อัปเดตสำเร็จ!', confirmButtonColor: '#0284c7' });
-                fetchSchedulesData();
+                fetchMasterData();
             }
         }
 
@@ -539,14 +666,16 @@
         }
 
         function openScheduleDetail(sched) {
+            const courseObj = allCourses.find(c => c.id === sched.course_id) || {};
             Swal.fire({
                 title: `📚 ${sched.title}`,
                 html: `
                     <div class="space-y-2 text-left text-xs">
                         <p class="text-slate-500">${sched.description || 'ไม่มีรายละเอียด'}</p>
                         <div class="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl space-y-1">
+                            <div><b>คอร์สเรียน:</b> ${sched.courses?.title || courseObj.title || '-'}</div>
                             <div><b>คุณครูผู้สอน:</b> ${sched.teacher_name}</div>
-                            <div><b>เวลา:</b> ${sched.start_time.substring(0,5)} - ${sched.end_time.substring(0,5)} น.</div>
+                            <div><b>เวลา:</b> ${sched.start_time?.substring(0,5)} - ${sched.end_time?.substring(0,5)} น.</div>
                             <div><b>ช่วงวันที่:</b> ${sched.start_date} ถึง ${sched.end_date}</div>
                         </div>
                         ${sched.zoom_link ? `<a href="${sched.zoom_link}" target="_blank" class="block w-full py-2.5 bg-blue-600 text-white font-bold text-center rounded-xl hover:bg-blue-700"><i class="fas fa-video"></i> เข้าห้องเรียน Zoom</a>` : ''}
@@ -561,7 +690,61 @@
             if (res.isConfirmed) {
                 await supabaseClient.from('course_schedules').delete().eq('id', id);
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ลบเรียบร้อย', showConfirmButton: false, timer: 2000 });
-                fetchSchedulesData();
+                fetchMasterData();
+            }
+        }
+
+        // --- Export CSV Function ---
+        async function openExportModal() {
+            const { value: formValues } = await Swal.fire({
+                title: '📥 Export ข้อมูลปฏิทินเป็น CSV',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <div>
+                            <label class="block font-bold mb-1">ตั้งแต่วันที่ (Start Date)</label>
+                            <input type="date" id="exportStart" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">ถึงวันที่ (End Date)</label>
+                            <input type="date" id="exportEnd" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'ดาวน์โหลดไฟล์ CSV',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#0284c7',
+                preConfirm: () => {
+                    const start = document.getElementById('exportStart').value;
+                    const end = document.getElementById('exportEnd').value;
+                    if (!start || !end) {
+                        Swal.showValidationMessage('⚠️ กรุณาเลือกช่วงวันที่ให้ครบถ้วน');
+                        return false;
+                    }
+                    return { start, end };
+                }
+            });
+
+            if (formValues) {
+                const activeSlots = getFilteredSlots().filter(s => s.slot_date >= formValues.start && s.slot_date <= formValues.end);
+                if (activeSlots.length === 0) {
+                    Swal.fire('ไม่พบข้อมูล', 'ไม่มีคาบเรียนในช่วงเวลาที่เลือก', 'info');
+                    return;
+                }
+
+                let csvContent = "\uFEFF" + "วันที่,เวลาเริ่ม,เวลาสิ้นสุด,หัวข้อการเรียน,คุณครูผู้สอน,ลิงก์ Zoom\n";
+                activeSlots.forEach(slot => {
+                    const sched = allSchedules.find(sc => sc.id === slot.schedule_id) || {};
+                    csvContent += `"${slot.slot_date}","${slot.start_time}","${slot.end_time}","${sched.title || ''}","${slot.teacher_name}","${sched.zoom_link || ''}"\n`;
+                });
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `schedules_${formValues.start}_to_${formValues.end}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
             }
         }
 
