@@ -181,24 +181,13 @@
             }
         }
 
-function setupRealtimeSubscription() {
+        function setupRealtimeSubscription() {
             supabaseClient
                 .channel('admin-schedules-realtime')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, (payload) => {
-                    console.log('Realtime change in course_schedules:', payload);
-                    fetchMasterData();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, (payload) => {
-                    console.log('Realtime change in schedule_slots:', payload);
-                    fetchMasterData();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, (payload) => {
-                    console.log('Realtime change in courses:', payload);
-                    fetchMasterData();
-                })
-                .subscribe((status) => {
-                    console.log('Supabase Realtime Status:', status);
-                });
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => fetchMasterData())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => fetchMasterData())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => fetchMasterData())
+                .subscribe();
         }
 
         function populateFilterDropdowns() {
@@ -345,7 +334,7 @@ function setupRealtimeSubscription() {
             container.innerHTML = html;
         }
 
-function renderMonthlyGrid() {
+        function renderMonthlyGrid() {
             document.getElementById('matrixTitle').innerHTML = `<i class="fas fa-calendar-alt"></i> ภาพรวมปฏิทินรายเดือน (Monthly Calendar Matrix)`;
             const container = document.getElementById('matrixContainer');
             const activeSlots = getFilteredSlots();
@@ -387,7 +376,6 @@ function renderMonthlyGrid() {
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayCount).padStart(2, '0')}`;
                     const daySlots = activeSlots.filter(s => s.slot_date === dateStr);
 
-                    // 🌟 จัดกลุ่มสล็อตเวลาในวันเดียวกันที่มี schedule_id เดียวกัน (ยุบรวมให้เหลืออันเดียว พร้อมโชว์เวลาเริ่ม-จบ)
                     const groupedMap = {};
                     daySlots.forEach(slot => {
                         if (!groupedMap[slot.schedule_id]) {
@@ -440,6 +428,7 @@ function renderMonthlyGrid() {
             html += `</tr></tbody></table>`;
             container.innerHTML = html;
         }
+
         function renderTimelineList() {
             const container = document.getElementById('timelineListContainer');
             const filtered = getFilteredSchedules();
@@ -614,6 +603,7 @@ function renderMonthlyGrid() {
             }
         }
 
+        // 🌟 แก้ไขฟังก์ชันเปิด Modal แก้ไขคาบเรียนให้มีช่องกรอกครบถ้วน
         async function openEditScheduleModal(s) {
             const courseOptions = allCourses.map(c => `<option value="${c.id}" ${c.id === s.course_id ? 'selected' : ''}>${c.title}</option>`).join('');
 
@@ -634,13 +624,15 @@ function renderMonthlyGrid() {
                             <label class="block font-bold mb-1">รายละเอียด</label>
                             <textarea id="swalDesc" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none" rows="2">${s.description || ''}</textarea>
                         </div>
-                        <div>
-                            <label class="block font-bold mb-1">ชื่อคุณครูผู้สอน <span class="text-red-500">*</span></label>
-                            <input type="text" id="swalTeacher" value="${s.teacher_name}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
-                        </div>
-                        <div>
-                            <label class="block font-bold mb-1">ลิงก์ Zoom เข้าเรียน</label>
-                            <input type="url" id="swalZoom" value="${s.zoom_link || ''}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-mono text-[11px]">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-bold mb-1">ชื่อคุณครูผู้สอน <span class="text-red-500">*</span></label>
+                                <input type="text" id="swalTeacher" value="${s.teacher_name}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1">ลิงก์ Zoom เข้าเรียน</label>
+                                <input type="url" id="swalZoom" value="${s.zoom_link || ''}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-mono text-[11px]">
+                            </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -650,6 +642,16 @@ function renderMonthlyGrid() {
                             <div>
                                 <label class="block font-bold mb-1">เวลาสิ้นสุด</label>
                                 <input type="time" id="swalEndTime" value="${s.end_time?.substring(0,5)}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-bold mb-1">ตั้งแต่วันที่ (Start Date)</label>
+                                <input type="date" id="swalStartDate" value="${s.start_date || ''}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1">ถึงวันที่ (End Date)</label>
+                                <input type="date" id="swalEndDate" value="${s.end_date || ''}" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl outline-none font-bold">
                             </div>
                         </div>
                     </div>
@@ -666,13 +668,15 @@ function renderMonthlyGrid() {
                     const zoom_link = document.getElementById('swalZoom').value.trim();
                     const start_time = document.getElementById('swalStartTime').value + ':00';
                     const end_time = document.getElementById('swalEndTime').value + ':00';
+                    const start_date = document.getElementById('swalStartDate').value;
+                    const end_date = document.getElementById('swalEndDate').value;
 
-                    if (!title || !teacher_name) {
-                        Swal.showValidationMessage('⚠️ กรุณากรอกข้อมูลสำคัญให้ครบถ้วน');
+                    if (!title || !teacher_name || !start_date || !end_date) {
+                        Swal.showValidationMessage('⚠️ กรุณากรอกข้อมูลสำคัญและช่วงวันที่ให้ครบถ้วน');
                         return false;
                     }
 
-                    return { course_id, title, description, teacher_name, zoom_link, start_time, end_time };
+                    return { course_id, title, description, teacher_name, zoom_link, start_time, end_time, start_date, end_date };
                 }
             });
 
@@ -741,10 +745,22 @@ function renderMonthlyGrid() {
             });
         }
 
+        // 🌟 แก้ไขฟังก์ชันลบ ให้ลบทั้ง schedule_slots และ course_schedules พร้อมอัปเดตหน้าจอทันที
         async function deleteSchedule(id) {
             const res = await Swal.fire({ title: 'ลบคาบเรียนนี้?', text: 'การลบจะเอาสล็อตเวลาทั้งหมดออกด้วย', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', confirmButtonColor: '#ef4444' });
             if (res.isConfirmed) {
+                Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                // 1. ลบสล็อตเวลาย่อยที่ผูกอยู่ก่อน
+                await supabaseClient.from('schedule_slots').delete().eq('schedule_id', id);
+                // 2. ลบตัวตารางสอนหลัก
                 await supabaseClient.from('course_schedules').delete().eq('id', id);
+
+                // 3. อัปเดตข้อมูลในหน้าจอทันทีแบบไม่ต้องรอรีเฟรช
+                allSchedules = allSchedules.filter(s => s.id !== id);
+                allSlots = allSlots.filter(s => s.schedule_id !== id);
+                renderSchedulesView();
+
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ลบเรียบร้อย', showConfirmButton: false, timer: 2000 });
             }
         }
