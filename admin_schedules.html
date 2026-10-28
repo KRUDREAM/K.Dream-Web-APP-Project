@@ -167,19 +167,31 @@
             setupRealtimeSubscription();
         }
 
-        async function fetchMasterData() {
-            const [coursesRes, schedRes, slotRes] = await Promise.all([
-                supabaseClient.from('courses').select('id, title, color_theme'),
-                supabaseClient.from('course_schedules').select('*, courses(title, color_theme)'),
-                supabaseClient.from('schedule_slots').select('*, courses(title, color_theme)')
-            ]);
+async function fetchMasterData() {
+            try {
+                // 1. ดึงข้อมูลคอร์สแบบตรงๆ ป้องกัน Error 400 จากการ Join ผิด
+                const coursesRes = await supabaseClient.from('courses').select('id, title, color_theme');
+                if (coursesRes.error) {
+                    console.error('Courses Fetch Error (400):', coursesRes.error.message);
+                }
 
-            allCourses = coursesRes.data || [];
-            allSchedules = schedRes.data || [];
-            allSlots = slotRes.data || [];
+                // 2. ดึงตารางสอนและสล็อต
+                const [schedRes, slotRes] = await Promise.all([
+                    supabaseClient.from('course_schedules').select('*'),
+                    supabaseClient.from('schedule_slots').select('*')
+                ]);
 
-            populateFilterDropdowns();
-            renderSchedulesView();
+                allCourses = coursesRes.data || [];
+                allSchedules = schedRes.data || [];
+                allSlots = slotRes.data || [];
+
+                console.log('Loaded Courses:', allCourses); // เช็กใน F12 Console ว่าข้อมูลคอร์สมาไหม
+
+                populateFilterDropdowns();
+                renderSchedulesView();
+            } catch (err) {
+                console.error('Fetch Master Data Exception:', err);
+            }
         }
 
         function setupRealtimeSubscription() {
