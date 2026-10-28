@@ -117,7 +117,7 @@
         <div class="hitech-card p-6 rounded-3xl space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h3 class="font-extrabold text-sm text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-2">
-                    <i class="fas fa-list-ul"></i> รายการคาบเรียนทั้งหมด (Timeline List)
+                    <i class="fas fa-list-ul"></i> รายการคาบเรียนหลัก (Timeline List)
                 </h3>
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <label class="text-xs font-bold text-slate-400 shrink-0">กรองตามคอร์ส:</label>
@@ -181,12 +181,19 @@
             }
         }
 
+        // 🌟 แก้ไขระบบ Realtime ให้เชื่อมต่อและดึงข้อมูลใหม่ทันที
         function setupRealtimeSubscription() {
             supabaseClient
-                .channel('admin-schedules-realtime')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => fetchMasterData())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => fetchMasterData())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => fetchMasterData())
+                .channel('admin-schedules-realtime-v2')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => {
+                    fetchMasterData();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => {
+                    fetchMasterData();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => {
+                    fetchMasterData();
+                })
                 .subscribe();
         }
 
@@ -429,6 +436,7 @@
             container.innerHTML = html;
         }
 
+        // 🌟 กรองแสดง Timeline List ให้แสดงเฉพาะหัวข้อคาบเรียนหลัก (ไม่ซ้ำซ้อน)
         function renderTimelineList() {
             const container = document.getElementById('timelineListContainer');
             const filtered = getFilteredSchedules();
@@ -600,10 +608,10 @@
                 }
 
                 Swal.fire({ icon: 'success', title: 'สร้างคาบเรียนสำเร็จ!', timer: 1500, showConfirmButton: false });
+                fetchMasterData(); // บังคับรีเฟรชข้อมูลหน้าจอทันที
             }
         }
 
-        // 🌟 แก้ไขฟังก์ชันเปิด Modal แก้ไขคาบเรียนให้มีช่องกรอกครบถ้วน
         async function openEditScheduleModal(s) {
             const courseOptions = allCourses.map(c => `<option value="${c.id}" ${c.id === s.course_id ? 'selected' : ''}>${c.title}</option>`).join('');
 
@@ -686,6 +694,7 @@
                 await supabaseClient.from('schedule_slots').update({ teacher_name: formValues.teacher_name, course_id: formValues.course_id }).eq('schedule_id', s.id);
 
                 Swal.fire({ icon: 'success', title: 'อัปเดตสำเร็จ!', timer: 1500, showConfirmButton: false });
+                fetchMasterData();
             }
         }
 
@@ -745,18 +754,14 @@
             });
         }
 
-        // 🌟 แก้ไขฟังก์ชันลบ ให้ลบทั้ง schedule_slots และ course_schedules พร้อมอัปเดตหน้าจอทันที
         async function deleteSchedule(id) {
             const res = await Swal.fire({ title: 'ลบคาบเรียนนี้?', text: 'การลบจะเอาสล็อตเวลาทั้งหมดออกด้วย', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', confirmButtonColor: '#ef4444' });
             if (res.isConfirmed) {
                 Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 
-                // 1. ลบสล็อตเวลาย่อยที่ผูกอยู่ก่อน
                 await supabaseClient.from('schedule_slots').delete().eq('schedule_id', id);
-                // 2. ลบตัวตารางสอนหลัก
                 await supabaseClient.from('course_schedules').delete().eq('id', id);
 
-                // 3. อัปเดตข้อมูลในหน้าจอทันทีแบบไม่ต้องรอรีเฟรช
                 allSchedules = allSchedules.filter(s => s.id !== id);
                 allSlots = allSlots.filter(s => s.schedule_id !== id);
                 renderSchedulesView();
