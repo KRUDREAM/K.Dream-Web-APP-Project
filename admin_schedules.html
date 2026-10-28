@@ -54,15 +54,11 @@
                 </div>
 
                 <div class="flex items-center gap-2 flex-wrap justify-end">
-                    <!-- ปุ่มไปหน้าตารางเรียนนักเรียน -->
                     <button onclick="window.location.href='student_schedule.html'" class="px-3 py-2 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-900 font-bold text-xs rounded-xl hover:bg-sky-100 transition-all flex items-center gap-1.5">
                         <i class="fas fa-user-graduate"></i> ดูตารางเรียน นร.
                     </button>
                     <button id="themeToggle" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-sky-500">
                         <i class="fas fa-moon" id="themeIcon"></i>
-                    </button>
-                    <button onclick="openCourseColorManager()" class="px-3 py-2 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900 font-bold text-xs rounded-xl hover:bg-amber-100 transition-all flex items-center gap-1.5">
-                        <i class="fas fa-palette"></i> ตั้งค่าสีคอร์ส
                     </button>
                     <button onclick="openExportModal()" class="px-3 py-2 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900 font-bold text-xs rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-1.5">
                         <i class="fas fa-file-csv"></i> Export CSV
@@ -123,7 +119,6 @@
                 <h3 class="font-extrabold text-sm text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-2">
                     <i class="fas fa-list-ul"></i> รายการคาบเรียนทั้งหมด (Timeline List)
                 </h3>
-                <!-- 🌟 เพิ่มปุ่มเลือกดูตามคอร์สเรียน -->
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <label class="text-xs font-bold text-slate-400 shrink-0">กรองตามคอร์ส:</label>
                     <select id="filterCourse" onchange="renderTimelineList()" class="w-full sm:w-60 px-3 py-1.5 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
@@ -167,15 +162,9 @@
             setupRealtimeSubscription();
         }
 
-async function fetchMasterData() {
+        async function fetchMasterData() {
             try {
-                // 1. ดึงข้อมูลคอร์สแบบตรงๆ ป้องกัน Error 400 จากการ Join ผิด
-                const coursesRes = await supabaseClient.from('courses').select('id, title, color_theme');
-                if (coursesRes.error) {
-                    console.error('Courses Fetch Error (400):', coursesRes.error.message);
-                }
-
-                // 2. ดึงตารางสอนและสล็อต
+                const coursesRes = await supabaseClient.from('courses').select('id, title');
                 const [schedRes, slotRes] = await Promise.all([
                     supabaseClient.from('course_schedules').select('*'),
                     supabaseClient.from('schedule_slots').select('*')
@@ -185,12 +174,10 @@ async function fetchMasterData() {
                 allSchedules = schedRes.data || [];
                 allSlots = slotRes.data || [];
 
-                console.log('Loaded Courses:', allCourses); // เช็กใน F12 Console ว่าข้อมูลคอร์สมาไหม
-
                 populateFilterDropdowns();
                 renderSchedulesView();
             } catch (err) {
-                console.error('Fetch Master Data Exception:', err);
+                console.error('Fetch Master Data Error:', err);
             }
         }
 
@@ -204,14 +191,12 @@ async function fetchMasterData() {
         }
 
         function populateFilterDropdowns() {
-            // Dropdown ครู
             const selectTeacher = document.getElementById('filterTeacher');
             const teachers = [...new Set(allSchedules.map(s => s.teacher_name))];
             let teacherHtml = '<option value="">-- ทุกคุณครู --</option>';
             teachers.forEach(t => { if (t) teacherHtml += `<option value="${t}">คุณครู: ${t}</option>`; });
             selectTeacher.innerHTML = teacherHtml;
 
-            // Dropdown คอร์ส (สำหรับ Timeline List)
             const selectCourse = document.getElementById('filterCourse');
             let courseHtml = '<option value="">-- ทุกคอร์สเรียน --</option>';
             allCourses.forEach(c => {
@@ -320,8 +305,7 @@ async function fetchMasterData() {
 
                     if (matchedSlot) {
                         const parentSched = allSchedules.find(sc => sc.id === matchedSlot.schedule_id) || {};
-                        const courseObj = allCourses.find(c => c.id === parentSched.course_id) || {};
-                        const color = courseObj.color_theme || parentSched.color_theme || '#0284c7';
+                        const color = '#0284c7';
 
                         let span = 1;
                         for (let j = i + 1; j < timeSlots.length; j++) {
@@ -400,8 +384,7 @@ async function fetchMasterData() {
 
                     daySlots.forEach(slot => {
                         const parentSched = allSchedules.find(sc => sc.id === slot.schedule_id) || {};
-                        const courseObj = allCourses.find(c => c.id === parentSched.course_id) || {};
-                        const color = courseObj.color_theme || parentSched.color_theme || '#0284c7';
+                        const color = '#0284c7';
                         html += `
                             <div onclick='openScheduleDetail(${JSON.stringify(parentSched)})' class="p-1 rounded text-white text-[10px] font-bold truncate cursor-pointer shadow-sm" style="background-color: ${color};" title="${parentSched.title}">
                                 ${parentSched.start_time?.substring(0,5)} ${parentSched.title}
@@ -429,14 +412,14 @@ async function fetchMasterData() {
 
             container.innerHTML = filtered.map(s => {
                 const courseObj = allCourses.find(c => c.id === s.course_id) || {};
-                const color = courseObj.color_theme || s.color_theme || '#0284c7';
+                const color = '#0284c7';
                 return `
                     <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                         <div class="space-y-1">
                             <div class="flex items-center gap-2">
                                 <span class="w-3 h-3 rounded-full" style="background-color: ${color}"></span>
                                 <h4 class="font-bold text-sm">${s.title}</h4>
-                                <span class="px-2 py-0.5 bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 text-[10px] rounded font-bold">${s.courses?.title || courseObj.title || 'คอร์สเรียน'}</span>
+                                <span class="px-2 py-0.5 bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 text-[10px] rounded font-bold">${courseObj.title || 'คอร์สเรียน'}</span>
                             </div>
                             <p class="text-xs text-slate-500">${s.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
                             <div class="text-[11px] text-slate-400 flex flex-wrap gap-3">
@@ -453,42 +436,6 @@ async function fetchMasterData() {
                     </div>
                 `;
             }).join('');
-        }
-
-        async function openCourseColorManager() {
-            if (allCourses.length === 0) {
-                Swal.fire('แจ้งเตือน', 'ยังไม่มีคอร์สเรียนในระบบ', 'warning');
-                return;
-            }
-
-            const courseRows = allCourses.map(c => `
-                <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-darkinput rounded-xl border dark:border-slate-800">
-                    <span class="font-bold text-xs">${c.title}</span>
-                    <input type="color" id="courseColor_${c.id}" value="${c.color_theme || '#0284c7'}" class="w-10 h-8 px-1 bg-transparent border rounded-lg cursor-pointer">
-                </div>
-            `).join('');
-
-            const { value: confirmed } = await Swal.fire({
-                title: '🎨 จัดการสีประจำคอร์ส',
-                width: '500px',
-                html: `<div class="space-y-2 max-h-64 overflow-y-auto text-left">${courseRows}</div>`,
-                showCancelButton: true,
-                confirmButtonText: 'บันทึกสีทั้งหมด',
-                cancelButtonText: 'ปิด',
-                confirmButtonColor: '#0284c7',
-                preConfirm: () => {
-                    const updates = allCourses.map(c => {
-                        const color = document.getElementById(`courseColor_${c.id}`).value;
-                        return supabaseClient.from('courses').update({ color_theme: color }).eq('id', c.id);
-                    });
-                    return Promise.all(updates);
-                }
-            });
-
-            if (confirmed) {
-                Swal.fire({ icon: 'success', title: 'อัปเดตสีประจำคอร์สสำเร็จ!', timer: 1500, showConfirmButton: false });
-                fetchMasterData();
-            }
         }
 
         async function openCreateScheduleModal() {
@@ -731,7 +678,6 @@ async function fetchMasterData() {
             return slots;
         }
 
-        // 🌟 คลิกช่องในตารางแล้วเปิดดูรายละเอียด พร้อมปุ่มแก้ไข
         function openScheduleDetail(sched) {
             const courseObj = allCourses.find(c => c.id === sched.course_id) || {};
             Swal.fire({
@@ -740,7 +686,7 @@ async function fetchMasterData() {
                     <div class="space-y-3 text-left text-xs">
                         <p class="text-slate-500">${sched.description || 'ไม่มีรายละเอียด'}</p>
                         <div class="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl space-y-1">
-                            <div><b>คอร์สเรียน:</b> ${sched.courses?.title || courseObj.title || '-'}</div>
+                            <div><b>คอร์สเรียน:</b> ${courseObj.title || '-'}</div>
                             <div><b>คุณครูผู้สอน:</b> ${sched.teacher_name}</div>
                             <div><b>เวลา:</b> ${sched.start_time?.substring(0,5)} - ${sched.end_time?.substring(0,5)} น.</div>
                             <div><b>ช่วงวันที่:</b> ${sched.start_date} ถึง ${sched.end_date}</div>
