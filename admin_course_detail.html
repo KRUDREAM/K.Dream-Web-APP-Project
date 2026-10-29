@@ -628,7 +628,7 @@ async function triggerManualAutoEnroll() {
 
                 let addedTotal = 0;
 
-                // 3. วนลูปเช็กเงื่อนไข
+                // 3. วนลูปเช็กเงื่อนไขและเรียกใช้ RPC Function
                 for (const bonusCourse of bonusCourses) {
                     const prereqIds = (bonusCourse.prerequisite_course_ids || []).map(id => String(id).trim());
                     const ruleType = bonusCourse.bonus_rule_type || 'any';
@@ -646,18 +646,17 @@ async function triggerManualAutoEnroll() {
                         }
 
                         if (qualified && !enrolledSet.has(bonusId)) {
-                            // ส่งข้อมูลแบบ Object เดี่ยว (แก้ปัญหา UUID Type และ 404)
-                            const { error: insErr } = await mySupabase.from('enrollments').insert({
-                                course_id: bonusCourse.id,
-                                student_id: sId,
-                                created_at: new Date().toISOString()
+                            // เรียกใช้ฟังก์ชัน RPC ทางฝั่ง Supabase โดยตรง (แก้ปัญหา UUID Type และ 404 ได้ 100%)
+                            const { error: rpcErr } = await mySupabase.rpc('manual_auto_enroll_student', {
+                                p_course_id: bonusCourse.id,
+                                p_student_id: sId
                             });
 
-                            if (!insErr) {
+                            if (!rpcErr) {
                                 addedTotal++;
                                 enrolledSet.add(bonusId);
                             } else {
-                                console.error("Insert error for student:", sId, insErr.message);
+                                console.error("RPC error for student:", sId, rpcErr.message);
                             }
                         }
                     }
