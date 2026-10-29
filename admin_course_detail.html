@@ -615,13 +615,9 @@ async function triggerManualAutoEnroll() {
                     .select('course_id, student_id');
 
                 if (enrollErr) throw enrollErr;
-                if (!allEnrolls || allEnrolls.length === 0) {
-                    Swal.fire('แจ้งเตือน', 'ยังไม่มีข้อมูลการลงทะเบียนใด ๆ ในระบบ', 'info');
-                    return;
-                }
 
                 let studentCoursesMap = {};
-                allEnrolls.forEach(en => {
+                (allEnrolls || []).forEach(en => {
                     const sId = String(en.student_id || '').trim();
                     const cId = String(en.course_id || '').trim();
                     if (sId && cId) {
@@ -649,17 +645,18 @@ async function triggerManualAutoEnroll() {
                             qualified = prereqIds.every(pId => enrolledSet.has(pId));
                         }
 
+                        // ถ้าผ่านเงื่อนไข และนักเรียนยังไม่มีคอร์สแถมนี้ใน Set ของตัวเอง
                         if (qualified && !enrolledSet.has(bonusId)) {
-                            // 🌟 ใช้ .upsert() แทน .insert() และปล่อยให้ Supabase จัดการรูปแบบ UUID ผ่าน Payload ปกติ
-                            const { error: insErr } = await mySupabase.from('enrollments').upsert([{
+                            // ใช้ .insert() ปกติ โดยเช็กจาก Map ป้องกันการยิงซ้ำในรอบเดียวกัน
+                            const { error: insErr } = await mySupabase.from('enrollments').insert([{
                                 course_id: bonusCourse.id,
                                 student_id: sId,
                                 created_at: new Date().toISOString()
-                            }], { onConflict: 'course_id, student_id' });
+                            }]);
 
                             if (!insErr) {
                                 addedTotal++;
-                                enrolledSet.add(bonusId);
+                                enrolledSet.add(bonusId); // อัปเดต Map ทันทีเพื่อกันเบิ้ล
                             } else {
                                 console.error("Insert error for student:", sId, insErr.message);
                             }
