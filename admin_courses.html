@@ -176,6 +176,14 @@
 
                 const coverImg = c.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80';
                 
+                const type = c.course_type || 'normal';
+                let typeBadge = `<span class="px-2.5 py-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold text-[10px] rounded-lg">📚 คอร์สปกติ</span>`;
+                if (type === 'trial') {
+                    typeBadge = `<span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] rounded-lg">🚀 คอร์สทดลองเรียน</span>`;
+                } else if (type === 'bonus') {
+                    typeBadge = `<span class="px-2.5 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-[10px] rounded-lg">🎁 คอร์สแถม</span>`;
+                }
+
                 let expiryHtml = `<span class="text-slate-400">♾️ ไม่จำกัดระยะเวลา</span>`;
                 if (c.expires_at) {
                     const expiryDateStr = new Date(c.expires_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
@@ -194,6 +202,9 @@
                                 <img src="${coverImg}" alt="${c.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                                 <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white font-mono font-bold text-[10px] px-3 py-1 rounded-full border border-white/10">
                                     ${c.course_code || 'COURSE'}
+                                </div>
+                                <div class="absolute top-3 right-3">
+                                    ${typeBadge}
                                 </div>
                             </div>
                             <div class="p-5 space-y-2.5">
@@ -258,12 +269,15 @@
         }
 
         async function openCourseModal(courseId = null) {
-            let course = { course_code: '', title: '', description: '', image_url: '', expires_at: '' };
+            let course = { course_code: '', title: '', description: '', image_url: '', expires_at: '', course_type: 'normal', bonus_rule_type: 'any', prerequisite_course_ids: [] };
             let isEdit = false;
             if (courseId) {
                 isEdit = true;
                 course = coursesList.find(c => String(c.id) === String(courseId)) || course;
             }
+
+            // กรองเฉพาะ "คอร์สปกติ" (normal) เท่านั้นสำหรับเอามาทำเป็นเงื่อนไขคอร์สแถม (ไม่เอาคอร์สทดลองและคอร์สแถมมาเป็นเงื่อนไข)
+            const normalCourses = coursesList.filter(c => (c.course_type || 'normal') === 'normal' && String(c.id) !== String(courseId));
 
             let formattedExpiry = '';
             if (course.expires_at) {
@@ -280,24 +294,61 @@
 
             const { value: formValues } = await Swal.fire({
                 title: isEdit ? '✏️ แก้ไขข้อมูลคอร์สเรียน' : '➕ สร้างคอร์สเรียนใหม่',
-                width: '580px',
+                width: '650px',
                 html: `
                     <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold text-center"></div>
                     <div class="space-y-3 text-left text-xs">
-                        <div>
-                            <label class="block font-bold mb-1">รหัสคอร์ส (Course Code) <span class="text-red-500">*</span></label>
-                            <input id="swalCode" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" value="${course.course_code || ''}" placeholder="เช่น CS-M3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-bold mb-1">รหัสคอร์ส (Course Code) <span class="text-red-500">*</span></label>
+                                <input id="swalCode" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" value="${course.course_code || ''}" placeholder="เช่น CS-M3">
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1">ประเภทคอร์ส <span class="text-red-500">*</span></label>
+                                <select id="swalCourseType" onchange="toggleBonusSection(this.value)" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                                    <option value="normal" ${(course.course_type || 'normal') === 'normal' ? 'selected' : ''}>📚 คอร์สปกติ (ต้องลงทะเบียน)</option>
+                                    <option value="trial" ${course.course_type === 'trial' ? 'selected' : ''}>🚀 คอร์สทดลองเรียน (ฟรี)</option>
+                                    <option value="bonus" ${course.course_type === 'bonus' ? 'selected' : ''}>🎁 คอร์สแถม (ตามเงื่อนไข)</option>
+                                </select>
+                            </div>
                         </div>
                         <div>
                             <label class="block font-bold mb-1">ชื่อคอร์สเรียน <span class="text-red-500">*</span></label>
                             <input id="swalTitle" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${course.title || ''}" placeholder="เช่น ค่ายคอมพิวเตอร์ สอวน. ม.3">
                         </div>
+
+                        <!-- ส่วนตั้งค่าเงื่อนไขคอร์สแถม -->
+                        <div id="bonusRulesSection" class="${course.course_type === 'bonus' ? '' : 'hidden'} space-y-3 p-3.5 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                            <h4 class="font-extrabold text-amber-600 dark:text-amber-400"><i class="fas fa-gift mr-1"></i> เงื่อนไขการปลดล็อกคอร์สแถม</h4>
+                            <div>
+                                <label class="block font-bold mb-1">รูปแบบเงื่อนไข</label>
+                                <select id="swalBonusRuleType" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                                    <option value="any" ${course.bonus_rule_type === 'any' ? 'selected' : ''}>ลงทะเบียน "1 ในคอร์สด้านล่างนี้" (อย่างน้อย 1)</option>
+                                    <option value="all" ${course.bonus_rule_type === 'all' ? 'selected' : ''}>ลงทะเบียน "ครบทุกคอร์สด้านล่างนี้" (ทั้งหมด)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1">เลือกคอร์สปกติที่เป็นเงื่อนไข:</label>
+                                <div class="max-h-36 overflow-y-auto space-y-1 border p-2 rounded-xl bg-white dark:bg-slate-900">
+                                    ${normalCourses.length === 0 ? '<div class="text-slate-400 text-center py-2">ยังไม่มีคอร์สปกติอื่นในระบบ</div>' : normalCourses.map(nc => {
+                                        const isChecked = (course.prerequisite_course_ids || []).includes(String(nc.id)) ? 'checked' : '';
+                                        return `
+                                            <label class="flex items-center gap-2 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer">
+                                                <input type="checkbox" name="swalPrereqCourse" value="${nc.id}" ${isChecked} class="w-4 h-4 text-purple-600 rounded">
+                                                <span class="font-bold text-[11px]">[${nc.course_code}] ${nc.title}</span>
+                                            </label>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block font-bold mb-1">กำหนดวัน-เวลาหมดอายุของคอร์ส (ปล่อยว่างถ้าไม่จำกัด)</label>
                             <input type="datetime-local" id="swalExpires" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono" value="${formattedExpiry}">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1">รูปภาพปกคอร์ส (แนะนำสัดส่วน 1920x1080 หรือ 16:9)</label>
+                            <label class="block font-bold mb-1">รูปภาพปกคอร์ส</label>
                             <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
                                 <div class="w-20 aspect-video rounded-xl bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center shrink-0 border">
                                     <img id="swalCoverPreview" src="${course.image_url || ''}" class="w-full h-full object-cover ${course.image_url ? '' : 'hidden'}">
@@ -311,7 +362,7 @@
                         </div>
                         <div>
                             <label class="block font-bold mb-1">รายละเอียดคอร์ส</label>
-                            <textarea id="swalDesc" rows="3" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" placeholder="คำอธิบายสั้นๆ เกี่ยวกับคอร์สนี้...">${course.description || ''}</textarea>
+                            <textarea id="swalDesc" rows="2" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" placeholder="คำอธิบายสั้นๆ...">${course.description || ''}</textarea>
                         </div>
                     </div>
                 `,
@@ -324,11 +375,19 @@
                 preConfirm: async () => {
                     const code = document.getElementById('swalCode').value.trim();
                     const title = document.getElementById('swalTitle').value.trim();
+                    const courseType = document.getElementById('swalCourseType').value;
+                    const bonusRuleType = document.getElementById('swalBonusRuleType').value;
                     const expiresVal = document.getElementById('swalExpires').value;
                     const desc = document.getElementById('swalDesc').value.trim();
                     const fileInput = document.getElementById('swalImageFile');
                     let imageUrl = document.getElementById('swalImageUrl').value.trim();
                     const errBox = document.getElementById('swalErrorMsg');
+
+                    let prereqIds = [];
+                    if (courseType === 'bonus') {
+                        const checkedCheckboxes = document.querySelectorAll('input[name="swalPrereqCourse"]:checked');
+                        checkedCheckboxes.forEach(cb => prereqIds.push(cb.value));
+                    }
 
                     if (!code || !title) {
                         errBox.textContent = '⚠️ กรุณากรอกรหัสคอร์สและชื่อคอร์สให้ครบถ้วน';
@@ -375,6 +434,9 @@
                     return { 
                         course_code: code, 
                         title: title, 
+                        course_type: courseType,
+                        bonus_rule_type: bonusRuleType,
+                        prerequisite_course_ids: prereqIds,
                         expires_at: expiresIso,
                         image_url: imageUrl, 
                         description: desc 
@@ -389,7 +451,6 @@
                     const res = await mySupabase.from('courses').update(formValues).eq('id', courseId);
                     error = res.error;
 
-                    // 🌟 บันทึก Log ฝั่ง Admin: แก้ไขคอร์สเรียน
                     if (!error && typeof logSystemAction === 'function') {
                         await logSystemAction('ADMIN_UPDATE_COURSE', `แอดมินแก้ไขคอร์สเรียน: ${formValues.title} (${formValues.course_code})`, { course_id: courseId, course_code: formValues.course_code, title: formValues.title });
                     }
@@ -397,7 +458,6 @@
                     const res = await mySupabase.from('courses').insert([formValues]);
                     error = res.error;
 
-                    // 🌟 บันทึก Log ฝั่ง Admin: สร้างคอร์สเรียนใหม่
                     if (!error && typeof logSystemAction === 'function') {
                         await logSystemAction('ADMIN_CREATE_COURSE', `แอดมินสร้างคอร์สเรียนใหม่: ${formValues.title} (${formValues.course_code})`, { course_code: formValues.course_code, title: formValues.title });
                     }
@@ -408,6 +468,17 @@
                     initPage();
                 } else {
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                }
+            }
+        }
+
+        function toggleBonusSection(val) {
+            const section = document.getElementById('bonusRulesSection');
+            if (section) {
+                if (val === 'bonus') {
+                    section.classList.remove('hidden');
+                } else {
+                    section.classList.add('hidden');
                 }
             }
         }
@@ -443,7 +514,6 @@
                 Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 const { error } = await mySupabase.from('courses').delete().eq('id', courseId);
 
-                // 🌟 บันทึก Log ฝั่ง Admin: ลบคอร์สเรียน
                 if (!error && typeof logSystemAction === 'function') {
                     await logSystemAction('ADMIN_DELETE_COURSE', `แอดมินลบคอร์สเรียน ID: ${courseId}`, { course_id: courseId });
                 }
