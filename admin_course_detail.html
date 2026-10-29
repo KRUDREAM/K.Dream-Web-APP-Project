@@ -645,18 +645,17 @@ async function triggerManualAutoEnroll() {
                             qualified = prereqIds.every(pId => enrolledSet.has(pId));
                         }
 
-                        // ถ้าผ่านเงื่อนไข และนักเรียนยังไม่มีคอร์สแถมนี้ใน Set ของตัวเอง
                         if (qualified && !enrolledSet.has(bonusId)) {
-                            // ใช้ .insert() ปกติ โดยเช็กจาก Map ป้องกันการยิงซ้ำในรอบเดียวกัน
-                            const { error: insErr } = await mySupabase.from('enrollments').insert([{
+                            // ส่งข้อมูลแบบ Object เดี่ยว (แก้ปัญหา UUID Type และ 404)
+                            const { error: insErr } = await mySupabase.from('enrollments').insert({
                                 course_id: bonusCourse.id,
                                 student_id: sId,
                                 created_at: new Date().toISOString()
-                            }]);
+                            });
 
                             if (!insErr) {
                                 addedTotal++;
-                                enrolledSet.add(bonusId); // อัปเดต Map ทันทีเพื่อกันเบิ้ล
+                                enrolledSet.add(bonusId);
                             } else {
                                 console.error("Insert error for student:", sId, insErr.message);
                             }
