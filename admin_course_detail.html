@@ -582,7 +582,7 @@
             }
         }
 
-        async function triggerManualAutoEnroll() {
+async function triggerManualAutoEnroll() {
             Swal.fire({
                 title: 'กำลังตรวจสอบและแถมคอร์ส...',
                 text: 'ระบบกำลังเช็กเงื่อนไขนักเรียนทั้งหมด...',
@@ -591,6 +591,7 @@
             });
 
             try {
+                // 1. ดึงข้อมูลคอร์สทั้งหมดที่เป็น "คอร์สแถม" (bonus)
                 const { data: bonusCourses, error: courseErr } = await mySupabase
                     .from('courses')
                     .select('*')
@@ -602,15 +603,17 @@
                     return;
                 }
 
+                // 2. ดึงข้อมูลการลงทะเบียนทั้งหมดในระบบ (ใช้เฉพาะ student_id)
                 const { data: allEnrolls, error: enrollErr } = await mySupabase
                     .from('enrollments')
-                    .select('course_id, student_id, user_id');
+                    .select('course_id, student_id');
 
                 if (enrollErr) throw enrollErr;
 
+                // จัดกลุ่มคอร์สที่นักเรียนแต่ละคนลงทะเบียนแล้ว
                 let studentCoursesMap = {};
                 (allEnrolls || []).forEach(en => {
-                    const sId = String(en.student_id || en.user_id || '');
+                    const sId = String(en.student_id || '');
                     const cId = String(en.course_id || '');
                     if (sId && cId) {
                         if (!studentCoursesMap[sId]) studentCoursesMap[sId] = new Set();
@@ -620,6 +623,7 @@
 
                 let addedTotal = 0;
 
+                // 3. วนลูปเช็กเงื่อนไขของแต่ละคอร์สแถม
                 for (const bonusCourse of bonusCourses) {
                     const prereqIds = bonusCourse.prerequisite_course_ids || [];
                     const ruleType = bonusCourse.bonus_rule_type || 'any';
@@ -636,6 +640,7 @@
                             qualified = prereqIds.every(pId => enrolledSet.has(String(pId)));
                         }
 
+                        // ถ้าผ่านเงื่อนไข แต่ยังไม่มีคอร์สแถมนี้ในระบบ
                         if (qualified && !enrolledSet.has(bonusId)) {
                             const { error: insErr } = await mySupabase.from('enrollments').insert([{
                                 course_id: bonusCourse.id,
@@ -645,7 +650,7 @@
 
                             if (!insErr) {
                                 addedTotal++;
-                                enrolledSet.add(bonusId);
+                                enrolledSet.add(bonusId); // อัปเดต Map ชั่วคราวป้องกันการเบิ้ล
                             }
                         }
                     }
