@@ -499,34 +499,45 @@
             }
         }
 
-        async function openBonusCourseSettingsModal() {
+async function openBonusCourseSettingsModal() {
             const isDark = document.documentElement.classList.contains('dark');
-            const currentBonusId = currentCourse.bonus_course_id || '';
+            const currentBonusRuleType = currentCourse.bonus_rule_type || 'any';
+            const currentPrereqIds = currentCourse.prerequisite_course_ids || [];
 
-            let courseOptionsHtml = `<option value="">-- ไม่เปิดใช้งานคอร์สแถมอัตโนมัติ --</option>`;
-            allCoursesList.forEach(c => {
-                if (String(c.id) !== String(courseId)) {
-                    const selected = String(c.id) === String(currentBonusId) ? 'selected' : '';
-                    courseOptionsHtml += `<option value="${c.id}" ${selected}>[${c.course_code || 'COURSE'}] ${c.title}</option>`;
-                }
-            });
+            // กรองเอาเฉพาะคอร์สปกติ (normal) ที่ไม่ใช่คอร์สปัจจุบันมาแสดงเป็นเงื่อนไข
+            const normalCourses = allCoursesList.filter(c => (c.course_type || 'normal') === 'normal' && String(c.id) !== String(courseId));
 
-            const { value: selectedBonusCourseId } = await Swal.fire({
+            const { value: formValues } = await Swal.fire({
                 title: '🎁 ตั้งค่าเงื่อนไขคอร์สแถมอัตโนมัติ',
                 html: `
                     <div class="space-y-4 text-left text-xs">
                         <p class="text-slate-600 dark:text-slate-300">
-                            เมื่อตั้งค่าคอร์สแถมนี้แล้ว <strong>ระบบจะตรวจสอบและลงทะเบียนนักเรียนเข้าคอร์สแถมให้อัตโนมัติ</strong> ทันทีที่มีการบันทึกรายชื่อนักเรียนในคอร์สหลักนี้
+                            กำหนดเงื่อนไขให้นักเรียนปลดล็อกคอร์สนี้ได้อัตโนมัติ เมื่อลงทะเบียนเรียนตามเงื่อนไขคอร์สปกติที่กำหนด
                         </p>
                         <div>
-                            <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">เลือกคอร์สที่จะแถมฟรีอัตโนมัติ:</label>
-                            <select id="swalBonusCourseSelect" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none font-bold">
-                                ${courseOptionsHtml}
+                            <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">รูปแบบเงื่อนไขการปลดล็อก:</label>
+                            <select id="swalBonusRuleType" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none font-bold">
+                                <option value="any" ${currentBonusRuleType === 'any' ? 'selected' : ''}>ลงทะเบียน "1 ในคอร์สด้านล่างนี้" (อย่างน้อย 1)</option>
+                                <option value="all" ${currentBonusRuleType === 'all' ? 'selected' : ''}>ลงทะเบียน "ครบทุกคอร์สด้านล่างนี้" (ทั้งหมด)</option>
                             </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">เลือกคอร์สปกติที่เป็นเงื่อนไข:</label>
+                            <div class="max-h-44 overflow-y-auto space-y-1.5 border border-slate-200 dark:border-slate-800 p-3 rounded-2xl bg-white dark:bg-slate-900">
+                                ${normalCourses.length === 0 ? '<div class="text-slate-400 text-center py-4">ยังไม่มีคอร์สปกติอื่นในระบบ</div>' : normalCourses.map(nc => {
+                                    const isChecked = currentPrereqIds.includes(String(nc.id)) ? 'checked' : '';
+                                    return `
+                                        <label class="flex items-center gap-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors">
+                                            <input type="checkbox" name="swalPrereqCourse" value="${nc.id}" ${isChecked} class="w-4 h-4 text-purple-600 rounded border-slate-300 dark:border-slate-700 focus:ring-purple-500">
+                                            <span class="font-bold text-xs text-slate-800 dark:text-slate-200">[${nc.course_code || 'COURSE'}] ${nc.title}</span>
+                                        </label>
+                                    `;
+                                }).join('')}
+                            </div>
                         </div>
                     </div>
                 `,
-                width: '600px',
+                width: '650px',
                 showCancelButton: true,
                 confirmButtonText: '💾 บันทึกเงื่อนไข',
                 cancelButtonText: 'ยกเลิก',
@@ -534,25 +545,33 @@
                 background: isDark ? '#090d16' : '#ffffff',
                 color: isDark ? '#f1f5f9' : '#1e293b',
                 preConfirm: () => {
-                    return document.getElementById('swalBonusCourseSelect').value;
+                    const bonusRuleType = document.getElementById('swalBonusRuleType').value;
+                    let prereqIds = [];
+                    const checkedCheckboxes = document.querySelectorAll('input[name="swalPrereqCourse"]:checked');
+                    checkedCheckboxes.forEach(cb => prereqIds.push(cb.value));
+
+                    return {
+                        bonus_rule_type: bonusRuleType,
+                        prerequisite_course_ids: prereqIds,
+                        course_type: 'bonus' // กำหนดให้คอร์สนี้สถานะเป็นคอร์สแถมโดยอัตโนมัติ
+                    };
                 }
             });
 
-            if (selectedBonusCourseId !== undefined) {
+            if (formValues) {
                 Swal.fire({ title: 'กำลังบันทึกเงื่อนไข...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 
                 const { error } = await mySupabase
                     .from('courses')
-                    .update({ bonus_course_id: selectedBonusCourseId || null })
+                    .update(formValues)
                     .eq('id', courseId);
 
                 if (!error) {
-                    currentCourse.bonus_course_id = selectedBonusCourseId || null;
-                    updateBonusRuleBadgeUI();
+                    currentCourse.bonus_rule_type = formValues.bonus_rule_type;
+                    currentCourse.prerequisite_course_ids = formValues.prerequisite_course_ids;
+                    currentCourse.course_type = 'bonus';
                     
-                    if (selectedBonusCourseId) {
-                        await checkAndAutoEnrollBonusCourses([selectedBonusCourseId]);
-                    }
+                    updateBonusRuleBadgeUI();
 
                     Swal.fire({ icon: 'success', title: 'บันทึกเงื่อนไขคอร์สแถมสำเร็จ!', timer: 2000, showConfirmButton: false });
                 } else {
