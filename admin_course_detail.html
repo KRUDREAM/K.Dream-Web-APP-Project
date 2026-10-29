@@ -580,38 +580,45 @@
         }
 
         // ระบบออโต้ประเมินและดึงนักเรียนเข้าคอร์สแถมตามเงื่อนไขอัตโนมัติ
-        async function evaluateAndAutoEnrollSingleBonusCourse(bonusCourse) {
+async function evaluateAndAutoEnrollSingleBonusCourse(bonusCourse) {
             try {
                 const prereqIds = bonusCourse.prerequisite_course_ids || [];
                 const ruleType = bonusCourse.bonus_rule_type || 'any';
                 const bonusId = bonusCourse.id;
 
+                if (prereqIds.length === 0) return;
+
+                // ดึงข้อมูลการลงทะเบียนทั้งหมดในระบบมาเทียบ
                 const { data: allEnrolls } = await mySupabase.from('enrollments').select('course_id, student_id');
                 if (!allEnrolls) return;
 
+                // จัดกลุ่มคอร์สที่นักเรียนแต่ละคนลงทะเบียนแล้ว
                 let studentCoursesMap = {};
                 allEnrolls.forEach(en => {
-                    const sId = String(en.student_id);
+                    const sId = String(en.student_id || en.user_id);
                     const cId = String(en.course_id);
                     if (!studentCoursesMap[sId]) studentCoursesMap[sId] = new Set();
                     studentCoursesMap[sId].add(cId);
                 });
 
+                // วนลูปตรวจสอบนักเรียนแต่ละคน
                 for (const [sId, enrolledSet] of Object.entries(studentCoursesMap)) {
                     let qualified = false;
                     if (ruleType === 'any') {
                         qualified = prereqIds.some(pId => enrolledSet.has(String(pId)));
-                    } else { 
+                    } else { // กรณีแบบ 'all' (ต้องครบทุกคอร์ส)
                         qualified = prereqIds.every(pId => enrolledSet.has(String(pId)));
                     }
 
                     if (qualified) {
+                        // ถ้าผ่านเงื่อนไข แต่ยังไม่มีคอร์สแถมนี้ ให้ระบบ Insert ลงตาราง enrollments ให้ทันที
                         if (!enrolledSet.has(String(bonusId))) {
                             await mySupabase.from('enrollments').insert([{
                                 course_id: bonusId,
                                 student_id: sId,
                                 created_at: new Date().toISOString()
                             }]);
+                            console.log(`Auto-enrolled student ${sId} into bonus course ${bonusId}`);
                         }
                     }
                 }
@@ -619,7 +626,7 @@
                 console.error("Evaluate Bonus Course Error:", e);
             }
         }
-
+        
         let systemNotifications = [];
         async function loadSystemNotifications() {
             try {
@@ -785,13 +792,14 @@
             }
         }
 
-        async function saveEnrolledStudentsBatch() {
+async function saveEnrolledStudentsBatch() {
             if (!window.globalAllStudents) return;
             Swal.showLoading();
 
             try {
                 let addedCount = 0;
                 let removedCount = 0;
+                let newlyEnrolledStudentIds = []; // เก็บรายชื่อนักเรียนที่เพิ่งถูกเพิ่มเข้ามาใหม่
 
                 for (const item of window.globalAllStudents) {
                     const shouldBeEnrolled = item.temporaryChecked;
@@ -805,6 +813,7 @@
 
                         if (!insErr) {
                             addedCount++;
+                            newlyEnrolledStudentIds.push(item.studentId);
                         }
                     } else if (!shouldBeEnrolled && item.isEnrolled) {
                         await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
@@ -815,12 +824,15 @@
                     }
                 }
 
-                // ตรวจสอบและออโต้ดึงเข้าคอร์สแถมที่เกี่ยวข้องทันที
+                // 🌟 ระบบออโต้เช็คคอร์สแถมที่ผูกเงื่อนไขกับคอร์สนี้ แล้วดึงนักเรียนเข้าคอร์สแถมให้อัตโนมัติทันที
                 const { data: allOtherCourses } = await mySupabase.from('courses').select('id, course_type, prerequisite_course_ids, bonus_rule_type');
                 if (allOtherCourses) {
                     for (const oc of allOtherCourses) {
-                        if (oc.course_type === 'bonus' && oc.prerequisite_course_ids && oc.prerequisite_course_ids.includes(String(courseId))) {
-                            await evaluateAndAutoEnrollSingleBonusCourse(oc);
+                        if (oc.course_type === 'bonus' && oc.prerequisite_course_ids && oc.prerequisite_course_ids.length > 0) {
+                            // ถ้าคอร์สนี้เป็นเงื่อนไขของคอร์สแถมใด ให้สั่งประเมินผลทันที
+                            if (oc.prerequisite_course_ids.includes(String(courseId))) {
+                                await evaluateAndAutoEnrollSingleBonusCourse(oc);
+                            }
                         }
                     }
                 }
