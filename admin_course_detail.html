@@ -1,13 +1,26 @@
 <!DOCTYPE html>
 <html lang="th" class="light">
 <head>
-    <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS | รายละเอียดและสถิติวิเคราะห์คอร์ส</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- โหลด Tailwind CSS และกำหนด Config ล่วงหน้าเพื่อป้องกัน Uncaught ReferenceError -->
     <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.10/tailwindcss.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] },
+                    colors: { primary: '#0284c7', darkbg: '#020617', darkbox: '#090d16', darkinput: '#0f172a' }
+                }
+            }
+        }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -26,19 +39,6 @@
             if (!hasSession && !fallbackId) { window.location.replace('index.html'); }
         })();
     </script>
-<script src="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.10/tailwindcss.js"></script>
-<script>
-    // ตั้งค่ากำหนดค่า Tailwind ล่วงหน้า ป้องกัน Error กรณีโหลดไม่ทัน
-    tailwind.config = {
-        darkMode: 'class',
-        theme: {
-            extend: {
-                fontFamily: { sans: ['Prompt', 'sans-serif'] },
-                colors: { primary: '#0284c7', darkbg: '#020617', darkbox: '#090d16', darkinput: '#0f172a' }
-            }
-        }
-    }
-</script>
     <style>
         body { font-family: 'Prompt', sans-serif; }
         .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(186, 230, 253, 0.4); }
@@ -421,7 +421,6 @@
                 }
                 currentCourse = courseData;
 
-                // ดึงรายการคอร์สทั้งหมดไว้ใช้เลือกทำคอร์สแถม
                 const { data: coursesRes } = await mySupabase.from('courses').select('id, title, course_code');
                 allCoursesList = coursesRes || [];
 
@@ -429,7 +428,6 @@
                 document.getElementById('headerCourseTitle').textContent = currentCourse.title;
                 document.getElementById('headerCourseDesc').textContent = currentCourse.description || 'ไม่มีรายละเอียดคำอธิบายคอร์ส';
 
-                // ตรวจสอบว่าคอร์スนี้มีตั้งค่าเงื่อนไขคอร์สแถมไว้หรือไม่
                 updateBonusRuleBadgeUI();
 
                 await loadLessons();
@@ -492,7 +490,6 @@
         function updateBonusRuleBadgeUI() {
             const badge = document.getElementById('bonusRuleBadge');
             if (!badge) return;
-            // ตรวจสอบจาก metadata หรือ column เช่น bonus_course_id ในตาราง courses
             if (currentCourse && currentCourse.bonus_course_id) {
                 badge.classList.remove('hidden');
                 badge.classList.add('flex');
@@ -502,7 +499,6 @@
             }
         }
 
-        // 🌟 [เพิ่มใหม่] ฟังก์ชันเปิด Modal ตั้งค่าคอร์สแถมอัตโนมัติ
         async function openBonusCourseSettingsModal() {
             const isDark = document.documentElement.classList.contains('dark');
             const currentBonusId = currentCourse.bonus_course_id || '';
@@ -545,7 +541,6 @@
             if (selectedBonusCourseId !== undefined) {
                 Swal.fire({ title: 'กำลังบันทึกเงื่อนไข...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 
-                // บันทึกลงตาราง courses ในฐานข้อมูล (สมมติเก็บคอลัมน์ bonus_course_id)
                 const { error } = await mySupabase
                     .from('courses')
                     .update({ bonus_course_id: selectedBonusCourseId || null })
@@ -555,7 +550,6 @@
                     currentCourse.bonus_course_id = selectedBonusCourseId || null;
                     updateBonusRuleBadgeUI();
                     
-                    // หากเลือกคอร์สแถมไว้ ให้รันตรวจจับและลงทะเบียนทันทีสำหรับนักเรียนที่มีอยู่แล้ว
                     if (selectedBonusCourseId) {
                         await checkAndAutoEnrollBonusCourses([selectedBonusCourseId]);
                     }
@@ -567,20 +561,16 @@
             }
         }
 
-        // 🌟 [เพิ่มใหม่] ฟังก์ชันตรวจสอบเงื่อนไขและลงทะเบียนคอร์สแถมให้อัตโนมัติแบบแบตช์
         async function checkAndAutoEnrollBonusCourses(bonusCourseIds) {
             if (!bonusCourseIds || bonusCourseIds.length === 0) return;
             
             try {
-                // ดึงรายชื่อนักเรียนที่อยู่ในคอร์สหลักปัจจุบัน
                 let activeStudentIds = [...courseEnrolledStudentIds];
                 if (activeStudentIds.length === 0) return;
 
                 for (const bId of bonusCourseIds) {
                     if (!bId) continue;
-                    // ตรวจสอบว่านักเรียนคนใดบ้างที่ยังไม่ได้ลงทะเบียนในคอร์สแถมนี้
                     for (const sId of activeStudentIds) {
-                        // เช็คว่ามีใน course_enrollments หรือ enrollments ของคอร์สแถมรึยัง
                         let { data: existing } = await mySupabase
                             .from('course_enrollments')
                             .select('id')
@@ -598,7 +588,6 @@
                             existing = existingAlt;
                         }
 
-                        // ถ้ายังไม่มี ให้ลงทะเบียนให้อัตโนมัติทันที
                         if (!existing) {
                             await mySupabase.from('enrollments').insert([{
                                 course_id: bId,
@@ -1651,7 +1640,6 @@
                     }
                 }
 
-                // 🌟 ตรวจสอบและลงทะเบียนคอร์สแถม (Bonus Course) ให้อัตโนมัติทันที
                 if (currentCourse && currentCourse.bonus_course_id && newlyEnrolledStudentIds.length > 0) {
                     await checkAndAutoEnrollBonusCourses([currentCourse.bonus_course_id]);
                 }
