@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- โหลด Tailwind CSS และกำหนด Config ล่วงหน้าเพื่อป้องกัน Uncaught ReferenceError -->
+    <!-- 🌟 1. โหลด Tailwind และตั้งค่า Config ไว้บนสุดก่อนสคริปต์อื่นๆ เสมอ เพื่อป้องกัน Error -->
     <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.10/tailwindcss.js"></script>
     <script>
         tailwind.config = {
@@ -21,6 +21,8 @@
         }
     </script>
 
+    <!-- 2. ค่อยโหลดสคริปต์ระบบและไลบรารีอื่นๆ ตามลงมา -->
+    <script src="lms_core.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -128,7 +130,7 @@
                 <button onclick="openManageStudentsModal()" class="flex-1 lg:flex-none px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2">
                     <i class="fas fa-users-gear text-sm"></i> จัดการนักเรียน (<span id="enrolledCountBadge">0</span>)
                 </button>
-                <button onclick="openBonusCourseSettingsModal()" class="flex-1 lg:flex-none px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2" title="ตั้งค่าเงื่อนไขคอร์สแถมอัตโนมัติ">
+                <button onclick="openBonusCourseSettingsModal()" class="flex-1 lg:flex-none px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2" title="ตั้งค่าเงื่อนไขคอร์สแถม">
                     <i class="fas fa-gift text-sm"></i> ตั้งค่าคอร์สแถม
                 </button>
                 <button onclick="openAddLessonModal('video')" class="flex-1 lg:flex-none px-4 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-sky-500/25 transition-all flex items-center justify-center gap-2">
@@ -368,7 +370,7 @@
         let courseEnrolledStudentIds = [];
         let validStudentIds = new Set();
         let examQuestionsMap = {};
-        let allCoursesList = []; // รายการคอร์สทั้งหมดสำหรับเลือกทำคอร์สแถม
+        let allCoursesList = []; 
 
         let chart1 = null, chartRadar = null, chart2 = null, chart3 = null, chart4 = null;
 
@@ -512,11 +514,11 @@
             });
 
             const { value: selectedBonusCourseId } = await Swal.fire({
-                title: '🎁 ตั้งค่าเงื่อนไขคอร์สแถมอัตโนมัติ (Auto-Enroll Bonus Course)',
+                title: '🎁 ตั้งค่าเงื่อนไขคอร์สแถมอัตโนมัติ',
                 html: `
                     <div class="space-y-4 text-left text-xs">
                         <p class="text-slate-600 dark:text-slate-300">
-                            เมื่อตั้งค่าคอร์สแถมนี้แล้ว <strong>ระบบจะตรวจสอบและลงทะเบียนนักเรียนเข้าคอร์สแถมให้อัตโนมัติ</strong> ทันทีที่มีการบันทึกรายชื่อนักเรียนในคอร์สหลักนี้ โดยแอดมินไม่ต้องทำงานซ้ำซ้อน
+                            เมื่อตั้งค่าคอร์สแถมนี้แล้ว <strong>ระบบจะตรวจสอบและลงทะเบียนนักเรียนเข้าคอร์สแถมให้อัตโนมัติ</strong> ทันทีที่มีการบันทึกรายชื่อนักเรียนในคอร์สหลักนี้
                         </p>
                         <div>
                             <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">เลือกคอร์สที่จะแถมฟรีอัตโนมัติ:</label>
@@ -554,7 +556,7 @@
                         await checkAndAutoEnrollBonusCourses([selectedBonusCourseId]);
                     }
 
-                    Swal.fire({ icon: 'success', title: 'บันทึกเงื่อนไขคอร์สแถมสำเร็จ!', text: selectedBonusCourseId ? 'ระบบได้ตรวจสอบและลงทะเบียนคอร์สแถมให้นักเรียนปัจจุบันอัตโนมัติเรียบร้อยแล้ว' : 'ปิดการใช้งานคอร์สแถมแล้ว', timer: 2000, showConfirmButton: false });
+                    Swal.fire({ icon: 'success', title: 'บันทึกเงื่อนไขคอร์สแถมสำเร็จ!', timer: 2000, showConfirmButton: false });
                 } else {
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
                 }
@@ -563,7 +565,6 @@
 
         async function checkAndAutoEnrollBonusCourses(bonusCourseIds) {
             if (!bonusCourseIds || bonusCourseIds.length === 0) return;
-            
             try {
                 let activeStudentIds = [...courseEnrolledStudentIds];
                 if (activeStudentIds.length === 0) return;
@@ -612,7 +613,6 @@
                     .limit(20);
 
                 if (error) {
-                    console.error("Error loading announcements:", error);
                     systemNotifications = [];
                 } else {
                     systemNotifications = (announcements || []).map(item => ({
@@ -1169,7 +1169,7 @@
                             <input id="swalLessonTitle" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold" placeholder="${isVideo ? 'เช่น EP.1 แนะนำพื้นฐานอัลกอริทึม' : 'เช่น สไลด์บรรยายบทที่ 1 (PDF)'}">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">${isVideo ? 'Bunny Video ID (รหัสยาวๆ จาก Bunny Dashboard)' : 'ลิงก์ไฟล์ PDF (Google Drive / URL)'} <span class="text-red-500">*</span></label>
+                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">${isVideo ? 'Bunny Video ID' : 'ลิงก์ไฟล์ PDF'} <span class="text-red-500">*</span></label>
                             <input id="swalLessonUrl" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-mono" placeholder="${isVideo ? 'เช่น e2e146be-d370-444f-891b-e1692e950e4f' : 'https://drive.google.com/...'}">
                         </div>
                     </div>
@@ -1209,35 +1209,7 @@
                 
                 if (!error) {
                     Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1000, showConfirmButton: false });
-
-                    const announcementTitle = formValues.isVideo 
-                        ? `🎬 มีวิดีโอย้อนหลังใหม่: ${formValues.title}` 
-                        : `📁 มีเอกสาร PDF ใหม่: ${formValues.title}`;
-                    
-                    const announcementContent = `อัปเดตเนื้อหาใหม่ในคอร์ส: ${currentCourse ? currentCourse.title : 'คอร์สเรียน'}`;
-
-                    if (typeof autoPostAnnouncement === 'function') {
-                        autoPostAnnouncement(
-                            formValues.isVideo ? 'video' : 'document', 
-                            announcementTitle, 
-                            announcementContent, 
-                            'course', 
-                            courseId
-                        ).catch(err => console.error("Auto post announcement error:", err));
-                    }
-
-                    if (typeof logSystemAction === 'function') {
-                        logSystemAction(
-                            'ADMIN_ADD_COURSE_LESSON', 
-                            `แอดมินเพิ่ม${formValues.isVideo ? 'วิดีโอ' : 'เอกสาร'} "${formValues.title}" ในคอร์ส`, 
-                            { course_id: courseId, title: formValues.title }
-                        ).catch(err => console.error("Log error:", err));
-                    }
-
                     loadLessons();
-                    if (typeof loadSystemNotifications === 'function') {
-                        loadSystemNotifications();
-                    }
                 } else {
                     Swal.fire('บันทึกล้มเหลว', `<code class="text-xs text-red-400 font-mono">${error.message}</code>`, 'error');
                 }
@@ -1290,15 +1262,6 @@
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
                     return;
                 }
-
-                if (typeof logSystemAction === 'function') {
-                    await logSystemAction(
-                        'ADMIN_UPDATE_COURSE_LESSON', 
-                        `แอดมินแก้ไขวิดีโอ "${formValues.title}" ในคอร์ส (${currentCourse ? currentCourse.title : courseId})`, 
-                        { course_id: courseId, lesson_id: videoId, title: formValues.title }
-                    );
-                }
-
                 Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลสำเร็จ!', timer: 1200, showConfirmButton: false });
                 loadLessons();
             }
@@ -1313,7 +1276,7 @@
             const safeUrl = currentUrl.replace(/"/g, '&quot;');
 
             const { value: formValues } = await Swal.fire({
-                title: '✏️ แก้ไขลิงก์เอกสารประกอบการเรียน',
+                title: '✏️ แก้ไขลิงก์เอกสาร',
                 width: '550px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
@@ -1351,15 +1314,6 @@
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
                     return;
                 }
-
-                if (typeof logSystemAction === 'function') {
-                    await logSystemAction(
-                        'ADMIN_UPDATE_COURSE_LESSON', 
-                        `แอดมินแก้ไขเอกสาร "${formValues.title}" ในคอร์ส (${currentCourse ? currentCourse.title : courseId})`, 
-                        { course_id: courseId, lesson_id: fileId, title: formValues.title }
-                    );
-                }
-
                 Swal.fire({ icon: 'success', title: 'อัปเดตไฟล์เอกสารสำเร็จ!', timer: 1200, showConfirmButton: false });
                 loadLessons();
             }
@@ -1368,19 +1322,7 @@
         async function deleteLesson(id) {
             const res = await Swal.fire({ title: 'ยืนยันลบรายการนี้?', text: 'การลบจะไม่สามารถกู้คืนได้', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ยืนยันลบ', cancelButtonText: 'ยกเลิก' });
             if (res.isConfirmed) {
-                const lessonToDelete = courseLessons.find(l => String(l.id) === String(id));
-                const lessonTitle = lessonToDelete ? lessonToDelete.title : id;
-
-                const { error } = await mySupabase.from('course_lessons').delete().eq('id', id);
-                if (!error) {
-                    if (typeof logSystemAction === 'function') {
-                        await logSystemAction(
-                            'ADMIN_DELETE_COURSE_LESSON', 
-                            `แอดมินลบบทเรียน/เอกสาร "${lessonTitle}" จากคอร์ส (${currentCourse ? currentCourse.title : courseId})`, 
-                            { course_id: courseId, lesson_id: id, title: lessonTitle }
-                        );
-                    }
-                }
+                await mySupabase.from('course_lessons').delete().eq('id', id);
                 loadLessons();
                 Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false });
             }
@@ -1536,15 +1478,11 @@
                         <div class="flex flex-col sm:flex-row gap-2.5 justify-between items-center">
                             <div class="relative flex-1 w-full">
                                 <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400"><i class="fas fa-search text-xs"></i></span>
-                                <input type="text" id="studentSearchBox" oninput="renderStudentListModalUI()" placeholder="พิมพ์ค้นหา Username, ชื่อ, ชื่อเล่น, ระดับชั้น หรือโรงเรียน..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold">
+                                <input type="text" id="studentSearchBox" oninput="renderStudentListModalUI()" placeholder="พิมพ์ค้นหา Username, ชื่อ, ชื่อเล่น..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold">
                             </div>
                             <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-                                <button type="button" onclick="massCheckCheckboxes(true)" class="flex-1 sm:flex-none px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-purple-600 hover:text-white text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-all shadow-sm">
-                                    เลือกทั้งหมด
-                                </button>
-                                <button type="button" onclick="massCheckCheckboxes(false)" class="flex-1 sm:flex-none px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-all shadow-sm">
-                                    ยกเลิกทั้งหมด
-                                </button>
+                                <button type="button" onclick="massCheckCheckboxes(true)" class="flex-1 sm:flex-none px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-purple-600 hover:text-white text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-all shadow-sm">เลือกทั้งหมด</button>
+                                <button type="button" onclick="massCheckCheckboxes(false)" class="flex-1 sm:flex-none px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-all shadow-sm">ยกเลิกทั้งหมด</button>
                             </div>
                         </div>
                         <div class="max-h-[48vh] overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
@@ -1552,21 +1490,11 @@
                                 <thead class="sticky top-0 bg-slate-100 dark:bg-slate-900 z-10">
                                     <tr class="font-bold border-b dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs">
                                         <th class="p-3.5 text-center w-12">เลือก</th>
-                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('username')">
-                                            Username <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i>
-                                        </th>
-                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('fullName')">
-                                            ชื่อ - นามสกุล <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i>
-                                        </th>
-                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('nickname')">
-                                            ชื่อเล่น <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i>
-                                        </th>
-                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('gradeLevel')">
-                                            ระดับชั้น / โรงเรียน <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i>
-                                        </th>
-                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('created_at')">
-                                            วันเวลาสมัคร <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i>
-                                        </th>
+                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('username')">Username <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i></th>
+                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('fullName')">ชื่อ - นามสกุล <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i></th>
+                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('nickname')">ชื่อเล่น <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i></th>
+                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('gradeLevel')">ระดับชั้น / โรงเรียน <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i></th>
+                                        <th class="p-3.5 sortable-th" onclick="setStudentSort('created_at')">วันเวลาสมัคร <i class="fas fa-sort text-[10px] ml-1 text-slate-400"></i></th>
                                     </tr>
                                 </thead>
                                 <tbody id="studentTableBody">${rowsHtml}</tbody>
@@ -1642,14 +1570,6 @@
 
                 if (currentCourse && currentCourse.bonus_course_id && newlyEnrolledStudentIds.length > 0) {
                     await checkAndAutoEnrollBonusCourses([currentCourse.bonus_course_id]);
-                }
-
-                if (typeof logSystemAction === 'function') {
-                    await logSystemAction(
-                        'ADMIN_MANAGE_COURSE_STUDENTS', 
-                        `แอดมินอัปเดตรายชื่อนักเรียนในคอร์ส (${currentCourse ? currentCourse.title : courseId}) [เพิ่ม: ${addedCount} คน, เอาออก: ${removedCount} คน]`, 
-                        { course_id: courseId, added_count: addedCount, removed_count: removedCount }
-                    );
                 }
 
                 return true;
