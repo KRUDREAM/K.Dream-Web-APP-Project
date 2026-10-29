@@ -703,22 +703,20 @@ async function openBonusCourseSettingsModal() {
             renderFiles(files);
         }
 
-        async function loadEnrolledStudents() {
+async function loadEnrolledStudents() {
             try {
+                // บังคับดึงข้อมูลและนับจากตาราง enrollments เท่านั้น ตามที่ต้องการ
                 let { data, error } = await mySupabase
-                    .from('course_enrollments')
+                    .from('enrollments')
                     .select('*')
                     .eq('course_id', courseId);
 
-                if (error || !data) {
-                    const fallbackRes = await mySupabase
-                        .from('enrollments')
-                        .select('*')
-                        .eq('course_id', courseId);
-                    data = fallbackRes.data || [];
+                if (error) {
+                    console.error("Error loading enrollments:", error);
+                    data = [];
                 }
 
-                courseEnrolledStudentIds = data.map(item => String(item.student_id || item.user_id)).filter(Boolean);
+                courseEnrolledStudentIds = (data || []).map(item => String(item.student_id || item.user_id)).filter(Boolean);
                 const totalCount = courseEnrolledStudentIds.length;
 
                 const countEl = document.getElementById('courseEnrolledStudentsCount');
@@ -729,6 +727,109 @@ async function openBonusCourseSettingsModal() {
 
             } catch (e) {
                 console.error("Error loading enrolled students count:", e);
+            }
+        }
+
+        async function openManageStudentsModal() {
+            Swal.fire({ title: 'กำลังโหลดรายชื่อนักเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                let studentsList = [];
+                const { data: profiles, error } = await mySupabase.rpc('get_students_with_auth_created');
+                if (error) {
+                    const { data: fallbackProfiles } = await mySupabase.from('profiles').select('*');
+                    if (fallbackProfiles) {
+                        studentsList = fallbackProfiles.filter(p => !isUserAdmin(p));
+                    }
+                } else if (profiles) {
+                    studentsList = profiles.filter(p => !isUserAdmin(p));
+                }
+
+                let enrolledMap = {};
+                // อ้างอิงตรวจสอบการลงทะเบียนจากตาราง enrollments เท่านั้น
+                const { data: enData } = await mySupabase.from('enrollments').select('*').eq('course_id', courseId);
+                if (enData) {
+                    enData.forEach(en => { 
+                        const sId = String(en.student_id || en.user_id || '');
+                        if (sId) enrolledMap[sId] = en.id;
+                    });
+                }
+
+                window.globalAllStudents = studentsList.map(p => {
+                    const sId = String(p.id || p.user_id || p.student_id);
+                    const fullName = p.full_name || p.name || p.username || `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.display_name || 'ไม่ระบุชื่อ';
+                    const username = p.username || p.student_id || p.code || '-';
+                    const nickname = p.nickname || '-';
+                    const gradeLevel = p.grade_level || p.grade || p.level || '-';
+                    const school = p.school || '-';
+                    const createdAt = p.created_at || p.registered_at || '1970-01-01T00:00:00Z';
+                    
+                    const isEnrolled = !!enrolledMap[sId];
+                    return { 
+                        studentId: sId, 
+                        fullName, 
+                        username, 
+                        nickname, 
+                        gradeLevel, 
+                        school, 
+                        createdAt, 
+                        isEnrolled, 
+                        temporaryChecked: isEnrolled, 
+                        enrollId: enrolledMap[sId] || null 
+                    };
+                });
+
+                renderStudentListModalUI();
+
+            } catch (err) {
+                console.error("Manage Students Error:", err);
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดรายชื่อนักเรียนได้', 'error');
+            }
+        }
+
+        async function saveEnrolledStudentsBatch() {
+            if (!window.globalAllStudents) return;
+            Swal.showLoading();
+
+            try {
+                let addedCount = 0;
+                let removedCount = 0;
+                let newlyEnrolledStudentIds = [];
+
+                for (const item of window.globalAllStudents) {
+                    const shouldBeEnrolled = item.temporaryChecked;
+
+                    if (shouldBeEnrolled && !item.isEnrolled) {
+                        // บันทึกการลงทะเบียนเข้าสู่ตาราง enrollments เท่านั้น
+                        const { error: insErr } = await mySupabase.from('enrollments').insert([{ 
+                            course_id: courseId, 
+                            student_id: item.studentId, 
+                            created_at: new Date().toISOString() 
+                        }]);
+
+                        if (!insErr) {
+                            addedCount++;
+                            newlyEnrolledStudentIds.push(item.studentId);
+                        }
+                    } else if (!shouldBeEnrolled && item.isEnrolled) {
+                        // ลบข้อมูลออกจากตาราง enrollments เท่านั้น
+                        await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
+                        if (item.enrollId) {
+                            await mySupabase.from('enrollments').delete().eq('id', item.enrollId);
+                        }
+                        removedCount++;
+                    }
+                }
+
+                if (currentCourse && currentCourse.bonus_course_id && newlyEnrolledStudentIds.length > 0) {
+                    await checkAndAutoEnrollBonusCourses([currentCourse.bonus_course_id]);
+                }
+
+                return true;
+            } catch (err) {
+                console.error("Save Batch Error:", err);
+                Swal.showValidationMessage(`เกิดข้อผิดพลาด: ${err.message}`);
+                return false;
             }
         }
         
@@ -1345,66 +1446,6 @@ async function openBonusCourseSettingsModal() {
             }
         }
 
-        async function openManageStudentsModal() {
-            Swal.fire({ title: 'กำลังโหลดรายชื่อนักเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-            try {
-                let studentsList = [];
-                const { data: profiles, error } = await mySupabase.rpc('get_students_with_auth_created');
-                if (error) {
-                    const { data: fallbackProfiles } = await mySupabase.from('profiles').select('*');
-                    if (fallbackProfiles) {
-                        studentsList = fallbackProfiles.filter(p => !isUserAdmin(p));
-                    }
-                } else if (profiles) {
-                    studentsList = profiles.filter(p => !isUserAdmin(p));
-                }
-
-                let enrolledMap = {};
-                const { data: en1 } = await mySupabase.from('course_enrollments').select('*').eq('course_id', courseId);
-                if (en1) en1.forEach(en => { 
-                    if (en.student_id) enrolledMap[String(en.student_id)] = en.id;
-                    if (en.user_id) enrolledMap[String(en.user_id)] = en.id;
-                });
-
-                const { data: en2 } = await mySupabase.from('enrollments').select('*').eq('course_id', courseId);
-                if (en2) en2.forEach(en => { 
-                    if (en.student_id) enrolledMap[String(en.student_id)] = en.id;
-                    if (en.user_id) enrolledMap[String(en.user_id)] = en.id;
-                });
-
-                window.globalAllStudents = studentsList.map(p => {
-                    const sId = String(p.id || p.user_id || p.student_id);
-                    const fullName = p.full_name || p.name || p.username || `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.display_name || 'ไม่ระบุชื่อ';
-                    const username = p.username || p.student_id || p.code || '-';
-                    const nickname = p.nickname || '-';
-                    const gradeLevel = p.grade_level || p.grade || p.level || '-';
-                    const school = p.school || '-';
-                    const createdAt = p.created_at || p.registered_at || '1970-01-01T00:00:00Z';
-                    
-                    const isEnrolled = !!enrolledMap[sId];
-                    return { 
-                        studentId: sId, 
-                        fullName, 
-                        username, 
-                        nickname, 
-                        gradeLevel, 
-                        school, 
-                        createdAt, 
-                        isEnrolled, 
-                        temporaryChecked: isEnrolled, 
-                        enrollId: enrolledMap[sId] || null 
-                    };
-                });
-
-                renderStudentListModalUI();
-
-            } catch (err) {
-                console.error("Manage Students Error:", err);
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดรายชื่อนักเรียนได้', 'error');
-            }
-        }
-
         let currentStudentSortField = 'created_at';
         let currentStudentSortOrder = 'asc';
 
@@ -1556,46 +1597,6 @@ async function openBonusCourseSettingsModal() {
             });
         }
 
-        async function saveEnrolledStudentsBatch() {
-            if (!window.globalAllStudents) return;
-            Swal.showLoading();
-
-            try {
-                let addedCount = 0;
-                let removedCount = 0;
-                let newlyEnrolledStudentIds = [];
-
-                for (const item of window.globalAllStudents) {
-                    const shouldBeEnrolled = item.temporaryChecked;
-
-                    if (shouldBeEnrolled && !item.isEnrolled) {
-                        let insRes = await mySupabase.from('enrollments').insert([{ course_id: courseId, student_id: item.studentId, created_at: new Date().toISOString() }]).select();
-                        if (insRes.error) {
-                            await mySupabase.from('course_enrollments').insert([{ course_id: courseId, student_id: item.studentId, created_at: new Date().toISOString() }]);
-                        }
-                        addedCount++;
-                        newlyEnrolledStudentIds.push(item.studentId);
-                    } else if (!shouldBeEnrolled && item.isEnrolled) {
-                        await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
-                        await mySupabase.from('course_enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
-                        if (item.enrollId) {
-                            await mySupabase.from('enrollments').delete().eq('id', item.enrollId);
-                        }
-                        removedCount++;
-                    }
-                }
-
-                if (currentCourse && currentCourse.bonus_course_id && newlyEnrolledStudentIds.length > 0) {
-                    await checkAndAutoEnrollBonusCourses([currentCourse.bonus_course_id]);
-                }
-
-                return true;
-            } catch (err) {
-                console.error("Save Batch Error:", err);
-                Swal.showValidationMessage(`เกิดข้อผิดพลาด: ${err.message}`);
-                return false;
-            }
-        }
 
         initCourseDetail();
     </script>
