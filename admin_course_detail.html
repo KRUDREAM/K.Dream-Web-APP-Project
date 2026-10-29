@@ -7,7 +7,7 @@
     <title>LMS | รายละเอียดและสถิติวิเคราะห์คอร์ส</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.10/tailwindcss.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -114,6 +114,9 @@
                     <span class="px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-500/20 flex items-center gap-1">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> เปิดใช้งานปกติ
                     </span>
+                    <span id="bonusRuleBadge" class="hidden px-3 py-1 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs border border-amber-500/20 items-center gap-1">
+                        <i class="fas fa-gift"></i> มีเงื่อนไขคอร์สแถมอัตโนมัติ
+                    </span>
                 </div>
                 <h2 id="headerCourseTitle" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">กำลังโหลดคอร์สเรียน...</h2>
                 <p id="headerCourseDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">กำลังดึงข้อมูลเนื้อหาและสถิติ...</p>
@@ -122,6 +125,9 @@
             <div class="flex items-center gap-2.5 shrink-0 flex-wrap z-10 w-full lg:w-auto">
                 <button onclick="openManageStudentsModal()" class="flex-1 lg:flex-none px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2">
                     <i class="fas fa-users-gear text-sm"></i> จัดการนักเรียน (<span id="enrolledCountBadge">0</span>)
+                </button>
+                <button onclick="openBonusCourseSettingsModal()" class="flex-1 lg:flex-none px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2" title="ตั้งค่าเงื่อนไขคอร์สแถมอัตโนมัติ">
+                    <i class="fas fa-gift text-sm"></i> ตั้งค่าคอร์สแถม
                 </button>
                 <button onclick="openAddLessonModal('video')" class="flex-1 lg:flex-none px-4 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-sky-500/25 transition-all flex items-center justify-center gap-2">
                     <i class="fas fa-video text-sm"></i> เพิ่มวิดีโอ Bunny
@@ -360,6 +366,7 @@
         let courseEnrolledStudentIds = [];
         let validStudentIds = new Set();
         let examQuestionsMap = {};
+        let allCoursesList = []; // รายการคอร์สทั้งหมดสำหรับเลือกทำคอร์สแถม
 
         let chart1 = null, chartRadar = null, chart2 = null, chart3 = null, chart4 = null;
 
@@ -412,9 +419,16 @@
                 }
                 currentCourse = courseData;
 
+                // ดึงรายการคอร์สทั้งหมดไว้ใช้เลือกทำคอร์สแถม
+                const { data: coursesRes } = await mySupabase.from('courses').select('id, title, course_code');
+                allCoursesList = coursesRes || [];
+
                 document.getElementById('courseCodeBadge').textContent = currentCourse.course_code || 'COURSE';
                 document.getElementById('headerCourseTitle').textContent = currentCourse.title;
                 document.getElementById('headerCourseDesc').textContent = currentCourse.description || 'ไม่มีรายละเอียดคำอธิบายคอร์ส';
+
+                // ตรวจสอบว่าคอร์スนี้มีตั้งค่าเงื่อนไขคอร์สแถมไว้หรือไม่
+                updateBonusRuleBadgeUI();
 
                 await loadLessons();
 
@@ -470,6 +484,130 @@
             } catch (err) {
                 console.error("Init Error:", err);
                 Swal.close();
+            }
+        }
+
+        function updateBonusRuleBadgeUI() {
+            const badge = document.getElementById('bonusRuleBadge');
+            if (!badge) return;
+            // ตรวจสอบจาก metadata หรือ column เช่น bonus_course_id ในตาราง courses
+            if (currentCourse && currentCourse.bonus_course_id) {
+                badge.classList.remove('hidden');
+                badge.classList.add('flex');
+            } else {
+                badge.classList.add('hidden');
+                badge.classList.remove('flex');
+            }
+        }
+
+        // 🌟 [เพิ่มใหม่] ฟังก์ชันเปิด Modal ตั้งค่าคอร์สแถมอัตโนมัติ
+        async function openBonusCourseSettingsModal() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const currentBonusId = currentCourse.bonus_course_id || '';
+
+            let courseOptionsHtml = `<option value="">-- ไม่เปิดใช้งานคอร์สแถมอัตโนมัติ --</option>`;
+            allCoursesList.forEach(c => {
+                if (String(c.id) !== String(courseId)) {
+                    const selected = String(c.id) === String(currentBonusId) ? 'selected' : '';
+                    courseOptionsHtml += `<option value="${c.id}" ${selected}>[${c.course_code || 'COURSE'}] ${c.title}</option>`;
+                }
+            });
+
+            const { value: selectedBonusCourseId } = await Swal.fire({
+                title: '🎁 ตั้งค่าเงื่อนไขคอร์สแถมอัตโนมัติ (Auto-Enroll Bonus Course)',
+                html: `
+                    <div class="space-y-4 text-left text-xs">
+                        <p class="text-slate-600 dark:text-slate-300">
+                            เมื่อตั้งค่าคอร์สแถมนี้แล้ว <strong>ระบบจะตรวจสอบและลงทะเบียนนักเรียนเข้าคอร์สแถมให้อัตโนมัติ</strong> ทันทีที่มีการบันทึกรายชื่อนักเรียนในคอร์สหลักนี้ โดยแอดมินไม่ต้องทำงานซ้ำซ้อน
+                        </p>
+                        <div>
+                            <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">เลือกคอร์สที่จะแถมฟรีอัตโนมัติ:</label>
+                            <select id="swalBonusCourseSelect" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none font-bold">
+                                ${courseOptionsHtml}
+                            </select>
+                        </div>
+                    </div>
+                `,
+                width: '600px',
+                showCancelButton: true,
+                confirmButtonText: '💾 บันทึกเงื่อนไข',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#d97706',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                preConfirm: () => {
+                    return document.getElementById('swalBonusCourseSelect').value;
+                }
+            });
+
+            if (selectedBonusCourseId !== undefined) {
+                Swal.fire({ title: 'กำลังบันทึกเงื่อนไข...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                // บันทึกลงตาราง courses ในฐานข้อมูล (สมมติเก็บคอลัมน์ bonus_course_id)
+                const { error } = await mySupabase
+                    .from('courses')
+                    .update({ bonus_course_id: selectedBonusCourseId || null })
+                    .eq('id', courseId);
+
+                if (!error) {
+                    currentCourse.bonus_course_id = selectedBonusCourseId || null;
+                    updateBonusRuleBadgeUI();
+                    
+                    // หากเลือกคอร์สแถมไว้ ให้รันตรวจจับและลงทะเบียนทันทีสำหรับนักเรียนที่มีอยู่แล้ว
+                    if (selectedBonusCourseId) {
+                        await checkAndAutoEnrollBonusCourses([selectedBonusCourseId]);
+                    }
+
+                    Swal.fire({ icon: 'success', title: 'บันทึกเงื่อนไขคอร์สแถมสำเร็จ!', text: selectedBonusCourseId ? 'ระบบได้ตรวจสอบและลงทะเบียนคอร์สแถมให้นักเรียนปัจจุบันอัตโนมัติเรียบร้อยแล้ว' : 'ปิดการใช้งานคอร์สแถมแล้ว', timer: 2000, showConfirmButton: false });
+                } else {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                }
+            }
+        }
+
+        // 🌟 [เพิ่มใหม่] ฟังก์ชันตรวจสอบเงื่อนไขและลงทะเบียนคอร์สแถมให้อัตโนมัติแบบแบตช์
+        async function checkAndAutoEnrollBonusCourses(bonusCourseIds) {
+            if (!bonusCourseIds || bonusCourseIds.length === 0) return;
+            
+            try {
+                // ดึงรายชื่อนักเรียนที่อยู่ในคอร์สหลักปัจจุบัน
+                let activeStudentIds = [...courseEnrolledStudentIds];
+                if (activeStudentIds.length === 0) return;
+
+                for (const bId of bonusCourseIds) {
+                    if (!bId) continue;
+                    // ตรวจสอบว่านักเรียนคนใดบ้างที่ยังไม่ได้ลงทะเบียนในคอร์สแถมนี้
+                    for (const sId of activeStudentIds) {
+                        // เช็คว่ามีใน course_enrollments หรือ enrollments ของคอร์สแถมรึยัง
+                        let { data: existing } = await mySupabase
+                            .from('course_enrollments')
+                            .select('id')
+                            .eq('course_id', bId)
+                            .eq('student_id', sId)
+                            .maybeSingle();
+
+                        if (!existing) {
+                            let { data: existingAlt } = await mySupabase
+                                .from('enrollments')
+                                .select('id')
+                                .eq('course_id', bId)
+                                .eq('student_id', sId)
+                                .maybeSingle();
+                            existing = existingAlt;
+                        }
+
+                        // ถ้ายังไม่มี ให้ลงทะเบียนให้อัตโนมัติทันที
+                        if (!existing) {
+                            await mySupabase.from('enrollments').insert([{
+                                course_id: bId,
+                                student_id: sId,
+                                created_at: new Date().toISOString()
+                            }]).select();
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Auto Enroll Bonus Course Error:", err);
             }
         }
 
@@ -1489,6 +1627,8 @@
             try {
                 let addedCount = 0;
                 let removedCount = 0;
+                let newlyEnrolledStudentIds = [];
+
                 for (const item of window.globalAllStudents) {
                     const shouldBeEnrolled = item.temporaryChecked;
 
@@ -1498,6 +1638,7 @@
                             await mySupabase.from('course_enrollments').insert([{ course_id: courseId, student_id: item.studentId, created_at: new Date().toISOString() }]);
                         }
                         addedCount++;
+                        newlyEnrolledStudentIds.push(item.studentId);
                     } else if (!shouldBeEnrolled && item.isEnrolled) {
                         await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
                         await mySupabase.from('course_enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
@@ -1506,6 +1647,11 @@
                         }
                         removedCount++;
                     }
+                }
+
+                // 🌟 ตรวจสอบและลงทะเบียนคอร์สแถม (Bonus Course) ให้อัตโนมัติทันที
+                if (currentCourse && currentCourse.bonus_course_id && newlyEnrolledStudentIds.length > 0) {
+                    await checkAndAutoEnrollBonusCourses([currentCourse.bonus_course_id]);
                 }
 
                 if (typeof logSystemAction === 'function') {
