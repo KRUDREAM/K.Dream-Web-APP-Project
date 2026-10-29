@@ -843,7 +843,7 @@ async function triggerManualAutoEnroll() {
             }
         }
 
-        async function saveEnrolledStudentsBatch() {
+async function saveEnrolledStudentsBatch() {
             if (!window.globalAllStudents) return;
             Swal.showLoading();
 
@@ -865,7 +865,10 @@ async function triggerManualAutoEnroll() {
                             addedCount++;
                         }
                     } else if (!shouldBeEnrolled && item.isEnrolled) {
+                        // ป้องกันกรณีใช้ฟิลด์ user_id หรือ student_id ในตาราง enrollments
                         await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
+                        await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('user_id', item.studentId);
+                        
                         if (item.enrollId) {
                             await mySupabase.from('enrollments').delete().eq('id', item.enrollId);
                         }
