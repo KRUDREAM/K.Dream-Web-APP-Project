@@ -650,12 +650,12 @@ async function triggerManualAutoEnroll() {
                         }
 
                         if (qualified && !enrolledSet.has(bonusId)) {
-                            // ส่งข้อมูลลงตาราง โดยให้ Supabase จัดการเรื่อง Type UUID อัตโนมัติผ่านการส่งค่าพารากอนตรง ๆ
-                            const { error: insErr } = await mySupabase.from('enrollments').insert([{
+                            // 🌟 ใช้ .upsert() แทน .insert() และปล่อยให้ Supabase จัดการรูปแบบ UUID ผ่าน Payload ปกติ
+                            const { error: insErr } = await mySupabase.from('enrollments').upsert([{
                                 course_id: bonusCourse.id,
                                 student_id: sId,
                                 created_at: new Date().toISOString()
-                            }]);
+                            }], { onConflict: 'course_id, student_id' });
 
                             if (!insErr) {
                                 addedTotal++;
