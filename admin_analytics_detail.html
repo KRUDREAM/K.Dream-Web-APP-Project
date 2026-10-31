@@ -102,7 +102,7 @@
             </div>
         </div>
 
-        <!-- 5 Summary Cards (Submitted, Avg, Max, Median, Min) -->
+        <!-- 5 Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-emerald-500/50" onclick="openStudentListModal('submitted')">
                 <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-check-circle"></i></div>
@@ -367,13 +367,22 @@
             return null;
         }
 
-        // คำนวณเวลาที่ใช้: รองรับกรณี remaining_time ที่อาจจะเหลืออยู่ หรือหมดเวลา
+        // คำนวณเวลาที่ใช้: รองรับการดึง remaining_time อย่างแม่นยำ
         function calculateTimeSpentMinutes(att) {
             if (!att) return 0;
             
             const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
             
-            // หากมีบันทึก time_spent หรือ time_used ตรงๆ
+            // 1. ตรวจสอบค่า remaining_time ก่อนเป็นอันดับแรก (หากมีการบันทึกเวลาเหลือ)
+            if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
+                let rem = Number(att.remaining_time);
+                if (rem <= 0) return examDurationMinutes;
+                let remMinutes = rem > 120 ? rem / 60 : rem; // แปลงวินาทีเป็นนาทีหากมีค่ามากกว่า 120
+                let spent = examDurationMinutes - remMinutes;
+                return spent >= 0 ? spent : 0;
+            }
+
+            // 2. หากมี time_spent หรือ time_used ตรงๆ
             if (att.time_spent !== undefined && att.time_spent !== null && !isNaN(att.time_spent)) {
                 const val = Number(att.time_spent);
                 return val > 120 ? val / 60 : val;
@@ -383,25 +392,15 @@
                 return val > 120 ? val / 60 : val;
             }
 
-            // คำนวณจาก started_at ถึง submitted_at หรือเวลาปัจจุบัน
+            // 3. คำนวณจาก started_at ถึง submitted_at หรือปัจจุบัน
             const start = att.started_at || att.created_at || att.start_time;
-            const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at || new Date().toISOString();
+            const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at;
             if (start) {
-                const diffMs = new Date(end) - new Date(start);
+                const diffMs = new Date(end || new Date()) - new Date(start);
                 if (diffMs > 0) {
                     const mins = diffMs / (1000 * 60);
-                    // หากเวลาคำนวณเกินกำหนดของข้อสอบ ให้จำกัดไว้ไม่เกินเวลาสูงสุดของชุดข้อสอบ
                     return Math.min(mins, examDurationMinutes);
                 }
-            }
-
-            // หากมี remaining_time
-            if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
-                let rem = Number(att.remaining_time);
-                if (rem <= 0) return examDurationMinutes;
-                let remMinutes = rem > 120 ? rem / 60 : rem;
-                let spent = examDurationMinutes - remMinutes;
-                return spent > 0 ? spent : 0;
             }
 
             return 0;
@@ -527,7 +526,6 @@
             combinedStudentRows = studentMasterList.map(item => {
                 const att = attemptMap[item.studentId];
                 const hasAttempt = !!att;
-                // ตรวจสอบสถานะการส่งข้อสอบอย่างครอบคลุม (เช็ค status หรือถ้ามี total_score / score)
                 const isSubmitted = hasAttempt && (att.status === 'submitted' || (att.total_score !== undefined && att.total_score !== null) || (att.score !== undefined && att.score !== null));
                 const isInProgress = hasAttempt && !isSubmitted;
 
@@ -577,7 +575,6 @@
             let highestScore = globalScores.length > 0 ? Math.max(...globalScores) : 0;
             let lowestScore = globalScores.length > 0 ? Math.min(...globalScores) : 0;
 
-            // คำนวณค่ามัธยฐาน (Median)
             let medianScore = '0.0';
             if (globalScores.length > 0) {
                 let sortedScores = [...globalScores].sort((a, b) => a - b);
@@ -938,7 +935,9 @@
                 }
 
                 const scoreText = row.isSubmitted ? `<span class="font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${row.score} / ${globalMaxScore}</span>` : `<span class="text-slate-400">-</span>`;
-                const timeText = row.hasAttempt && row.minutesSpent > 0 ? `<span class="font-mono text-amber-600 dark:text-amber-400">${row.minutesSpent.toFixed(1)} นาที</span>` : `<span class="text-slate-400">-</span>`;
+                
+                // แก้ไขเงื่อนไขตรงนี้ จากเดิม row.minutesSpent > 0 เป็น row.minutesSpent >= 0 เพื่อให้แสดงผลได้แม้เพิ่งเริ่มทำหรือใช้เวลา 0 นาที
+                const timeText = row.hasAttempt ? `<span class="font-mono text-amber-600 dark:text-amber-400">${row.minutesSpent.toFixed(1)} นาที</span>` : `<span class="text-slate-400">-</span>`;
                 const dateText = row.isSubmitted && row.submittedAt ? new Date(row.submittedAt).toLocaleString('th-TH') : '-';
 
                 const actionBtn = row.isSubmitted && row.attempt
