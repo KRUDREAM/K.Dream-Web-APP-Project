@@ -103,7 +103,7 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-24 space-y-8">
         
-        <!-- Course Header Banner: ปรับแก้ Layout ให้กว้างเต็มตา ไม่บีบคำ -->
+        <!-- Course Header Banner -->
         <div class="hitech-card p-6 sm:p-8 rounded-3xl relative overflow-hidden space-y-6 border-l-8 border-l-purple-600 bg-gradient-to-br from-white via-purple-50/20 to-indigo-50/30 dark:from-darkbox dark:via-purple-950/10 dark:to-slate-900">
             <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl pointer-events-none"></div>
             
@@ -123,7 +123,7 @@
                 <p id="headerCourseDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-4xl">กำลังดึงข้อมูลเนื้อหาและสถิติ...</p>
             </div>
             
-            <!-- ปุ่มจัดการต่างๆ จัดเรียงใหม่เต็มความกว้าง ไม่เบียดกัน -->
+            <!-- Action Buttons -->
             <div class="flex items-center gap-2.5 flex-wrap z-10 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
                 <button onclick="openManageStudentsModal()" class="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2">
                     <i class="fas fa-users-gear text-sm"></i> จัดการนักเรียน (<span id="enrolledCountBadge">0</span>)
@@ -582,101 +582,96 @@
             }
         }
 
-async function triggerManualAutoEnroll() {
-    Swal.fire({
-        title: 'กำลังตรวจสอบและแถมคอร์ส...',
-        text: 'ระบบกำลังเช็กเงื่อนไขนักเรียนทั้งหมด...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
+        async function triggerManualAutoEnroll() {
+            Swal.fire({
+                title: 'กำลังตรวจสอบและแถมคอร์ส...',
+                text: 'ระบบกำลังเช็กเงื่อนไขนักเรียนทั้งหมด...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
 
-    try {
-        // 1. ดึงข้อมูลคอร์สทั้งหมดที่เป็น "คอร์สแถม" (bonus)
-        const { data: allCourses, error: courseErr } = await mySupabase
-            .from('courses')
-            .select('id, course_type, prerequisite_course_ids, bonus_rule_type');
+            try {
+                const { data: allCourses, error: courseErr } = await mySupabase
+                    .from('courses')
+                    .select('id, course_type, prerequisite_course_ids, bonus_rule_type');
 
-        if (courseErr) throw courseErr;
-        
-        const bonusCourses = (allCourses || []).filter(c => 
-            c.course_type === 'bonus' && 
-            c.prerequisite_course_ids && 
-            c.prerequisite_course_ids.length > 0
-        );
+                if (courseErr) throw courseErr;
+                
+                const bonusCourses = (allCourses || []).filter(c => 
+                    c.course_type === 'bonus' && 
+                    c.prerequisite_course_ids && 
+                    c.prerequisite_course_ids.length > 0
+                );
 
-        if (bonusCourses.length === 0) {
-            Swal.fire('แจ้งเตือน', 'ยังไม่ได้ตั้งค่าคอร์สแถม หรือยังไม่ได้เลือกคอร์สปกติที่เป็นเงื่อนไข', 'info');
-            return;
-        }
-
-        // 2. ดึงข้อมูลการลงทะเบียนทั้งหมดจากตาราง enrollments
-        const { data: allEnrolls, error: enrollErr } = await mySupabase
-            .from('enrollments')
-            .select('course_id, student_id');
-
-        if (enrollErr) throw enrollErr;
-
-        let studentCoursesMap = {};
-        (allEnrolls || []).forEach(en => {
-            const sId = String(en.student_id || '').trim();
-            const cId = String(en.course_id || '').trim();
-            if (sId && cId) {
-                if (!studentCoursesMap[sId]) studentCoursesMap[sId] = new Set();
-                studentCoursesMap[sId].add(cId);
-            }
-        });
-
-        let addedTotal = 0;
-
-        // 3. วนลูปเช็กเงื่อนไขและเพิ่มสิทธิ์ลงตาราง enrollments
-        for (const bonusCourse of bonusCourses) {
-            const prereqIds = (bonusCourse.prerequisite_course_ids || []).map(id => String(id).trim());
-            const ruleType = bonusCourse.bonus_rule_type || 'any';
-            const bonusId = String(bonusCourse.id).trim();
-
-            if (prereqIds.length === 0) continue;
-
-            for (const [sId, enrolledSet] of Object.entries(studentCoursesMap)) {
-                let qualified = false;
-
-                if (ruleType === 'any') {
-                    qualified = prereqIds.some(pId => enrolledSet.has(pId));
-                } else {
-                    qualified = prereqIds.every(pId => enrolledSet.has(pId));
+                if (bonusCourses.length === 0) {
+                    Swal.fire('แจ้งเตือน', 'ยังไม่ได้ตั้งค่าคอร์สแถม หรือยังไม่ได้เลือกคอร์สปกติที่เป็นเงื่อนไข', 'info');
+                    return;
                 }
 
-                if (qualified && !enrolledSet.has(bonusId)) {
-                    const { error: insErr } = await mySupabase.from('enrollments').insert({
-                        course_id: bonusCourse.id,
-                        student_id: sId,
-                        created_at: new Date().toISOString()
-                    });
+                const { data: allEnrolls, error: enrollErr } = await mySupabase
+                    .from('enrollments')
+                    .select('course_id, student_id');
 
-                    if (!insErr) {
-                        addedTotal++;
-                        enrolledSet.add(bonusId);
-                    } else {
-                        console.error("Insert error for student:", sId, insErr.message);
+                if (enrollErr) throw enrollErr;
+
+                let studentCoursesMap = {};
+                (allEnrolls || []).forEach(en => {
+                    const sId = String(en.student_id || '').trim();
+                    const cId = String(en.course_id || '').trim();
+                    if (sId && cId) {
+                        if (!studentCoursesMap[sId]) studentCoursesMap[sId] = new Set();
+                        studentCoursesMap[sId].add(cId);
+                    }
+                });
+
+                let addedTotal = 0;
+
+                for (const bonusCourse of bonusCourses) {
+                    const prereqIds = (bonusCourse.prerequisite_course_ids || []).map(id => String(id).trim());
+                    const ruleType = bonusCourse.bonus_rule_type || 'any';
+                    const bonusId = String(bonusCourse.id).trim();
+
+                    if (prereqIds.length === 0) continue;
+
+                    for (const [sId, enrolledSet] of Object.entries(studentCoursesMap)) {
+                        let qualified = false;
+
+                        if (ruleType === 'any') {
+                            qualified = prereqIds.some(pId => enrolledSet.has(pId));
+                        } else {
+                            qualified = prereqIds.every(pId => enrolledSet.has(pId));
+                        }
+
+                        if (qualified && !enrolledSet.has(bonusId)) {
+                            const { error: insErr } = await mySupabase.from('enrollments').insert({
+                                course_id: bonusCourse.id,
+                                student_id: sId,
+                                created_at: new Date().toISOString()
+                            });
+
+                            if (!insErr) {
+                                addedTotal++;
+                                enrolledSet.add(bonusId);
+                            }
+                        }
                     }
                 }
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'ประมวลผลสำเร็จ!',
+                    text: `ระบบตรวจสอบเรียบร้อยแล้ว เพิ่มสิทธิ์คอร์สแถมใหม่ ${addedTotal} รายการ`,
+                    confirmButtonColor: '#9333ea'
+                }).then(() => {
+                    loadEnrolledStudents();
+                    calculateCourseKPIs();
+                });
+
+            } catch (err) {
+                console.error("Manual Auto Enroll Error:", err);
+                Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
             }
         }
-
-        Swal.fire({
-            icon: 'success',
-            title: 'ประมวลผลสำเร็จ!',
-            text: `ระบบตรวจสอบเรียบร้อยแล้ว เพิ่มสิทธิ์คอร์สแถมใหม่ ${addedTotal} รายการ`,
-            confirmButtonColor: '#9333ea'
-        }).then(() => {
-            loadEnrolledStudents();
-            calculateCourseKPIs();
-        });
-
-    } catch (err) {
-        console.error("Manual Auto Enroll Error:", err);
-        Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
-    }
-}
         
         let systemNotifications = [];
         async function loadSystemNotifications() {
@@ -769,7 +764,6 @@ async function triggerManualAutoEnroll() {
                     .eq('course_id', courseId);
 
                 if (error) {
-                    console.error("Error loading enrollments:", error);
                     data = [];
                 }
 
@@ -843,39 +837,28 @@ async function triggerManualAutoEnroll() {
             }
         }
 
-async function saveEnrolledStudentsBatch() {
+        async function saveEnrolledStudentsBatch() {
             if (!window.globalAllStudents) return;
             Swal.showLoading();
 
             try {
-                let addedCount = 0;
-                let removedCount = 0;
-
                 for (const item of window.globalAllStudents) {
                     const shouldBeEnrolled = item.temporaryChecked;
 
                     if (shouldBeEnrolled && !item.isEnrolled) {
-                        const { error: insErr } = await mySupabase.from('enrollments').insert([{ 
+                        await mySupabase.from('enrollments').insert([{ 
                             course_id: courseId, 
                             student_id: item.studentId, 
                             created_at: new Date().toISOString() 
                         }]);
-
-                        if (!insErr) {
-                            addedCount++;
-                        }
                     } else if (!shouldBeEnrolled && item.isEnrolled) {
-                        // ป้องกันกรณีใช้ฟิลด์ user_id หรือ student_id ในตาราง enrollments
                         await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
                         await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('user_id', item.studentId);
-                        
                         if (item.enrollId) {
                             await mySupabase.from('enrollments').delete().eq('id', item.enrollId);
                         }
-                        removedCount++;
                     }
                 }
-
                 return true;
             } catch (err) {
                 console.error("Save Batch Error:", err);
