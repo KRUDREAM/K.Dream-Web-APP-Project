@@ -88,7 +88,24 @@
             </div>
         </div>
 
-        <!-- Stats Overview Cards -->
+        <!-- AI Analysis Insight Card (เพิ่มเข้ามาใหม่สดๆ ร้อนๆ) -->
+        <div class="card-box p-6 rounded-2xl space-y-3 border-l-4 border-purple-500 bg-gradient-to-br from-white via-purple-50/30 to-indigo-50/20 dark:from-slate-900 dark:via-purple-950/20 dark:to-slate-900">
+            <div class="flex items-center justify-between">
+                <h3 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-sm"><i class="fas fa-wand-magic-sparkles"></i></span>
+                    AI วิเคราะห์จุดแข็งและข้อควรพัฒนาเชิงลึก (AI Insight)
+                </h3>
+                <span class="px-2.5 py-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold text-[10px] rounded-full border border-purple-500/20">Gemini Powered</span>
+            </div>
+            
+            <div id="aiInsightContent" class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed space-y-2">
+                <div class="flex items-center gap-2 py-4 text-slate-400">
+                    <i class="fas fa-spinner fa-spin text-purple-500"></i> AI กำลังวิเคราะห์ผลคะแนนและรูปแบบการตอบของคุณ...
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Overview Cards (ปรับคำว่า "สูงกว่าคนที่ได้น้อยกว่ากี่ %" เป็น "อยู่เปอร์เซ็นต์ไทล์ที่") -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="card-box p-4 rounded-2xl flex items-center gap-3">
                 <div class="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-lg">🏆</div>
@@ -111,11 +128,11 @@
                     <span class="text-base font-extrabold text-slate-900 dark:text-white" id="maxStat">--</span>
                 </div>
             </div>
-            <div class="card-box p-4 rounded-2xl flex items-center gap-3">
+            <div class="card-box p-4 rounded-2xl flex items-center gap-3 border-l-4 border-purple-500">
                 <div class="w-11 h-11 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-lg">🚀</div>
                 <div>
-                    <span class="text-[10px] text-slate-400 block font-bold uppercase">สูงกว่าคนที่ได้น้อยกว่ากี่ %</span>
-                    <span class="text-base font-extrabold text-slate-900 dark:text-white" id="percentileStat">--%</span>
+                    <span class="text-[10px] text-purple-600 dark:text-purple-400 block font-bold uppercase">อยู่เปอร์เซ็นต์ไทล์ที่</span>
+                    <span class="text-base font-extrabold text-purple-600 dark:text-purple-400 font-mono" id="percentileStat">--th</span>
                 </div>
             </div>
         </div>
@@ -481,9 +498,67 @@
                 await loadAnalytics(examRef, score, cachedTotal);
                 updateCountsAndRender();
 
+                // 🤖 เรียกใช้งานฟังก์ชัน AI วิเคราะห์ผลการสอบตรงนี้ (ใช้เวลาโหลดแป๊บเดียว)
+                generateAIExamInsight(cachedExamTitle, cachedStudentName, cachedScore, cachedTotal, cachedCategoryStats);
+
             } catch (err) {
                 console.error('App Init Error:', err);
                 document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-red-500 text-xs">เกิดข้อผิดพลาดในการโหลดระบบ: ' + escapeHtml(err.message) + '</div>';
+            }
+        }
+
+        // ฟังก์ชันเชื่อมต่อ Gemini AI สำหรับวิเคราะห์ผลสอบเชิงลึก
+        async function generateAIExamInsight(examTitle, studentName, score, total, categoryStats) {
+            const container = document.getElementById('aiInsightContent');
+            const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+            
+            let categorySummary = Object.entries(categoryStats).map(([tag, st]) => {
+                const p = st.total > 0 ? Math.round((st.correct / st.total) * 100) : 0;
+                return `- หมวด ${tag}: ทำได้ ${st.correct}/${st.total} (${p}%)`;
+            }).join('\n');
+
+            const prompt = `คุณคือ AI โค้ชการศึกษาอัจฉริยะ ช่วยวิเคราะห์ผลการสอบของนักเรียนให้หน่อย:
+- ชื่อนักเรียน: ${studentName}
+- ชุดข้อสอบ: ${examTitle}
+- คะแนนที่ได้: ${score} / ${total} (${pct}%)
+- สถิติรายหมวดหมู่:\n${categorySummary}
+
+กรุณาเขียนวิเคราะห์เป็นภาษาไทยสุภาพ ให้กำลังใจ เข้าใจง่าย และมีความเป็นมืออาชีพ โดยแบ่งเป็น 3 หัวข้อย่อยสั้น ๆ:
+1. 🎯 **ภาพรวมผลการสอบ**: ประเมินผลงานสั้น ๆ
+2. 💪 **จุดแข็ง (Strengths)**: หมวดหมู่หรือจุดที่ทำได้ดีเยี่ยม
+3. 💡 **จุดที่ควรพัฒนาและคำแนะนำ (Weaknesses & Advice)**: หมวดหมู่ที่ควรฝึกฝนเพิ่ม พร้อมแนวทางแก้ไข
+
+จัดรูปแบบด้วย HTML tag สั้น ๆ เช่น <b>, <br>, หรือ <ul><li> เพื่อให้อ่านง่ายและสวยงาม`;
+
+            try {
+                // ⚠️ ตรงนี้ให้คุณ AP เอา Gemini API Key มาใส่แทนที่ข้อความข้างล่างนี้ครับ
+                const GEMINI_API_KEY = "ใส่_GEMINI_API_KEY_ของคุณตรงนี้"; 
+                
+                if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("ใส่_")) {
+                    container.innerHTML = `
+                        <div class="p-3 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-xl text-xs space-y-1">
+                            <b>💡 ตัวอย่างการวิเคราะห์จาก AI:</b> 
+                            <p>ทำคะแนนรวมได้ ${pct}% ถือว่าอยู่ในเกณฑ์ที่ดีมาก! จุดแข็งคือความแม่นยำในหมวดพื้นฐาน แต่อาจจะต้องกลับไปทบทวนโจทย์ในหมวดที่ได้เปอร์เซ็นต์ต่ำกว่า 50% เพิ่มเติมเพื่อเตรียมความพร้อมสำหรับการสอบสนามจริงครับ 🚀</p>
+                            <span class="text-[10px] text-slate-400 block pt-1">*(กรุณาใส่ Gemini API Key ในโค้ดเพื่อเปิดใช้งาน AI วิเคราะห์แบบเรียลไทม์)*</span>
+                        </div>`;
+                    return;
+                }
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }]
+                    })
+                });
+
+                const data = await response.json();
+                const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "ไม่สามารถสร้างคำแนะนำได้ในขณะนี้";
+                container.innerHTML = aiText;
+
+            } catch (err) {
+                console.error("AI Insight Error:", err);
+                container.innerHTML = `<span class="text-rose-500 text-xs">⚠️ ไม่สามารถเชื่อมต่อกับ AI ในขณะนี้ได้</span>`;
             }
         }
 
@@ -682,7 +757,7 @@
                     document.getElementById('rankStat').textContent = '#1 / 1';
                     document.getElementById('avgStat').textContent = studentScore + ' / ' + totalQ;
                     document.getElementById('maxStat').textContent = studentScore + ' / ' + totalQ;
-                    document.getElementById('percentileStat').textContent = '0%';
+                    document.getElementById('percentileStat').textContent = '0th';
                     renderPercentageBinsChart([studentScore], totalQ, studentScore);
                     return;
                 }
@@ -694,13 +769,14 @@
                 const avg = (scores.reduce((a, b) => a + b, 0) / totalStudents).toFixed(1);
                 const max = Math.max(...scores);
 
+                // คำนวณเปอร์เซ็นต์ไทล์ (Percentile Rank) ให้ถูกต้อง
                 const lowerCount = scores.filter(s => s < studentScore).length;
-                const lowerPct = totalStudents > 0 ? Math.round((lowerCount / totalStudents) * 100) : 0;
+                const percentile = totalStudents > 1 ? Math.round((lowerCount / (totalStudents - 1)) * 100) : 100;
 
                 document.getElementById('rankStat').textContent = '#' + (rank > 0 ? rank : 1) + ' / ' + totalStudents;
                 document.getElementById('avgStat').textContent = avg + ' / ' + totalQ;
                 document.getElementById('maxStat').textContent = max + ' / ' + totalQ;
-                document.getElementById('percentileStat').textContent = lowerPct + '%';
+                document.getElementById('percentileStat').textContent = percentile + 'th';
 
                 renderPercentageBinsChart(scores, totalQ, studentScore);
             } catch (e) {
