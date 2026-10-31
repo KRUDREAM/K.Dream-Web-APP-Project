@@ -227,6 +227,7 @@
         let currentViewMode = 'scroll'; 
         let currentStepIndex = 0;
         let examRealtimeChannel = null;
+        let activeAttemptRecordId = null; // เก็บ ID แถว attempt ของนักเรียนคนนี้
 
         // 🌟 ล็อกไม่ให้ผู้ใช้กดย้อนกลับ (Back Button) กลับมาหน้าทำข้อสอบได้
         history.pushState(null, null, location.href);
@@ -240,7 +241,6 @@
             });
         });
 
-        // 🌟 ตรวจจับกรณีเบราว์เซอร์ดึงหน้าเว็บจาก Cache (Back-Forward Cache) ให้บังคับเช็กสิทธิ์ซ้ำทันที
         window.addEventListener('pageshow', function(event) {
             if (event.persisted) {
                 window.location.reload();
@@ -326,10 +326,10 @@
 
         function getValidatedStudentId() {
             let studentId = urlParams.get('student_id') || 
-                        localStorage.getItem('id') || 
-                        localStorage.getItem('student_id') || 
-                        localStorage.getItem('user_id') || 
-                        localStorage.getItem('userId') || null;
+                    localStorage.getItem('id') || 
+                    localStorage.getItem('student_id') || 
+                    localStorage.getItem('user_id') || 
+                    localStorage.getItem('userId') || null;
 
             if (!studentId || studentId === '00000000-0000-0000-0000-000000000000') {
                 try {
@@ -358,34 +358,81 @@
             return true;
         }
 
-async function initPage() {
-    if (!checkStudentAuth()) return;
-    if (!examId) {
-        Swal.fire('ไม่พบ ID ข้อสอบ', '', 'warning').then(() => window.location.replace('student.html'));
-        return;
-    }
+        async function initPage() {
+            if (!checkStudentAuth()) return;
+            if (!examId) {
+                Swal.fire('ไม่พบ ID ข้อสอบ', '', 'warning').then(() => window.location.replace('student.html'));
+                return;
+            }
 
-    currentStudentId = getValidatedStudentId();
-    if (isPreview) {
-        document.getElementById('previewBanner').classList.remove('hidden');
-    }
+            currentStudentId = getValidatedStudentId();
+            if (isPreview) {
+                document.getElementById('previewBanner').classList.remove('hidden');
+            }
 
-    // 🌟 ตรวจสอบและบันทึกสถานะ in_progress / ป้องกันการทำซ้ำอย่างเข้มงวด
-    if (!isPreview && currentStudentId) {
-        try {
-            const { data: existingAttempts } = await mySupabase
-                .from('exam_attempts')
-                .select('id, status')
-                .eq('exam_id', examId)
-                .eq('student_id', currentStudentId);
+            // 🌟 ตรวจสอบสถานะการสอบและบันทึกสถานะ 'in_progress' ลงใน exam_attempts ทันที
+            if (!isPreview && currentStudentId) {
+                try {
+                    const { data: existingAttempts } = await mySupabase
+                        .from('exam_attempts')
+                        .select('id, status')
+                        .eq('exam_id', examId)
+                        .eq('student_id', currentStudentId);
 
-            const hasSubmitted = existingAttempts?.some(a => a.status === 'submitted');
-            if (hasSubmitted) {
+                    const submittedAttempt = existingAttempts?.find(a => a.status === 'submitted');
+                    if (submittedAttempt) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'คุณได้ทำและส่งข้อสอบชุดนี้ไปแล้ว!',
+                            text: 'ไม่อนุญาตให้ทำข้อสอบซ้ำผ่านการเข้าลิงก์เดิม ระบบจะนำคุณกลับสู่หน้าหลัก',
+                            confirmButtonText: 'รับทราบ',
+                            allowOutsideClick: false
+                        }).then(() => {
+                            window.location.replace('student.html');
+                        });
+                        return;
+                    }
+
+                    const inProgressAttempt = existingAttempts?.find(a => a.status === 'in_progress');
+                    if (inProgressAttempt) {
+                        activeAttemptRecordId = inProgressAttempt.id;
+                    } else {
+                        // สร้างแถวสถานะ in_progress ใหม่ เพื่อให้นับ Active ได้ถูกต้อง
+                        const { data: newIns, error: insErr } = await mySupabase
+                            .from('exam_attempts')
+                            .insert([{
+                                exam_id: examId,
+                                student_id: currentStudentId,
+                                status: 'in_progress'
+                            }])
+                            .select()
+                            .single();
+
+                        if (!insErr && newIns) {
+                            activeAttemptRecordId = newIns.id;
+                        }
+                    }
+                } catch(err) {
+                    console.error("Error managing exam attempt status:", err);
+                }
+            }
+
+            const { data: exam, error: examError } = await mySupabase.from('exams').select('*').eq('id', examId).single();
+            if (examError || !exam) {
+                Swal.fire('ไม่พบชุดข้อสอบนี้ หรือติดปัญหาการเชื่อมต่อ', '', 'error').then(() => window.location.replace('student.html'));
+                return;
+            }
+
+            currentExam = exam;
+            document.getElementById('examTitleNav').textContent = exam.title;
+            document.getElementById('examSubNav').textContent = `รหัส: ${exam.exam_code || 'ไม่มี'} | เวลาทำ: ${exam.time_limit || 60} นาที`;
+
+            if (!isPreview && exam.due_date && new Date() > new Date(exam.due_date)) {
                 Swal.fire({
                     icon: 'error',
-                    title: 'คุณได้ทำและส่งข้อสอบชุดนี้ไปแล้ว!',
-                    text: 'ไม่อนุญาตให้ทำข้อสอบซ้ำผ่านการเข้าลิงก์เดิม ระบบจะนำคุณกลับสู่หน้าหลัก',
-                    confirmButtonText: 'รับทราบ',
+                    title: 'หมดเขตส่งข้อสอบแล้ว!',
+                    text: 'เลยกำหนดเวลาส่ง (Due Date) ของชุดข้อสอบนี้แล้ว ระบบไม่อนุญาตให้เข้าทำข้อสอบ',
+                    confirmButtonText: 'กลับหน้าหลัก',
                     allowOutsideClick: false
                 }).then(() => {
                     window.location.replace('student.html');
@@ -393,124 +440,87 @@ async function initPage() {
                 return;
             }
 
-            const hasInProgress = existingAttempts?.some(a => a.status === 'in_progress');
-            if (!hasInProgress) {
-                // ถ้ายังไม่มีสถานะ in_progress ให้สร้างบันทึกไว้ในฐานข้อมูลทันทีที่เริ่มเข้าทำ
-                await mySupabase.from('exam_attempts').insert([{
-                    exam_id: examId,
-                    student_id: currentStudentId,
-                    status: 'in_progress'
-                }]);
+            const formatSub = document.getElementById('choiceFormatSubLabel');
+            if (formatSub) {
+                formatSub.textContent = `รูปแบบตัวเลือก: ${getChoiceFormatLabelText(exam.choice_format)}`;
             }
-        } catch(err) {
-            console.error("Error managing exam attempt status:", err);
-        }
-    }
 
-    const { data: exam, error: examError } = await mySupabase.from('exams').select('*').eq('id', examId).single();
-    if (examError || !exam) {
-        Swal.fire('ไม่พบชุดข้อสอบนี้ หรือติดปัญหาการเชื่อมต่อ', '', 'error').then(() => window.location.replace('student.html'));
-        return;
-    }
-
-    currentExam = exam;
-    document.getElementById('examTitleNav').textContent = exam.title;
-    document.getElementById('examSubNav').textContent = `รหัส: ${exam.exam_code || 'ไม่มี'} | เวลาทำ: ${exam.time_limit || 60} นาที`;
-
-    if (!isPreview && exam.due_date && new Date() > new Date(exam.due_date)) {
-        Swal.fire({
-            icon: 'error',
-            title: 'หมดเขตส่งข้อสอบแล้ว!',
-            text: 'เลยกำหนดเวลาส่ง (Due Date) ของชุดข้อสอบนี้แล้ว ระบบไม่อนุญาตให้เข้าทำข้อสอบ',
-            confirmButtonText: 'กลับหน้าหลัก',
-            allowOutsideClick: false
-        }).then(() => {
-            window.location.replace('student.html');
-        });
-        return;
-    }
-
-    const formatSub = document.getElementById('choiceFormatSubLabel');
-    if (formatSub) {
-        formatSub.textContent = `รูปแบบตัวเลือก: ${getChoiceFormatLabelText(exam.choice_format)}`;
-    }
-
-    if (!isPreview) {
-        try {
-            const savedAnswers = localStorage.getItem(`exam_answers_${examId}_${currentStudentId}`);
-            if (savedAnswers) studentAnswers = JSON.parse(savedAnswers);
-            const savedFlags = localStorage.getItem(`exam_flags_${examId}_${currentStudentId}`);
-            if (savedFlags) flaggedQuestions = JSON.parse(savedFlags);
-        } catch(e) {}
-    }
-
-    if (!isPreview) {
-        const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
-        const existingStartTime = localStorage.getItem(timerKey);
-
-        if (!existingStartTime) {
-            const confirmStart = await Swal.fire({
-                title: `พร้อมเริ่มทำข้อสอบ "${exam.title}" หรือยัง?`,
-                text: `เวลาในการทำข้อสอบ: ${exam.time_limit || 60} นาที เมื่อกดเริ่มเวลานับถอยหลังทันที`,
-                icon: 'info',
-                showCancelButton: true,
-                confirmButtonText: 'เริ่มทำข้อสอบ',
-                cancelButtonText: 'กลับหน้าหลัก',
-                allowOutsideClick: false
-            });
-
-            if (!confirmStart.isConfirmed) {
-                window.location.replace('student.html');
-                return;
+            if (!isPreview) {
+                try {
+                    const savedAnswers = localStorage.getItem(`exam_answers_${examId}_${currentStudentId}`);
+                    if (savedAnswers) studentAnswers = JSON.parse(savedAnswers);
+                    const savedFlags = localStorage.getItem(`exam_flags_${examId}_${currentStudentId}`);
+                    if (savedFlags) flaggedQuestions = JSON.parse(savedFlags);
+                } catch(e) {}
             }
+
+            if (!isPreview) {
+                const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
+                const existingStartTime = localStorage.getItem(timerKey);
+
+                if (!existingStartTime) {
+                    const confirmStart = await Swal.fire({
+                        title: `พร้อมเริ่มทำข้อสอบ "${exam.title}" หรือยัง?`,
+                        text: `เวลาในการทำข้อสอบ: ${exam.time_limit || 60} นาที เมื่อกดเริ่มเวลานับถอยหลังทันที`,
+                        icon: 'info',
+                        showCancelButton: true,
+                        confirmButtonText: 'เริ่มทำข้อสอบ',
+                        cancelButtonText: 'กลับหน้าหลัก',
+                        allowOutsideClick: false
+                    });
+
+                    if (!confirmStart.isConfirmed) {
+                        window.location.replace('student.html');
+                        return;
+                    }
+                }
+            }
+
+            const pdfCard = document.getElementById('pdfViewerCard');
+            const rightCard = document.getElementById('rightAnswerCard');
+            const answerCardTitle = document.getElementById('answerCardTitle');
+            const viewModeToggleContainer = document.getElementById('viewModeToggleContainer');
+
+            const hasPdf = exam.pdf_url && exam.pdf_url.trim() !== '';
+
+            if (hasPdf) {
+                if (pdfCard) pdfCard.classList.remove('hidden');
+                if (rightCard) rightCard.className = 'lg:col-span-4 hitech-card p-6 rounded-3xl space-y-6';
+                if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-list-check text-sky-500"></i> กระดาษคำตอบ`;
+                if (viewModeToggleContainer) viewModeToggleContainer.classList.add('hidden');
+                loadAndRenderPDF(exam.pdf_url);
+                initPdfZoomAndPanInteractions();
+            } else {
+                if (pdfCard) pdfCard.classList.add('hidden');
+                if (rightCard) rightCard.className = 'lg:col-span-12 hitech-card p-8 rounded-3xl space-y-8 max-w-4xl mx-auto w-full';
+                if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-file-lines text-sky-500"></i> แบบทดสอบออนไลน์ & ตัวเลือกคำตอบ`;
+                if (viewModeToggleContainer) viewModeToggleContainer.classList.remove('hidden');
+                if (viewModeToggleContainer) viewModeToggleContainer.style.display = 'flex';
+            }
+
+            await loadQuestions();
+
+            const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
+            let startTime = localStorage.getItem(timerKey);
+            if (!startTime || isPreview) {
+                startTime = Date.now();
+                localStorage.setItem(timerKey, startTime);
+            }
+
+            totalExamSeconds = (currentExam.time_limit || 60) * 60;
+
+            if (currentExam.due_date && !isPreview) {
+                const dueDateTime = new Date(currentExam.due_date).getTime();
+                const secondsUntilDueDate = Math.floor((dueDateTime - parseInt(startTime, 10)) / 1000);
+                
+                if (secondsUntilDueDate < totalExamSeconds) {
+                    totalExamSeconds = secondsUntilDueDate > 0 ? secondsUntilDueDate : 0;
+                }
+            }
+
+            startPersistentTimer(parseInt(startTime, 10), totalExamSeconds);
+            initRealtimeExamSync();
         }
-    }
-
-    const pdfCard = document.getElementById('pdfViewerCard');
-    const rightCard = document.getElementById('rightAnswerCard');
-    const answerCardTitle = document.getElementById('answerCardTitle');
-    const viewModeToggleContainer = document.getElementById('viewModeToggleContainer');
-
-    const hasPdf = exam.pdf_url && exam.pdf_url.trim() !== '';
-
-    if (hasPdf) {
-        if (pdfCard) pdfCard.classList.remove('hidden');
-        if (rightCard) rightCard.className = 'lg:col-span-4 hitech-card p-6 rounded-3xl space-y-6';
-        if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-list-check text-sky-500"></i> กระดาษคำตอบ`;
-        if (viewModeToggleContainer) viewModeToggleContainer.classList.add('hidden');
-        loadAndRenderPDF(exam.pdf_url);
-        initPdfZoomAndPanInteractions();
-    } else {
-        if (pdfCard) pdfCard.classList.add('hidden');
-        if (rightCard) rightCard.className = 'lg:col-span-12 hitech-card p-8 rounded-3xl space-y-8 max-w-4xl mx-auto w-full';
-        if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-file-lines text-sky-500"></i> แบบทดสอบออนไลน์ & ตัวเลือกคำตอบ`;
-        if (viewModeToggleContainer) viewModeToggleContainer.classList.remove('hidden');
-        if (viewModeToggleContainer) viewModeToggleContainer.style.display = 'flex';
-    }
-
-    await loadQuestions();
-
-    const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
-    let startTime = localStorage.getItem(timerKey);
-    if (!startTime || isPreview) {
-        startTime = Date.now();
-        localStorage.setItem(timerKey, startTime);
-    }
-
-    totalExamSeconds = (currentExam.time_limit || 60) * 60;
-
-    if (currentExam.due_date && !isPreview) {
-        const dueDateTime = new Date(currentExam.due_date).getTime();
-        const secondsUntilDueDate = Math.floor((dueDateTime - parseInt(startTime, 10)) / 1000);
-        
-        if (secondsUntilDueDate < totalExamSeconds) {
-            totalExamSeconds = secondsUntilDueDate > 0 ? secondsUntilDueDate : 0;
-        }
-    }
-
-    startPersistentTimer(parseInt(startTime, 10), totalExamSeconds);
-    initRealtimeExamSync();
-}
 
         function initRealtimeExamSync() {
             if (!examId || isPreview) return;
@@ -1268,24 +1278,37 @@ async function initPage() {
                 submission_time: new Date().toISOString()
             };
 
-            const { data: newAttempt, error: attemptError } = await mySupabase
-                .from('exam_attempts')
-                .insert([attemptPayload])
-                .select()
-                .single();
+            let updateError = null;
+            let finalAttemptId = activeAttemptRecordId;
 
-            if (attemptError || !newAttempt) {
+            // 🌟 ทำการ UPDATE แถวเดิมที่เป็น in_progress ให้เป็น submitted (หรือ INSERT ใหม่ถ้าหาไม่เจอ)
+            if (activeAttemptRecordId) {
+                const { error: updErr } = await mySupabase
+                    .from('exam_attempts')
+                    .update(attemptPayload)
+                    .eq('id', activeAttemptRecordId);
+                updateError = updErr;
+            } else {
+                const { data: newIns, error: insErr } = await mySupabase
+                    .from('exam_attempts')
+                    .insert([attemptPayload])
+                    .select()
+                    .single();
+                updateError = insErr;
+                if (newIns) finalAttemptId = newIns.id;
+            }
+
+            if (updateError) {
                 isSubmitting = false;
                 Swal.fire({
                     icon: 'error',
                     title: 'Supabase Error!',
-                    html: `<div class="text-left text-xs bg-slate-900 p-3 rounded text-red-400 font-mono">${JSON.stringify(attemptError, null, 2)}</div>`,
+                    html: `<div class="text-left text-xs bg-slate-900 p-3 rounded text-red-400 font-mono">${JSON.stringify(updateError, null, 2)}</div>`,
                     confirmButtonText: 'รับทราบ'
                 });
                 return;
             }
 
-            const attemptId = newAttempt.id;
             const answersPayloads = currentQuestions.map(q => {
                 const studentAns = studentAnswers[q.id];
                 const isEssay = q.question_type === 'essay';
@@ -1298,7 +1321,7 @@ async function initPage() {
                 }
 
                 return {
-                    attempt_id: attemptId,
+                    attempt_id: finalAttemptId,
                     question_id: q.id,
                     score: qScore,
                     selected_option_index: (!isEssay && studentAns !== undefined && studentAns !== null && studentAns !== '') ? parseInt(studentAns) : null,
@@ -1317,8 +1340,7 @@ async function initPage() {
                 confirmButtonText: 'ดูผลการสอบและเฉลย',
                 allowOutsideClick: false
             }).then(() => {
-                // 🌟 ใช้ window.location.replace เพื่อล้างหน้าสอบออกจาก History Stack ป้องกันการกด Back กลับมาได้
-                window.location.replace(`student_result.html?attempt_id=${attemptId}&student_id=${studentId}`);
+                window.location.replace(`student_result.html?attempt_id=${finalAttemptId}&student_id=${studentId}`);
             });
         }
 
