@@ -91,7 +91,6 @@
                 <p id="headerExamDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words">กำลังดึงข้อมูลสถิติ...</p>
             </div>
             <div class="flex items-center gap-3 shrink-0 flex-wrap">
-                <!-- ปุ่ม Active (กำลังทำ) -->
                 <button onclick="openStudentListModal('in_progress')" class="p-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-2xl text-center transition-all cursor-pointer">
                     <div id="statActiveCountBanner" class="text-lg font-extrabold text-amber-600 dark:text-amber-400">0</div>
                     <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">Active (กำลังทำ) <i class="fas fa-chevron-right text-[9px]"></i></div>
@@ -368,8 +367,23 @@
             return null;
         }
 
+        // คำนวณเวลาที่ใช้: เอา total duration ของข้อสอบ หักลบด้วย remaining_time ที่เหลืออยู่
         function calculateTimeSpentMinutes(att) {
             if (!att) return 0;
+            
+            // ดึงค่าเวลาทั้งหมดของข้อสอบ (หน่วยเป็นนาที)
+            const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
+            
+            // ถ้าในตาราง exam_attempts มีการเก็บ remaining_time (อาจจะเป็นวินาทีหรือนาที)
+            if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
+                let rem = Number(att.remaining_time);
+                // ถ้าค่า remaining_time มากกว่า 120 แสดงว่าเป็นวินาที ให้แปลงเป็นนาที
+                let remMinutes = rem > 120 ? rem / 60 : rem;
+                let spent = examDurationMinutes - remMinutes;
+                return spent > 0 ? spent : 0;
+            }
+
+            // Fallback เผื่อใช้ฟิลด์เวลาสำรองอื่นๆ
             if (att.time_spent !== undefined && att.time_spent !== null && !isNaN(att.time_spent)) {
                 const val = Number(att.time_spent);
                 return val > 120 ? val / 60 : val;
