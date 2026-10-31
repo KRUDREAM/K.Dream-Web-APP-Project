@@ -102,20 +102,13 @@
             </div>
         </div>
 
-        <!-- 5 Summary Cards -->
+        <!-- 5 Summary Cards (Submitted, Avg, Max, Median, Min) -->
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-emerald-500/50" onclick="openStudentListModal('submitted')">
                 <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-check-circle"></i></div>
                 <div class="min-w-0">
                     <span class="text-[11px] text-slate-400 font-bold block truncate">ส่งแล้ว (คน)</span>
                     <span id="statSubmittedCount" class="text-base font-extrabold text-emerald-600 dark:text-emerald-400 truncate block">-</span>
-                </div>
-            </div>
-            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-amber-500/50" onclick="openStudentListModal('in_progress')">
-                <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-spinner"></i></div>
-                <div class="min-w-0">
-                    <span class="text-[11px] text-slate-400 font-bold block truncate">Active (กำลังทำ)</span>
-                    <span id="statActiveCount" class="text-base font-extrabold text-amber-600 dark:text-amber-400 truncate block">-</span>
                 </div>
             </div>
             <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
@@ -132,11 +125,18 @@
                     <span id="statMaxScore" class="text-base font-extrabold text-sky-600 dark:text-sky-400 truncate block">-</span>
                 </div>
             </div>
-            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 col-span-2 sm:col-span-1">
-                <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-users"></i></div>
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-chart-line"></i></div>
                 <div class="min-w-0">
-                    <span class="text-[11px] text-slate-400 font-bold block truncate">นักเรียนทั้งหมด</span>
-                    <span id="statTotalStudents" class="text-base font-extrabold text-purple-600 dark:text-purple-400 truncate block">-</span>
+                    <span class="text-[11px] text-slate-400 font-bold block truncate">มัธยฐาน (Median)</span>
+                    <span id="statMedianScore" class="text-base font-extrabold text-purple-600 dark:text-purple-400 truncate block">-</span>
+                </div>
+            </div>
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 col-span-2 sm:col-span-1">
+                <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-arrow-down"></i></div>
+                <div class="min-w-0">
+                    <span class="text-[11px] text-slate-400 font-bold block truncate">คะแนนต่ำสุด</span>
+                    <span id="statMinScore" class="text-base font-extrabold text-rose-600 dark:text-rose-400 truncate block">-</span>
                 </div>
             </div>
         </div>
@@ -367,22 +367,13 @@
             return null;
         }
 
-        // คำนวณเวลาที่ใช้: หาก remaining_time เป็น 0 ให้ใช้เวลาเต็มของข้อสอบทันที
+        // คำนวณเวลาที่ใช้: รองรับกรณี remaining_time ที่อาจจะเหลืออยู่ หรือหมดเวลา
         function calculateTimeSpentMinutes(att) {
             if (!att) return 0;
             
             const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
             
-            if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
-                let rem = Number(att.remaining_time);
-                if (rem <= 0) {
-                    return examDurationMinutes;
-                }
-                let remMinutes = rem > 120 ? rem / 60 : rem;
-                let spent = examDurationMinutes - remMinutes;
-                return spent > 0 ? spent : 0;
-            }
-
+            // หากมีบันทึก time_spent หรือ time_used ตรงๆ
             if (att.time_spent !== undefined && att.time_spent !== null && !isNaN(att.time_spent)) {
                 const val = Number(att.time_spent);
                 return val > 120 ? val / 60 : val;
@@ -391,12 +382,28 @@
                 const val = Number(att.time_used);
                 return val > 120 ? val / 60 : val;
             }
+
+            // คำนวณจาก started_at ถึง submitted_at หรือเวลาปัจจุบัน
             const start = att.started_at || att.created_at || att.start_time;
-            const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at;
-            if (start && end) {
+            const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at || new Date().toISOString();
+            if (start) {
                 const diffMs = new Date(end) - new Date(start);
-                if (diffMs > 0) return diffMs / (1000 * 60);
+                if (diffMs > 0) {
+                    const mins = diffMs / (1000 * 60);
+                    // หากเวลาคำนวณเกินกำหนดของข้อสอบ ให้จำกัดไว้ไม่เกินเวลาสูงสุดของชุดข้อสอบ
+                    return Math.min(mins, examDurationMinutes);
+                }
             }
+
+            // หากมี remaining_time
+            if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
+                let rem = Number(att.remaining_time);
+                if (rem <= 0) return examDurationMinutes;
+                let remMinutes = rem > 120 ? rem / 60 : rem;
+                let spent = examDurationMinutes - remMinutes;
+                return spent > 0 ? spent : 0;
+            }
+
             return 0;
         }
 
@@ -520,7 +527,8 @@
             combinedStudentRows = studentMasterList.map(item => {
                 const att = attemptMap[item.studentId];
                 const hasAttempt = !!att;
-                const isSubmitted = hasAttempt && (att.status === 'submitted' || att.total_score !== undefined || att.score !== undefined);
+                // ตรวจสอบสถานะการส่งข้อสอบอย่างครอบคลุม (เช็ค status หรือถ้ามี total_score / score)
+                const isSubmitted = hasAttempt && (att.status === 'submitted' || (att.total_score !== undefined && att.total_score !== null) || (att.score !== undefined && att.score !== null));
                 const isInProgress = hasAttempt && !isSubmitted;
 
                 const score = isSubmitted ? (att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0)) : 0;
@@ -557,11 +565,9 @@
             };
 
             setSafeText('statActiveCountBanner', activeCount);
-            setSafeText('statActiveCount', `${activeCount} คน`);
             setSafeText('statSubmittedCount', `${submittedCount} คน`);
-            setSafeText('statTotalStudents', `${totalStudentsCount} คน`);
 
-            const submittedAttempts = allAttempts.filter(a => a.total_score !== undefined || a.score !== undefined || a.status === 'submitted');
+            const submittedAttempts = allAttempts.filter(a => a.status === 'submitted' || (a.total_score !== undefined && a.total_score !== null) || (a.score !== undefined && a.score !== null));
             globalScores = submittedAttempts.map(a => a.total_score !== undefined && a.total_score !== null ? Number(a.total_score) : (Number(a.score) || 0));
             globalTimes = submittedAttempts.map(a => calculateTimeSpentMinutes(a));
             globalMaxScore = allQuestions.length || 10;
@@ -571,9 +577,22 @@
             let highestScore = globalScores.length > 0 ? Math.max(...globalScores) : 0;
             let lowestScore = globalScores.length > 0 ? Math.min(...globalScores) : 0;
 
+            // คำนวณค่ามัธยฐาน (Median)
+            let medianScore = '0.0';
+            if (globalScores.length > 0) {
+                let sortedScores = [...globalScores].sort((a, b) => a - b);
+                let mid = Math.floor(sortedScores.length / 2);
+                if (sortedScores.length % 2 === 0) {
+                    medianScore = ((sortedScores[mid - 1] + sortedScores[mid]) / 2).toFixed(1);
+                } else {
+                    medianScore = sortedScores[mid].toFixed(1);
+                }
+            }
+
             setSafeText('statAvgScoreBanner', avgScore);
             setSafeText('statAvgScore', `${avgScore} / ${globalMaxScore}`);
             setSafeText('statMaxScore', `${highestScore} / ${globalMaxScore}`);
+            setSafeText('statMedianScore', `${medianScore} / ${globalMaxScore}`);
             setSafeText('statMinScore', `${lowestScore} / ${globalMaxScore}`);
 
             renderDifficultyChart();
