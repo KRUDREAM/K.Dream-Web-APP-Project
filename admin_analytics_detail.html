@@ -96,11 +96,6 @@
                     <div id="statActiveCountBanner" class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">0</div>
                     <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">ส่งแล้ว (คน) <i class="fas fa-chevron-right text-[9px]"></i></div>
                 </button>
-                <!-- ปุ่มยังไม่ส่ง (Inactive) -->
-                <button onclick="openStudentListModal('inactive')" class="p-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-2xl text-center transition-all cursor-pointer">
-                    <div id="statInactiveCountBanner" class="text-lg font-extrabold text-rose-600 dark:text-rose-400">0</div>
-                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">ยังไม่ส่ง (คน) <i class="fas fa-chevron-right text-[9px]"></i></div>
-                </button>
                 <div class="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl text-center">
                     <div id="statAvgScoreBanner" class="text-lg font-extrabold text-indigo-600 dark:text-indigo-400">0.0</div>
                     <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">คะแนนเฉลี่ย</div>
@@ -110,18 +105,11 @@
 
         <!-- 5 Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
-            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-emerald-500/50" onclick="openStudentListModal('active')">
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-emerald-500/50 col-span-2 sm:col-span-1" onclick="openStudentListModal('active')">
                 <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-user-check"></i></div>
                 <div class="min-w-0">
                     <span class="text-[11px] text-slate-400 font-bold block truncate">ส่งแล้ว (คน)</span>
                     <span id="statActiveCount" class="text-base font-extrabold text-emerald-600 dark:text-emerald-400 truncate block">-</span>
-                </div>
-            </div>
-            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-rose-500/50" onclick="openStudentListModal('inactive')">
-                <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-user-clock"></i></div>
-                <div class="min-w-0">
-                    <span class="text-[11px] text-slate-400 font-bold block truncate">ยังไม่ส่ง (คน)</span>
-                    <span id="statInactiveCount" class="text-base font-extrabold text-rose-600 dark:text-rose-400 truncate block">-</span>
                 </div>
             </div>
             <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
@@ -138,11 +126,18 @@
                     <span id="statMaxScore" class="text-base font-extrabold text-emerald-600 dark:text-emerald-400 truncate block">-</span>
                 </div>
             </div>
-            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 col-span-2 sm:col-span-1">
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-arrow-down"></i></div>
                 <div class="min-w-0">
                     <span class="text-[11px] text-slate-400 font-bold block truncate">คะแนนต่ำสุด</span>
                     <span id="statMinScore" class="text-base font-extrabold text-rose-600 dark:text-rose-400 truncate block">-</span>
+                </div>
+            </div>
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-users"></i></div>
+                <div class="min-w-0">
+                    <span class="text-[11px] text-slate-400 font-bold block truncate">นักเรียนทั้งหมด</span>
+                    <span id="statTotalStudents" class="text-base font-extrabold text-sky-600 dark:text-sky-400 truncate block">-</span>
                 </div>
             </div>
         </div>
@@ -230,7 +225,7 @@
         <div class="hitech-card p-6 rounded-3xl space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-sky-500/20">
                 <div class="min-w-0">
-                    <h3 class="font-extrabold text-sm text-slate-900 dark:text-white truncate">สถานะการทำข้อสอบของนักเรียนทั้งหมด (ส่งแล้ว / ยังไม่ส่ง)</h3>
+                    <h3 class="font-extrabold text-sm text-slate-900 dark:text-white truncate">สถานะการทำข้อสอบของนักเรียนทั้งหมด (เรียงตามวันเวลาส่งล่าสุด)</h3>
                     <p id="submissionCountLabel" class="text-xs text-slate-400">แสดง 0 รายการ</p>
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -281,7 +276,7 @@
         let allQuestions = [];
         let allAttempts = [];
         let allProfiles = [];
-        let courseStudents = []; // รายชื่อนักเรียนทั้งหมดในคอร์สจริง
+        let courseStudents = [];
         let allStudentsMap = {};
         let combinedStudentRows = [];
         let filteredRows = [];
@@ -434,7 +429,7 @@
                     allStudentsMap[sId] = p;
                 });
 
-                // ดึงรายชื่อนักเรียนที่อยู่ในคอร์สนั้นจริง ๆ (ถ้ามีระบบ course_members หรือ enrollments)
+                // ดึงรายชื่อนักเรียนตามสังกัดคอร์สของข้อสอบนี้จริง ๆ
                 if (activeCourseId) {
                     try {
                         const cmRes = await mySupabase.from('course_members').select('student_id, user_id, profiles(*)').eq('course_id', activeCourseId);
@@ -444,10 +439,9 @@
                             const enRes = await mySupabase.from('enrollments').select('student_id, user_id, profiles(*)').eq('course_id', activeCourseId);
                             if (enRes.data && enRes.data.length > 0) courseStudents = enRes.data;
                         }
-                    } catch(e) { console.warn("Could not fetch course members, falling back to all profiles", e); }
+                    } catch(e) { console.warn("Could not fetch course members", e); }
                 }
 
-                // ถ้าไม่มีข้อมูลคอร์สเฉพาะ ให้ใช้นักเรียนทั้งหมดในระบบ profiles เป็นฐานแทน
                 if (courseStudents.length === 0) {
                     courseStudents = allProfiles.map(p => ({ student_id: p.id || p.user_id, profiles: p }));
                 }
@@ -467,7 +461,7 @@
             computeAndRenderStats();
         }
 
-        // ตั้งค่า Realtime Subscription รับการเปลี่ยนแปลงจากตาราง exam_attempts ทันที
+        // ระบบ Realtime Subscription
         function setupRealtimeSubscription() {
             try {
                 mySupabase.channel('exam_attempts_realtime_' + examId)
@@ -477,8 +471,6 @@
                         table: 'exam_attempts',
                         filter: `exam_id=eq.${examId}`
                     }, async (payload) => {
-                        console.log('Realtime update received:', payload);
-                        // ดึงข้อมูล attempts ใหม่ทั้งหมดเพื่อให้ข้อมูลงตรงกันเป๊ะ
                         const attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examId);
                         if (attRes.data) {
                             allAttempts = attRes.data;
@@ -498,7 +490,6 @@
                 attemptMap[sId] = att;
             });
 
-            // สร้างรายชื่อนักเรียนทั้งหมดในคอร์สอ้างอิง
             let studentMasterList = courseStudents.map(cs => {
                 const p = cs.profiles || allStudentsMap[String(cs.student_id || cs.user_id)] || cs;
                 const sId = String(cs.student_id || cs.user_id || p.id || p.user_id);
@@ -510,7 +501,6 @@
                 };
             });
 
-            // ป้องกันกรณีมีนักเรียนมาทำข้อสอบนอกเหนือจากรายชื่อในคอร์ส ให้เพิ่มเข้ามาด้วย
             allAttempts.forEach(att => {
                 const sId = String(att.student_id || att.user_id);
                 if (!studentMasterList.some(s => s.studentId === sId)) {
@@ -528,6 +518,7 @@
                 const att = attemptMap[item.studentId];
                 const isActive = !!att && (att.status === 'submitted' || att.total_score !== undefined || att.score !== undefined);
                 const score = att ? (att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0)) : 0;
+                const submittedAtVal = att ? (att.submission_time || att.submitted_at || att.created_at) : null;
 
                 return {
                     studentId: item.studentId,
@@ -537,19 +528,26 @@
                     attempt: att || null,
                     score: score,
                     minutesSpent: att ? calculateTimeSpentMinutes(att) : 0,
-                    submittedAt: att ? (att.submission_time || att.submitted_at || att.created_at) : null
+                    submittedAt: submittedAtVal,
+                    submittedAtTime: submittedAtVal ? new Date(submittedAtVal).getTime() : 0
                 };
             });
 
-            filteredRows = [...combinedStudentRows];
+            // จัดเรียงตารางด้านล่างตามวันเวลาส่ง (ล่าสุดขึ้นก่อน)
+            filteredRows = [...combinedStudentRows].sort((a, b) => {
+                if (a.isActive && !b.isActive) return -1;
+                if (!a.isActive && b.isActive) return 1;
+                return b.submittedAtTime - a.submittedAtTime;
+            });
 
             const activeCount = combinedStudentRows.filter(r => r.isActive).length;
             const inactiveCount = combinedStudentRows.length - activeCount;
+            const totalStudentsCount = combinedStudentRows.length;
 
             document.getElementById('statActiveCountBanner').textContent = activeCount;
-            document.getElementById('statInactiveCountBanner').textContent = inactiveCount;
             document.getElementById('statActiveCount').textContent = `${activeCount} คน`;
             document.getElementById('statInactiveCount').textContent = `${inactiveCount} คน`;
+            document.getElementById('statTotalStudents').textContent = `${totalStudentsCount} คน`;
 
             const activeAttempts = allAttempts.filter(a => a.status === 'submitted' || a.total_score !== undefined || a.score !== undefined);
             globalScores = activeAttempts.map(a => a.total_score !== undefined && a.total_score !== null ? Number(a.total_score) : (Number(a.score) || 0));
@@ -575,11 +573,10 @@
             renderSubmissionsTable();
         }
 
-        // ฟังก์ชันแสดงรายชื่อนักเรียนที่ส่งแล้ว หรือยังไม่ส่ง เมื่อกดปุ่ม
         function openStudentListModal(statusType) {
             const isDark = document.documentElement.classList.contains('dark');
             const targetRows = combinedStudentRows.filter(r => statusType === 'active' ? r.isActive : !r.isActive);
-            const titleText = statusType === 'active' ? '🟢 รายชื่อนักเรียนที่ส่งข้อสอบแล้ว' : '🔴 รายชื่อนักเรียนที่ยังไม่ส่งข้อสอบ (อ้างอิงจากรายชื่อในคอร์ส)';
+            const titleText = statusType === 'active' ? '🟢 รายชื่อนักเรียนที่ส่งข้อสอบแล้ว' : '🔴 รายชื่อนักเรียนที่ยังไม่ส่งข้อสอบ (ตามสังกัดคอร์ส)';
 
             let listHtml = targetRows.length === 0 ? `<div class="text-center py-6 text-slate-400">ไม่พบรายชื่อในกลุ่มนี้</div>` : targetRows.map((r, idx) => `
                 <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs">
