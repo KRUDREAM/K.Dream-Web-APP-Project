@@ -65,6 +65,9 @@
                     </h1>
                 </div>
                 <div class="flex items-center gap-2">
+                    <span id="realtimeStatusBadge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] border border-emerald-500/20">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Realtime Active
+                    </span>
                     <button onclick="initAnalytics()" title="รีเฟรชข้อมูล" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm shrink-0 cursor-pointer">
                         <i class="fas fa-sync-alt text-xs"></i>
                     </button>
@@ -278,6 +281,7 @@
         let allQuestions = [];
         let allAttempts = [];
         let allProfiles = [];
+        let courseStudents = []; // รายชื่อนักเรียนทั้งหมดในคอร์สจริง
         let allStudentsMap = {};
         let combinedStudentRows = [];
         let filteredRows = [];
@@ -411,6 +415,7 @@
                     return;
                 }
                 currentExam = examRes.data;
+                const activeCourseId = courseId || currentExam.course_id;
 
                 const qRes = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
                 allQuestions = qRes.data || [];
@@ -429,6 +434,26 @@
                     allStudentsMap[sId] = p;
                 });
 
+                // ดึงรายชื่อนักเรียนที่อยู่ในคอร์สนั้นจริง ๆ (ถ้ามีระบบ course_members หรือ enrollments)
+                if (activeCourseId) {
+                    try {
+                        const cmRes = await mySupabase.from('course_members').select('student_id, user_id, profiles(*)').eq('course_id', activeCourseId);
+                        if (cmRes.data && cmRes.data.length > 0) {
+                            courseStudents = cmRes.data;
+                        } else {
+                            const enRes = await mySupabase.from('enrollments').select('student_id, user_id, profiles(*)').eq('course_id', activeCourseId);
+                            if (enRes.data && enRes.data.length > 0) courseStudents = enRes.data;
+                        }
+                    } catch(e) { console.warn("Could not fetch course members, falling back to all profiles", e); }
+                }
+
+                // ถ้าไม่มีข้อมูลคอร์สเฉพาะ ให้ใช้นักเรียนทั้งหมดในระบบ profiles เป็นฐานแทน
+                if (courseStudents.length === 0) {
+                    courseStudents = allProfiles.map(p => ({ student_id: p.id || p.user_id, profiles: p }));
+                }
+
+                setupRealtimeSubscription();
+
             } catch (err) {
                 console.error("Analytics Load Error:", err);
             } finally {
@@ -442,6 +467,30 @@
             computeAndRenderStats();
         }
 
+        // ตั้งค่า Realtime Subscription รับการเปลี่ยนแปลงจากตาราง exam_attempts ทันที
+        function setupRealtimeSubscription() {
+            try {
+                mySupabase.channel('exam_attempts_realtime_' + examId)
+                    .on('postgres_changes', {
+                        event: '*',
+                        schema: 'public',
+                        table: 'exam_attempts',
+                        filter: `exam_id=eq.${examId}`
+                    }, async (payload) => {
+                        console.log('Realtime update received:', payload);
+                        // ดึงข้อมูล attempts ใหม่ทั้งหมดเพื่อให้ข้อมูลงตรงกันเป๊ะ
+                        const attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examId);
+                        if (attRes.data) {
+                            allAttempts = attRes.data;
+                            computeAndRenderStats();
+                        }
+                    })
+                    .subscribe();
+            } catch(e) {
+                console.warn("Realtime subscription setup error:", e);
+            }
+        }
+
         function computeAndRenderStats() {
             const attemptMap = {};
             allAttempts.forEach(att => {
@@ -449,45 +498,47 @@
                 attemptMap[sId] = att;
             });
 
-            combinedStudentRows = allProfiles.map(profile => {
-                const sId = String(profile.id || profile.user_id || profile.student_id);
-                const att = attemptMap[sId];
+            // สร้างรายชื่อนักเรียนทั้งหมดในคอร์สอ้างอิง
+            let studentMasterList = courseStudents.map(cs => {
+                const p = cs.profiles || allStudentsMap[String(cs.student_id || cs.user_id)] || cs;
+                const sId = String(cs.student_id || cs.user_id || p.id || p.user_id);
+                return {
+                    studentId: sId,
+                    profile: p,
+                    fullName: (p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '') || 'ไม่ระบุชื่อ',
+                    studentIdCode: p.student_id || p.code || '-'
+                };
+            });
+
+            // ป้องกันกรณีมีนักเรียนมาทำข้อสอบนอกเหนือจากรายชื่อในคอร์ส ให้เพิ่มเข้ามาด้วย
+            allAttempts.forEach(att => {
+                const sId = String(att.student_id || att.user_id);
+                if (!studentMasterList.some(s => s.studentId === sId)) {
+                    const p = allStudentsMap[sId] || {};
+                    studentMasterList.push({
+                        studentId: sId,
+                        profile: p,
+                        fullName: (p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '') || att.student_name || 'ไม่ระบุชื่อ',
+                        studentIdCode: p.student_id || p.code || att.student_id_code || '-'
+                    });
+                }
+            });
+
+            combinedStudentRows = studentMasterList.map(item => {
+                const att = attemptMap[item.studentId];
                 const isActive = !!att && (att.status === 'submitted' || att.total_score !== undefined || att.score !== undefined);
-                
-                const fullName = (profile.first_name || profile.name || profile.full_name || '').trim() + 
-                                 (profile.last_name ? ' ' + profile.last_name : '') || 'ไม่ระบุชื่อ';
-                const studentIdCode = profile.student_id || profile.code || '-';
                 const score = att ? (att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0)) : 0;
 
                 return {
-                    studentId: sId,
-                    studentIdCode: studentIdCode,
-                    fullName: fullName,
+                    studentId: item.studentId,
+                    studentIdCode: item.studentIdCode,
+                    fullName: item.fullName,
                     isActive: isActive,
                     attempt: att || null,
                     score: score,
                     minutesSpent: att ? calculateTimeSpentMinutes(att) : 0,
                     submittedAt: att ? (att.submission_time || att.submitted_at || att.created_at) : null
                 };
-            });
-
-            allAttempts.forEach(att => {
-                const sId = String(att.student_id || att.user_id);
-                if (!combinedStudentRows.some(r => r.studentId === sId)) {
-                    const fullName = att.student_name || att.full_name || 'ไม่ระบุชื่อ';
-                    const studentIdCode = att.student_id_code || '-';
-                    const score = att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0);
-                    combinedStudentRows.push({
-                        studentId: sId,
-                        studentIdCode: studentIdCode,
-                        fullName: fullName,
-                        isActive: true,
-                        attempt: att,
-                        score: score,
-                        minutesSpent: calculateTimeSpentMinutes(att),
-                        submittedAt: att.submission_time || att.submitted_at || att.created_at
-                    });
-                }
             });
 
             filteredRows = [...combinedStudentRows];
@@ -528,7 +579,7 @@
         function openStudentListModal(statusType) {
             const isDark = document.documentElement.classList.contains('dark');
             const targetRows = combinedStudentRows.filter(r => statusType === 'active' ? r.isActive : !r.isActive);
-            const titleText = statusType === 'active' ? '🟢 รายชื่อนักเรียนที่ส่งข้อสอบแล้ว' : '🔴 รายชื่อนักเรียนที่ยังไม่ส่งข้อสอบ';
+            const titleText = statusType === 'active' ? '🟢 รายชื่อนักเรียนที่ส่งข้อสอบแล้ว' : '🔴 รายชื่อนักเรียนที่ยังไม่ส่งข้อสอบ (อ้างอิงจากรายชื่อในคอร์ส)';
 
             let listHtml = targetRows.length === 0 ? `<div class="text-center py-6 text-slate-400">ไม่พบรายชื่อในกลุ่มนี้</div>` : targetRows.map((r, idx) => `
                 <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs">
