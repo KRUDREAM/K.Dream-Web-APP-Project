@@ -123,11 +123,12 @@
                 <p id="headerCourseDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-4xl">กำลังดึงข้อมูลเนื้อหาและสถิติ...</p>
             </div>
             
-            <!-- Action Buttons -->
+            <!-- ปุ่มจัดการต่างๆ จัดเรียงใหม่เต็มความกว้าง ไม่เบียดกัน -->
             <div class="flex items-center gap-2.5 flex-wrap z-10 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
                 <button onclick="openManageStudentsModal()" class="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2">
                     <i class="fas fa-users-gear text-sm"></i> จัดการนักเรียน (<span id="enrolledCountBadge">0</span>)
                 </button>
+                <!-- ปุ่มตั้งค่าคอร์สแถม จะแสดงเฉพาะเมื่อเป็นคอร์สประเภท bonus ตามเงื่อนไข -->
                 <button id="btnBonusSettings" onclick="openBonusCourseSettingsModal()" class="hidden px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-amber-500/25 transition-all items-center gap-2" title="ตั้งค่าเงื่อนไขคอร์สแถมอัตโนมัติ">
                     <i class="fas fa-gift text-sm"></i> ตั้งค่าคอร์สแถม
                 </button>
@@ -347,6 +348,8 @@
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const BUNNY_LIBRARY_ID = '785115'; // 🌟 กำหนด Bunny Library ID หลัก
 
         const urlParams = new URLSearchParams(window.location.search);
         const courseId = urlParams.get('id') || urlParams.get('course_id');
@@ -652,6 +655,8 @@
                             if (!insErr) {
                                 addedTotal++;
                                 enrolledSet.add(bonusId);
+                            } else {
+                                console.error("Insert error for student:", sId, insErr.message);
                             }
                         }
                     }
@@ -764,6 +769,7 @@
                     .eq('course_id', courseId);
 
                 if (error) {
+                    console.error("Error loading enrollments:", error);
                     data = [];
                 }
 
@@ -842,23 +848,33 @@
             Swal.showLoading();
 
             try {
+                let addedCount = 0;
+                let removedCount = 0;
+
                 for (const item of window.globalAllStudents) {
                     const shouldBeEnrolled = item.temporaryChecked;
 
                     if (shouldBeEnrolled && !item.isEnrolled) {
-                        await mySupabase.from('enrollments').insert([{ 
+                        const { error: insErr } = await mySupabase.from('enrollments').insert([{ 
                             course_id: courseId, 
                             student_id: item.studentId, 
                             created_at: new Date().toISOString() 
                         }]);
+
+                        if (!insErr) {
+                            addedCount++;
+                        }
                     } else if (!shouldBeEnrolled && item.isEnrolled) {
                         await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('student_id', item.studentId);
                         await mySupabase.from('enrollments').delete().eq('course_id', courseId).eq('user_id', item.studentId);
+                        
                         if (item.enrollId) {
                             await mySupabase.from('enrollments').delete().eq('id', item.enrollId);
                         }
+                        removedCount++;
                     }
                 }
+
                 return true;
             } catch (err) {
                 console.error("Save Batch Error:", err);
@@ -1240,7 +1256,7 @@
                             <div class="w-11 h-11 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform"><i class="fas fa-play text-sm"></i></div>
                             <div class="min-w-0">
                                 <h4 class="font-bold text-xs text-slate-900 dark:text-white truncate">${v.title}</h4>
-                                <p class="text-[10px] font-mono text-indigo-500 mt-0.5">Bunny ID: ${bunnyId}</p>
+                                <p class="text-[10px] font-mono text-indigo-500 mt-0.5">Bunny Library ID: ${BUNNY_LIBRARY_ID} | Video ID: ${bunnyId}</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
@@ -1289,7 +1305,7 @@
 
         function previewVideo(bunnyId, videoTitle) {
             const isDark = document.documentElement.classList.contains('dark');
-            let embedUrl = bunnyId.startsWith('http') ? bunnyId : `https://iframe.mediadelivery.net/embed/785115/${bunnyId}`;
+            let embedUrl = bunnyId.startsWith('http') ? bunnyId : `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${bunnyId}`;
             
             Swal.fire({
                 title: `🎬 ดูตัวอย่าง: ${videoTitle}`,
@@ -1297,7 +1313,7 @@
                     <div class="aspect-video w-full bg-black rounded-2xl overflow-hidden shadow-xl">
                         <iframe src="${embedUrl}" loading="lazy" style="border:0; width:100%; height:100%;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-3 font-mono">Bunny ID / URL: ${bunnyId}</p>
+                    <p class="text-[11px] text-slate-400 mt-3 font-mono">Bunny Library ID: ${BUNNY_LIBRARY_ID} | Video ID: ${bunnyId}</p>
                 `,
                 width: '750px',
                 confirmButtonText: 'ปิดหน้าต่าง',
@@ -1321,7 +1337,7 @@
                             <input id="swalLessonTitle" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold" placeholder="${isVideo ? 'เช่น EP.1 แนะนำพื้นฐานอัลกอริทึม' : 'เช่น สไลด์บรรยายบทที่ 1 (PDF)'}">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">${isVideo ? 'Bunny Video ID' : 'ลิงก์ไฟล์ PDF'} <span class="text-red-500">*</span></label>
+                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">${isVideo ? `Bunny Video ID (Library ID: ${BUNNY_LIBRARY_ID})` : 'ลิงก์ไฟล์ PDF'} <span class="text-red-500">*</span></label>
                             <input id="swalLessonUrl" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-mono" placeholder="${isVideo ? 'เช่น e2e146be-d370-444f-891b-e1692e950e4f' : 'https://drive.google.com/...'}">
                         </div>
                     </div>
@@ -1385,7 +1401,7 @@
                             <input id="swalEditTitle" value="${safeTitle}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1">Bunny Video ID <span class="text-red-500">*</span></label>
+                            <label class="block font-bold mb-1">Bunny Video ID (Library ID: ${BUNNY_LIBRARY_ID}) <span class="text-red-500">*</span></label>
                             <input id="swalEditBunnyId" value="${safeBunnyId}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono">
                         </div>
                     </div>
