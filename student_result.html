@@ -510,42 +510,62 @@
             }
         }
 
-        // ฟังก์ชันเชื่อมต่อ Gemini AI สำหรับวิเคราะห์ผลสอบเชิงลึก
-// ฟังก์ชันเชื่อมต่อ Gemini AI พร้อมระบบลองใหม่อัตโนมัติเมื่อเจอความหนาแน่น
-// ฟังก์ชันวิเคราะห์ผลสอบเชิงลึกแบบแสดงผลทันที (รวดเร็ว ไหลลื่น ไม่ต้องรอ API)
+// ฟังก์ชันวิเคราะห์จุดที่ต้องเสริมรายข้อและรายหมวดหมู่แบบฉลาดและรวดเร็วทันที
         async function generateAIExamInsight(examTitle, studentName, score, total, categoryStats) {
             const container = document.getElementById('aiInsightContent');
             const pct = total > 0 ? Math.round((score / total) * 100) : 0;
             
-            // ประเมินผลตามเปอร์เซ็นต์คะแนนจริง
-            let gradeTitle = "อยู่ในเกณฑ์ดีเยี่ยม 🎯";
-            let strengthText = "มีความเข้าใจในเนื้อหาภาพรวมและทำคะแนนในหมวดหลักได้อย่างมั่นคง";
-            let adviceText = "ควรฝึกฝนทำโจทย์เสริมในหัวข้อที่มีความซับซ้อนเพิ่มขึ้น เพื่อเตรียมความพร้อมสำหรับการสอบสนามจริง";
-
-            if (pct >= 80) {
-                gradeTitle = "อยู่ในเกณฑ์ยอดเยี่ยมมาก 🌟";
-                strengthText = "มีความแม่นยำสูงและเชี่ยวชาญเนื้อหาในเกือบทุกหมวดหมู่ ทำผลงานได้โดดเด่นมาก";
-                adviceText = "รักษาระดับมาตรฐานที่ดีเยี่ยมนี้ไว้ และลองท้าทายตนเองด้วยโจทย์ประยุกต์ขั้นสูง";
-            } else if (pct < 50) {
-                gradeTitle = "ต้องพยายามเพิ่มอีกนิด 📚";
-                strengthText = "มีความตั้งใจและผ่านเกณฑ์พื้นฐานเบื้องต้น";
-                adviceText = "แนะนำให้กลับไปทบทวนเนื้อหาและสรุปสูตรในหมวดหมู่ที่ได้คะแนนน้อยเป็นพิเศษ";
+            // ค้นหาข้อที่ทำผิดจาก globalQuestions และ globalRawAnswers
+            let wrongQuestionsSummary = [];
+            if (window.globalQuestions && window.globalQuestions.length > 0) {
+                window.globalQuestions.forEach((q, idx) => {
+                    const qNum = q.question_number || (idx + 1);
+                    const userAns = getUserAnswer(q, globalRawAnswers);
+                    const isCorrect = isAnswerCorrect(q, userAns);
+                    if (!isCorrect) {
+                        const tag = q.category_tag || 'ทั่วไป';
+                        wrongQuestionsSummary.push(`ข้อที่ ${qNum} (หมวด: ${tag})`);
+                    }
+                });
             }
 
-            // แสดงผลลัพธ์ทันทีแบบสมบูรณ์
+            // จัดทำคำแนะนำรายหมวดหมู่ที่ทำคะแนนได้น้อย
+            let weakCategories = Object.entries(categoryStats)
+                .map(([tag, st]) => ({
+                    tag,
+                    pct: st.total > 0 ? Math.round((st.correct / st.total) * 100) : 0,
+                    correct: st.correct,
+                    total: st.total
+                }))
+                .filter(item => item.pct < 100); // เลือกหมวดที่ยังทำได้ไม่เต็ม
+
+            // เรียงลำดับหมวดที่เปอร์เซ็นต์น้อยที่สุดขึ้นก่อนเพื่อให้รู้ว่าต้องรีบเสริมตรงไหน
+            weakCategories.sort((a, b) => a.pct - b.pct);
+
+            let weakCategoryText = weakCategories.length > 0 
+                ? weakCategories.map(w => `• หมวด <b>${escapeHtml(w.tag)}</b> (ทำได้ ${w.correct}/${w.total} หรือคิดเป็น ${w.pct}%) ควรกลับไปทบทวนสูตรและฝึกทำโจทย์แนวนี้เพิ่มเป็นพิเศษ`).join('<br>')
+                : 'ยอดเยี่ยมมาก! ทำคะแนนได้เต็มทุกหมวดหมู่ ไม่มีจุดที่ต้องแก้ไขเป็นพิเศษ';
+
+            let wrongDetailText = wrongQuestionsSummary.length > 0
+                ? `คุณทำผิดใน ${wrongQuestionsSummary.length} ข้อ ได้แก่: ${wrongQuestionsSummary.join(', ')} แนะนำให้เปิดดูเฉลยรายข้อด้านล่างเพื่อดูวิธีทำที่ถูกต้องในข้อเหล่านั้น`
+                : 'ทำถูกต้องทั้งหมดทุกข้อ เยี่ยมยอดมากครับ!';
+
+            // แสดงผลการวิเคราะห์เจาะลึกทันที
             container.innerHTML = `
-                <div class="space-y-3">
+                <div class="space-y-3 text-xs sm:text-sm">
                     <div>
-                        <b class="text-purple-400">1. 🎯 ภาพรวมผลการสอบ:</b> 
-                        <p class="mt-0.5">ทำคะแนนรวมได้ ${score}/${total} (${pct}%) ถือว่าผลงานภาพรวม${gradeTitle}</p>
+                        <b class="text-purple-400">1. 🎯 ภาพรวมคะแนน:</b> 
+                        <p class="mt-0.5">ได้คะแนน ${score}/${total} (${pct}%) โดดเด่นในภาพรวม แต่มีจุดที่ต้องเก็บตกเพิ่มเติมเพื่อให้สมบูรณ์แบบยิ่งขึ้น</p>
                     </div>
                     <div>
-                        <b class="text-purple-400">2. 💪 จุดแข็ง (Strengths):</b> 
-                        <p class="mt-0.5">${strengthText}</p>
+                        <b class="text-purple-400">2. ⚠️ หมวดหมู่และเนื้อหาที่ต้องไปเสริมด่วน:</b> 
+                        <div class="mt-1 p-2.5 bg-purple-500/10 rounded-xl border border-purple-500/20 space-y-1">
+                            ${weakCategoryText}
+                        </div>
                     </div>
                     <div>
-                        <b class="text-purple-400">3. 💡 จุดที่ควรพัฒนาและคำแนะนำ:</b> 
-                        <p class="mt-0.5">${adviceText} 🚀</p>
+                        <b class="text-purple-400">3. 💡 สรุปข้อที่ต้องกลับไปทบทวนรายข้อ:</b> 
+                        <p class="mt-0.5">${wrongDetailText} 🚀</p>
                     </div>
                 </div>`;
         }
