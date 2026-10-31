@@ -91,10 +91,10 @@
                 <p id="headerExamDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words">กำลังดึงข้อมูลสถิติ...</p>
             </div>
             <div class="flex items-center gap-3 shrink-0 flex-wrap">
-                <!-- ปุ่ม Active -->
-                <button onclick="openStudentListModal('active')" class="p-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-2xl text-center transition-all cursor-pointer">
-                    <div id="statActiveCountBanner" class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">0</div>
-                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">Active <i class="fas fa-chevron-right text-[9px]"></i></div>
+                <!-- ปุ่ม Active (กำลังทำ) -->
+                <button onclick="openStudentListModal('in_progress')" class="p-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-2xl text-center transition-all cursor-pointer">
+                    <div id="statActiveCountBanner" class="text-lg font-extrabold text-amber-600 dark:text-amber-400">0</div>
+                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">Active (กำลังทำ) <i class="fas fa-chevron-right text-[9px]"></i></div>
                 </button>
                 <div class="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl text-center">
                     <div id="statAvgScoreBanner" class="text-lg font-extrabold text-indigo-600 dark:text-indigo-400">0.0</div>
@@ -105,11 +105,11 @@
 
         <!-- 5 Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
-            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-emerald-500/50 col-span-2 sm:col-span-1" onclick="openStudentListModal('active')">
-                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-user-check"></i></div>
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-amber-500/50" onclick="openStudentListModal('in_progress')">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-spinner"></i></div>
                 <div class="min-w-0">
-                    <span class="text-[11px] text-slate-400 font-bold block truncate">Active (คน)</span>
-                    <span id="statActiveCount" class="text-base font-extrabold text-emerald-600 dark:text-emerald-400 truncate block">-</span>
+                    <span class="text-[11px] text-slate-400 font-bold block truncate">Active (กำลังทำ)</span>
+                    <span id="statActiveCount" class="text-base font-extrabold text-amber-600 dark:text-amber-400 truncate block">-</span>
                 </div>
             </div>
             <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
@@ -133,7 +133,7 @@
                     <span id="statMinScore" class="text-base font-extrabold text-rose-600 dark:text-rose-400 truncate block">-</span>
                 </div>
             </div>
-            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 col-span-2 sm:col-span-1">
                 <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-users"></i></div>
                 <div class="min-w-0">
                     <span class="text-[11px] text-slate-400 font-bold block truncate">นักเรียนทั้งหมด</span>
@@ -231,7 +231,8 @@
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <select id="statusFilterSelect" onchange="filterSubmissions()" class="px-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none font-bold text-slate-700 dark:text-slate-300">
                         <option value="all">สถานะทั้งหมด</option>
-                        <option value="active">Active</option>
+                        <option value="submitted">ส่งแล้ว</option>
+                        <option value="in_progress">In Progress</option>
                         <option value="inactive">ยังไม่ทำ</option>
                     </select>
                     <div class="relative w-full sm:w-64 shrink-0">
@@ -367,12 +368,11 @@
             return null;
         }
 
-        // ปรับปรุงฟังก์ชันคำนวณเวลาที่ใช้ (รองรับทั้งวินาที, นาที, และคำนวณจาก timestamp)
         function calculateTimeSpentMinutes(att) {
             if (!att) return 0;
             if (att.time_spent !== undefined && att.time_spent !== null && !isNaN(att.time_spent)) {
                 const val = Number(att.time_spent);
-                return val > 120 ? val / 60 : val; // ถ้ายอดเกิน 120 อาจเก็บเป็นวินาที ให้หาร 60
+                return val > 120 ? val / 60 : val;
             }
             if (att.time_used !== undefined && att.time_used !== null && !isNaN(att.time_used)) {
                 const val = Number(att.time_used);
@@ -506,16 +506,20 @@
 
             combinedStudentRows = studentMasterList.map(item => {
                 const att = attemptMap[item.studentId];
-                // เช็คว่าเป็น Active (มีข้อมูลการทำข้อสอบหรือกดเข้ามาทำแล้ว ไม่จำเป็นต้อง status='submitted' อย่างเดียว)
-                const isActive = !!att;
-                const score = att ? (att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0)) : 0;
+                const hasAttempt = !!att;
+                const isSubmitted = hasAttempt && (att.status === 'submitted' || att.total_score !== undefined || att.score !== undefined);
+                const isInProgress = hasAttempt && !isSubmitted;
+
+                const score = isSubmitted ? (att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0)) : 0;
                 const submittedAtVal = att ? (att.submission_time || att.submitted_at || att.created_at || att.updated_at) : null;
 
                 return {
                     studentId: item.studentId,
                     studentIdCode: item.studentIdCode,
                     fullName: item.fullName,
-                    isActive: isActive,
+                    hasAttempt: hasAttempt,
+                    isSubmitted: isSubmitted,
+                    isInProgress: isInProgress,
                     attempt: att || null,
                     score: score,
                     minutesSpent: att ? calculateTimeSpentMinutes(att) : 0,
@@ -525,12 +529,12 @@
             });
 
             filteredRows = [...combinedStudentRows].sort((a, b) => {
-                if (a.isActive && !b.isActive) return -1;
-                if (!a.isActive && b.isActive) return 1;
+                if (a.isSubmitted && !b.isSubmitted) return -1;
+                if (!a.isSubmitted && b.isSubmitted) return 1;
                 return b.submittedAtTime - a.submittedAtTime;
             });
 
-            const activeCount = combinedStudentRows.filter(r => r.isActive).length;
+            const activeCount = combinedStudentRows.filter(r => r.isInProgress).length;
             const totalStudentsCount = combinedStudentRows.length;
 
             const setSafeText = (id, text) => {
@@ -542,13 +546,13 @@
             setSafeText('statActiveCount', `${activeCount} คน`);
             setSafeText('statTotalStudents', `${totalStudentsCount} คน`);
 
-            const activeAttempts = allAttempts.filter(a => a.total_score !== undefined || a.score !== undefined || a.status === 'submitted');
-            globalScores = activeAttempts.map(a => a.total_score !== undefined && a.total_score !== null ? Number(a.total_score) : (Number(a.score) || 0));
-            globalTimes = activeAttempts.map(a => calculateTimeSpentMinutes(a));
+            const submittedAttempts = allAttempts.filter(a => a.total_score !== undefined || a.score !== undefined || a.status === 'submitted');
+            globalScores = submittedAttempts.map(a => a.total_score !== undefined && a.total_score !== null ? Number(a.total_score) : (Number(a.score) || 0));
+            globalTimes = submittedAttempts.map(a => calculateTimeSpentMinutes(a));
             globalMaxScore = allQuestions.length || 10;
 
             let sumScore = globalScores.reduce((acc, curr) => acc + curr, 0);
-            let avgScore = activeAttempts.length > 0 ? (sumScore / activeAttempts.length).toFixed(1) : '0.0';
+            let avgScore = submittedAttempts.length > 0 ? (sumScore / submittedAttempts.length).toFixed(1) : '0.0';
             let highestScore = globalScores.length > 0 ? Math.max(...globalScores) : 0;
             let lowestScore = globalScores.length > 0 ? Math.min(...globalScores) : 0;
 
@@ -568,17 +572,17 @@
 
         function openStudentListModal(statusType) {
             const isDark = document.documentElement.classList.contains('dark');
-            const targetRows = combinedStudentRows.filter(r => statusType === 'active' ? r.isActive : !r.isActive);
-            const titleText = statusType === 'active' ? '🟢 รายชื่อนักเรียนที่เป็น Active (กำลังทำหรือทำแล้ว)' : '🔴 รายชื่อนักเรียนที่ยังไม่เริ่มทำ';
+            const targetRows = combinedStudentRows.filter(r => r.isInProgress);
+            const titleText = '🟡 รายชื่อนักเรียนที่กำลังทำข้อสอบอยู่ (Active / In Progress)';
 
-            let listHtml = targetRows.length === 0 ? `<div class="text-center py-6 text-slate-400">ไม่พบรายชื่อในกลุ่มนี้</div>` : targetRows.map((r, idx) => `
+            let listHtml = targetRows.length === 0 ? `<div class="text-center py-6 text-slate-400">ไม่มีนักเรียนที่กำลังทำข้อสอบในขณะนี้</div>` : targetRows.map((r, idx) => `
                 <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs">
                     <div>
                         <div class="font-bold text-slate-800 dark:text-slate-100">${idx + 1}. ${escapeHtml(r.fullName)}</div>
                         <div class="text-slate-500 font-mono text-[11px]">รหัส: ${escapeHtml(r.studentIdCode)}</div>
                     </div>
                     <div>
-                        ${r.isActive ? `<span class="font-mono font-bold text-indigo-600">${r.score}/${globalMaxScore} คะแนน</span>` : `<span class="text-rose-500 font-bold">ยังไม่ทำ</span>`}
+                        <span class="text-amber-500 font-bold">In Progress</span>
                     </div>
                 </div>
             `).join('');
@@ -654,10 +658,10 @@
             const countBadge = document.getElementById('rankingCountBadge');
             if (!tbody) return;
 
-            const activeRows = combinedStudentRows.filter(r => r.isActive).sort((a, b) => b.score - a.score);
+            const activeRows = combinedStudentRows.filter(r => r.isSubmitted).sort((a, b) => b.score - a.score);
 
             if (activeRows.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-slate-400 text-xs">ยังไม่มีข้อมูลผู้สอบ</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-slate-400 text-xs">ยังไม่มีข้อมูลผู้สอบที่ส่งแล้ว</td></tr>`;
                 if (countBadge) countBadge.textContent = '0 คน';
                 return;
             }
@@ -882,16 +886,20 @@
             }
 
             tbody.innerHTML = filteredRows.map((row, idx) => {
-                // เปลี่ยนข้อความสถานะเป็น In Progress / ยังไม่ทำ
-                const statusBadge = row.isActive 
-                    ? `<span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold rounded-full text-[10px]"><i class="fas fa-spinner fa-spin mr-1"></i> In Progress</span>`
-                    : `<span class="px-2.5 py-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold rounded-full text-[10px]"><i class="fas fa-clock mr-1"></i> ยังไม่ทำ</span>`;
+                let statusBadge = '';
+                if (row.isSubmitted) {
+                    statusBadge = `<span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold rounded-full text-[10px]"><i class="fas fa-check-circle mr-1"></i> ส่งแล้ว</span>`;
+                } else if (row.isInProgress) {
+                    statusBadge = `<span class="px-2.5 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold rounded-full text-[10px]"><i class="fas fa-spinner fa-spin mr-1"></i> In Progress</span>`;
+                } else {
+                    statusBadge = `<span class="px-2.5 py-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold rounded-full text-[10px]"><i class="fas fa-clock mr-1"></i> ยังไม่ทำ</span>`;
+                }
 
-                const scoreText = row.isActive ? `<span class="font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${row.score} / ${globalMaxScore}</span>` : `<span class="text-slate-400">-</span>`;
-                const timeText = row.isActive && row.minutesSpent > 0 ? `<span class="font-mono text-amber-600 dark:text-amber-400">${row.minutesSpent.toFixed(1)} นาที</span>` : `<span class="text-slate-400">-</span>`;
-                const dateText = row.isActive && row.submittedAt ? new Date(row.submittedAt).toLocaleString('th-TH') : '-';
+                const scoreText = row.isSubmitted ? `<span class="font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${row.score} / ${globalMaxScore}</span>` : `<span class="text-slate-400">-</span>`;
+                const timeText = row.hasAttempt && row.minutesSpent > 0 ? `<span class="font-mono text-amber-600 dark:text-amber-400">${row.minutesSpent.toFixed(1)} นาที</span>` : `<span class="text-slate-400">-</span>`;
+                const dateText = row.isSubmitted && row.submittedAt ? new Date(row.submittedAt).toLocaleString('th-TH') : '-';
 
-                const actionBtn = row.isActive && row.attempt
+                const actionBtn = row.isSubmitted && row.attempt
                     ? `<button onclick="viewAttemptDetail('${row.attempt.id}')" class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-xl transition-all text-[11px] whitespace-nowrap"><i class="fas fa-search-plus mr-1"></i> ตรวจคำตอบ</button>`
                     : `<span class="text-slate-400 text-[11px]">-</span>`;
 
@@ -916,7 +924,11 @@
             const keyword = (inputEl?.value || '').trim().toLowerCase();
 
             filteredRows = combinedStudentRows.filter(row => {
-                const matchStatus = statusFilter === 'all' || (statusFilter === 'active' && row.isActive) || (statusFilter === 'inactive' && !row.isActive);
+                let matchStatus = true;
+                if (statusFilter === 'submitted') matchStatus = row.isSubmitted;
+                else if (statusFilter === 'in_progress') matchStatus = row.isInProgress;
+                else if (statusFilter === 'inactive') matchStatus = !row.hasAttempt;
+
                 const matchKeyword = !keyword || row.fullName.toLowerCase().includes(keyword) || row.studentIdCode.toLowerCase().includes(keyword);
                 return matchStatus && matchKeyword;
             });
