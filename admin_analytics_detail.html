@@ -367,16 +367,19 @@
             return null;
         }
 
-        // คำนวณเวลาที่ใช้: เอา total duration ของข้อสอบ หักลบด้วย remaining_time ที่เหลืออยู่
+        // คำนวณเวลาที่ใช้: หาก remaining_time เป็น 0 ให้ขึ้นเป็นเวลาเต็มของชุดข้อสอบทันที
         function calculateTimeSpentMinutes(att) {
             if (!att) return 0;
             
-            // ดึงค่าเวลาทั้งหมดของข้อสอบ (หน่วยเป็นนาที)
-            const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
+            // ดึงค่าเวลาทั้งหมดของข้อสอบ (หน่วยเป็นนาที) เช่น time_limit หรือ duration
+            const examDurationMinutes = Number(currentExam && (currentExam.time_limit || currentExam.duration || currentExam.exam_duration) ? (currentExam.time_limit || currentExam.duration || currentExam.exam_duration) : 30);
             
-            // ถ้าในตาราง exam_attempts มีการเก็บ remaining_time (อาจจะเป็นวินาทีหรือนาที)
             if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
                 let rem = Number(att.remaining_time);
+                // ถ้าค่า remaining_time เท่ากับ 0 หรือติดลบ ให้ถือว่าใช้เวลาเต็มของข้อสอบ
+                if (rem <= 0) {
+                    return examDurationMinutes;
+                }
                 // ถ้าค่า remaining_time มากกว่า 120 แสดงว่าเป็นวินาที ให้แปลงเป็นนาที
                 let remMinutes = rem > 120 ? rem / 60 : rem;
                 let spent = examDurationMinutes - remMinutes;
@@ -803,7 +806,7 @@
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
 
-            const maxDuration = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
+            const maxDuration = Number(currentExam && (currentExam.time_limit || currentExam.duration || currentExam.exam_duration) ? (currentExam.time_limit || currentExam.duration || currentExam.exam_duration) : 30);
             let binCount = Math.max(Math.ceil(maxDuration / 5), 6);
             let labels = [];
             let timeBuckets = new Array(binCount).fill(0);
