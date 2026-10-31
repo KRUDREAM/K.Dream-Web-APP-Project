@@ -184,8 +184,6 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const BUNNY_LIBRARY_ID = '785115'; 
-
         let currentStudentId = null;
         let currentStudentName = 'นักเรียน';
         let enrolledCourses = [];
@@ -301,7 +299,7 @@
                     title: l.title || 'ไม่มีชื่อหัวข้อ',
                     course_id: String(l.course_id || ''),
                     bunny_video_id: l.bunny_video_id || l.video_url || '',
-                    pdf_url: l.pdf_url || '',
+                    pdf_url: l.pdf_url || l.file_url || '',
                     created_at: l.created_at || new Date().toISOString()
                 }));
 
@@ -404,8 +402,12 @@
             document.getElementById('currentPlayingTitle').innerHTML = `<i class="fas fa-play-circle text-sky-500 shrink-0"></i> <span class="truncate">${decodeURIComponent(encodedTitle)}</span>`;
             document.getElementById('videoPublishDate').textContent = `เผยแพร่เมื่อ: ${new Date(createdAt).toLocaleString('th-TH')}`;
 
+            // ค้นหาคอร์สปัจจุบันเพื่อดึง Bunny Library ID ประจำคอร์สออกมาใช้งาน
+            const currentCourse = enrolledCourses.find(c => String(c.id) === String(currentCourseId));
+            const libraryId = (currentCourse && (currentCourse.bunny_library_id || currentCourse.library_id)) ? (currentCourse.bunny_library_id || currentCourse.library_id) : '785115';
+
             const wrapper = document.getElementById('bunnyPlayerWrapper');
-            const embedUrl = `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${bunnyVideoId}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
+            const embedUrl = bunnyVideoId.startsWith('http') ? bunnyVideoId : `https://iframe.mediadelivery.net/embed/${libraryId}/${bunnyVideoId}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
 
             wrapper.innerHTML = `
                 <iframe src="${embedUrl}" loading="lazy" style="border:none;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
