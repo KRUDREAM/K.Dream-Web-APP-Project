@@ -368,43 +368,47 @@
         }
 
         // คำนวณเวลาที่ใช้: รองรับการดึง remaining_time อย่างแม่นยำ
-        function calculateTimeSpentMinutes(att) {
-            if (!att) return 0;
-            
-            const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
-            
-            // 1. ตรวจสอบค่า remaining_time ก่อนเป็นอันดับแรก (หากมีการบันทึกเวลาเหลือ)
-            if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
-                let rem = Number(att.remaining_time);
-                if (rem <= 0) return examDurationMinutes;
-                let remMinutes = rem > 120 ? rem / 60 : rem; // แปลงวินาทีเป็นนาทีหากมีค่ามากกว่า 120
-                let spent = examDurationMinutes - remMinutes;
-                return spent >= 0 ? spent : 0;
-            }
+function calculateTimeSpentMinutes(att) {
+    if (!att) return 0;
+    
+    // ดึงเวลาทั้งหมดของข้อสอบ (หน่วยเป็นนาที) จากข้อมูล exam
+    const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
+    const totalExamSeconds = examDurationMinutes * 60;
+    
+    // หากมี remaining_time (เก็บเป็นวินาทีที่เหลือ) นำไปลบออกจากเวลาทั้งหมด
+    if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
+        let remSeconds = Number(att.remaining_time);
+        // ป้องกันกรณีเวลาเหลือติดลบหรือเกินเวลาสอบ
+        if (remSeconds < 0) remSeconds = 0;
+        if (remSeconds > totalExamSeconds) remSeconds = totalExamSeconds;
+        
+        let spentSeconds = totalExamSeconds - remSeconds;
+        return spentSeconds / 60; // แปลงวินาทีที่ใช้ไปกลับเป็นนาที
+    }
 
-            // 2. หากมี time_spent หรือ time_used ตรงๆ
-            if (att.time_spent !== undefined && att.time_spent !== null && !isNaN(att.time_spent)) {
-                const val = Number(att.time_spent);
-                return val > 120 ? val / 60 : val;
-            }
-            if (att.time_used !== undefined && att.time_used !== null && !isNaN(att.time_used)) {
-                const val = Number(att.time_used);
-                return val > 120 ? val / 60 : val;
-            }
+    // กรณีสำรอง: ถ้ามีฟิลด์ time_spent หรือ time_used ตรงๆ
+    if (att.time_spent !== undefined && att.time_spent !== null && !isNaN(att.time_spent)) {
+        const val = Number(att.time_spent);
+        return val > 120 ? val / 60 : val;
+    }
+    if (att.time_used !== undefined && att.time_used !== null && !isNaN(att.time_used)) {
+        const val = Number(att.time_used);
+        return val > 120 ? val / 60 : val;
+    }
 
-            // 3. คำนวณจาก started_at ถึง submitted_at หรือปัจจุบัน
-            const start = att.started_at || att.created_at || att.start_time;
-            const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at;
-            if (start) {
-                const diffMs = new Date(end || new Date()) - new Date(start);
-                if (diffMs > 0) {
-                    const mins = diffMs / (1000 * 60);
-                    return Math.min(mins, examDurationMinutes);
-                }
-            }
-
-            return 0;
+    // กรณีสำรองสุดท้าย: คำนวณจากเวลาเริ่มต้น (started_at)
+    const start = att.started_at || att.created_at || att.start_time;
+    const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at;
+    if (start) {
+        const diffMs = new Date(end || new Date()) - new Date(start);
+        if (diffMs > 0) {
+            const mins = diffMs / (1000 * 60);
+            return Math.min(mins, examDurationMinutes);
         }
+    }
+
+    return 0;
+}
 
         async function initAnalytics() {
             if (!examId) {
