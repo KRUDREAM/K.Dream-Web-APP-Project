@@ -429,17 +429,19 @@
                     allStudentsMap[sId] = p;
                 });
 
-                // ดึงรายชื่อนักเรียนตามสังกัดคอร์สของข้อสอบนี้จริง ๆ
+                // ป้องกัน Error 404/400 โดยใช้วิธีดัก try-catch แยกอิสระสำหรับตารางสมาชิกคอร์ส
                 if (activeCourseId) {
                     try {
-                        const cmRes = await mySupabase.from('course_members').select('student_id, user_id, profiles(*)').eq('course_id', activeCourseId);
+                        const cmRes = await mySupabase.from('course_members').select('*').eq('course_id', activeCourseId);
                         if (cmRes.data && cmRes.data.length > 0) {
                             courseStudents = cmRes.data;
                         } else {
-                            const enRes = await mySupabase.from('enrollments').select('student_id, user_id, profiles(*)').eq('course_id', activeCourseId);
+                            const enRes = await mySupabase.from('enrollments').select('*').eq('course_id', activeCourseId);
                             if (enRes.data && enRes.data.length > 0) courseStudents = enRes.data;
                         }
-                    } catch(e) { console.warn("Could not fetch course members", e); }
+                    } catch(e) { 
+                        console.warn("Course members fetch skipped or table not found:", e); 
+                    }
                 }
 
                 if (courseStudents.length === 0) {
@@ -491,8 +493,8 @@
             });
 
             let studentMasterList = courseStudents.map(cs => {
-                const p = cs.profiles || allStudentsMap[String(cs.student_id || cs.user_id)] || cs;
-                const sId = String(cs.student_id || cs.user_id || p.id || p.user_id);
+                const sId = String(cs.student_id || cs.user_id || cs.id);
+                const p = cs.profiles || allStudentsMap[sId] || cs;
                 return {
                     studentId: sId,
                     profile: p,
@@ -533,7 +535,6 @@
                 };
             });
 
-            // จัดเรียงตารางด้านล่างตามวันเวลาส่ง (ล่าสุดขึ้นก่อน)
             filteredRows = [...combinedStudentRows].sort((a, b) => {
                 if (a.isActive && !b.isActive) return -1;
                 if (!a.isActive && b.isActive) return 1;
@@ -541,13 +542,16 @@
             });
 
             const activeCount = combinedStudentRows.filter(r => r.isActive).length;
-            const inactiveCount = combinedStudentRows.length - activeCount;
             const totalStudentsCount = combinedStudentRows.length;
 
-            document.getElementById('statActiveCountBanner').textContent = activeCount;
-            document.getElementById('statActiveCount').textContent = `${activeCount} คน`;
-            document.getElementById('statInactiveCount').textContent = `${inactiveCount} คน`;
-            document.getElementById('statTotalStudents').textContent = `${totalStudentsCount} คน`;
+            const setSafeText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+
+            setSafeText('statActiveCountBanner', activeCount);
+            setSafeText('statActiveCount', `${activeCount} คน`);
+            setSafeText('statTotalStudents', `${totalStudentsCount} คน`);
 
             const activeAttempts = allAttempts.filter(a => a.status === 'submitted' || a.total_score !== undefined || a.score !== undefined);
             globalScores = activeAttempts.map(a => a.total_score !== undefined && a.total_score !== null ? Number(a.total_score) : (Number(a.score) || 0));
@@ -559,10 +563,10 @@
             let highestScore = globalScores.length > 0 ? Math.max(...globalScores) : 0;
             let lowestScore = globalScores.length > 0 ? Math.min(...globalScores) : 0;
 
-            document.getElementById('statAvgScoreBanner').textContent = avgScore;
-            document.getElementById('statAvgScore').textContent = `${avgScore} / ${globalMaxScore}`;
-            document.getElementById('statMaxScore').textContent = `${highestScore} / ${globalMaxScore}`;
-            document.getElementById('statMinScore').textContent = `${lowestScore} / ${globalMaxScore}`;
+            setSafeText('statAvgScoreBanner', avgScore);
+            setSafeText('statAvgScore', `${avgScore} / ${globalMaxScore}`);
+            setSafeText('statMaxScore', `${highestScore} / ${globalMaxScore}`);
+            setSafeText('statMinScore', `${lowestScore} / ${globalMaxScore}`);
 
             renderDifficultyChart();
             renderCompactRankingTable();
