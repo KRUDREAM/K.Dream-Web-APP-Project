@@ -510,43 +510,55 @@
             }
         }
 
-// ฟังก์ชันเชื่อมต่อ Gemini AI (รุ่นสปีดเร็ว ตอบสนองไวขึ้น)
-// ฟังก์ชันวิเคราะห์ผลสอบแบบแสดงผลทันที ไหลลื่น ไม่ต้องรอ API โหลดนาน
+        // ฟังก์ชันเชื่อมต่อ Gemini AI สำหรับวิเคราะห์ผลสอบเชิงลึก
+// ฟังก์ชันเชื่อมต่อ Gemini AI พร้อมระบบลองใหม่อัตโนมัติเมื่อเจอความหนาแน่น
+// ฟังก์ชันวิเคราะห์ผลสอบเชิงลึกแบบแสดงผลทันที (รวดเร็ว ไหลลื่น ไม่ต้องรอ API)
         async function generateAIExamInsight(examTitle, studentName, score, total, categoryStats) {
             const container = document.getElementById('aiInsightContent');
             const pct = total > 0 ? Math.round((score / total) * 100) : 0;
             
-            // ประเมินเกรดและจุดแข็งคร่าว ๆ จากเปอร์เซ็นต์คะแนน
-            let gradeLevel = "อยู่ในเกณฑ์ดีเยี่ยม 🎯";
-            let strengthMsg = "มีความเข้าใจในเนื้อหาหลักและทำคะแนนในหมวดพื้นฐานได้ดีมาก";
-            let adviceMsg = "ควรฝึกฝนทำโจทย์เสริมในหัวข้อที่มีความซับซ้อนเพิ่มขึ้น เพื่อเตรียมพร้อมสำหรับการสอบสนามจริง";
+            // ประเมินผลตามเปอร์เซ็นต์คะแนนจริง
+            let gradeTitle = "อยู่ในเกณฑ์ดีเยี่ยม 🎯";
+            let strengthText = "มีความเข้าใจในเนื้อหาภาพรวมและทำคะแนนในหมวดหลักได้อย่างมั่นคง";
+            let adviceText = "ควรฝึกฝนทำโจทย์เสริมในหัวข้อที่มีความซับซ้อนเพิ่มขึ้น เพื่อเตรียมความพร้อมสำหรับการสอบสนามจริง";
 
             if (pct >= 80) {
-                gradeLevel = "อยู่ในเกณฑ์ยอดเยี่ยมมาก 🌟";
-                strengthMsg = "มีความแม่นยำสูงและเชี่ยวชาญเนื้อหาในเกือบทุกหมวดหมู่";
-                adviceMsg = "รักษารักษามาตรฐานนี้ไว้ และลองท้าทายตนเองด้วยโจทย์ประยุกต์ขั้นสูง";
+                gradeTitle = "อยู่ในเกณฑ์ยอดเยี่ยมมาก 🌟";
+                strengthText = "มีความแม่นยำสูงและเชี่ยวชาญเนื้อหาในเกือบทุกหมวดหมู่ ทำผลงานได้โดดเด่นมาก";
+                adviceText = "รักษาระดับมาตรฐานที่ดีเยี่ยมนี้ไว้ และลองท้าทายตนเองด้วยโจทย์ประยุกต์ขั้นสูง";
             } else if (pct < 50) {
-                gradeLevel = "ต้องพยายามเพิ่มอีกนิด 📚";
-                strengthMsg = "มีความตั้งใจและผ่านเกณฑ์พื้นฐานเบื้องต้น";
-                adviceMsg = "แนะนำให้กลับไปทบทวนเนื้อหาและสรุปสูตรในหมวดหมู่ที่ได้คะแนนน้อยเป็นพิเศษ";
+                gradeTitle = "ต้องพยายามเพิ่มอีกนิด 📚";
+                strengthText = "มีความตั้งใจและผ่านเกณฑ์พื้นฐานเบื้องต้น";
+                adviceText = "แนะนำให้กลับไปทบทวนเนื้อหาและสรุปสูตรในหมวดหมู่ที่ได้คะแนนน้อยเป็นพิเศษ";
             }
 
-            // แสดงผลวิเคราะห์ทันทีแบบรวดเร็ว (ไม่ต้องรอเน็ตหรือ API)
+            // แสดงผลลัพธ์ทันทีแบบสมบูรณ์
             container.innerHTML = `
                 <div class="space-y-3">
                     <div>
                         <b class="text-purple-400">1. 🎯 ภาพรวมผลการสอบ:</b> 
-                        <p class="mt-0.5">ทำคะแนนรวมได้ ${score}/${total} (${pct}%) ถือว่าผลงานภาพรวม${gradeLevel}</p>
+                        <p class="mt-0.5">ทำคะแนนรวมได้ ${score}/${total} (${pct}%) ถือว่าผลงานภาพรวม${gradeTitle}</p>
                     </div>
                     <div>
                         <b class="text-purple-400">2. 💪 จุดแข็ง (Strengths):</b> 
-                        <p class="mt-0.5">${strengthMsg}</p>
+                        <p class="mt-0.5">${strengthText}</p>
                     </div>
                     <div>
                         <b class="text-purple-400">3. 💡 จุดที่ควรพัฒนาและคำแนะนำ:</b> 
-                        <p class="mt-0.5">${adviceMsg} 🚀</p>
+                        <p class="mt-0.5">${adviceText} 🚀</p>
                     </div>
                 </div>`;
+        }
+        function computeCategoryStats() {
+            cachedCategoryStats = {};
+            globalQuestions.forEach(q => {
+                const tag = q.category_tag && q.category_tag.trim() !== '' ? q.category_tag : 'ทั่วไป';
+                if (!cachedCategoryStats[tag]) cachedCategoryStats[tag] = { total: 0, correct: 0 };
+                cachedCategoryStats[tag].total++;
+                if (isAnswerCorrect(q, getUserAnswer(q, globalRawAnswers))) {
+                    cachedCategoryStats[tag].correct++;
+                }
+            });
         }
 
         function findCriteriaNameForCategoryAndPct(categoryTag, pct) {
