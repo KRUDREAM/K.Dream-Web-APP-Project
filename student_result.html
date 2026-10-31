@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="config.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -508,7 +509,7 @@
         }
 
         // ฟังก์ชันเชื่อมต่อ Gemini AI สำหรับวิเคราะห์ผลสอบเชิงลึก
-async function generateAIExamInsight(examTitle, studentName, score, total, categoryStats) {
+        async function generateAIExamInsight(examTitle, studentName, score, total, categoryStats) {
             const container = document.getElementById('aiInsightContent');
             const pct = total > 0 ? Math.round((score / total) * 100) : 0;
             
@@ -525,32 +526,33 @@ async function generateAIExamInsight(examTitle, studentName, score, total, categ
 
 กรุณาเขียนวิเคราะห์เป็นภาษาไทยสุภาพ ให้กำลังใจ เข้าใจง่าย และมีความเป็นมืออาชีพ โดยแบ่งเป็น 3 หัวข้อย่อยสั้น ๆ:
 1. 🎯 **ภาพรวมผลการสอบ**: ประเมินผลงานสั้น ๆ
-​2. 💪 **จุดแข็ง (Strengths)**: หมวดหมู่หรือจุดที่ทำได้ดีเยี่ยม
+2. 💪 **จุดแข็ง (Strengths)**: หมวดหมู่หรือจุดที่ทำได้ดีเยี่ยม
 3. 💡 **จุดที่ควรพัฒนาและคำแนะนำ (Weaknesses & Advice)**: หมวดหมู่ที่ควรฝึกฝนเพิ่ม พร้อมแนวทางแก้ไข
 
 จัดรูปแบบด้วย HTML tag สั้น ๆ เช่น <b>, <br>, หรือ <ul><li> เพื่อให้อ่านง่ายและสวยงาม`;
 
             try {
-                // 🪄 จุดนี้แหละที่ GitHub Actions จะแปลง __GEMINI_API_KEY__ เป็น Secret จริงให้ตอน Deploy
-                const GEMINI_API_KEY = "__GEMINI_API_KEY__"; 
+                // ⚠️ ตรงนี้ให้คุณ AP เอา Gemini API Key มาใส่แทนที่ข้อความข้างล่างนี้ครับ
+                // ดึง API Key ที่ GitHub Actions สร้างให้อัตโนมัติ
+const GEMINI_API_KEY = typeof CONFIG !== 'undefined' ? CONFIG.GEMINI_API_KEY : ""; 
+
+const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+    })
+});
                 
-                if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("__")) {
+                if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("ใส่_")) {
                     container.innerHTML = `
                         <div class="p-3 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-xl text-xs space-y-1">
                             <b>💡 ตัวอย่างการวิเคราะห์จาก AI:</b> 
                             <p>ทำคะแนนรวมได้ ${pct}% ถือว่าอยู่ในเกณฑ์ที่ดีมาก! จุดแข็งคือความแม่นยำในหมวดพื้นฐาน แต่อาจจะต้องกลับไปทบทวนโจทย์ในหมวดที่ได้เปอร์เซ็นต์ต่ำกว่า 50% เพิ่มเติมเพื่อเตรียมความพร้อมสำหรับการสอบสนามจริงครับ 🚀</p>
-                            <span class="text-[10px] text-slate-400 block pt-1">*(กำลังรอ GitHub Actions เติม API Key สำหรับใช้งานจริง)*</span>
+                            <span class="text-[10px] text-slate-400 block pt-1">*(กรุณาใส่ Gemini API Key ในโค้ดเพื่อเปิดใช้งาน AI วิเคราะห์แบบเรียลไทม์)*</span>
                         </div>`;
                     return;
                 }
-
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }]
-                    })
-                });
 
                 const data = await response.json();
                 const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "ไม่สามารถสร้างคำแนะนำได้ในขณะนี้";
