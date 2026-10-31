@@ -108,27 +108,37 @@
             <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl pointer-events-none"></div>
             
             <div class="space-y-3 z-10 w-full">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span id="courseCodeBadge" class="px-3 py-1 rounded-xl bg-purple-600 text-white font-mono font-bold text-xs shadow-md shadow-purple-500/20">
-                        LOADING...
-                    </span>
-                    <span class="px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-500/20 flex items-center gap-1">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> เปิดใช้งานปกติ
-                    </span>
-                    <span id="bonusRuleBadge" class="hidden px-3 py-1 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs border border-amber-500/20 items-center gap-1">
-                        <i class="fas fa-gift"></i> มีเงื่อนไขคอร์สแถมอัตโนมัติ
-                    </span>
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span id="courseCodeBadge" class="px-3 py-1 rounded-xl bg-purple-600 text-white font-mono font-bold text-xs shadow-md shadow-purple-500/20">
+                            LOADING...
+                        </span>
+                        <span class="px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-500/20 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> เปิดใช้งานปกติ
+                        </span>
+                        <span id="bonusRuleBadge" class="hidden px-3 py-1 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs border border-amber-500/20 items-center gap-1">
+                            <i class="fas fa-gift"></i> มีเงื่อนไขคอร์สแถมอัตโนมัติ
+                        </span>
+                    </div>
+                    <!-- 🌟 ส่วนแสดงและตั้งค่า Bunny Library ID ประจำคอร์ส -->
+                    <div class="flex items-center gap-2 bg-slate-100 dark:bg-darkinput px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                        <i class="fas fa-server text-sky-500 text-xs"></i>
+                        <span class="text-xs font-bold text-slate-600 dark:text-slate-300">Bunny Library ID:</span>
+                        <span id="headerLibraryIdDisplay" class="font-mono text-xs font-bold text-purple-600 dark:text-purple-400">--</span>
+                        <button onclick="openEditLibraryIdModal()" class="ml-1 w-6 h-6 rounded-lg bg-purple-500/10 hover:bg-purple-500 hover:text-white text-purple-600 dark:text-purple-400 transition-all flex items-center justify-center text-[10px]" title="แก้ไข Bunny Library ID ของคอร์สนี้">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
                 </div>
                 <h2 id="headerCourseTitle" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">กำลังโหลดคอร์สเรียน...</h2>
                 <p id="headerCourseDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-4xl">กำลังดึงข้อมูลเนื้อหาและสถิติ...</p>
             </div>
             
-            <!-- ปุ่มจัดการต่างๆ จัดเรียงใหม่เต็มความกว้าง ไม่เบียดกัน -->
+            <!-- ปุ่มจัดการต่างๆ -->
             <div class="flex items-center gap-2.5 flex-wrap z-10 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
                 <button onclick="openManageStudentsModal()" class="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2">
                     <i class="fas fa-users-gear text-sm"></i> จัดการนักเรียน (<span id="enrolledCountBadge">0</span>)
                 </button>
-                <!-- ปุ่มตั้งค่าคอร์สแถม จะแสดงเฉพาะเมื่อเป็นคอร์สประเภท bonus ตามเงื่อนไข -->
                 <button id="btnBonusSettings" onclick="openBonusCourseSettingsModal()" class="hidden px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-amber-500/25 transition-all items-center gap-2" title="ตั้งค่าเงื่อนไขคอร์สแถมอัตโนมัติ">
                     <i class="fas fa-gift text-sm"></i> ตั้งค่าคอร์สแถม
                 </button>
@@ -157,7 +167,7 @@
                         </div>
                         <div>
                             <h3 class="font-extrabold text-sm text-slate-900 dark:text-white">วิดีโอบทเรียนย้อนหลัง (Bunny Stream)</h3>
-                            <p class="text-[11px] text-slate-400">รายการวิดีโอทั้งหมดในคอร์สนี้</p>
+                            <p class="text-[11px] text-slate-400">รายการวิดีโอทั้งหมดในคอร์สนี้ (ใช้ Library ID ของคอร์สนี้)</p>
                         </div>
                     </div>
                     <span class="px-3 py-1 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold text-xs font-mono" id="videoCountBadge">0 รายการ</span>
@@ -349,8 +359,6 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const BUNNY_LIBRARY_ID = '785115'; // 🌟 กำหนด Bunny Library ID หลัก
-
         const urlParams = new URLSearchParams(window.location.search);
         const courseId = urlParams.get('id') || urlParams.get('course_id');
 
@@ -423,6 +431,10 @@
                 document.getElementById('headerCourseTitle').textContent = currentCourse.title;
                 document.getElementById('headerCourseDesc').textContent = currentCourse.description || 'ไม่มีรายละเอียดคำอธิบายคอร์ส';
 
+                // 🌟 แสดง Bunny Library ID ประจำคอร์ส (ถ้ามี ถ้าไม่มีใช้ค่าเริ่มต้น 785115)
+                const libraryId = currentCourse.bunny_library_id || currentCourse.library_id || '785115';
+                document.getElementById('headerLibraryIdDisplay').textContent = libraryId;
+
                 updateBonusRuleBadgeUI();
 
                 const btnBonusSettings = document.getElementById('btnBonusSettings');
@@ -490,6 +502,56 @@
             } catch (err) {
                 console.error("Init Error:", err);
                 Swal.close();
+            }
+        }
+
+        // 🌟 ฟังก์ชันเปิดหน้าต่างแก้ไข Bunny Library ID ประจำคอร์ส
+        async function openEditLibraryIdModal() {
+            const currentLibId = currentCourse.bunny_library_id || currentCourse.library_id || '785115';
+            const isDark = document.documentElement.classList.contains('dark');
+
+            const { value: newLibraryId } = await Swal.fire({
+                title: '⚙️ ตั้งค่า Bunny Library ID ประจำคอร์ส',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <p class="text-slate-500 dark:text-slate-400">กำหนด Library ID ของ Bunny.net ที่ใช้สำหรับคอร์สนี้โดยเฉพาะ (เช่น 785115)</p>
+                        <div>
+                            <label class="block font-bold mb-1">Bunny Library ID <span class="text-red-500">*</span></label>
+                            <input id="swalCourseLibraryId" value="${currentLibId}" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none font-mono font-bold text-sm">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '💾 บันทึก',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#9333ea',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                preConfirm: () => {
+                    const val = document.getElementById('swalCourseLibraryId').value.trim();
+                    if (!val) {
+                        Swal.showValidationMessage('กรุณากรอก Library ID');
+                        return false;
+                    }
+                    return val;
+                }
+            });
+
+            if (newLibraryId) {
+                Swal.showLoading();
+                const { error } = await mySupabase
+                    .from('courses')
+                    .update({ bunny_library_id: newLibraryId })
+                    .eq('id', courseId);
+
+                if (!error) {
+                    currentCourse.bunny_library_id = newLibraryId;
+                    document.getElementById('headerLibraryIdDisplay').textContent = newLibraryId;
+                    Swal.fire({ icon: 'success', title: 'บันทึก Library ID สำเร็จ!', timer: 1200, showConfirmButton: false });
+                    loadLessons();
+                } else {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                }
             }
         }
 
@@ -1236,6 +1298,8 @@
 
         function renderVideos(videos) {
             const container = document.getElementById('videosContainer');
+            const libraryId = (currentCourse && (currentCourse.bunny_library_id || currentCourse.library_id)) ? (currentCourse.bunny_library_id || currentCourse.library_id) : '785115';
+
             if (videos.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-12 px-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
@@ -1256,7 +1320,7 @@
                             <div class="w-11 h-11 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform"><i class="fas fa-play text-sm"></i></div>
                             <div class="min-w-0">
                                 <h4 class="font-bold text-xs text-slate-900 dark:text-white truncate">${v.title}</h4>
-                                <p class="text-[10px] font-mono text-indigo-500 mt-0.5">Bunny Library ID: ${BUNNY_LIBRARY_ID} | Video ID: ${bunnyId}</p>
+                                <p class="text-[10px] font-mono text-indigo-500 mt-0.5">Library ID: ${libraryId} | Video ID: ${bunnyId}</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
@@ -1305,7 +1369,8 @@
 
         function previewVideo(bunnyId, videoTitle) {
             const isDark = document.documentElement.classList.contains('dark');
-            let embedUrl = bunnyId.startsWith('http') ? bunnyId : `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${bunnyId}`;
+            const libraryId = (currentCourse && (currentCourse.bunny_library_id || currentCourse.library_id)) ? (currentCourse.bunny_library_id || currentCourse.library_id) : '785115';
+            let embedUrl = bunnyId.startsWith('http') ? bunnyId : `https://iframe.mediadelivery.net/embed/${libraryId}/${bunnyId}`;
             
             Swal.fire({
                 title: `🎬 ดูตัวอย่าง: ${videoTitle}`,
@@ -1313,7 +1378,7 @@
                     <div class="aspect-video w-full bg-black rounded-2xl overflow-hidden shadow-xl">
                         <iframe src="${embedUrl}" loading="lazy" style="border:0; width:100%; height:100%;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-3 font-mono">Bunny Library ID: ${BUNNY_LIBRARY_ID} | Video ID: ${bunnyId}</p>
+                    <p class="text-[11px] text-slate-400 mt-3 font-mono">Library ID: ${libraryId} | Video ID: ${bunnyId}</p>
                 `,
                 width: '750px',
                 confirmButtonText: 'ปิดหน้าต่าง',
@@ -1326,6 +1391,7 @@
         async function openAddLessonModal(type) {
             const isVideo = type === 'video';
             const isDark = document.documentElement.classList.contains('dark');
+            const libraryId = (currentCourse && (currentCourse.bunny_library_id || currentCourse.library_id)) ? (currentCourse.bunny_library_id || currentCourse.library_id) : '785115';
 
             const { value: formValues } = await Swal.fire({
                 title: isVideo ? '🎬 เพิ่มวิดีโอ Bunny.net ใหม่' : '🔗 เพิ่มลิงก์เอกสาร PDF',
@@ -1337,7 +1403,7 @@
                             <input id="swalLessonTitle" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-bold" placeholder="${isVideo ? 'เช่น EP.1 แนะนำพื้นฐานอัลกอริทึม' : 'เช่น สไลด์บรรยายบทที่ 1 (PDF)'}">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">${isVideo ? `Bunny Video ID (Library ID: ${BUNNY_LIBRARY_ID})` : 'ลิงก์ไฟล์ PDF'} <span class="text-red-500">*</span></label>
+                            <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">${isVideo ? `Bunny Video ID (Library ID ของคอร์สนี้: ${libraryId})` : 'ลิงก์ไฟล์ PDF'} <span class="text-red-500">*</span></label>
                             <input id="swalLessonUrl" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-purple-500 font-mono" placeholder="${isVideo ? 'เช่น e2e146be-d370-444f-891b-e1692e950e4f' : 'https://drive.google.com/...'}">
                         </div>
                     </div>
@@ -1388,6 +1454,7 @@
             const video = courseLessons.find(v => String(v.id) === String(videoId));
             if (!video) return;
             const isDark = document.documentElement.classList.contains('dark');
+            const libraryId = (currentCourse && (currentCourse.bunny_library_id || currentCourse.library_id)) ? (currentCourse.bunny_library_id || currentCourse.library_id) : '785115';
             const safeTitle = (video.title || '').replace(/"/g, '&quot;');
             const safeBunnyId = (video.bunny_video_id || video.video_url || '').replace(/"/g, '&quot;');
 
@@ -1401,7 +1468,7 @@
                             <input id="swalEditTitle" value="${safeTitle}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
                         </div>
                         <div>
-                            <label class="block font-bold mb-1">Bunny Video ID (Library ID: ${BUNNY_LIBRARY_ID}) <span class="text-red-500">*</span></label>
+                            <label class="block font-bold mb-1">Bunny Video ID (Library ID: ${libraryId}) <span class="text-red-500">*</span></label>
                             <input id="swalEditBunnyId" value="${safeBunnyId}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono">
                         </div>
                     </div>
