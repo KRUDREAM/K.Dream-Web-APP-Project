@@ -510,62 +510,92 @@
             }
         }
 
-// ฟังก์ชันวิเคราะห์จุดที่ต้องเสริมรายข้อและรายหมวดหมู่แบบฉลาดและรวดเร็วทันที
+// ฟังก์ชันวิเคราะห์เชิงลึกพร้อมแผนปฏิบัติการและวิธีพัฒนาที่จับต้องได้
         async function generateAIExamInsight(examTitle, studentName, score, total, categoryStats) {
             const container = document.getElementById('aiInsightContent');
             const pct = total > 0 ? Math.round((score / total) * 100) : 0;
             
-            // ค้นหาข้อที่ทำผิดจาก globalQuestions และ globalRawAnswers
-            let wrongQuestionsSummary = [];
+            // สแกนหาข้อที่ทำผิดและหมวดหมู่ที่ต้องพัฒนา
+            let wrongItems = [];
+            let weakCategories = [];
+
             if (window.globalQuestions && window.globalQuestions.length > 0) {
                 window.globalQuestions.forEach((q, idx) => {
                     const qNum = q.question_number || (idx + 1);
                     const userAns = getUserAnswer(q, globalRawAnswers);
                     const isCorrect = isAnswerCorrect(q, userAns);
                     if (!isCorrect) {
-                        const tag = q.category_tag || 'ทั่วไป';
-                        wrongQuestionsSummary.push(`ข้อที่ ${qNum} (หมวด: ${tag})`);
+                        wrongItems.push({
+                            number: qNum,
+                            tag: q.category_tag || 'ทั่วไป',
+                            text: q.question_text || q.content || ''
+                        });
                     }
                 });
             }
 
-            // จัดทำคำแนะนำรายหมวดหมู่ที่ทำคะแนนได้น้อย
-            let weakCategories = Object.entries(categoryStats)
-                .map(([tag, st]) => ({
-                    tag,
-                    pct: st.total > 0 ? Math.round((st.correct / st.total) * 100) : 0,
-                    correct: st.correct,
-                    total: st.total
-                }))
-                .filter(item => item.pct < 100); // เลือกหมวดที่ยังทำได้ไม่เต็ม
+            // คำนวณเปอร์เซ็นต์แต่ละหมวด
+            Object.entries(categoryStats).forEach(([tag, st]) => {
+                const categoryPct = st.total > 0 ? Math.round((st.correct / st.total) * 100) : 0;
+                if (categoryPct < 70) { // ถือเป็นจุดที่ควรพัฒนา
+                    weakCategories.push({ tag, pct: categoryPct, correct: st.correct, total: st.total });
+                }
+            });
 
-            // เรียงลำดับหมวดที่เปอร์เซ็นต์น้อยที่สุดขึ้นก่อนเพื่อให้รู้ว่าต้องรีบเสริมตรงไหน
-            weakCategories.sort((a, b) => a.pct - b.pct);
+            // สร้างแผนปฏิบัติการแนะนำสิ่งที่ต้องทำ (Action Plan)
+            let actionPlansHtml = '';
+            if (weakCategories.length > 0) {
+                actionPlansHtml = weakCategories.map(w => {
+                    let recommendation = "ควรทบทวนเนื้อหาพื้นฐานและฝึกทำโจทย์แบบฝึกหัดเพิ่มเติมในหัวข้อนี้";
+                    if (w.tag.includes('Array') || w.tag.includes('String')) {
+                        recommendation = "ควรทบทวนเรื่องการวนลูป (Loop Indexing) และการจัดการสตริง ขอบเขตตัวอักษร (Boundary conditions) เพื่อป้องกันการคำนวณพลาด";
+                    } else if (w.tag.includes('DP') || w.tag.includes('Graph') || w.tag.includes('Algorithm')) {
+                        recommendation = "ควรฝึกวาดภาพจำลองสถานะ (State transition) และทบทวนเงื่อนไขเริ่มต้น (Base case) ของอัลกอริทึมให้แม่นยำขึ้น";
+                    }
+                    return `
+                        <div class="p-3 bg-purple-500/10 rounded-xl border border-purple-500/20 space-y-1">
+                            <div class="font-bold text-purple-400">📌 หมวดที่ต้องซ่อมด่วน: ${escapeHtml(w.tag)} (ทำได้ ${w.pct}%)</div>
+                            <p class="text-slate-300"><b>วิธีแก้ปัญหา:</b> ${recommendation}</p>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                actionPlansHtml = `<div class="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400 font-bold">🌟 ทำผลงานได้ดีเยี่ยมในทุกหมวดหมู่ ไม่มีจุดที่ต้องซ่อมด่วน!</div>`;
+            }
 
-            let weakCategoryText = weakCategories.length > 0 
-                ? weakCategories.map(w => `• หมวด <b>${escapeHtml(w.tag)}</b> (ทำได้ ${w.correct}/${w.total} หรือคิดเป็น ${w.pct}%) ควรกลับไปทบทวนสูตรและฝึกทำโจทย์แนวนี้เพิ่มเป็นพิเศษ`).join('<br>')
-                : 'ยอดเยี่ยมมาก! ทำคะแนนได้เต็มทุกหมวดหมู่ ไม่มีจุดที่ต้องแก้ไขเป็นพิเศษ';
-
-            let wrongDetailText = wrongQuestionsSummary.length > 0
-                ? `คุณทำผิดใน ${wrongQuestionsSummary.length} ข้อ ได้แก่: ${wrongQuestionsSummary.join(', ')} แนะนำให้เปิดดูเฉลยรายข้อด้านล่างเพื่อดูวิธีทำที่ถูกต้องในข้อเหล่านั้น`
-                : 'ทำถูกต้องทั้งหมดทุกข้อ เยี่ยมยอดมากครับ!';
-
-            // แสดงผลการวิเคราะห์เจาะลึกทันที
-            container.innerHTML = `
-                <div class="space-y-3 text-xs sm:text-sm">
-                    <div>
-                        <b class="text-purple-400">1. 🎯 ภาพรวมคะแนน:</b> 
-                        <p class="mt-0.5">ได้คะแนน ${score}/${total} (${pct}%) โดดเด่นในภาพรวม แต่มีจุดที่ต้องเก็บตกเพิ่มเติมเพื่อให้สมบูรณ์แบบยิ่งขึ้น</p>
+            // สรุปข้อที่ผิดพลาดเน้น ๆ
+            let wrongListHtml = '';
+            if (wrongItems.length > 0) {
+                wrongListHtml = wrongItems.map(w => `
+                    <div class="flex items-start gap-2 text-slate-300 text-xs py-1 border-b border-slate-800/60 last:border-0">
+                        <span class="px-1.5 py-0.5 bg-rose-500/20 text-rose-400 rounded font-bold text-[10px]">ข้อ ${w.number}</span>
+                        <span>[หมวด: ${escapeHtml(w.tag)}] ควรกลับไปทบทวนโจทย์ข้อนี้และดูเฉลยวิธีคิดที่ถูกต้องเพื่อไม่ให้พลาดซ้ำ</span>
                     </div>
+                `).join('');
+            } else {
+                wrongListHtml = `<p class="text-emerald-400 font-semibold">ยอดเยี่ยมมาก คุณตอบถูกครบทุกข้อ!</p>`;
+            }
+
+            // แสดงผลลัพธ์แบบละเอียด เจาะลึก และบอกวิธีปฏิบัติชัดเจน
+            container.innerHTML = `
+                <div class="space-y-4 text-xs sm:text-sm">
                     <div>
-                        <b class="text-purple-400">2. ⚠️ หมวดหมู่และเนื้อหาที่ต้องไปเสริมด่วน:</b> 
-                        <div class="mt-1 p-2.5 bg-purple-500/10 rounded-xl border border-purple-500/20 space-y-1">
-                            ${weakCategoryText}
+                        <b class="text-purple-400 text-sm">1. 🎯 สรุปภาพรวมและเกณฑ์ประเมิน:</b> 
+                        <p class="mt-1 text-slate-300">ทำคะแนนรวมได้ <b>${score}/${total} (${pct}%)</b> ระบบได้วิเคราะห์จุดที่ต้องพัฒนาและจัดทำแผนปฏิบัติการ (Action Plan) ให้คุณเรียบร้อยแล้วด้านล่างครับ</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <b class="text-purple-400 text-sm">2. 🛠️ แผนพัฒนาและสิ่งที่ควรทำทันที (Action Plan):</b>
+                        <div class="space-y-2">
+                            ${actionPlansHtml}
                         </div>
                     </div>
-                    <div>
-                        <b class="text-purple-400">3. 💡 สรุปข้อที่ต้องกลับไปทบทวนรายข้อ:</b> 
-                        <p class="mt-0.5">${wrongDetailText} 🚀</p>
+
+                    <div class="space-y-2">
+                        <b class="text-purple-400 text-sm">3. 📝 รายการข้อที่ต้องกลับไปเก็บตกทบทวน:</b>
+                        <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-800 space-y-1">
+                            ${wrongListHtml}
+                        </div>
                     </div>
                 </div>`;
         }
