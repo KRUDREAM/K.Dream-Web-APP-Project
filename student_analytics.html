@@ -29,12 +29,17 @@
         .dark .hitech-card { background: rgba(9, 13, 22, 0.95); border: 1px solid rgba(30, 58, 138, 0.5); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); }
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
+        @media print {
+            body { background: white !important; color: black !important; }
+            .no-print { display: none !important; }
+            .hitech-card { border: 1px solid #cbd5e1 !important; box-shadow: none !important; }
+        }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-20">
 
     <!-- Sticky Header -->
-    <nav class="glass-nav fixed w-full top-0 z-40">
+    <nav class="glass-nav fixed w-full top-0 z-40 no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6">
             <div class="flex justify-between h-16 items-center">
                 <div class="flex items-center gap-3">
@@ -47,6 +52,9 @@
                     </h1>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button onclick="window.print()" class="hidden sm:flex px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition-all items-center gap-1.5" title="พิมพ์รายงานผลการเรียน">
+                        <i class="fas fa-print"></i> พิมพ์รายงาน
+                    </button>
                     <button id="themeToggle" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition-all">
                         <i class="fas fa-moon text-sm" id="themeIcon"></i>
                     </button>
@@ -61,7 +69,7 @@
     <main class="max-w-6xl mx-auto px-4 sm:px-6 pt-24 space-y-6">
         
         <!-- Filter & Header Control -->
-        <div class="hitech-card p-5 rounded-3xl flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="hitech-card p-5 rounded-3xl flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
             <div>
                 <h2 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                     <i class="fas fa-filter text-sky-500"></i> ตัวกรองข้อมูลการวิเคราะห์
@@ -75,8 +83,8 @@
             </div>
         </div>
 
-        <!-- Summary Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Summary Stats Grid (เพิ่มช่องแสดงเปอร์เซ็นต์ไทล์ที่อยู่) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div class="hitech-card p-5 rounded-2xl space-y-1">
                 <span class="text-xs text-slate-400 font-bold">📝 ข้อสอบที่ทำทั้งหมด</span>
                 <div id="totalExamsDone" class="text-2xl font-extrabold text-sky-600 dark:text-sky-400 font-mono">0 ชุด</div>
@@ -88,6 +96,10 @@
             <div class="hitech-card p-5 rounded-2xl space-y-1">
                 <span class="text-xs text-slate-400 font-bold">🎯 เปอร์เซ็นต์ความสำเร็จรวม</span>
                 <div id="avgPercentAll" class="text-2xl font-extrabold text-amber-500 font-mono">0%</div>
+            </div>
+            <div class="hitech-card p-5 rounded-2xl space-y-1 border-l-4 border-l-purple-500">
+                <span class="text-xs text-purple-600 dark:text-purple-400 font-bold">📊 อยู่เปอร์เซ็นต์ไทล์ที่</span>
+                <div id="studentPercentileRank" class="text-2xl font-extrabold text-purple-600 dark:text-purple-400 font-mono">--th</div>
             </div>
         </div>
 
@@ -103,9 +115,15 @@
 
         <!-- History Table Section -->
         <div class="hitech-card p-6 rounded-3xl space-y-4">
-            <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <i class="fas fa-history text-sky-500"></i> ประวัติการทำข้อสอบทั้งหมด
-            </h3>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <i class="fas fa-history text-sky-500"></i> ประวัติการทำข้อสอบทั้งหมด
+                </h3>
+                <!-- ช่องค้นหาประวัติการสอบแบบรวดเร็ว -->
+                <div class="w-full sm:w-64 no-print">
+                    <input type="text" id="historySearchInput" oninput="filterHistoryTable()" placeholder="🔍 ค้นหาชื่อชุดข้อสอบ หรือรหัส..." class="w-full px-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
+                </div>
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
                     <thead class="bg-slate-100 dark:bg-slate-900 text-slate-500 uppercase tracking-wider">
@@ -150,7 +168,6 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        // ตรวจสอบการเข้าสู่ระบบ (Auth Guard) ป้องกันการเข้าหน้าวิเคราะห์โดยไม่ล็อกอิน
         function checkStudentAuth() {
             const studentId = localStorage.getItem('id') || localStorage.getItem('student_id') || localStorage.getItem('user_id');
             if (!studentId) {
@@ -186,7 +203,7 @@
                 selectEl.appendChild(opt);
             });
 
-            // 2. โหลดประวัติการสอบของนักเรียนคนนี้จากตาราง exam_attempts เฉพาะของตัวเอง
+            // 2. โหลดประวัติการสอบของนักเรียนคนนี้
             let query = mySupabase.from('exam_attempts').select('*, exams(*)');
             if (studentId) {
                 query = query.eq('student_id', studentId);
@@ -216,32 +233,98 @@
             document.getElementById('avgScoreAll').textContent = `${avgScore} คะแนน`;
             document.getElementById('avgPercentAll').textContent = totalDone > 0 ? `${Math.round((avgScore / 10) * 100)}%` : '0%';
 
+            // คำนวณเปอร์เซ็นต์ไทล์ (Percentile Rank) ของนักเรียนเทียบกับคนอื่นในระบบ
+            await calculateAndRenderPercentile(filteredAttempts);
+
             // Render Table ประวัติ
-            const tbody = document.getElementById('historyTableBody');
-            if (filteredAttempts.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">ยังไม่มีประวัติการทำข้อสอบในเงื่อนไขนี้</td></tr>`;
-            } else {
-                tbody.innerHTML = filteredAttempts.map(att => `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all">
-                        <td class="p-3 font-bold text-slate-900 dark:text-white">${att.exams?.title || 'ข้อสอบออนไลน์'}</td>
-                        <td class="p-3 font-mono text-sky-600">${att.exams?.exam_code || '-'}</td>
-                        <td class="p-3 font-mono font-bold text-emerald-600">${att.score || 0} คะแนน</td>
-                        <td class="p-3">
-                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${att.status === 'submitted' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}">
-                                ${att.status === 'submitted' ? 'ส่งแล้ว' : 'กำลังทำ'}
-                            </span>
-                        </td>
-                        <td class="p-3 text-right">
-                            <button onclick="window.location.href='student_result.html?attempt_id=${att.id}'" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-[11px] rounded-lg shadow-sm transition-all">
-                                <i class="fas fa-chart-pie mr-1"></i> ดูผลวิเคราะห์
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-            }
+            renderHistoryTable(filteredAttempts);
 
             // Render Chart เปรียบเทียบ
             renderAnalyticsChart(filteredAttempts);
+        }
+
+        async function calculateAndRenderPercentile(filteredAttempts) {
+            const percentileEl = document.getElementById('studentPercentileRank');
+            if (filteredAttempts.length === 0) {
+                percentileEl.textContent = `--th`;
+                return;
+            }
+
+            // คำนวณคะแนนเฉลี่ยรวมของตัวเรา
+            let myTotal = 0;
+            filteredAttempts.forEach(a => myTotal += (a.score || 0));
+            const myAvg = myTotal / filteredAttempts.length;
+
+            // ดึงข้อมูลคะแนนของนักเรียนทุกคนในระบบมาเทียบ
+            const { data: allStudentAttempts } = await mySupabase.from('exam_attempts').select('student_id, score, status').eq('status', 'submitted');
+            if (!allStudentAttempts || allStudentAttempts.length === 0) {
+                percentileEl.textContent = `50th`;
+                return;
+            }
+
+            // จัดกลุ่มคะแนนเฉลี่ยรายบุคคล
+            let studentMap = {};
+            allStudentAttempts.forEach(att => {
+                if (!studentMap[att.student_id]) studentMap[att.student_id] = { sum: 0, count: 0 };
+                studentMap[att.student_id].sum += (att.score || 0);
+                studentMap[att.student_id].count += 1;
+            });
+
+            let allAverages = Object.values(studentMap).map(s => s.sum / s.count);
+            allAverages.sort((a, b) => a - b);
+
+            // คำนวณหาตำแหน่ง Percentile (สูตร: (จำนวนคนที่มีคะแนนน้อยกว่าเรา / จำนวนคนทั้งหมด) * 100)
+            const totalStudents = allAverages.length;
+            const belowCount = allAverages.filter(avg => avg < myAvg).length;
+            const percentile = totalStudents > 1 ? Math.round((belowCount / (totalStudents - 1)) * 100) : 100;
+
+            percentileEl.textContent = `${percentile}th`;
+        }
+
+        function renderHistoryTable(attempts) {
+            const tbody = document.getElementById('historyTableBody');
+            if (attempts.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">ยังไม่มีประวัติการทำข้อสอบในเงื่อนไขนี้</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = attempts.map(att => `
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all">
+                    <td class="p-3 font-bold text-slate-900 dark:text-white">${att.exams?.title || 'ข้อสอบออนไลน์'}</td>
+                    <td class="p-3 font-mono text-sky-600">${att.exams?.exam_code || '-'}</td>
+                    <td class="p-3 font-mono font-bold text-emerald-600">${att.score || 0} คะแนน</td>
+                    <td class="p-3">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${att.status === 'submitted' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}">
+                            ${att.status === 'submitted' ? 'ส่งแล้ว' : 'กำลังทำ'}
+                        </span>
+                    </td>
+                    <td class="p-3 text-right">
+                        <button onclick="window.location.href='student_result.html?attempt_id=${att.id}'" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-[11px] rounded-lg shadow-sm transition-all">
+                            <i class="fas fa-chart-pie mr-1"></i> ดูผลวิเคราะห์
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterHistoryTable() {
+            const keyword = document.getElementById('historySearchInput').value.toLowerCase();
+            const filterExamId = document.getElementById('examFilterSelect').value;
+            
+            let filtered = allAttemptsData;
+            if (filterExamId !== 'all') {
+                filtered = allAttemptsData.filter(att => att.exam_id === filterExamId);
+            }
+
+            if (keyword) {
+                filtered = filtered.filter(att => {
+                    const title = (att.exams?.title || '').toLowerCase();
+                    const code = (att.exams?.exam_code || '').toLowerCase();
+                    return title.includes(keyword) || code.includes(keyword);
+                });
+            }
+
+            renderHistoryTable(filtered);
         }
 
         async function renderAnalyticsChart(attempts) {
