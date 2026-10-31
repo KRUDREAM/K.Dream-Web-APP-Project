@@ -104,6 +104,13 @@
 
         <!-- 5 Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-emerald-500/50" onclick="openStudentListModal('submitted')">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-check-circle"></i></div>
+                <div class="min-w-0">
+                    <span class="text-[11px] text-slate-400 font-bold block truncate">ส่งแล้ว (คน)</span>
+                    <span id="statSubmittedCount" class="text-base font-extrabold text-emerald-600 dark:text-emerald-400 truncate block">-</span>
+                </div>
+            </div>
             <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-amber-500/50" onclick="openStudentListModal('in_progress')">
                 <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-spinner"></i></div>
                 <div class="min-w-0">
@@ -119,24 +126,17 @@
                 </div>
             </div>
             <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-trophy"></i></div>
+                <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-trophy"></i></div>
                 <div class="min-w-0">
                     <span class="text-[11px] text-slate-400 font-bold block truncate">คะแนนสูงสุด</span>
-                    <span id="statMaxScore" class="text-base font-extrabold text-emerald-600 dark:text-emerald-400 truncate block">-</span>
-                </div>
-            </div>
-            <div class="hitech-card p-4 rounded-2xl flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-arrow-down"></i></div>
-                <div class="min-w-0">
-                    <span class="text-[11px] text-slate-400 font-bold block truncate">คะแนนต่ำสุด</span>
-                    <span id="statMinScore" class="text-base font-extrabold text-rose-600 dark:text-rose-400 truncate block">-</span>
+                    <span id="statMaxScore" class="text-base font-extrabold text-sky-600 dark:text-sky-400 truncate block">-</span>
                 </div>
             </div>
             <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 col-span-2 sm:col-span-1">
-                <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-users"></i></div>
+                <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-users"></i></div>
                 <div class="min-w-0">
                     <span class="text-[11px] text-slate-400 font-bold block truncate">นักเรียนทั้งหมด</span>
-                    <span id="statTotalStudents" class="text-base font-extrabold text-sky-600 dark:text-sky-400 truncate block">-</span>
+                    <span id="statTotalStudents" class="text-base font-extrabold text-purple-600 dark:text-purple-400 truncate block">-</span>
                 </div>
             </div>
         </div>
@@ -367,26 +367,22 @@
             return null;
         }
 
-        // คำนวณเวลาที่ใช้: หาก remaining_time เป็น 0 ให้ขึ้นเป็นเวลาเต็มของชุดข้อสอบทันที
+        // คำนวณเวลาที่ใช้: หาก remaining_time เป็น 0 ให้ใช้เวลาเต็มของข้อสอบทันที
         function calculateTimeSpentMinutes(att) {
             if (!att) return 0;
             
-            // ดึงค่าเวลาทั้งหมดของข้อสอบ (หน่วยเป็นนาที) เช่น time_limit หรือ duration
-            const examDurationMinutes = Number(currentExam && (currentExam.time_limit || currentExam.duration || currentExam.exam_duration) ? (currentExam.time_limit || currentExam.duration || currentExam.exam_duration) : 30);
+            const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
             
             if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
                 let rem = Number(att.remaining_time);
-                // ถ้าค่า remaining_time เท่ากับ 0 หรือติดลบ ให้ถือว่าใช้เวลาเต็มของข้อสอบ
                 if (rem <= 0) {
                     return examDurationMinutes;
                 }
-                // ถ้าค่า remaining_time มากกว่า 120 แสดงว่าเป็นวินาที ให้แปลงเป็นนาที
                 let remMinutes = rem > 120 ? rem / 60 : rem;
                 let spent = examDurationMinutes - remMinutes;
                 return spent > 0 ? spent : 0;
             }
 
-            // Fallback เผื่อใช้ฟิลด์เวลาสำรองอื่นๆ
             if (att.time_spent !== undefined && att.time_spent !== null && !isNaN(att.time_spent)) {
                 const val = Number(att.time_spent);
                 return val > 120 ? val / 60 : val;
@@ -552,6 +548,7 @@
             });
 
             const activeCount = combinedStudentRows.filter(r => r.isInProgress).length;
+            const submittedCount = combinedStudentRows.filter(r => r.isSubmitted).length;
             const totalStudentsCount = combinedStudentRows.length;
 
             const setSafeText = (id, text) => {
@@ -561,6 +558,7 @@
 
             setSafeText('statActiveCountBanner', activeCount);
             setSafeText('statActiveCount', `${activeCount} คน`);
+            setSafeText('statSubmittedCount', `${submittedCount} คน`);
             setSafeText('statTotalStudents', `${totalStudentsCount} คน`);
 
             const submittedAttempts = allAttempts.filter(a => a.total_score !== undefined || a.score !== undefined || a.status === 'submitted');
@@ -589,17 +587,25 @@
 
         function openStudentListModal(statusType) {
             const isDark = document.documentElement.classList.contains('dark');
-            const targetRows = combinedStudentRows.filter(r => r.isInProgress);
-            const titleText = '🟡 รายชื่อนักเรียนที่กำลังทำข้อสอบอยู่ (Active / In Progress)';
+            let targetRows = [];
+            let titleText = '';
 
-            let listHtml = targetRows.length === 0 ? `<div class="text-center py-6 text-slate-400">ไม่มีนักเรียนที่กำลังทำข้อสอบในขณะนี้</div>` : targetRows.map((r, idx) => `
+            if (statusType === 'submitted') {
+                targetRows = combinedStudentRows.filter(r => r.isSubmitted);
+                titleText = '🟢 รายชื่อนักเรียนที่ส่งข้อสอบแล้ว';
+            } else {
+                targetRows = combinedStudentRows.filter(r => r.isInProgress);
+                titleText = '🟡 รายชื่อนักเรียนที่กำลังทำข้อสอบอยู่ (Active / In Progress)';
+            }
+
+            let listHtml = targetRows.length === 0 ? `<div class="text-center py-6 text-slate-400">ไม่มีรายชื่อนักเรียนในสถานะนี้</div>` : targetRows.map((r, idx) => `
                 <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs">
                     <div>
                         <div class="font-bold text-slate-800 dark:text-slate-100">${idx + 1}. ${escapeHtml(r.fullName)}</div>
                         <div class="text-slate-500 font-mono text-[11px]">รหัส: ${escapeHtml(r.studentIdCode)}</div>
                     </div>
                     <div>
-                        <span class="text-amber-500 font-bold">In Progress</span>
+                        <span class="${statusType === 'submitted' ? 'text-emerald-500' : 'text-amber-500'} font-bold">${statusType === 'submitted' ? 'ส่งแล้ว' : 'In Progress'}</span>
                     </div>
                 </div>
             `).join('');
@@ -806,7 +812,7 @@
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
 
-            const maxDuration = Number(currentExam && (currentExam.time_limit || currentExam.duration || currentExam.exam_duration) ? (currentExam.time_limit || currentExam.duration || currentExam.exam_duration) : 30);
+            const maxDuration = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
             let binCount = Math.max(Math.ceil(maxDuration / 5), 6);
             let labels = [];
             let timeBuckets = new Array(binCount).fill(0);
