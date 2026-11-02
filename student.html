@@ -643,28 +643,160 @@
         }
 
 // 🌟 โหลดเฉพาะจำนวนการแจ้งเตือนที่ยังไม่อ่านมาแสดงที่ไอคอน Badge
-        async function loadStudentNotificationsCount() {
-            try {
-                const { data: anns } = await mySupabase.from('announcements').select('id, created_at').order('created_at', { ascending: false }).limit(20);
-                let readIds = JSON.parse(localStorage.getItem('student_read_announcements') || '[]');
-                const badge = document.getElementById('notifBadge');
-                
-                if (anns && anns.length > 0) {
-                    // กรองเฉพาะอันที่ยังไม่อ่าน
-                    const unread = anns.filter(a => !readIds.includes(a.id) && !a.is_read);
-                    if (unread.length > 0) {
-                        badge.textContent = unread.length;
-                        badge.classList.remove('hidden');
-                    } else {
-                        badge.classList.add('hidden');
-                    }
-                } else {
-                    badge.classList.add('hidden');
-                }
-            } catch (err) {
-                console.warn("Notification count warning:", err);
-            }
+// 🌟 โหลดจำนวนการแจ้งเตือนที่ยังไม่อ่านจากฐานข้อมูล (ผูกกับโปรไฟล์นักเรียน)
+async function loadStudentNotificationsCount() {
+    try {
+        const { data: anns } = await mySupabase.from('announcements').select('id, created_at').order('created_at', { ascending: false }).limit(20);
+        const badge = document.getElementById('notifBadge');
+        
+        if (!anns || anns.length === 0) {
+            badge.classList.add('hidden');
+            return;
         }
+
+        // ดึงรายการ ID ประกาศที่นักเรียนคนนี้เคยอ่านแล้วจากฐานข้อมูล (profiles.read_announcements หรือตารางแยก)
+        // เพื่อความง่ายและรองรับโครงสร้างปัจจุบัน เราจะเก็บอาร์เรย์ read_announcements ไว้ในตาราง profiles
+        let readIds = [];
+        if (currentStudentData && currentStudentData.read_announcements) {
+            readIds = currentStudentData.read_announcements;
+        } else {
+            // Fallback เผื่อไว้ใช้ localStorage หากยังไม่มีคอลัมน์
+            readIds = JSON.parse(localStorage.getItem(`student_read_announcements_${currentStudentId}`) || '[]');
+        }
+
+        const unread = anns.filter(a => !readIds.includes(a.id) && !a.is_read);
+        if (unread.length > 0) {
+            badge.textContent = unread.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    } catch (err) {
+        console.warn("Notification count warning:", err);
+    }
+}
+
+// 🌟 ดึงข้อมูลประกาศและแสดงผลใน Dropdown พร้อมสถานะอ่านแล้วจริง
+async function fetchAndRenderNotificationDropdown() {
+    const listContainer = document.getElementById('notifDropdownList');
+    const headerCount = document.getElementById('notifHeaderCount');
+    const badge = document.getElementById('notifBadge');
+
+    try {
+        const { data: anns } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(10);
+        
+        let readIds = [];
+        if (currentStudentData && currentStudentData.read_announcements) {
+            readIds = currentStudentData.read_announcements;
+        } else {
+            readIds = JSON.parse(localStorage.getItem(`student_read_announcements_${currentStudentId}`) || '[]');
+        }
+
+        if (!anns || anns.length === 0) {
+            listContainer.innerHTML = `<div class="px-4 py-8 text-center text-slate-400 text-xs space-y-1"><i class="fas fa-bell-slash text-2xl text-sky-500 mb-1"></i><p>ยังไม่มีการแจ้งเตือน</p></div>`;
+            headerCount.textContent = '0 ใหม่';
+            badge.classList.add('hidden');
+            return;
+        }
+
+        notificationsDataCache = anns;
+        const unreadList = anns.filter(a => !readIds.includes(a.id) && !a.is_read);
+        const unreadCount = unreadList.length;
+
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount;
+            badge.classList.remove('hidden');
+            headerCount.textContent = `${unreadCount} ใหม่`;
+        } else {
+            badge.classList.add('hidden');
+            headerCount.textContent = '0 ใหม่';
+        }
+
+        listContainer.innerHTML = anns.slice(0, 5).map(a => {
+            const isUnread = !readIds.includes(a.id) && !a.is_read;
+            const timeAgo = getTimeAgo(a.created_at);
+            const category = a.category || 'general';
+
+            let catIcon = 'fas fa-bullhorn text-sky-500';
+            if (category === 'exam') catIcon = 'fas fa-file-pen text-indigo-500';
+            else if (category === 'consult') catIcon = 'fas fa-comments text-emerald-500';
+            else if (category === 'video') catIcon = 'fas fa-play-circle text-rose-500';
+
+            return `
+                <div onclick="clickNotificationItem('${a.id}')" class="p-3 hover:bg-sky-50 dark:hover:bg-slate-800/80 cursor-pointer transition-all flex items-start gap-3 relative ${isUnread ? 'bg-sky-50/50 dark:bg-slate-800/40 font-bold' : ''}">
+                    ${isUnread ? '<span class="absolute top-3.5 right-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-sm"></span>' : ''}
+                    <div class="w-8 h-8 rounded-xl bg-sky-500/10 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
+                        <i class="${catIcon} text-xs"></i>
+                    </div>
+                    <div class="flex-1 min-w-0 space-y-0.5 pr-3">
+                        <h4 class="font-extrabold text-xs text-slate-900 dark:text-white truncate">${a.title || 'ประกาศจากโรงเรียน'}</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 font-light line-clamp-2 leading-relaxed">${a.content || ''}</p>
+                        <span class="text-[10px] text-slate-400 font-mono block pt-0.5"><i class="far fa-clock mr-1"></i>${timeAgo}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error("Error loading notification dropdown:", err);
+        listContainer.innerHTML = `<div class="px-4 py-6 text-center text-rose-500 text-xs">ไม่สามารถโหลดการแจ้งเตือนได้</div>`;
+    }
+}
+
+// 🌟 เมื่อคลิกประกาศ บันทึกลงฐานข้อมูลทันทีว่าอ่านแล้ว
+async function clickNotificationItem(annId) {
+    let readIds = [];
+    if (currentStudentData && currentStudentData.read_announcements) {
+        readIds = [...currentStudentData.read_announcements];
+    } else {
+        readIds = JSON.parse(localStorage.getItem(`student_read_announcements_${currentStudentId}`) || '[]');
+    }
+
+    if (!readIds.includes(annId)) {
+        readIds.push(annId);
+        
+        // อัปเดตลงหน่วยความจำชั่วคราว
+        if (currentStudentData) currentStudentData.read_announcements = readIds;
+        localStorage.setItem(`student_read_announcements_${currentStudentId}`, JSON.stringify(readIds));
+
+        // บันทึกซิงค์ตรงไปยังฐานข้อมูล profiles ของนักเรียนคนนี้
+        if (currentStudentId) {
+            await mySupabase.from('profiles').update({ read_announcements: readIds }).eq('id', currentStudentId);
+        }
+    }
+
+    document.getElementById('notifDropdownMenu').classList.add('hidden');
+    loadStudentNotificationsCount();
+    openNotificationsModal();
+}
+
+// 🌟 กดอ่านทั้งหมดแล้ว (บันทึก ID ทั้งหมดลงฐานข้อมูล)
+async function markAllNotificationsRead() {
+    if (!notificationsDataCache || notificationsDataCache.length === 0) return;
+    
+    let readIds = [];
+    if (currentStudentData && currentStudentData.read_announcements) {
+        readIds = [...currentStudentData.read_announcements];
+    } else {
+        readIds = JSON.parse(localStorage.getItem(`student_read_announcements_${currentStudentId}`) || '[]');
+    }
+
+    notificationsDataCache.forEach(a => {
+        if (!readIds.includes(a.id)) readIds.push(a.id);
+    });
+
+    if (currentStudentData) currentStudentData.read_announcements = readIds;
+    localStorage.setItem(`student_read_announcements_${currentStudentId}`, JSON.stringify(readIds));
+
+    if (currentStudentId) {
+        await mySupabase.from('profiles').update({ read_announcements: readIds }).eq('id', currentStudentId);
+    }
+
+    document.getElementById('notifBadge').classList.add('hidden');
+    document.getElementById('notifHeaderCount').textContent = '0 ใหม่';
+    await fetchAndRenderNotificationDropdown();
+    Swal.fire({ icon: 'success', title: 'อ่านการแจ้งเตือนทั้งหมดแล้ว', timer: 1000, showConfirmButton: false });
+}
 
         // 🌟 ดึงข้อมูลและแสดงผลเฉพาะประกาศที่ยังไม่อ่านใน Dropdown (หรือแสดงรายการล่าสุดโดยแยกสถานะอ่านแล้ว/ยังไม่อ่าน)
         async function fetchAndRenderNotificationDropdown() {
