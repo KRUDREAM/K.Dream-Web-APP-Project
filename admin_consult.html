@@ -315,9 +315,31 @@
             }
         }
 
-        function checkAdminAuth() {
-            const currentUsername = localStorage.getItem('admin_username') || localStorage.getItem('user_name') || 'ผู้ดูแลระบบ';
-            localStorage.setItem('admin_username', currentUsername);
+        async function checkAdminAuth() {
+            let adminName = localStorage.getItem('admin_username') || 
+                            localStorage.getItem('user_name') || 
+                            localStorage.getItem('name') || 
+                            localStorage.getItem('full_name');
+
+            if (!adminName) {
+                try {
+                    const { data: { session } } = await mySupabase.auth.getSession();
+                    if (session && session.user) {
+                        const { data: profile } = await mySupabase.from('profiles').select('full_name').eq('id', session.user.id).single();
+                        if (profile && profile.full_name) {
+                            adminName = profile.full_name;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Auth check error:", e);
+                }
+            }
+
+            if (!adminName) {
+                adminName = 'ผู้ดูแลระบบ';
+            }
+
+            localStorage.setItem('admin_username', adminName);
             return true;
         }
         
@@ -443,7 +465,6 @@
             currentSetting.is_open = newStatus;
             await logHistory(newStatus ? 'Manual Override: เปิดระบบรับจอง' : 'Manual Override: ปิดระบบรับจอง');
             
-            // 🌟 บันทึก Log ฝั่ง Admin
             if (typeof logSystemAction === 'function') {
                 await logSystemAction('ADMIN_TOGGLE_CONSULT_STATUS', `แอดมินสลับสถานะระบบ Consult เป็น: ${newStatus ? 'เปิด' : 'ปิด'}`, { is_open: newStatus });
             }
@@ -485,7 +506,6 @@
 
                 await logHistory('อัปเดตเวลาเปิด-ปิดอัตโนมัติ, คอร์สที่อนุญาต และการตั้งค่า');
                 
-                // 🌟 บันทึก Log ฝั่ง Admin
                 if (typeof logSystemAction === 'function') {
                     await logSystemAction('ADMIN_UPDATE_CONSULT_SETTINGS', `แอดมินอัปเดตการตั้งค่าระบบ Consult และคอร์สที่อนุญาต`, { open_at: openIso, close_at: closeIso, prune_hours: pruneVal, allowed_courses: checkedCourses });
                 }
@@ -672,7 +692,6 @@
                 if (!error) {
                     await logHistory('ลบ Slot ทั้งหมดในระบบ (Clear Data)');
                     
-                    // 🌟 บันทึก Log ฝั่ง Admin
                     if (typeof logSystemAction === 'function') {
                         await logSystemAction('ADMIN_CLEAR_ALL_CONSULT_SLOTS', `แอดมินลบ Slot และยกเลิกการจองทั้งหมดในระบบ Consult`, {});
                     }
@@ -736,7 +755,6 @@
                 if (!error) {
                     await logHistory(`สร้าง Slot อัตโนมัติจำนวน ${slotsToInsert.length} ช่วงเวลา`);
                     
-                    // 🌟 บันทึก Log ฝั่ง Admin
                     if (typeof logSystemAction === 'function') {
                         await logSystemAction('ADMIN_GENERATE_CONSULT_SLOTS', `แอดมินสร้าง Slot อัตโนมัติจำนวน ${slotsToInsert.length} ช่วงเวลา`, { count: slotsToInsert.length, start_date: startDate, end_date: endDate });
                     }
@@ -918,7 +936,6 @@
                 
                 await logHistory(`ย้ายเวลา Consult ของนักเรียน (${studentName}) ไป Slot ใหม่`);
                 
-                // 🌟 บันทึก Log ฝั่ง Admin
                 if (typeof logSystemAction === 'function') {
                     await logSystemAction('ADMIN_RESCHEDULE_CONSULT', `แอดมินย้ายเวลา Consult ของนักเรียน (${studentName})`, { student_id: studentId, old_slot_id: oldSlotId, new_slot_id: newSlotId });
                 }
@@ -951,7 +968,6 @@
                 }
                 await logHistory(`ยกเลิกการจอง Consult ของนักเรียน: ${studentName || studentId}`);
                 
-                // 🌟 บันทึก Log ฝั่ง Admin
                 if (typeof logSystemAction === 'function') {
                     await logSystemAction('ADMIN_CANCEL_CONSULT_BOOKING', `แอดมินยกเลิกการจอง Consult ของนักเรียน: ${studentName || studentId}`, { student_id: studentId, slot_id: slotId });
                 }
@@ -966,7 +982,6 @@
                 await mySupabase.from('consult_slots').delete().eq('id', id);
                 await logHistory(`ลบช่วงเวลา Slot ID: ${id}`);
                 
-                // 🌟 บันทึก Log ฝั่ง Admin
                 if (typeof logSystemAction === 'function') {
                     await logSystemAction('ADMIN_DELETE_CONSULT_SLOT', `แอดมินลบช่วงเวลา Slot ID: ${id}`, { slot_id: id });
                 }
@@ -982,7 +997,6 @@
                 await mySupabase.from('consult_slots').update({ status: 'available', student_id: null });
                 await logHistory('รีเซ็ตโควต้านักเรียนทั้งหมดในระบบ');
                 
-                // 🌟 บันทึก Log ฝั่ง Admin
                 if (typeof logSystemAction === 'function') {
                     await logSystemAction('ADMIN_RESET_CONSULT_QUOTAS', `แอดมินรีเซ็ตโควต้านักเรียนทั้งหมดในระบบ Consult`, {});
                 }
