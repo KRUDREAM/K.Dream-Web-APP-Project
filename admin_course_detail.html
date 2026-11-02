@@ -1388,7 +1388,7 @@
             });
         }
 
-        async function openAddLessonModal(type) {
+async function openAddLessonModal(type) {
             const isVideo = type === 'video';
             const isDark = document.documentElement.classList.contains('dark');
             const libraryId = (currentCourse && (currentCourse.bunny_library_id || currentCourse.library_id)) ? (currentCourse.bunny_library_id || currentCourse.library_id) : '785115';
@@ -1430,20 +1430,35 @@
 
             if (formValues) {
                 Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                const nowIso = new Date().toISOString();
                 const payload = {
                     course_id: courseId,
                     title: formValues.title,
                     bunny_video_id: formValues.isVideo ? formValues.urlVal : null,
                     video_url: formValues.isVideo ? formValues.urlVal : null,
                     file_url: !formValues.isVideo ? formValues.urlVal : null,
-                    created_at: new Date().toISOString()
+                    created_at: nowIso
                 };
 
+                // 1. บันทึกบทเรียนลงตาราง course_lessons ปกติ
                 const { error } = await mySupabase.from('course_lessons').insert([payload]);
                 
                 if (!error) {
-                    Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1000, showConfirmButton: false });
+                    // 2. 🌟 เพิ่มคำสั่งบันทึกแจ้งเตือนลงตาราง announcements เพื่อให้เด้งไปหน้าประกาศ (admin_announcements.html หรือระบบแจ้งเตือนนักเรียน)
+                    if (formValues.isVideo) {
+                        const courseTitle = currentCourse ? currentCourse.title : 'คอร์สเรียน';
+                        await mySupabase.from('announcements').insert([{
+                            title: `📢 อัปเดตวิดีโอบทเรียนใหม่: ${formValues.title}`,
+                            content: `มีการอัปโหลดวิดีโอใหม่ในคอร์ส "${courseTitle}" เมื่อวันที่ ${new Date(nowIso).toLocaleString('th-TH')}`,
+                            type: 'video',
+                            created_at: nowIso
+                        }]);
+                    }
+
+                    Swal.fire({ icon: 'success', title: 'บันทึกและสร้างประกาศสำเร็จ!', timer: 1200, showConfirmButton: false });
                     loadLessons();
+                    loadSystemNotifications(); // โหลดรายการแจ้งเตือนใหม่เข้ามาอัปเดตบนหน้าจอทันที
                 } else {
                     Swal.fire('บันทึกล้มเหลว', `<code class="text-xs text-red-400 font-mono">${error.message}</code>`, 'error');
                 }
