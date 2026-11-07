@@ -490,7 +490,7 @@
             }
         }
 
-        async function toggleSystemStatus() {
+async function toggleSystemStatus() {
             const newStatus = !currentSetting.is_open;
             await mySupabase.from('consult_settings').update({ is_open: newStatus }).eq('id', 1);
             currentSetting.is_open = newStatus;
@@ -501,6 +501,7 @@
             }
 
             if (newStatus) {
+                // คำนวณจำนวน Slot ทั้งหมดที่มีในระบบ (ที่ยังไม่หมดเวลา)
                 const nowIso = new Date().toISOString();
                 const { data: slotsData } = await mySupabase
                     .from('consult_slots')
@@ -508,15 +509,35 @@
                     .gt('end_time', nowIso);
                 
                 const totalSlotsCount = slotsData ? slotsData.length : 0;
+                
+                // รูปแบบวันเวลาปิดระบบ
                 const closeTimeStr = currentSetting.close_at 
                     ? new Date(currentSetting.close_at).toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }) 
                     : 'ไม่ได้กำหนด';
 
-                await autoPostAnnouncement(
-                    'consult', 
-                    '📅 เปิดระบบจองเวลา Consult แล้ว', 
-                    `อาจารย์ได้เปิดระบบให้จองคิว Consult แล้ว\n- จำนวน Slot ทั้งหมดที่มี: ${totalSlotsCount} ช่วงเวลา\n- วันเวลาปิดระบบ: ${closeTimeStr}\nสามารถเข้าไปเลือกช่วงเวลาที่ต้องการได้ทันที`
-                );
+                const allowedCourses = currentSetting?.allowed_courses || [];
+
+                if (allowedCourses.length > 0) {
+                    // ส่งประกาศแยกตามคอร์สที่ได้รับอนุญาตเท่านั้น
+                    for (const courseId of allowedCourses) {
+                        await autoPostAnnouncement(
+                            'consult', 
+                            '📅 เปิดระบบจองเวลา Consult แล้ว', 
+                            `อาจารย์ได้เปิดระบบให้จองคิว Consult แล้ว\n- จำนวน Slot ทั้งหมดที่มี: ${totalSlotsCount} ช่วงเวลา\n- วันเวลาปิดระบบ: ${closeTimeStr}\nสามารถเข้าไปเลือกช่วงเวลาที่ต้องการได้ทันที`,
+                            'course', 
+                            String(courseId)
+                        );
+                    }
+                } else {
+                    // กรณีที่ไม่ได้เลือกคอร์สใดเลย (เผื่อไว้ ให้ส่งแบบแจ้งเตือนทั่วไป)
+                    await autoPostAnnouncement(
+                        'consult', 
+                        '📅 เปิดระบบจองเวลา Consult แล้ว', 
+                        `อาจารย์ได้เปิดระบบให้จองคิว Consult แล้ว\n- จำนวน Slot ทั้งหมดที่มี: ${totalSlotsCount} ช่วงเวลา\n- วันเวลาปิดระบบ: ${closeTimeStr}\nสามารถเข้าไปเลือกช่วงเวลาที่ต้องการได้ทันที`,
+                        'all', 
+                        ''
+                    );
+                }
             }
 
             Swal.fire({ icon: 'success', title: newStatus ? 'เปิดระบบสำเร็จ' : 'ปิดระบบสำเร็จ', timer: 1200, showConfirmButton: false });
