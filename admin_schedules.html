@@ -90,6 +90,13 @@
                         <option value="">-- ทุกคุณครู --</option>
                     </select>
                 </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1">กรองดูตามคอร์ส:</label>
+                    <select id="filterCourseMain" onchange="renderSchedulesView()" class="w-full md:w-52 px-3 py-2 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
+                        <option value="">-- ทุกคอร์สเรียน --</option>
+                    </select>
+                </div>
             </div>
 
             <div class="flex items-center gap-2 w-full md:w-auto justify-end">
@@ -119,12 +126,6 @@
                 <h3 class="font-extrabold text-sm text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-2">
                     <i class="fas fa-list-ul"></i> รายการคาบเรียนหลัก (Timeline List)
                 </h3>
-                <div class="flex items-center gap-2 w-full sm:w-auto">
-                    <label class="text-xs font-bold text-slate-400 shrink-0">กรองตามคอร์ส:</label>
-                    <select id="filterCourse" onchange="renderTimelineList()" class="w-full sm:w-60 px-3 py-1.5 bg-slate-100 dark:bg-darkinput border dark:border-slate-800 rounded-xl text-xs font-bold outline-none">
-                        <option value="">-- ทุกคอร์สเรียน --</option>
-                    </select>
-                </div>
             </div>
 
             <div id="timelineListContainer" class="space-y-3">
@@ -164,7 +165,7 @@
 
         async function fetchMasterData() {
             try {
-                const coursesRes = await supabaseClient.from('courses').select('id, title');
+                const coursesRes = await supabaseClient.from('courses').select('id, title, course_code');
                 const [schedRes, slotRes] = await Promise.all([
                     supabaseClient.from('course_schedules').select('*'),
                     supabaseClient.from('schedule_slots').select('*')
@@ -181,19 +182,12 @@
             }
         }
 
-        // 🌟 แก้ไขระบบ Realtime ให้เชื่อมต่อและดึงข้อมูลใหม่ทันที
         function setupRealtimeSubscription() {
             supabaseClient
-                .channel('admin-schedules-realtime-v2')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => {
-                    fetchMasterData();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => {
-                    fetchMasterData();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => {
-                    fetchMasterData();
-                })
+                .channel('admin-schedules-realtime-v3')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_schedules' }, () => { fetchMasterData(); })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_slots' }, () => { fetchMasterData(); })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => { fetchMasterData(); })
                 .subscribe();
         }
 
@@ -204,10 +198,10 @@
             teachers.forEach(t => { if (t) teacherHtml += `<option value="${t}">คุณครู: ${t}</option>`; });
             selectTeacher.innerHTML = teacherHtml;
 
-            const selectCourse = document.getElementById('filterCourse');
+            const selectCourse = document.getElementById('filterCourseMain');
             let courseHtml = '<option value="">-- ทุกคอร์สเรียน --</option>';
             allCourses.forEach(c => {
-                courseHtml += `<option value="${c.id}">${c.title}</option>`;
+                courseHtml += `<option value="${c.id}">[${c.course_code || 'COURSE'}] ${c.title}</option>`;
             });
             selectCourse.innerHTML = courseHtml;
         }
@@ -235,14 +229,22 @@
         }
 
         function getFilteredSlots() {
-            const filterVal = document.getElementById('filterTeacher').value;
-            if (!filterVal) return allSlots;
-            return allSlots.filter(s => s.teacher_name === filterVal);
+            const teacherFilter = document.getElementById('filterTeacher').value;
+            const courseFilter = document.getElementById('filterCourseMain').value;
+
+            let slots = allSlots;
+            if (teacherFilter) {
+                slots = slots.filter(s => s.teacher_name === teacherFilter);
+            }
+            if (courseFilter) {
+                slots = slots.filter(s => s.course_id === courseFilter);
+            }
+            return slots;
         }
 
         function getFilteredSchedules() {
             const teacherFilter = document.getElementById('filterTeacher').value;
-            const courseFilter = document.getElementById('filterCourse').value;
+            const courseFilter = document.getElementById('filterCourseMain').value;
 
             let result = allSchedules;
             if (teacherFilter) {
@@ -436,8 +438,6 @@
             container.innerHTML = html;
         }
 
-        // 🌟 กรองแสดง Timeline List ให้แสดงเฉพาะหัวข้อคาบเรียนหลัก (ไม่ซ้ำซ้อน)
-// 🌟 ปรับปรุง Timeline List ให้แสดงผลข้อมูลครบถ้วนตามฟอร์มที่สร้างคาบเรียน
         function renderTimelineList() {
             const container = document.getElementById('timelineListContainer');
             const filtered = getFilteredSchedules();
@@ -447,7 +447,6 @@
                 return;
             }
 
-            // แปลงตัวเลขวันเป็นชื่อวันภาษาไทย
             const dayNames = ['วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์'];
 
             container.innerHTML = filtered.map(s => {
@@ -461,7 +460,7 @@
                             <div class="flex items-center gap-2">
                                 <span class="w-3 h-3 rounded-full" style="background-color: ${color}"></span>
                                 <h4 class="font-bold text-sm">${s.title}</h4>
-                                <span class="px-2 py-0.5 bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 text-[10px] rounded font-bold">${courseObj.title || 'คอร์สเรียน'}</span>
+                                <span class="px-2 py-0.5 bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 text-[10px] rounded font-bold">[${courseObj.course_code || 'COURSE'}] ${courseObj.title || 'คอร์สเรียน'}</span>
                                 ${dayText ? `<span class="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 text-[10px] rounded font-bold"><i class="fas fa-calendar-day"></i> ${dayText}</span>` : ''}
                             </div>
                             <p class="text-xs text-slate-500">${s.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
@@ -497,10 +496,10 @@
                 return;
             }
 
-            const courseOptions = allCourses.map(c => `<option value="${c.id}">${c.title}</option>`).join('');
+            const courseOptions = allCourses.map(c => `<option value="${c.id}">[${c.course_code || 'COURSE'}] ${c.title}</option>`).join('');
 
             const { value: formValues } = await Swal.fire({
-                title: '📅 เพิ่มคาบเรียน (เลือกหลายวันในสัปดาห์)',
+                title: '📅 เพิ่มคาบเรียน (อิงตามคอร์สเรียน & Google Calendar)',
                 width: '600px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
@@ -579,8 +578,8 @@
                     const start_date = document.getElementById('swalStartDate').value;
                     const end_date = document.getElementById('swalEndDate').value;
 
-                    if (!title || !teacher_name || !start_date || !end_date || checkedDays.length === 0) {
-                        Swal.showValidationMessage('⚠️ กรุณากรอกข้อมูลให้ครบ และติ๊กเลือกวันอย่างน้อย 1 วัน');
+                    if (!course_id || !title || !teacher_name || !start_date || !end_date || checkedDays.length === 0) {
+                        Swal.showValidationMessage('⚠️ กรุณาเลือกคอร์ส กรอกข้อมูลให้ครบ และติ๊กเลือกวันอย่างน้อย 1 วัน');
                         return false;
                     }
 
@@ -615,12 +614,12 @@
                 }
 
                 Swal.fire({ icon: 'success', title: 'สร้างคาบเรียนสำเร็จ!', timer: 1500, showConfirmButton: false });
-                fetchMasterData(); // บังคับรีเฟรชข้อมูลหน้าจอทันที
+                fetchMasterData();
             }
         }
 
         async function openEditScheduleModal(s) {
-            const courseOptions = allCourses.map(c => `<option value="${c.id}" ${c.id === s.course_id ? 'selected' : ''}>${c.title}</option>`).join('');
+            const courseOptions = allCourses.map(c => `<option value="${c.id}" ${c.id === s.course_id ? 'selected' : ''}>[${c.course_code || 'COURSE'}] ${c.title}</option>`).join('');
 
             const { value: formValues } = await Swal.fire({
                 title: '✏️ แก้ไขคาบเรียน',
@@ -686,7 +685,7 @@
                     const start_date = document.getElementById('swalStartDate').value;
                     const end_date = document.getElementById('swalEndDate').value;
 
-                    if (!title || !teacher_name || !start_date || !end_date) {
+                    if (!course_id || !title || !teacher_name || !start_date || !end_date) {
                         Swal.showValidationMessage('⚠️ กรุณากรอกข้อมูลสำคัญและช่วงวันที่ให้ครบถ้วน');
                         return false;
                     }
@@ -745,7 +744,7 @@
                     <div class="space-y-3 text-left text-xs">
                         <p class="text-slate-500">${sched.description || 'ไม่มีรายละเอียด'}</p>
                         <div class="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl space-y-1">
-                            <div><b>คอร์สเรียน:</b> ${courseObj.title || '-'}</div>
+                            <div><b>คอร์สเรียน:</b> [${courseObj.course_code || 'COURSE'}] ${courseObj.title || '-'}</div>
                             <div><b>คุณครูผู้สอน:</b> ${sched.teacher_name}</div>
                             <div><b>เวลา:</b> ${sched.start_time?.substring(0,5)} - ${sched.end_time?.substring(0,5)} น.</div>
                             <div><b>ช่วงวันที่:</b> ${sched.start_date} ถึง ${sched.end_date}</div>
