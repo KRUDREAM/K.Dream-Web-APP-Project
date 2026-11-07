@@ -43,56 +43,78 @@
         .dark .swal2-popup { background-color: #1e293b !important; color: #f8fafc !important; border: 1px solid #334155 !important; }
     </style>
 </head>
-<body class="bg-lightbg dark:bg-darkbg min-h-screen flex items-center justify-center p-4 transition-colors duration-300">
+<body class="bg-lightbg dark:bg-darkbg min-h-screen flex flex-col justify-between transition-colors duration-300">
 
-    <div class="glass-card w-full max-w-md p-8 rounded-3xl shadow-xl relative overflow-hidden">
-        <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl pointer-events-none"></div>
-
-        <div class="text-center mb-8">
-            <div class="w-20 h-20 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/30 border-2 border-blue-500/30 flex items-center justify-center bg-white">
-                <img src="logo.jpg" alt="Logo ครูครีม" class="w-full h-full object-cover">
+    <!-- แบนเนอร์จำลองปุ่ม GET ด้านบนสุดของหน้าเว็บ -->
+    <div id="pwaBanner" class="hidden bg-blue-600 text-white px-4 py-2.5 flex items-center justify-between shadow-lg sticky top-0 z-50 transition-all">
+        <div class="flex items-center gap-3">
+            <img src="logo.jpg" alt="Logo" class="w-9 h-9 rounded-xl object-cover bg-white border border-white/20 shadow">
+            <div>
+                <p class="font-bold text-xs sm:text-sm">KRUDREAM Online Platform</p>
+                <p class="text-[11px] text-blue-100">ติดตั้งแอปเพื่อการใช้งานที่รวดเร็วยิ่งขึ้น</p>
             </div>
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">KRUDREAM Online Platform</h1>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">เข้าสู่ระบบด้วย Username ของคุณ</p>
         </div>
-
-        <form id="loginForm" class="space-y-5">
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Username</label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fas fa-user"></i></span>
-                    <input type="text" id="username" required placeholder="กรอก username ของคุณ" class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all text-sm font-bold">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">รหัสผ่าน (Password)</label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fas fa-lock"></i></span>
-                    <input type="password" id="password" required placeholder="••••••••" class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all text-sm">
-                </div>
-            </div>
-
-            <div class="flex items-center justify-between text-sm">
-                <label class="flex items-center gap-2 cursor-pointer text-gray-600 dark:text-gray-300 select-none">
-                    <input type="checkbox" id="rememberMe" class="w-4 h-4 text-primary bg-slate-50 dark:bg-slate-800 border-gray-300 dark:border-gray-700 rounded focus:ring-primary">
-                    <span>จดจำฉันไว้ในระบบ</span>
-                </label>
-            </div>
-
-            <button type="submit" class="w-full bg-primary hover:bg-blue-800 text-white py-3.5 rounded-xl font-bold text-base transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 transform hover:-translate-y-0.5">
-                เข้าสู่ระบบ <i class="fas fa-arrow-right ml-2"></i>
+        <div class="flex items-center gap-2">
+            <button id="bannerInstallBtn" class="bg-white text-blue-600 font-bold px-4 py-1.5 rounded-full shadow-md text-xs sm:text-sm hover:bg-blue-50 transition transform hover:scale-105">
+                GET
             </button>
-        </form>
+            <button id="closeBannerBtn" class="text-white/80 hover:text-white p-1 text-sm">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
 
-        <div class="mt-6 text-center space-y-2 text-xs text-gray-400">
-            <div>
-                <a href="javascript:void(0);" onclick="openPrivacyPolicyModal()" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
-                    <i class="fas fa-shield-alt mr-1"></i> นโยบายความเป็นส่วนตัว (Privacy Policy)
-                </a>
+    <!-- ส่วนเนื้อหาหลัก (จัดให้อยู่ตรงกลางหน้าจอ) -->
+    <div class="flex-1 flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-md p-8 rounded-3xl shadow-xl relative overflow-hidden">
+            <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl pointer-events-none"></div>
+
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/30 border-2 border-blue-500/30 flex items-center justify-center bg-white">
+                    <img src="logo.jpg" alt="Logo ครูครีม" class="w-full h-full object-cover">
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-white">KRUDREAM Online Platform</h1>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">เข้าสู่ระบบด้วย Username ของคุณ</p>
             </div>
-            <div>
-                ระบบบริหารจัดการการเรียนการสอนออนไลน์ &copy; 2026
+
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Username</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fas fa-user"></i></span>
+                        <input type="text" id="username" required placeholder="กรอก username ของคุณ" class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all text-sm font-bold">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">รหัสผ่าน (Password)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fas fa-lock"></i></span>
+                        <input type="password" id="password" required placeholder="••••••••" class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all text-sm">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-sm">
+                    <label class="flex items-center gap-2 cursor-pointer text-gray-600 dark:text-gray-300 select-none">
+                        <input type="checkbox" id="rememberMe" class="w-4 h-4 text-primary bg-slate-50 dark:bg-slate-800 border-gray-300 dark:border-gray-700 rounded focus:ring-primary">
+                        <span>จดจำฉันไว้ในระบบ</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="w-full bg-primary hover:bg-blue-800 text-white py-3.5 rounded-xl font-bold text-base transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 transform hover:-translate-y-0.5">
+                    เข้าสู่ระบบ <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </form>
+
+            <div class="mt-6 text-center space-y-2 text-xs text-gray-400">
+                <div>
+                    <a href="javascript:void(0);" onclick="openPrivacyPolicyModal()" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
+                        <i class="fas fa-shield-alt mr-1"></i> นโยบายความเป็นส่วนตัว (Privacy Policy)
+                    </a>
+                </div>
+                <div>
+                    ระบบบริหารจัดการการเรียนการสอนออนไลน์ &copy; 2026
+                </div>
             </div>
         </div>
     </div>
@@ -153,6 +175,22 @@
 
         let deferredPrompt;
         const installBtn = document.getElementById('installAppBtn');
+        const banner = document.getElementById('pwaBanner');
+        const bannerInstallBtn = document.getElementById('bannerInstallBtn');
+        const closeBannerBtn = document.getElementById('closeBannerBtn');
+
+        // ตรวจสอบการแสดงผลแบนเนอร์ด้านบน
+        window.addEventListener('DOMContentLoaded', () => {
+            installBtn.classList.remove('hidden');
+            if (!localStorage.getItem('closed_pwa_banner')) {
+                banner.classList.remove('hidden');
+            }
+        });
+
+        closeBannerBtn.addEventListener('click', () => {
+            banner.classList.add('hidden');
+            localStorage.setItem('closed_pwa_banner', 'true');
+        });
 
         // ดักจับ Event ติดตั้งแอปจากเบราว์เซอร์
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -160,34 +198,45 @@
             deferredPrompt = e;
         });
 
-        // แสดงปุ่มดาวน์โหลดเสมอที่มุมจอ
-        window.addEventListener('DOMContentLoaded', () => {
-            installBtn.classList.remove('hidden');
-        });
+        // ฟังก์ชันตรวจสอบว่าเป็น iOS / Safari หรือไม่
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        }
 
-        // เมื่อคลิกปุ่มดาวน์โหลด
-        installBtn.addEventListener('click', async () => {
+        // ฟังก์ชันกลางสำหรับกดติดตั้ง (ใช้ร่วมกันทั้งปุ่มลอยและแบนเนอร์ด้านบน)
+        async function triggerInstall() {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
                 deferredPrompt = null;
+            } else if (isIOS()) {
+                const isDark = document.documentElement.classList.contains('dark');
+                Swal.fire({
+                    title: '<span class="font-bold text-blue-600 dark:text-blue-400">📱 วิธีติดตั้งแอปบน iPhone / iPad</span>',
+                    html: `
+                        <div class="text-left text-xs sm:text-sm space-y-3 text-gray-600 dark:text-gray-300">
+                            <p class="font-semibold text-primary">เนื่องจากข้อจำกัดของระบบ iOS ให้ทำตาม 2 ขั้นตอนง่ายๆ นี้ครับ:</p>
+                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/25 space-y-2">
+                                <p><strong>ขั้นตอนที่ 1:</strong> มองหาแถบเมนูด้านล่างของ Safari แล้วแตะปุ่ม <strong>แชร์ (Share <i class="fas fa-arrow-up-from-bracket"></i>)</strong></p>
+                                <p><strong>ขั้นตอนที่ 2:</strong> เลื่อนหาเมนูแล้วเลือกคำว่า <strong>"เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen <i class="fas fa-plus-square"></i>)</strong></p>
+                            </div>
+                            <p class="text-xs text-gray-400 text-center">เพียงเท่านี้ไอคอนแอปจะไปปรากฏบนหน้าจอหลักของคุณทันทีครับ!</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'เข้าใจแล้ว',
+                    confirmButtonColor: '#1d4ed8',
+                    background: isDark ? '#1e293b' : '#ffffff',
+                    color: isDark ? '#f8fafc' : '#1e293b',
+                    customClass: { popup: 'rounded-3xl shadow-2xl' }
+                });
             } else {
                 const isDark = document.documentElement.classList.contains('dark');
                 Swal.fire({
-                    title: '<span class="font-bold text-blue-600 dark:text-blue-400">📲 วิธีติดตั้งเว็บแอป (Add to Home Screen)</span>',
+                    title: '<span class="font-bold text-blue-600 dark:text-blue-400">📲 วิธีติดตั้งเว็บแอป</span>',
                     html: `
                         <div class="text-left text-xs sm:text-sm space-y-3 text-gray-600 dark:text-gray-300">
-                            <p>เพื่อให้ใช้งานได้สะดวกเหมือนแอปพลิเคชันมือถือทั่วไป:</p>
-                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/25 space-y-1">
-                                <p><strong>🤖 สำหรับ Android (Chrome):</strong></p>
-                                <p>1. แตะเมนู <strong>จุดสามจุด (⋮)</strong> ที่มุมขวาบนของเบราว์เซอร์</p>
-                                <p>2. เลือกเมนู <strong>"ติดตั้งแอป"</strong> หรือ <strong>"เพิ่มลงในหน้าจอหลัก"</strong></p>
-                            </div>
-                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/25 space-y-1">
-                                <p><strong>📱 สำหรับ iOS (Safari บน iPhone/iPad):</strong></p>
-                                <p>1. แตะปุ่ม <strong>แชร์ (Share ⎋)</strong> ด้านล่างจอ</p>
-                                <p>2. เลื่อนหาแล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen)</strong></p>
-                            </div>
+                            <p><strong>🤖 สำหรับ Android (Chrome):</strong> แตะเมนูจุดสามจุด (⋮) ที่มุมขวาบน แล้วเลือก <strong>"ติดตั้งแอป"</strong></p>
+                            <p><strong>💻 สำหรับคอมพิวเตอร์:</strong> สังเกตไอคอนติดตั้งที่มุมขวาของช่องกรอก URL (Address Bar)</p>
                         </div>
                     `,
                     confirmButtonText: 'เข้าใจแล้ว',
@@ -197,7 +246,10 @@
                     customClass: { popup: 'rounded-3xl shadow-2xl' }
                 });
             }
-        });
+        }
+
+        installBtn.addEventListener('click', triggerInstall);
+        bannerInstallBtn.addEventListener('click', triggerInstall);
 
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
