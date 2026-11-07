@@ -68,7 +68,7 @@
                 </div>
             </div>
 
-            <!-- เพิ่มส่วน Checkbox จดจำฉันไว้ในระบบ -->
+            <!-- ฟีเจอร์จดจำฉันไว้ในระบบ -->
             <div class="flex items-center justify-between text-sm">
                 <label class="flex items-center gap-2 cursor-pointer text-gray-600 dark:text-gray-300 select-none">
                     <input type="checkbox" id="rememberMe" class="w-4 h-4 text-primary bg-slate-50 dark:bg-slate-800 border-gray-300 dark:border-gray-700 rounded focus:ring-primary">
@@ -93,9 +93,18 @@
         </div>
     </div>
 
-    <button id="themeToggle" class="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-white dark:bg-darkbox shadow-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:scale-110 transition-transform">
-        <i class="fas fa-moon text-lg" id="themeIcon"></i>
-    </button>
+    <!-- ปุ่มลอยสำหรับติดตั้งเว็บแอป (Install Web App) และเปลี่ยนธีม -->
+    <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
+        <!-- ปุ่มดาวน์โหลดแอป (ซ่อนไว้ก่อนจนกว่าจะพร้อมติดตั้ง หรือกดเพื่อให้คำแนะนำ) -->
+        <button id="installAppBtn" class="hidden w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg border border-blue-400 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer" title="ติดตั้งเว็บแอป">
+            <i class="fas fa-download text-lg"></i>
+        </button>
+        
+        <!-- ปุ่มเปลี่ยนธีม Mute/Dark -->
+        <button id="themeToggle" class="w-12 h-12 rounded-full bg-white dark:bg-darkbox shadow-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:scale-110 transition-transform cursor-pointer" title="สลับโหมดสว่าง/มืด">
+            <i class="fas fa-moon text-lg" id="themeIcon"></i>
+        </button>
+    </div>
 
     <script>
         const htmlElement = document.documentElement;
@@ -146,6 +155,57 @@
             });
         }
 
+        // ฟังก์ชันจัดการการติดตั้งเว็บแอป (PWA / Add to Home Screen)
+        let deferredPrompt;
+        const installBtn = document.getElementById('installAppBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // ป้องกันไม่ให้ Chrome แสดง Mini-infobar แบบเดิมอัตโนมัติ
+            e.preventDefault();
+            deferredPrompt = e;
+            // แสดงปุ่มดาวน์โหลดแอปที่มุมขวา
+            installBtn.classList.remove('hidden');
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                // ถ้าเบราว์เซอร์รองรับการติดตั้งแบบ PWA ตรงๆ
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                }
+                deferredPrompt = null;
+                installBtn.classList.add('hidden');
+            } else {
+                // สำหรับกรณีใช้งานบน iOS (Safari) หรือเบราว์เซอร์อื่นที่กดผ่านปุ่มแล้วต้องการคำแนะนำ
+                const isDark = document.documentElement.classList.contains('dark');
+                Swal.fire({
+                    title: '<span class="font-bold text-blue-600 dark:text-blue-400">วิธีติดตั้งเว็บแอป (Add to Home Screen)</span>',
+                    html: `
+                        <div class="text-left text-xs sm:text-sm space-y-3 text-gray-600 dark:text-gray-300">
+                            <p>เพื่อให้ใช้งานได้เหมือนแอปพลิเคชันมือถือทั่วไปและเข้าใช้งานได้รวดเร็ว:</p>
+                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/25 space-y-2">
+                                <p><strong>📱 สำหรับ iOS (Safari):</strong></p>
+                                1. แตะปุ่ม <strong>Share (แชร์)</strong> ด้านล่างของเบราว์เซอร์<br>
+                                2. เลื่อนหาแล้วเลือกเมนู <strong>"Add to Home Screen" (เพิ่มไปยังหน้าจอโฮม)</strong>
+                            </div>
+                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/25 space-y-2">
+                                <p><strong>🤖 สำหรับ Android (Chrome):</strong></p>
+                                1. แตะปุ่ม <strong>Menu (จุดสามจุด)</strong> ที่มุมขวาบน<br>
+                                2. เลือกเมนู <strong>"Install app" (ติดตั้งแอปพลิเคชัน)</strong> หรือ "เพิ่มลงในหน้าจอหลัก"
+                            </div>
+                        </div>
+                    `,
+                    confirmButtonText: 'เข้าใจแล้ว',
+                    confirmButtonColor: '#1d4ed8',
+                    background: isDark ? '#1e293b' : '#ffffff',
+                    color: isDark ? '#f8fafc' : '#1e293b',
+                    customClass: { popup: 'rounded-3xl shadow-2xl' }
+                });
+            }
+        });
+
         // ตรวจสอบข้อมูลที่บันทึกไว้จากฟีเจอร์ "จดจำฉันไว้ในระบบ" เมื่อโหลดหน้าเว็บ
         window.addEventListener('DOMContentLoaded', () => {
             const rememberedUser = localStorage.getItem('remembered_username');
@@ -153,6 +213,11 @@
                 document.getElementById('username').value = rememberedUser;
                 document.getElementById('rememberMe').checked = true;
             }
+            
+            // เผื่อกรณีเปิดบนมือถือแล้วอยากให้ปุ่มดาวน์โหลดแสดงเสมอให้กดดูวิธีได้
+            setTimeout(() => {
+                installBtn.classList.remove('hidden');
+            }, 1000);
         });
 
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
