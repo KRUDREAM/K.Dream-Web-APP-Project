@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KRUDREAM LAND | เข้าสู่ระบบระบบการเรียนการสอน - ครูดรีม</title>
     
+    <!-- เชื่อมโยง Web App Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
     <!-- โลโก้ไอคอนสำหรับเว็บแอป (Favicon & Mobile App Icon) -->
     <link rel="icon" type="image/png" sizes="512x512" href="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg">
     <link rel="apple-touch-icon" href="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg">
@@ -43,7 +46,6 @@
         <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl pointer-events-none"></div>
 
         <div class="text-center mb-8">
-            <!-- แสดงรูปโลโก้ครูครีมที่กล่องด้านบน -->
             <div class="w-20 h-20 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/30 border-2 border-blue-500/30 flex items-center justify-center bg-white">
                 <img src="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg" alt="Logo ครูครีม" class="w-full h-full object-cover">
             </div>
@@ -68,7 +70,6 @@
                 </div>
             </div>
 
-            <!-- ฟีเจอร์จดจำฉันไว้ในระบบ -->
             <div class="flex items-center justify-between text-sm">
                 <label class="flex items-center gap-2 cursor-pointer text-gray-600 dark:text-gray-300 select-none">
                     <input type="checkbox" id="rememberMe" class="w-4 h-4 text-primary bg-slate-50 dark:bg-slate-800 border-gray-300 dark:border-gray-700 rounded focus:ring-primary">
@@ -95,18 +96,25 @@
 
     <!-- ปุ่มลอยสำหรับติดตั้งเว็บแอป (Install Web App) และเปลี่ยนธีม -->
     <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
-        <!-- ปุ่มดาวน์โหลดแอป -->
-        <button id="installAppBtn" class="hidden w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg border border-blue-400 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer" title="ติดตั้งเว็บแอป">
+        <button id="installAppBtn" class="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg border border-blue-400 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer" title="ติดตั้งเว็บแอป">
             <i class="fas fa-download text-lg"></i>
         </button>
         
-        <!-- ปุ่มเปลี่ยนธีม Mute/Dark -->
         <button id="themeToggle" class="w-12 h-12 rounded-full bg-white dark:bg-darkbox shadow-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:scale-110 transition-transform cursor-pointer" title="สลับโหมดสว่าง/มืด">
             <i class="fas fa-moon text-lg" id="themeIcon"></i>
         </button>
     </div>
 
     <script>
+        // ลงทะเบียน Service Worker เพื่อรองรับ PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered!', reg))
+                    .catch(err => console.log('Service Worker registration failed', err));
+            });
+        }
+
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
         if (localStorage.getItem('theme') === 'dark') {
@@ -120,7 +128,6 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        // ฟังก์ชันแสดงหน้าต่างนโยบายความเป็นส่วนตัว (Privacy Policy Modal)
         function openPrivacyPolicyModal() {
             const isDark = document.documentElement.classList.contains('dark');
             Swal.fire({
@@ -128,22 +135,8 @@
                 html: `
                     <div class="space-y-3 text-left text-xs sm:text-sm max-h-[60vh] overflow-y-auto pr-2">
                         <p class="text-gray-600 dark:text-gray-300 font-light">
-                            เว็บไซต์ <strong>KRUDREAM Online Platform</strong> ให้ความสำคัญกับการคุ้มครองข้อมูลส่วนบุคคลของคุณ เพื่อความโปร่งใสในการใช้งานระบบการเรียนการสอนออนไลน์ เราจึงขอแจ้งนโยบายการเก็บรวบรวมและใช้ข้อมูลดังต่อไปนี้:
+                            เว็บไซต์ <strong>KRUDREAM Online Platform</strong> ให้ความสำคัญกับการคุ้มครองข้อมูลส่วนบุคคลของคุณ...
                         </p>
-                        <div class="space-y-2">
-                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/20 space-y-1">
-                                <h4 class="font-extrabold text-blue-600 dark:text-blue-400"><i class="fas fa-database mr-1"></i> 1. ข้อมูลที่เราจัดเก็บ</h4>
-                                <p class="text-gray-600 dark:text-gray-300 font-light">ข้อมูลส่วนตัว (ชื่อ-นามสกุล, ชื่อเล่น, ระดับชั้น, โรงเรียน, LINE ID), ข้อมูลการเข้าสู่ระบบ, ผลคะแนนสอบ และประวัติการทำกิจกรรมในระบบ</p>
-                            </div>
-                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/20 space-y-1">
-                                <h4 class="font-extrabold text-blue-600 dark:text-blue-400"><i class="fas fa-bullseye mr-1"></i> 2. วัตถุประสงค์ในการเก็บข้อมูล</h4>
-                                <p class="text-gray-600 dark:text-gray-300 font-light">ใช้สำหรับการจัดการเรียนการสอน, ตรวจสอบสิทธิ์เข้าคอร์ส, บันทึกผลคะแนนสอบ, ประมวลผลสถิติพัฒนาการการเรียนรู้ และการสะสม Token เพื่อแลกรางวัล</p>
-                            </div>
-                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/20 space-y-1">
-                                <h4 class="font-extrabold text-blue-600 dark:text-blue-400"><i class="fas fa-lock mr-1"></i> 3. ความปลอดภัยของข้อมูล</h4>
-                                <p class="text-gray-600 dark:text-gray-300 font-light">ข้อมูลทั้งหมดถูกจัดเก็บไว้อย่างปลอดภัยผ่านระบบฐานข้อมูลที่มีมาตรฐาน (Supabase) และไม่มีการนำไปเผยแพร่หรือจำหน่ายให้แก่บุคคลภายนอกเด็ดขาด</p>
-                            </div>
-                        </div>
                     </div>
                 `,
                 confirmButtonText: 'รับทราบและปิด',
@@ -155,7 +148,6 @@
             });
         }
 
-        // ฟังก์ชันจัดการการติดตั้งเว็บแอป (PWA / Add to Home Screen)
         let deferredPrompt;
         const installBtn = document.getElementById('installAppBtn');
 
@@ -169,28 +161,15 @@
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    console.log('User accepted the install prompt');
-                }
                 deferredPrompt = null;
-                installBtn.classList.add('hidden');
             } else {
                 const isDark = document.documentElement.classList.contains('dark');
                 Swal.fire({
                     title: '<span class="font-bold text-blue-600 dark:text-blue-400">วิธีติดตั้งเว็บแอป (Add to Home Screen)</span>',
                     html: `
                         <div class="text-left text-xs sm:text-sm space-y-3 text-gray-600 dark:text-gray-300">
-                            <p>เพื่อให้ใช้งานได้เหมือนแอปพลิเคชันมือถือทั่วไปและเข้าใช้งานได้รวดเร็ว:</p>
-                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/25 space-y-2">
-                                <p><strong>📱 สำหรับ iOS (Safari):</strong></p>
-                                1. แตะปุ่ม <strong>Share (แชร์)</strong> ด้านล่างของเบราว์เซอร์<br>
-                                2. เลื่อนหาแล้วเลือกเมนู <strong>"Add to Home Screen" (เพิ่มไปยังหน้าจอโฮม)</strong>
-                            </div>
-                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/25 space-y-2">
-                                <p><strong>🤖 สำหรับ Android (Chrome):</strong></p>
-                                1. แตะปุ่ม <strong>Menu (จุดสามจุด)</strong> ที่มุมขวาบน<br>
-                                2. เลือกเมนู <strong>"Install app" (ติดตั้งแอปพลิเคชัน)</strong> หรือ "เพิ่มลงในหน้าจอหลัก"
-                            </div>
+                            <p><strong>📱 สำหรับ iOS (Safari):</strong> แตะปุ่ม Share และเลือก "Add to Home Screen"</p>
+                            <p><strong>🤖 สำหรับ Android (Chrome):</strong> แตะเมนูจุดสามจุด และเลือก "Install app"</p>
                         </div>
                     `,
                     confirmButtonText: 'เข้าใจแล้ว',
@@ -200,19 +179,6 @@
                     customClass: { popup: 'rounded-3xl shadow-2xl' }
                 });
             }
-        });
-
-        // ตรวจสอบข้อมูลที่บันทึกไว้จากฟีเจอร์ "จดจำฉันไว้ในระบบ" เมื่อโหลดหน้าเว็บ
-        window.addEventListener('DOMContentLoaded', () => {
-            const rememberedUser = localStorage.getItem('remembered_username');
-            if (rememberedUser) {
-                document.getElementById('username').value = rememberedUser;
-                document.getElementById('rememberMe').checked = true;
-            }
-            
-            setTimeout(() => {
-                installBtn.classList.remove('hidden');
-            }, 1000);
         });
 
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
@@ -229,10 +195,7 @@
 
             const loginEmail = userInput.includes('@') ? userInput : `${userInput}@lms-system.com`;
 
-            const { data: authData, error: authError } = await mySupabase.auth.signInWithPassword({ 
-                email: loginEmail, 
-                password 
-            });
+            const { data: authData, error: authError } = await mySupabase.auth.signInWithPassword({ email: loginEmail, password });
 
             if (authError || !authData.user) {
                 Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
@@ -269,7 +232,7 @@
                 } else if (userRole === 'admin' || userRole === 'exam_creator') {
                     window.location.replace('admin.html');
                 } else {
-                    window.location.replace('student.html'); // พาไปหน้า student.html ตามที่คุณกำหนด
+                    window.location.replace('student.html');
                 }
             }, 300);
         });
