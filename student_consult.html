@@ -121,6 +121,28 @@
             </div>
         </div>
 
+        <!-- 📊 Realtime Slot Overview Counter Cards -->
+        <div id="slotStatsOverview" class="grid grid-cols-2 gap-3 sm:gap-4">
+            <div class="glossy-card p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-sky-500/20 flex items-center gap-3.5">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center text-lg sm:text-xl shrink-0">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Slot ทั้งหมดในระบบ</span>
+                    <h3 class="font-black text-base sm:text-xl text-slate-900 dark:text-white mt-0.5" id="totalSlotsCount">0 ช่วงเวลา</h3>
+                </div>
+            </div>
+            <div class="glossy-card p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-emerald-500/20 flex items-center gap-3.5">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-lg sm:text-xl shrink-0">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Slot ที่ว่างอยู่</span>
+                    <h3 class="font-black text-base sm:text-xl text-emerald-600 dark:text-emerald-400 mt-0.5" id="remainingSlotsCount">0 ช่วงเวลา</h3>
+                </div>
+            </div>
+        </div>
+
         <!-- My Current Booking Card -->
         <div id="myBookingSection" class="hidden glossy-card p-5 sm:p-8 rounded-2xl sm:rounded-3xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-50/60 to-teal-50/30 dark:from-emerald-950/20 dark:to-teal-950/10 space-y-4 shadow-xl shadow-emerald-500/5">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-emerald-500/20">
@@ -216,6 +238,7 @@
         let currentStudentId = null;
         let studentProfile = null;
         let allAvailableSlots = [];
+        let allTotalSlots = []; // เก็บ Slot ทั้งหมด (รวมที่จองแล้วและว่าง) สำหรับคำนวณสถิติ
         let systemSettings = null;
         let myCurrentBooking = null;
         let hasValidCourseAccess = false;
@@ -278,6 +301,7 @@
                 document.getElementById('bookingInterface').classList.add('hidden');
                 document.getElementById('accessDeniedSection').classList.remove('hidden');
                 document.getElementById('systemStatusBanner').classList.add('hidden');
+                document.getElementById('slotStatsOverview').classList.add('hidden');
                 return;
             }
 
@@ -381,7 +405,6 @@
             try {
                 const allowedCoursesSetting = systemSettings?.allowed_courses || [];
                 
-                // หากแอดมินไม่ได้เลือกคอร์สใดๆ ไว้เลย (ปล่อยว่าง) ให้ถือว่าอนุญาตทุกคน หรือถ้าตั้งค่าไว้ ต้องเช็คว่านักเรียนลงทะเบียนคอร์สไหนที่ตรงกับที่แอดมินอนุญาต
                 if (!allowedCoursesSetting || allowedCoursesSetting.length === 0) {
                     hasValidCourseAccess = true;
                     return;
@@ -398,8 +421,6 @@
                 if (en3) enrolledCourseIds = enrolledCourseIds.concat(en3.map(e => String(e.course_id)));
 
                 enrolledCourseIds = [...new Set(enrolledCourseIds)];
-
-                // ตรวจสอบว่าคอร์สที่นักเรียนลงทะเบียน มีคอร์สใดคอร์สหนึ่งที่ตรงกับรายการ allowed_courses ที่แอดมินตั้งค่าไว้หรือไม่
                 hasValidCourseAccess = enrolledCourseIds.some(courseId => allowedCoursesSetting.includes(String(courseId)));
 
                 if (!hasValidCourseAccess) {
@@ -408,7 +429,7 @@
                 }
             } catch (err) {
                 console.warn("Course access check warning:", err);
-                hasValidCourseAccess = true; // Fallback ป้องกันติดขัดกรณี query พลาด
+                hasValidCourseAccess = true;
             }
         }
 
@@ -439,17 +460,34 @@
 
         async function loadAvailableSlots() {
             const now = new Date();
+            const nowIso = now.toISOString();
             const pruneHours = systemSettings?.prune_hours || 24;
             const pruneThreshold = new Date(now.getTime() + (pruneHours * 3600000)).toISOString();
 
-            const { data } = await mySupabase
+            // 1. โหลด Slot ทั้งหมดในอนาคต (ที่ยังไม่หมดเวลา) มาคำนวณสถิติภาพรวม
+            const { data: totalData } = await mySupabase
+                .from('consult_slots')
+                .select('*')
+                .gt('end_time', nowIso);
+
+            allTotalSlots = totalData || [];
+
+            // 2. โหลดเฉพาะ Slot ที่ว่างและผ่านเงื่อนไข prune threshold
+            const { data: availableData } = await mySupabase
                 .from('consult_slots')
                 .select('*')
                 .eq('status', 'available')
                 .gt('start_time', pruneThreshold)
                 .order('start_time', { ascending: true });
 
-            allAvailableSlots = data || [];
+            allAvailableSlots = availableData || [];
+
+            // อัปเดตตัวเลขแสดงผลการ์ดสถิติ Realtime ด้านบน
+            const totalCount = allTotalSlots.length;
+            const remainingCount = allAvailableSlots.length;
+            document.getElementById('totalSlotsCount').textContent = `${totalCount} ช่วงเวลา`;
+            document.getElementById('remainingSlotsCount').textContent = `${remainingCount} ช่วงเวลา`;
+
             renderCalendar();
             renderSlotsForSelectedDate();
         }
