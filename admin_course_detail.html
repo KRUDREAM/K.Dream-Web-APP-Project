@@ -505,6 +505,28 @@
             }
         }
 
+        // 🌟 ฟังก์ชันกลางสำหรับส่งการแจ้งเตือน (Announcement) เข้าสู่ระบบ
+        async function sendSystemNotification(title, content, type = 'general') {
+            try {
+                const nowIso = new Date().toISOString();
+                const { error } = await mySupabase.from('announcements').insert([{
+                    title: title,
+                    content: content,
+                    type: type,
+                    created_at: nowIso
+                }]);
+
+                if (error) {
+                    console.error('ไม่สามารถส่งการแจ้งเตือนได้:', error.message);
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                console.error('เกิดข้อผิดพลาดในการส่งแจ้งเตือน:', err);
+                return false;
+            }
+        }
+
         // 🌟 ฟังก์ชันเปิดหน้าต่างแก้ไข Bunny Library ID ประจำคอร์ส
         async function openEditLibraryIdModal() {
             const currentLibId = currentCourse.bunny_library_id || currentCourse.library_id || '785115';
@@ -1388,7 +1410,7 @@
             });
         }
 
-async function openAddLessonModal(type) {
+        async function openAddLessonModal(type) {
             const isVideo = type === 'video';
             const isDark = document.documentElement.classList.contains('dark');
             const libraryId = (currentCourse && (currentCourse.bunny_library_id || currentCourse.library_id)) ? (currentCourse.bunny_library_id || currentCourse.library_id) : '785115';
@@ -1445,15 +1467,14 @@ async function openAddLessonModal(type) {
                 const { error } = await mySupabase.from('course_lessons').insert([payload]);
                 
                 if (!error) {
-                    // 2. 🌟 เพิ่มคำสั่งบันทึกแจ้งเตือนลงตาราง announcements เพื่อให้เด้งไปหน้าประกาศ (admin_announcements.html หรือระบบแจ้งเตือนนักเรียน)
+                    // 2. 🌟 เรียกใช้ฟังก์ชันกลางส่งแจ้งเตือนเมื่อเพิ่มวิดีโอใหม่
                     if (formValues.isVideo) {
                         const courseTitle = currentCourse ? currentCourse.title : 'คอร์สเรียน';
-                        await mySupabase.from('announcements').insert([{
-                            title: `📢 อัปเดตวิดีโอบทเรียนใหม่: ${formValues.title}`,
-                            content: `มีการอัปโหลดวิดีโอใหม่ในคอร์ส "${courseTitle}" เมื่อวันที่ ${new Date(nowIso).toLocaleString('th-TH')}`,
-                            type: 'video',
-                            created_at: nowIso
-                        }]);
+                        await sendSystemNotification(
+                            `📢 อัปเดตวิดีโอบทเรียนใหม่: ${formValues.title}`,
+                            `มีการอัปโหลดวิดีโอใหม่ในคอร์ส "${courseTitle}" เรียบร้อยแล้ว`,
+                            'video'
+                        );
                     }
 
                     Swal.fire({ icon: 'success', title: 'บันทึกและสร้างประกาศสำเร็จ!', timer: 1200, showConfirmButton: false });
