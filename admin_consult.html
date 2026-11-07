@@ -115,6 +115,37 @@
             </div>
         </div>
 
+        <!-- 📊 Realtime Slot Statistics Overview Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="hitech-card p-4 sm:p-5 rounded-2xl border-l-4 border-l-sky-500 flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center text-lg shrink-0">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div>
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Slot ทั้งหมดในระบบ</span>
+                    <h3 class="font-black text-lg sm:text-xl text-slate-900 dark:text-white mt-0.5" id="statTotalSlots">0 ช่วงเวลา</h3>
+                </div>
+            </div>
+            <div class="hitech-card p-4 sm:p-5 rounded-2xl border-l-4 border-l-emerald-500 flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-lg shrink-0">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div>
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">ถูกจองแล้ว</span>
+                    <h3 class="font-black text-lg sm:text-xl text-emerald-600 dark:text-emerald-400 mt-0.5" id="statBookedSlots">0 ช่วงเวลา</h3>
+                </div>
+            </div>
+            <div class="hitech-card p-4 sm:p-5 rounded-2xl border-l-4 border-l-indigo-500 flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-lg shrink-0">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div>
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Slot ว่าง (ยังไม่จอง)</span>
+                    <h3 class="font-black text-lg sm:text-xl text-indigo-600 dark:text-indigo-400 mt-0.5" id="statAvailableSlots">0 ช่วงเวลา</h3>
+                </div>
+            </div>
+        </div>
+
         <!-- 🎓 กล่องเลือกคอร์สที่มีสิทธิ์จอง Consult -->
         <div class="hitech-card p-6 rounded-2xl space-y-3 border-l-4 border-l-indigo-500">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -470,7 +501,6 @@
             }
 
             if (newStatus) {
-                // คำนวณจำนวน Slot ทั้งหมดที่มีในระบบ (ที่ยังไม่หมดเวลา)
                 const nowIso = new Date().toISOString();
                 const { data: slotsData } = await mySupabase
                     .from('consult_slots')
@@ -478,8 +508,6 @@
                     .gt('end_time', nowIso);
                 
                 const totalSlotsCount = slotsData ? slotsData.length : 0;
-                
-                // รูปแบบวันเวลาปิดระบบ
                 const closeTimeStr = currentSetting.close_at 
                     ? new Date(currentSetting.close_at).toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }) 
                     : 'ไม่ได้กำหนด';
@@ -544,8 +572,22 @@
                 .order('start_time', { ascending: true });
 
             allSlots = data || [];
+            
+            // 📊 อัปเดตตัวเลขสถิติด้านบนแบบ Realtime
+            updateStatOverview();
+
             renderCalendar();
             renderSlotsForSelectedDate();
+        }
+
+        function updateStatOverview() {
+            const total = allSlots.length;
+            const booked = allSlots.filter(s => s.status === 'booked').length;
+            const available = allSlots.filter(s => s.status === 'available').length;
+
+            document.getElementById('statTotalSlots').textContent = `${total} ช่วงเวลา`;
+            document.getElementById('statBookedSlots').textContent = `${booked} ช่วงเวลา`;
+            document.getElementById('statAvailableSlots').textContent = `${available} ช่วงเวลา`;
         }
 
         function changeMonth(direction) {
@@ -776,8 +818,6 @@
                     if (typeof logSystemAction === 'function') {
                         await logSystemAction('ADMIN_GENERATE_CONSULT_SLOTS', `แอดมินสร้าง Slot อัตโนมัติจำนวน ${slotsToInsert.length} ช่วงเวลา`, { count: slotsToInsert.length, start_date: startDate, end_date: endDate });
                     }
-
-                    // ยกเลิกการส่งประกาศ/แจ้งเตือนเมื่อเพิ่มคิวเรียบร้อยแล้ว ตามความต้องการ
 
                     Swal.fire({ icon: 'success', title: `สร้างสำเร็จ ${slotsToInsert.length} ช่วงเวลา!`, timer: 1500, showConfirmButton: false });
                 } else {
