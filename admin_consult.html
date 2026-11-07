@@ -470,7 +470,25 @@
             }
 
             if (newStatus) {
-                await autoPostAnnouncement('consult', '📅 เปิดระบบจองเวลา Consult แล้ว', 'อาจารย์ได้เปิดระบบให้จองคิว Consult ประจำสัปดาห์แล้ว สามารถเข้าไปเลือกช่วงเวลาที่ต้องการได้ทันที');
+                // คำนวณจำนวน Slot ทั้งหมดที่มีในระบบ (ที่ยังไม่หมดเวลา)
+                const nowIso = new Date().toISOString();
+                const { data: slotsData } = await mySupabase
+                    .from('consult_slots')
+                    .select('id')
+                    .gt('end_time', nowIso);
+                
+                const totalSlotsCount = slotsData ? slotsData.length : 0;
+                
+                // รูปแบบวันเวลาปิดระบบ
+                const closeTimeStr = currentSetting.close_at 
+                    ? new Date(currentSetting.close_at).toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }) 
+                    : 'ไม่ได้กำหนด';
+
+                await autoPostAnnouncement(
+                    'consult', 
+                    '📅 เปิดระบบจองเวลา Consult แล้ว', 
+                    `อาจารย์ได้เปิดระบบให้จองคิว Consult แล้ว\n- จำนวน Slot ทั้งหมดที่มี: ${totalSlotsCount} ช่วงเวลา\n- วันเวลาปิดระบบ: ${closeTimeStr}\nสามารถเข้าไปเลือกช่วงเวลาที่ต้องการได้ทันที`
+                );
             }
 
             Swal.fire({ icon: 'success', title: newStatus ? 'เปิดระบบสำเร็จ' : 'ปิดระบบสำเร็จ', timer: 1200, showConfirmButton: false });
@@ -759,11 +777,7 @@
                         await logSystemAction('ADMIN_GENERATE_CONSULT_SLOTS', `แอดมินสร้าง Slot อัตโนมัติจำนวน ${slotsToInsert.length} ช่วงเวลา`, { count: slotsToInsert.length, start_date: startDate, end_date: endDate });
                     }
 
-                    await autoPostAnnouncement(
-                        'consult',
-                        '📅 เพิ่มช่วงเวลา Consult ใหม่ในระบบ',
-                        `อาจารย์ได้เปิดช่วงเวลาจอง Consult ใหม่จำนวน ${slotsToInsert.length} ช่วงเวลาแล้ว สามารถเข้ามาจองเวลาได้ทันที`
-                    );
+                    // ยกเลิกการส่งประกาศ/แจ้งเตือนเมื่อเพิ่มคิวเรียบร้อยแล้ว ตามความต้องการ
 
                     Swal.fire({ icon: 'success', title: `สร้างสำเร็จ ${slotsToInsert.length} ช่วงเวลา!`, timer: 1500, showConfirmButton: false });
                 } else {
