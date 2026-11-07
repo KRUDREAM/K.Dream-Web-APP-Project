@@ -120,7 +120,6 @@
                             <i class="fas fa-gift"></i> มีเงื่อนไขคอร์สแถมอัตโนมัติ
                         </span>
                     </div>
-                    <!-- 🌟 ส่วนแสดงและตั้งค่า Bunny Library ID ประจำคอร์ส -->
                     <div class="flex items-center gap-2 bg-slate-100 dark:bg-darkinput px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
                         <i class="fas fa-server text-sky-500 text-xs"></i>
                         <span class="text-xs font-bold text-slate-600 dark:text-slate-300">Bunny Library ID:</span>
@@ -134,7 +133,6 @@
                 <p id="headerCourseDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-4xl">กำลังดึงข้อมูลเนื้อหาและสถิติ...</p>
             </div>
             
-            <!-- ปุ่มจัดการต่างๆ -->
             <div class="flex items-center gap-2.5 flex-wrap z-10 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
                 <button onclick="openManageStudentsModal()" class="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2">
                     <i class="fas fa-users-gear text-sm"></i> จัดการนักเรียน (<span id="enrolledCountBadge">0</span>)
@@ -431,7 +429,6 @@
                 document.getElementById('headerCourseTitle').textContent = currentCourse.title;
                 document.getElementById('headerCourseDesc').textContent = currentCourse.description || 'ไม่มีรายละเอียดคำอธิบายคอร์ส';
 
-                // 🌟 แสดง Bunny Library ID ประจำคอร์ส (ถ้ามี ถ้าไม่มีใช้ค่าเริ่มต้น 785115)
                 const libraryId = currentCourse.bunny_library_id || currentCourse.library_id || '785115';
                 document.getElementById('headerLibraryIdDisplay').textContent = libraryId;
 
@@ -506,15 +503,20 @@
         }
 
         // 🌟 ฟังก์ชันกลางสำหรับส่งการแจ้งเตือน (Announcement) เข้าสู่ระบบ
-        async function sendSystemNotification(title, content, type = 'general') {
+        async function sendSystemNotification(title, content, type = 'general', targetType = 'all', targetValue = '') {
             try {
                 const nowIso = new Date().toISOString();
-                const { error } = await mySupabase.from('announcements').insert([{
+                const payload = {
                     title: title,
                     content: content,
+                    category: type,
                     type: type,
+                    target_type: targetType,
+                    target_value: targetValue,
                     created_at: nowIso
-                }]);
+                };
+
+                const { error } = await mySupabase.from('announcements').insert([payload]);
 
                 if (error) {
                     console.error('ไม่สามารถส่งการแจ้งเตือนได้:', error.message);
@@ -527,7 +529,6 @@
             }
         }
 
-        // 🌟 ฟังก์ชันเปิดหน้าต่างแก้ไข Bunny Library ID ประจำคอร์ส
         async function openEditLibraryIdModal() {
             const currentLibId = currentCourse.bunny_library_id || currentCourse.library_id || '785115';
             const isDark = document.documentElement.classList.contains('dark');
@@ -778,7 +779,7 @@
                         id: item.id,
                         title: item.title || 'ประกาศใหม่จากระบบ',
                         description: item.content || item.description || '',
-                        type: item.type || 'announcement',
+                        type: item.type || item.category || 'announcement',
                         created_at: item.created_at || new Date().toISOString(),
                         read: item.read || false
                     }));
@@ -1463,23 +1464,24 @@
                     created_at: nowIso
                 };
 
-                // 1. บันทึกบทเรียนลงตาราง course_lessons ปกติ
                 const { error } = await mySupabase.from('course_lessons').insert([payload]);
                 
                 if (!error) {
-                    // 2. 🌟 เรียกใช้ฟังก์ชันกลางส่งแจ้งเตือนเมื่อเพิ่มวิดีโอใหม่
+                    // 🌟 ส่งการแจ้งเตือนอัตโนมัติเมื่อเพิ่มวิดีโอบทเรียนใหม่
                     if (formValues.isVideo) {
                         const courseTitle = currentCourse ? currentCourse.title : 'คอร์สเรียน';
                         await sendSystemNotification(
                             `📢 อัปเดตวิดีโอบทเรียนใหม่: ${formValues.title}`,
                             `มีการอัปโหลดวิดีโอใหม่ในคอร์ส "${courseTitle}" เรียบร้อยแล้ว`,
-                            'video'
+                            'video',
+                            'course',
+                            String(courseId)
                         );
                     }
 
                     Swal.fire({ icon: 'success', title: 'บันทึกและสร้างประกาศสำเร็จ!', timer: 1200, showConfirmButton: false });
                     loadLessons();
-                    loadSystemNotifications(); // โหลดรายการแจ้งเตือนใหม่เข้ามาอัปเดตบนหน้าจอทันที
+                    loadSystemNotifications();
                 } else {
                     Swal.fire('บันทึกล้มเหลว', `<code class="text-xs text-red-400 font-mono">${error.message}</code>`, 'error');
                 }
@@ -1660,7 +1662,7 @@
                         : '-';
 
                     return `
-                        <tr class="hover:bg-slate-50/85 dark:hover:bg-slate-800/40 transition-colors border-b dark:border-slate-800/60 cursor-pointer" onclick="toggleCheckbox('${item.studentId}')">
+                        <tr class="hover:bg-slate-50/85 dark:hover:bg-slate-800/45 transition-colors border-b dark:border-slate-800/60 cursor-pointer" onclick="toggleCheckbox('${item.studentId}')">
                             <td class="p-3.5 text-center" onclick="event.stopPropagation()">
                                 <input type="checkbox" id="chk_student_${item.studentId}" ${item.temporaryChecked ? 'checked' : ''} class="w-4 h-4 text-purple-600 rounded border-slate-300 dark:border-slate-700 focus:ring-purple-500 cursor-pointer">
                             </td>
