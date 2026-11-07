@@ -132,7 +132,6 @@
                 <div class="w-11 h-11 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-lg">🚀</div>
                 <div>
                     <span class="text-[10px] text-purple-600 dark:text-purple-400 block font-bold uppercase">อยู่เปอร์เซ็นต์ไทล์ที่</span>
-                    <!-- แสดงแค่ตัวเลขโล้นๆ ไม่มี th ต่อท้าย -->
                     <span class="text-base font-extrabold text-purple-600 dark:text-purple-400 font-mono" id="percentileStat">--</span>
                 </div>
             </div>
@@ -185,7 +184,7 @@
         <!-- Detailed Questions & Answers Section -->
         <div class="card-box p-6 rounded-2xl space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-                <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2"><i class="fas fa-list-check text-sky-500"></i> เฉลยคำตอบรายข้อ</h3>
+                <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2"><i class="fas fa-list-check text-sky-500"></i> รายละเอียดคะแนนรายข้อ</h3>
                 
                 <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
                     <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg font-bold bg-sky-600 text-white transition-all shadow-sm">ทั้งหมด (<span id="cnt-all">0</span>)</button>
@@ -207,8 +206,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-
-        
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
 
@@ -226,6 +223,7 @@
 
         let globalQuestions = [];
         let globalRawAnswers = {};
+        let globalShowAnswerInstantly = true; // 🌟 ค่าเริ่มต้นให้แสดงเฉลย
         let currentFilter = 'all';
         let chartInstance = null;
         let cachedExamTitle = '';
@@ -281,7 +279,6 @@
             return 0;
         }
 
-        // Custom Chart.js Plugin with safe boundary checking and padding spacing
         const verticalLinePlugin = {
             id: 'verticalLine',
             afterDraw(chart) {
@@ -324,7 +321,6 @@
             }
         };
 
-        // Theme management
         const htmlEl = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
         if (localStorage.getItem('theme') === 'dark') {
@@ -426,6 +422,11 @@
                 }
 
                 if (exam) {
+                    // 🌟 ตรวจสอบค่า show_answer_instantly จากตาราง exams (ถ้าเป็น false จะปิดเฉลย)
+                    if (exam.show_answer_instantly !== undefined && exam.show_answer_instantly !== null) {
+                        globalShowAnswerInstantly = Boolean(exam.show_answer_instantly);
+                    }
+
                     const rawEnable = exam.enable_grading_criteria;
                     enableGradingCriteria = (rawEnable === true || rawEnable === 'true' || rawEnable === 1 || rawEnable === '1');
                     gradingCriteriaList = exam.grading_criteria || [];
@@ -501,7 +502,6 @@
                 await loadAnalytics(examRef, score, cachedTotal);
                 updateCountsAndRender();
 
-                // 🤖 เรียกใช้งานฟังก์ชัน AI วิเคราะห์ผลการสอบ
                 generateAIExamInsight(cachedExamTitle, cachedStudentName, cachedScore, cachedTotal, cachedCategoryStats);
 
             } catch (err) {
@@ -510,13 +510,10 @@
             }
         }
 
-// ฟังก์ชันวิเคราะห์เชิงลึกมาตรฐาน (เสถียร โหลดไว ไม่หลุดสตรีมมิ่ง)
-// ฟังก์ชัน AI โค้ชอัจฉริยะประมวลผลฝั่งเบราว์เซอร์ (รวดเร็ว แม่นยำ ไม่ต้องพึ่ง API Key ภายนอก)
         async function generateAIExamInsight(examTitle, studentName, score, total, categoryStats) {
             const container = document.getElementById('aiInsightContent');
             const pct = total > 0 ? Math.round((score / total) * 100) : 0;
             
-            // 1. วิเคราะห์พฤติกรรมเวลา (Time & Pace Analysis)
             let timeSpentMin = window.cachedTimeSpentMinutes || 0;
             let paceText = "ทำข้อสอบเสร็จสิ้นสมบูรณ์ด้วยความตั้งใจและมีความสม่ำเสมอดีครับ";
             if (timeSpentMin > 0) {
@@ -530,7 +527,6 @@
                 }
             }
 
-            // 2. วิเคราะห์รูปแบบความผิดพลาด (Error Pattern) และจัดลำดับจุดที่ต้องพัฒนา
             let wrongItems = [];
             let weakCategories = [];
 
@@ -552,7 +548,6 @@
                 }
             });
 
-            // สร้างคำแนะนำเชิงลึก (Actionable Advice)
             let adviceHtml = "";
             if (pct >= 80) {
                 adviceHtml = "<b>จุดแข็ง:</b> มีความแม่นยำสูงและเข้าใจเนื้อหาอย่างลึกซึ้ง <br><b>คำแนะนำ:</b> รักษาระดับมาตรฐานนี้ไว้ และลองท้าทายตนเองด้วยโจทย์ยกระดับหรือโจทย์แข่งขันที่ยากขึ้นครับ 🌟";
@@ -570,7 +565,6 @@
                 ? `มีข้อที่ควรกลับไปเก็บตกทบทวนจำนวน ${wrongItems.length} ข้อ ได้แก่: ${wrongItems.slice(0, 6).join(', ')}${wrongItems.length > 6 ? ' และอื่น ๆ' : ''}`
                 : 'ตอบถูกต้องครบทุกข้อ เยี่ยมยอดมาก!';
 
-            // แสดงผลลัพธ์ทันทีแบบสมบูรณ์ สวยงาม และทรงพลัง
             container.innerHTML = `
                 <div class="space-y-3 text-xs sm:text-sm">
                     <div class="p-2.5 bg-purple-500/10 rounded-xl border border-purple-500/20 text-purple-300">
@@ -593,7 +587,6 @@
                     </div>
                 </div>`;
         }
-
         
         function computeCategoryStats() {
             cachedCategoryStats = {};
@@ -808,7 +801,6 @@
                 document.getElementById('rankStat').textContent = '#' + (rank > 0 ? rank : 1) + ' / ' + totalStudents;
                 document.getElementById('avgStat').textContent = avg + ' / ' + totalQ;
                 document.getElementById('maxStat').textContent = max + ' / ' + totalQ;
-                // แสดงผล Percentile เฉพาะตัวเลขโล้นๆ ไม่มี th, st, nd, rd ต่อท้าย
                 document.getElementById('percentileStat').textContent = percentile;
 
                 renderPercentageBinsChart(scores, totalQ, studentScore);
@@ -986,16 +978,22 @@
                 const correctIdx = parseChoiceIndex(q.correct_answer);
                 const tag = q.category_tag || 'ทั่วไป';
 
+                // 🌟 หากปิด show_answer_instantly (เป็น false) จะซ่อนเฉลยคำตอบที่ถูกต้อง แต่ยังคงแสดงคะแนนแต่ละข้อได้
                 const bubbles = opts.map((optText, optIdx) => {
                     let bClass = 'result-bubble';
                     let icon = '';
                     const isPicked = studentIdx === optIdx;
-                    const isRight = correctIdx === optIdx;
+                    const isRight = globalShowAnswerInstantly ? (correctIdx === optIdx) : false;
 
-                    if (isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-[10px] ml-auto"></i>'; }
-                    else if (isPicked && !isRight) { bClass += ' wrong-choice'; icon = '<i class="fas fa-times text-[10px] ml-auto"></i>'; }
-                    else if (!isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-[10px] ml-auto opacity-60"></i>'; }
-                    else if (isPicked) { bClass += ' student-choice'; }
+                    if (globalShowAnswerInstantly) {
+                        if (isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-[10px] ml-auto"></i>'; }
+                        else if (isPicked && !isRight) { bClass += ' wrong-choice'; icon = '<i class="fas fa-times text-[10px] ml-auto"></i>'; }
+                        else if (!isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-[10px] ml-auto opacity-60"></i>'; }
+                        else if (isPicked) { bClass += ' student-choice'; }
+                    } else {
+                        // โหมดปิดเฉลย: แสดงเฉพาะตัวเลือกที่นักเรียนเลือกตอบเท่านั้น (ไม่บอกว่าข้อไหนถูก)
+                        if (isPicked) { bClass += ' student-choice'; icon = '<span class="text-[10px] text-sky-500 font-bold ml-auto">ที่คุณตอบ</span>'; }
+                    }
 
                     return `
                         <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
@@ -1006,6 +1004,7 @@
                     `;
                 }).join('');
 
+                // 🌟 ป้ายบอกคะแนนรายข้อ ยังคงแสดงผลได้ปกติแม้งดแสดงเฉลย
                 const badge = isCorrect 
                     ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-[10px] font-bold"><i class="fas fa-check-circle mr-1"></i> ถูก (+1)</span>'
                     : '<span class="px-2.5 py-0.5 bg-red-500/10 text-red-600 rounded-lg text-[10px] font-bold"><i class="fas fa-times-circle mr-1"></i> ผิด (0)</span>';
@@ -1018,6 +1017,7 @@
                         </div>
                         <div class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">${escapeHtml(q.question_text || q.content || '')}</div>
                         <div class="grid grid-cols-1 gap-1.5 bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border">${bubbles}</div>
+                        ${!globalShowAnswerInstantly ? '<div class="text-[11px] text-amber-600 dark:text-amber-400 font-medium italic"><i class="fas fa-info-circle mr-1"></i>ชุดข้อสอบนี้ปิดการแสดงเฉลยคำตอบ</div>' : ''}
                     </div>
                 `;
             }).join('');
