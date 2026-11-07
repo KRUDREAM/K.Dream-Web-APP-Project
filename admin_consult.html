@@ -210,19 +210,30 @@
         <!-- รายละเอียด Slot / คิวในวันที่เลือก -->
         <div class="hitech-card p-5 rounded-2xl space-y-3">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <i class="fas fa-clock text-sky-500"></i> รายการ Slot & คิววันที่: <span id="selectedDateText" class="text-sky-500 font-bold">-</span>
-                </h3>
                 <div class="flex items-center gap-2">
-                    <span class="px-2.5 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-[10px] font-bold" id="slotCountBadge">0 ช่วงเวลา</span>
-                    <button onclick="deleteSlotsForSelectedDate()" class="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5" title="ลบ Slot ทั้งหมดในวันนี้ (เฉพาะที่ยังไม่ถูกจอง)">
-                        <i class="fas fa-trash-alt"></i> ลบ Slot วันนี้
+                    <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-clock text-sky-500"></i> รายการ Slot วันที่: <span id="selectedDateText" class="text-sky-500 font-bold">-</span>
+                    </h3>
+                    <span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-[10px] font-bold" id="slotCountBadge">0 ช่วงเวลา</span>
+                </div>
+                
+                <!-- 🎛️ ปุ่มเลือกและจัดการแบบกลุ่มกระชับเข้าใจง่าย -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="toggleSelectAllDailySlots()" class="px-2.5 py-1.5 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 hover:bg-sky-500 hover:text-white rounded-xl text-[11px] font-bold transition-all border border-slate-200 dark:border-slate-700" title="เลือก/ไม่เลือกทั้งหมดในวันนี้">
+                        <i class="fas fa-check-square mr-1"></i> เลือกทั้งหมด
                     </button>
-                    <button onclick="exportSelectedDateExcel()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5">
-                        <i class="fas fa-file-excel"></i> Export Excel (วันนี้)
+                    <button onclick="deleteSelectedSlots()" class="px-2.5 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl text-[11px] font-bold transition-all border border-red-500/20" title="ลบ Slot ที่ติ๊กเลือก">
+                        <i class="fas fa-trash-alt mr-1"></i> ลบที่เลือก
+                    </button>
+                    <button onclick="deleteSlotsForSelectedDate()" class="px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm" title="ลบ Slot ว่างทั้งหมดในวันนี้ทีเดียว">
+                        <i class="fas fa-calendar-times mr-1"></i> ลบทั้งวัน
+                    </button>
+                    <button onclick="exportSelectedDateExcel()" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm" title="ส่งออก Excel เฉพาะวันนี้">
+                        <i class="fas fa-file-excel mr-1"></i> Excel
                     </button>
                 </div>
             </div>
+            
             <div id="dailySlotsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
                 <div class="col-span-full text-center py-6 text-slate-400 text-xs"><i class="far fa-calendar-alt text-xl mb-1 block text-sky-500"></i> กรุณาเลือกวันที่ต้องการจากปฏิทินด้านบน</div>
             </div>
@@ -695,9 +706,13 @@
 
                 return `
                     <div class="p-3 rounded-xl bg-slate-50 dark:bg-darkinput border ${isBooked ? 'border-emerald-500/30 bg-emerald-50/10' : 'border-slate-200 dark:border-slate-700'} flex justify-between items-center text-xs">
-                        <div>
-                            <span class="font-extrabold text-slate-900 dark:text-white"><i class="far fa-clock mr-1 text-sky-500"></i> ${startStr} - ${endStr} น.</span>
-                            <div class="text-[10px] text-slate-400 mt-0.5">สถานะ: ${isBooked ? `<span class="text-emerald-500 font-bold">จองโดย: ${s.profiles?.full_name || 'นักเรียน'}</span>` : '<span class="text-sky-500 font-semibold">ว่าง</span>'}</div>
+                        <div class="flex items-center gap-2.5">
+                            <!-- 🔲 เพิ่ม Checkbox สำหรับเลือกรายการ -->
+                            <input type="checkbox" name="dailySlotCheckbox" value="${s.id}" class="w-4 h-4 accent-sky-500 rounded shrink-0 cursor-pointer">
+                            <div>
+                                <span class="font-extrabold text-slate-900 dark:text-white"><i class="far fa-clock mr-1 text-sky-500"></i> ${startStr} - ${endStr} น.</span>
+                                <div class="text-[10px] text-slate-400 mt-0.5">สถานะ: ${isBooked ? `<span class="text-emerald-500 font-bold">จองโดย: ${s.profiles?.full_name || 'นักเรียน'}</span>` : '<span class="text-sky-500 font-semibold">ว่าง</span>'}</div>
+                            </div>
                         </div>
                         <div class="flex gap-1.5">
                             ${isBooked ? `<button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${s.profiles?.full_name}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>` : ''}
@@ -706,6 +721,53 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        // ✅ ฟังก์ชันเลือก / ยกเลิกเลือก Checkbox ทั้งหมดในวันนั้น
+        function toggleSelectAllDailySlots() {
+            const checkboxes = document.querySelectorAll('input[name="dailySlotCheckbox"]');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+        }
+
+        // 🗑️ ฟังก์ชันลบ Slot ที่ติ๊กเลือกไว้
+        async function deleteSelectedSlots() {
+            const checkedBoxes = document.querySelectorAll('input[name="dailySlotCheckbox"]:checked');
+            if (checkedBoxes.length === 0) {
+                Swal.fire('ยังไม่ได้เลือก', 'กรุณาติ๊กเลือก Slot ที่ต้องการลบอย่างน้อย 1 รายการ', 'warning');
+                return;
+            }
+
+            const slotIds = Array.from(checkedBoxes).map(cb => cb.value);
+            
+            // ตรวจสอบว่าในบรรดาที่เลือกมีอันไหนถูกจองไปแล้วหรือยัง
+            const bookedSelected = allSlots.filter(s => slotIds.includes(s.id) && s.status === 'booked');
+            if (bookedSelected.length > 0) {
+                Swal.fire('ไม่สามารถลบได้', `มีรายการที่ถูกนักเรียนจองคิวไปแล้ว ${bookedSelected.length} รายการ กรุณาย้ายหรือยกเลิกการจองของนักเรียนออกก่อน`, 'warning');
+                return;
+            }
+
+            const res = await Swal.fire({
+                title: `⚠️ ยืนยันลบ Slot ที่เลือก (${slotIds.length} รายการ)?`,
+                text: 'ช่วงเวลาที่เลือกจะถูกลบออกจากระบบอย่างถาวร',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ใช่, ลบที่เลือก',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if (res.isConfirmed) {
+                Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const { error } = await mySupabase.from('consult_slots').delete().in('id', slotIds);
+                if (!error) {
+                    await logHistory(`ลบ Slot แบบเลือกจำนวน ${slotIds.length} รายการ`);
+                    Swal.fire({ icon: 'success', title: 'ลบสำเร็จเรียบร้อย', timer: 1200, showConfirmButton: false });
+                    loadAllSlots();
+                } else {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                }
+            }
         }
 
         function exportSelectedDateExcel() {
@@ -781,7 +843,6 @@
             }
         }
 
-        // 🛠️ ปรับปรุงระบบสร้าง Slot ให้เสถียรยิ่งขึ้น (หลีกเลี่ยง Timezone Shift)
         async function generateSlots() {
             const startDate = document.getElementById('genStartDate').value;
             const endDate = document.getElementById('genEndDate').value;
@@ -836,7 +897,6 @@
             }
 
             if (slotsToInsert.length > 0) {
-                // บันทึกแบบ Batch ทีละ 500 รายการเพื่อความเสถียร
                 let hasError = false;
                 for (let i = 0; i < slotsToInsert.length; i += 500) {
                     let chunk = slotsToInsert.slice(i, i + 500);
@@ -861,7 +921,6 @@
             }
         }
 
-        // 🗑️ เพิ่มฟังก์ชันลบ Slot เฉพาะวันที่เลือก
         async function deleteSlotsForSelectedDate() {
             const dateFormatted = new Date(selectedDateStr).toLocaleDateString('th-TH', { dateStyle: 'long' });
             const slotsOnThisDay = allSlots.filter(s => s.start_time.startsWith(selectedDateStr));
@@ -883,14 +942,13 @@
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
-                confirmButtonText: 'ใช่, ลบวันนี้',
+                confirmButtonText: 'ใช่, ลบทั้งวัน',
                 cancelButtonText: 'ยกเลิก'
             });
 
             if (res.isConfirmed) {
                 Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 
-                // ค้นหา ID ของ Slot ในวันนี้ที่สถานะ available
                 const slotIdsToDelete = slotsOnThisDay.filter(s => s.status === 'available').map(s => s.id);
                 
                 if (slotIdsToDelete.length > 0) {
