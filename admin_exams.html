@@ -89,7 +89,6 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-16 space-y-6">
         
-        <!-- Course Filter Info Banner -->
         <div id="courseFilterBanner" class="hidden hitech-card p-4 rounded-2xl bg-purple-500/10 border-l-4 border-l-purple-500 flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-purple-500 text-white flex items-center justify-center font-bold"><i class="fas fa-chalkboard"></i></div>
@@ -178,7 +177,6 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        // ⚡ ฟังก์ชันโพสต์ประกาศอัตโนมัติ (ดึงชื่อคอร์สจริงมาแสดงแทนรหัส)
         async function autoPostAnnouncementForExam(examTitle, examCode, courseId, status) {
             if (status !== 'public') return;
             try {
@@ -784,19 +782,20 @@
                                 <input type="datetime-local" id="swalDueDate" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" value="${examData?.due_date ? new Date(new Date(examData.due_date).getTime() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16) : ''}">
                             </div>
                         </div>
-                        <!-- เพิ่มฟิลด์ติ๊กเลือกเปิดเฉลยทันทีตรงนี้ -->
-        <div class="pt-2 border-t dark:border-slate-800">
-            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-200">
-                <input type="checkbox" id="swalShowAnswerInstantly" ${examData?.show_answer_instantly ? 'checked' : ''} class="w-4 h-4 rounded text-sky-600">
-                <span>เปิดเฉลยชุดข้อสอบทันทีหลังส่งข้อสอบ (Show Answer Instantly)</span>
-            </label>
-        </div>
+
+                        <!-- 🌟 เพิ่ม UI สำหรับเลือกเปิดเฉลยทันที -->
+                        <div class="pt-2 border-t dark:border-slate-800">
+                            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-200">
+                                <input type="checkbox" id="swalShowAnswerInstantly" ${examData?.show_answer_instantly ? 'checked' : ''} class="w-4 h-4 rounded text-sky-600">
+                                <span>เปิดเฉลยชุดข้อสอบทันทีหลังส่งข้อสอบ (Show Answer Instantly)</span>
+                            </label>
+                        </div>
                     </div>
                 `,
                 showCancelButton: true,
                 confirmButtonText: 'บันทึกข้อมูล',
                 cancelButtonText: 'ยกเลิก',
-preConfirm: () => {
+                preConfirm: () => {
                     const title = document.getElementById('swalTitle').value.trim();
                     const exam_code = document.getElementById('swalExamCode').value.trim().toUpperCase();
                     const delivery_type = document.querySelector('input[name="swalDeliveryType"]:checked')?.value || 'pdf';
@@ -806,7 +805,6 @@ preConfirm: () => {
                     const catVal = document.getElementById('swalCategory').value;
                     const selectedCourseId = document.getElementById('swalCourseSelect').value;
                     
-                    // 🌟 เพิ่มการดึงค่าสถานะเปิดเฉลย
                     const show_answer_instantly = document.getElementById('swalShowAnswerInstantly').checked;
 
                     if (!title) { Swal.showValidationMessage('กรุณากรอกชื่อชุดข้อสอบ'); return false; }
@@ -824,21 +822,20 @@ preConfirm: () => {
                         time_limit: parseInt(document.getElementById('swalTimeLimit').value) || 60,
                         max_attempts: parseInt(document.getElementById('swalMaxAttempts').value) || 0,
                         status: status,
-                        show_answer_instantly: show_answer_instantly, // 🌟 ส่งค่าบันทึก
+                        show_answer_instantly: show_answer_instantly,
                         start_time: (status === 'countdown' && document.getElementById('swalStartTime').value) ? new Date(document.getElementById('swalStartTime').value).toISOString() : null,
                         due_date: (hasDueDate && document.getElementById('swalDueDate').value) ? new Date(document.getElementById('swalDueDate').value).toISOString() : null
                     };
                 }
             });
 
-if (formValues) {
+            if (formValues) {
                 Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 
                 let resError = null;
                 let wasNotPublishedBefore = !isEdit || examData.status !== 'public';
 
                 if (isEdit) {
-                    // 🌟 บันทึกลงตาราง exams (ไม่ใช่ exam_categories)
                     const { error } = await mySupabase.from('exams').update(formValues).eq('id', examData.id);
                     resError = error;
                     
@@ -846,7 +843,6 @@ if (formValues) {
                         await logSystemAction('ADMIN_UPDATE_EXAM', `แอดมินแก้ไขชุดข้อสอบ: ${formValues.title}`, { exam_id: examData.id });
                     }
                 } else {
-                    // 🌟 บันทึกลงตาราง exams สำหรับสร้างใหม่
                     const { error } = await mySupabase.from('exams').insert([formValues]);
                     resError = error;
                     
@@ -920,7 +916,6 @@ if (formValues) {
             if ((await Swal.fire({ title: 'ยืนยันลบชุดข้อสอบนี้?', icon: 'warning', showCancelButton: true })).isConfirmed) {
                 const { error } = await mySupabase.from('exams').delete().eq('id', id);
                 
-                // 🌟 บันทึก Log ฝั่ง Admin: ลบข้อสอบ
                 if (!error && typeof logSystemAction === 'function') {
                     await logSystemAction('ADMIN_DELETE_EXAM', `แอดมินลบชุดข้อสอบ ID: ${id}`, { exam_id: id });
                 }
