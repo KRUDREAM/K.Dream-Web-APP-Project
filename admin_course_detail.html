@@ -503,31 +503,30 @@
         }
 
         // 🌟 ฟังก์ชันกลางสำหรับส่งการแจ้งเตือน (Announcement) เข้าสู่ระบบ
-        async function sendSystemNotification(title, content, type = 'general', targetType = 'all', targetValue = '') {
-            try {
-                const nowIso = new Date().toISOString();
-                const payload = {
-                    title: title,
-                    content: content,
-                    category: type,
-                    type: type,
-                    target_type: targetType,
-                    target_value: targetValue,
-                    created_at: nowIso
-                };
+async function sendSystemNotification(title, content, type = 'general', targetType = 'all', targetValue = '') {
+    try {
+        const nowIso = new Date().toISOString();
+        const payload = {
+            title: title,
+            content: content,
+            category: type,         // ใช้ category แทน type เพื่อป้องกัน Error คอลัมน์ไม่พบ
+            target_type: targetType,
+            target_value: targetValue,
+            created_at: nowIso
+        };
 
-                const { error } = await mySupabase.from('announcements').insert([payload]);
+        const { error } = await mySupabase.from('announcements').insert([payload]);
 
-                if (error) {
-                    console.error('ไม่สามารถส่งการแจ้งเตือนได้:', error.message);
-                    return false;
-                }
-                return true;
-            } catch (err) {
-                console.error('เกิดข้อผิดพลาดในการส่งแจ้งเตือน:', err);
-                return false;
-            }
+        if (error) {
+            console.error('ไม่สามารถส่งการแจ้งเตือนได้:', error.message);
+            return false;
         }
+        return true;
+    } catch (err) {
+        console.error('เกิดข้อผิดพลาดในการส่งแจ้งเตือน:', err);
+        return false;
+    }
+}
 
         async function openEditLibraryIdModal() {
             const currentLibId = currentCourse.bunny_library_id || currentCourse.library_id || '785115';
