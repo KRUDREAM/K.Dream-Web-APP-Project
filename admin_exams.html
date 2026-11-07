@@ -831,25 +831,25 @@ preConfirm: () => {
                 }
             });
 
-            if (formValues) {
+if (formValues) {
                 Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 
                 let resError = null;
                 let wasNotPublishedBefore = !isEdit || examData.status !== 'public';
 
                 if (isEdit) {
+                    // 🌟 บันทึกลงตาราง exams (ไม่ใช่ exam_categories)
                     const { error } = await mySupabase.from('exams').update(formValues).eq('id', examData.id);
                     resError = error;
                     
-                    // 🌟 บันทึก Log ฝั่ง Admin: แก้ไขข้อสอบ
                     if (!resError && typeof logSystemAction === 'function') {
                         await logSystemAction('ADMIN_UPDATE_EXAM', `แอดมินแก้ไขชุดข้อสอบ: ${formValues.title}`, { exam_id: examData.id });
                     }
                 } else {
+                    // 🌟 บันทึกลงตาราง exams สำหรับสร้างใหม่
                     const { error } = await mySupabase.from('exams').insert([formValues]);
                     resError = error;
                     
-                    // 🌟 บันทึก Log ฝั่ง Admin: สร้างข้อสอบใหม่
                     if (!resError && typeof logSystemAction === 'function') {
                         await logSystemAction('ADMIN_CREATE_EXAM', `แอดมินสร้างชุดข้อสอบใหม่: ${formValues.title}`, { title: formValues.title });
                     }
