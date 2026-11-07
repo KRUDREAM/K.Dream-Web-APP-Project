@@ -95,7 +95,7 @@
 
     <!-- ปุ่มลอยสำหรับติดตั้งเว็บแอป (Install Web App) และเปลี่ยนธีม -->
     <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
-        <!-- ปุ่มดาวน์โหลดแอป (ซ่อนไว้ก่อนจนกว่าจะพร้อมติดตั้ง หรือกดเพื่อให้คำแนะนำ) -->
+        <!-- ปุ่มดาวน์โหลดแอป -->
         <button id="installAppBtn" class="hidden w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg border border-blue-400 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer" title="ติดตั้งเว็บแอป">
             <i class="fas fa-download text-lg"></i>
         </button>
@@ -160,16 +160,13 @@
         const installBtn = document.getElementById('installAppBtn');
 
         window.addEventListener('beforeinstallprompt', (e) => {
-            // ป้องกันไม่ให้ Chrome แสดง Mini-infobar แบบเดิมอัตโนมัติ
             e.preventDefault();
             deferredPrompt = e;
-            // แสดงปุ่มดาวน์โหลดแอปที่มุมขวา
             installBtn.classList.remove('hidden');
         });
 
         installBtn.addEventListener('click', async () => {
             if (deferredPrompt) {
-                // ถ้าเบราว์เซอร์รองรับการติดตั้งแบบ PWA ตรงๆ
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
                 if (outcome === 'accepted') {
@@ -178,7 +175,6 @@
                 deferredPrompt = null;
                 installBtn.classList.add('hidden');
             } else {
-                // สำหรับกรณีใช้งานบน iOS (Safari) หรือเบราว์เซอร์อื่นที่กดผ่านปุ่มแล้วต้องการคำแนะนำ
                 const isDark = document.documentElement.classList.contains('dark');
                 Swal.fire({
                     title: '<span class="font-bold text-blue-600 dark:text-blue-400">วิธีติดตั้งเว็บแอป (Add to Home Screen)</span>',
@@ -214,7 +210,6 @@
                 document.getElementById('rememberMe').checked = true;
             }
             
-            // เผื่อกรณีเปิดบนมือถือแล้วอยากให้ปุ่มดาวน์โหลดแสดงเสมอให้กดดูวิธีได้
             setTimeout(() => {
                 installBtn.classList.remove('hidden');
             }, 1000);
@@ -254,7 +249,6 @@
 
             const userName = profile?.username || profile?.full_name || userInput;
             
-            // จัดการเรื่องการจดจำ Username (Remember Me)
             if (rememberMe) {
                 localStorage.setItem('remembered_username', userInput);
             } else {
@@ -275,7 +269,7 @@
                 } else if (userRole === 'admin' || userRole === 'exam_creator') {
                     window.location.replace('admin.html');
                 } else {
-                    window.location.replace('student.html');
+                    window.location.replace('student.html'); // พาไปหน้า student.html ตามที่คุณกำหนด
                 }
             }, 300);
         });
