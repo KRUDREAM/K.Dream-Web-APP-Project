@@ -215,6 +215,9 @@
                 </h3>
                 <div class="flex items-center gap-2">
                     <span class="px-2.5 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-[10px] font-bold" id="slotCountBadge">0 ช่วงเวลา</span>
+                    <button onclick="deleteSlotsForSelectedDate()" class="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5" title="ลบ Slot ทั้งหมดในวันนี้ (เฉพาะที่ยังไม่ถูกจอง)">
+                        <i class="fas fa-trash-alt"></i> ลบ Slot วันนี้
+                    </button>
                     <button onclick="exportSelectedDateExcel()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5">
                         <i class="fas fa-file-excel"></i> Export Excel (วันนี้)
                     </button>
@@ -490,7 +493,7 @@
             }
         }
 
-async function toggleSystemStatus() {
+        async function toggleSystemStatus() {
             const newStatus = !currentSetting.is_open;
             await mySupabase.from('consult_settings').update({ is_open: newStatus }).eq('id', 1);
             currentSetting.is_open = newStatus;
@@ -501,7 +504,6 @@ async function toggleSystemStatus() {
             }
 
             if (newStatus) {
-                // คำนวณจำนวน Slot ทั้งหมดที่มีในระบบ (ที่ยังไม่หมดเวลา)
                 const nowIso = new Date().toISOString();
                 const { data: slotsData } = await mySupabase
                     .from('consult_slots')
@@ -509,8 +511,6 @@ async function toggleSystemStatus() {
                     .gt('end_time', nowIso);
                 
                 const totalSlotsCount = slotsData ? slotsData.length : 0;
-                
-                // รูปแบบวันเวลาปิดระบบ
                 const closeTimeStr = currentSetting.close_at 
                     ? new Date(currentSetting.close_at).toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }) 
                     : 'ไม่ได้กำหนด';
@@ -518,7 +518,6 @@ async function toggleSystemStatus() {
                 const allowedCourses = currentSetting?.allowed_courses || [];
 
                 if (allowedCourses.length > 0) {
-                    // ส่งประกาศแยกตามคอร์สที่ได้รับอนุญาตเท่านั้น
                     for (const courseId of allowedCourses) {
                         await autoPostAnnouncement(
                             'consult', 
@@ -529,7 +528,6 @@ async function toggleSystemStatus() {
                         );
                     }
                 } else {
-                    // กรณีที่ไม่ได้เลือกคอร์สใดเลย (เผื่อไว้ ให้ส่งแบบแจ้งเตือนทั่วไป)
                     await autoPostAnnouncement(
                         'consult', 
                         '📅 เปิดระบบจองเวลา Consult แล้ว', 
@@ -593,10 +591,7 @@ async function toggleSystemStatus() {
                 .order('start_time', { ascending: true });
 
             allSlots = data || [];
-            
-            // 📊 อัปเดตตัวเลขสถิติด้านบนแบบ Realtime
             updateStatOverview();
-
             renderCalendar();
             renderSlotsForSelectedDate();
         }
@@ -786,6 +781,7 @@ async function toggleSystemStatus() {
             }
         }
 
+        // 🛠️ ปรับปรุงระบบสร้าง Slot ให้เสถียรยิ่งขึ้น (หลีกเลี่ยง Timezone Shift)
         async function generateSlots() {
             const startDate = document.getElementById('genStartDate').value;
             const endDate = document.getElementById('genEndDate').value;
@@ -801,51 +797,114 @@ async function toggleSystemStatus() {
 
             Swal.fire({ title: 'กำลังสร้าง Slot...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            let currentDay = new Date(startDate + 'T00:00:00+07:00');
-            let lastDay = new Date(endDate + 'T00:00:00+07:00');
             let slotsToInsert = [];
+            let curr = new Date(startDate + 'T00:00:00');
+            let last = new Date(endDate + 'T00:00:00');
 
-            while (currentDay <= lastDay) {
-                if (selectedDays.includes(currentDay.getDay())) {
+            while (curr <= last) {
+                let dayOfWeek = curr.getDay();
+                if (selectedDays.includes(dayOfWeek)) {
+                    let year = curr.getFullYear();
+                    let month = String(curr.getMonth() + 1).padStart(2, '0');
+                    let day = String(curr.getDate()).padStart(2, '0');
+                    let dateStr = `${year}-${month}-${day}`;
+
                     let [startH, startM] = startTime.split(':').map(Number);
                     let [endH, endM] = endTime.split(':').map(Number);
 
-                    let slotStart = new Date(currentDay);
-                    slotStart.setHours(startH, startM, 0, 0);
+                    let startMinutes = startH * 60 + startM;
+                    let endMinutes = endH * 60 + endM;
 
-                    let dayEnd = new Date(currentDay);
-                    dayEnd.setHours(endH, endM, 0, 0);
+                    for (let m = startMinutes; m + durationMin <= endMinutes; m += durationMin) {
+                        let sh = Math.floor(m / 60);
+                        let sm = m % 60;
+                        let emTotal = m + durationMin;
+                        let eh = Math.floor(emTotal / 60);
+                        let em = emTotal % 60;
 
-                    while (slotStart < dayEnd) {
-                        let slotEnd = new Date(slotStart.getTime() + durationMin * 60000);
-                        if (slotEnd > dayEnd) break;
+                        let startIso = new Date(`${dateStr}T${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}:00+07:00`).toISOString();
+                        let endIso = new Date(`${dateStr}T${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}:00+07:00`).toISOString();
 
                         slotsToInsert.push({
-                            start_time: slotStart.toISOString(),
-                            end_time: slotEnd.toISOString(),
+                            start_time: startIso,
+                            end_time: endIso,
                             status: 'available'
                         });
-                        slotStart = slotEnd;
                     }
                 }
-                currentDay.setDate(currentDay.getDate() + 1);
+                curr.setDate(curr.getDate() + 1);
             }
 
             if (slotsToInsert.length > 0) {
-                const { error } = await mySupabase.from('consult_slots').insert(slotsToInsert);
-                if (!error) {
+                // บันทึกแบบ Batch ทีละ 500 รายการเพื่อความเสถียร
+                let hasError = false;
+                for (let i = 0; i < slotsToInsert.length; i += 500) {
+                    let chunk = slotsToInsert.slice(i, i + 500);
+                    const { error } = await mySupabase.from('consult_slots').insert(chunk);
+                    if (error) {
+                        hasError = true;
+                        Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                        break;
+                    }
+                }
+
+                if (!hasError) {
                     await logHistory(`สร้าง Slot อัตโนมัติจำนวน ${slotsToInsert.length} ช่วงเวลา`);
-                    
                     if (typeof logSystemAction === 'function') {
                         await logSystemAction('ADMIN_GENERATE_CONSULT_SLOTS', `แอดมินสร้าง Slot อัตโนมัติจำนวน ${slotsToInsert.length} ช่วงเวลา`, { count: slotsToInsert.length, start_date: startDate, end_date: endDate });
                     }
-
                     Swal.fire({ icon: 'success', title: `สร้างสำเร็จ ${slotsToInsert.length} ช่วงเวลา!`, timer: 1500, showConfirmButton: false });
-                } else {
-                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                    loadAllSlots();
                 }
             } else {
-                Swal.fire('ไม่พบช่วงเวลา', 'กรุณาตรวจสอบวันที่', 'warning');
+                Swal.fire('ไม่พบช่วงเวลา', 'กรุณาตรวจสอบวันที่และวันในสัปดาห์ที่เลือก', 'warning');
+            }
+        }
+
+        // 🗑️ เพิ่มฟังก์ชันลบ Slot เฉพาะวันที่เลือก
+        async function deleteSlotsForSelectedDate() {
+            const dateFormatted = new Date(selectedDateStr).toLocaleDateString('th-TH', { dateStyle: 'long' });
+            const slotsOnThisDay = allSlots.filter(s => s.start_time.startsWith(selectedDateStr));
+            
+            if (slotsOnThisDay.length === 0) {
+                Swal.fire('ไม่พบ Slot', `ไม่มีช่วงเวลาในวันที่ ${dateFormatted}`, 'info');
+                return;
+            }
+
+            const bookedCount = slotsOnThisDay.filter(s => s.status === 'booked').length;
+            if (bookedCount > 0) {
+                Swal.fire('ไม่สามารถลบได้', `วันนี้มีนักเรียนจองคิวอยู่ ${bookedCount} คิว กรุณาย้ายหรือยกเลิกการจองของนักเรียนออกก่อน`, 'warning');
+                return;
+            }
+
+            const res = await Swal.fire({
+                title: `⚠️ ยืนยันลบ Slot ทั้งหมดของวันที่ ${dateFormatted}?`,
+                text: 'ช่วงเวลาว่างทั้งหมดในวันนี้จะถูกลบออกจากระบบอย่างถาวร',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ใช่, ลบวันนี้',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if (res.isConfirmed) {
+                Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                // ค้นหา ID ของ Slot ในวันนี้ที่สถานะ available
+                const slotIdsToDelete = slotsOnThisDay.filter(s => s.status === 'available').map(s => s.id);
+                
+                if (slotIdsToDelete.length > 0) {
+                    const { error } = await mySupabase.from('consult_slots').delete().in('id', slotIdsToDelete);
+                    if (!error) {
+                        await logHistory(`ลบ Slot ทั้งหมดของวันที่ ${selectedDateStr}`);
+                        Swal.fire({ icon: 'success', title: 'ลบเรียบร้อยแล้ว', timer: 1200, showConfirmButton: false });
+                        loadAllSlots();
+                    } else {
+                        Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                    }
+                } else {
+                    Swal.fire('ข้อมูล', 'ไม่มี Slot ว่างที่สามารถลบได้ในวันนี้', 'info');
+                }
             }
         }
 
