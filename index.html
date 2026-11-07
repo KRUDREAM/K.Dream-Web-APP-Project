@@ -9,10 +9,10 @@
     <link rel="manifest" href="manifest.json">
     
     <!-- โลโก้ไอคอนสำหรับเว็บแอป (Favicon & Mobile App Icon) -->
-    <link rel="icon" type="image/jpeg" sizes="512x512" href="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg">
-    <link rel="apple-touch-icon" href="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg">
+    <link rel="icon" type="image/jpeg" sizes="512x512" href="logo.jpg">
+    <link rel="apple-touch-icon" href="logo.jpg">
     
-    <!-- เพิ่มตามคำเตือน Console เพื่อแก้ Deprecated Warning -->
+    <!-- แก้ไขตามคำเตือน Console เรื่อง Meta Tag -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -50,7 +50,7 @@
 
         <div class="text-center mb-8">
             <div class="w-20 h-20 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/30 border-2 border-blue-500/30 flex items-center justify-center bg-white">
-                <img src="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg" alt="Logo ครูครีม" class="w-full h-full object-cover">
+                <img src="logo.jpg" alt="Logo ครูครีม" class="w-full h-full object-cover">
             </div>
             <h1 class="text-2xl font-bold text-gray-800 dark:text-white">KRUDREAM Online Platform</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">เข้าสู่ระบบด้วย Username ของคุณ</p>
@@ -154,12 +154,18 @@
         let deferredPrompt;
         const installBtn = document.getElementById('installAppBtn');
 
+        // ดักจับ Event ติดตั้งแอปจากเบราว์เซอร์
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
+        });
+
+        // แสดงปุ่มดาวน์โหลดเสมอที่มุมจอ
+        window.addEventListener('DOMContentLoaded', () => {
             installBtn.classList.remove('hidden');
         });
 
+        // เมื่อคลิกปุ่มดาวน์โหลด
         installBtn.addEventListener('click', async () => {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
@@ -168,11 +174,20 @@
             } else {
                 const isDark = document.documentElement.classList.contains('dark');
                 Swal.fire({
-                    title: '<span class="font-bold text-blue-600 dark:text-blue-400">วิธีติดตั้งเว็บแอป (Add to Home Screen)</span>',
+                    title: '<span class="font-bold text-blue-600 dark:text-blue-400">📲 วิธีติดตั้งเว็บแอป (Add to Home Screen)</span>',
                     html: `
                         <div class="text-left text-xs sm:text-sm space-y-3 text-gray-600 dark:text-gray-300">
-                            <p><strong>📱 สำหรับ iOS (Safari):</strong> แตะปุ่ม Share และเลือก "Add to Home Screen"</p>
-                            <p><strong>🤖 สำหรับ Android (Chrome):</strong> แตะเมนูจุดสามจุด และเลือก "Install app"</p>
+                            <p>เพื่อให้ใช้งานได้สะดวกเหมือนแอปพลิเคชันมือถือทั่วไป:</p>
+                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/25 space-y-1">
+                                <p><strong>🤖 สำหรับ Android (Chrome):</strong></p>
+                                <p>1. แตะเมนู <strong>จุดสามจุด (⋮)</strong> ที่มุมขวาบนของเบราว์เซอร์</p>
+                                <p>2. เลือกเมนู <strong>"ติดตั้งแอป"</strong> หรือ <strong>"เพิ่มลงในหน้าจอหลัก"</strong></p>
+                            </div>
+                            <div class="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl border border-blue-500/25 space-y-1">
+                                <p><strong>📱 สำหรับ iOS (Safari บน iPhone/iPad):</strong></p>
+                                <p>1. แตะปุ่ม <strong>แชร์ (Share ⎋)</strong> ด้านล่างจอ</p>
+                                <p>2. เลื่อนหาแล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen)</strong></p>
+                            </div>
                         </div>
                     `,
                     confirmButtonText: 'เข้าใจแล้ว',
