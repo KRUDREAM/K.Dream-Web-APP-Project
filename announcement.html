@@ -46,7 +46,7 @@
             theme: { 
                 extend: { 
                     fontFamily: { sans: ['Prompt', 'sans-serif'] }, 
-                    colors: { primary: '#0284c7', darkbg: '#020617', darkbox: '#090d16', darkinput: '#0f172a', darkcard: '#090d16' } 
+                    colors: { primary: '#0284c7', darkbg: '#090d16', darkbox: '#0f172a', darkinput: '#1e293b', darkcard: '#0f172a' } 
                 } 
             }
         }
@@ -54,11 +54,16 @@
     <style>
         body { font-family: 'Prompt', sans-serif; }
         .glass-nav { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(226, 232, 240, 0.8); }
-        .dark .glass-nav { background: rgba(2, 6, 23, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(30, 41, 59, 0.8); }
+        .dark .glass-nav { background: rgba(9, 13, 22, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(30, 41, 59, 0.8); }
+        div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .modern-card { background: #ffffff; border: 1px solid rgba(226, 232, 240, 1); box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.08); }
-        .dark .modern-card { background: #090d16; border: 1px solid rgba(30, 58, 138, 0.6); }
+        .dark .modern-card { background: #0f172a; border: 1px solid rgba(30, 41, 59, 1); }
         .btn-glow { transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(2, 132, 199, 0.25); }
         .btn-glow:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(2, 132, 199, 0.4); }
+        .action-btn-edit { background-color: rgba(2, 132, 199, 0.1); color: #0284c7; border: 1px solid rgba(2, 132, 199, 0.2); }
+        .action-btn-edit:hover { background-color: #0284c7; color: #ffffff; }
+        .action-btn-delete { background-color: rgba(239, 68, 68, 0.1); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .action-btn-delete:hover { background-color: #dc2626; color: #ffffff; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
@@ -67,7 +72,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-20 items-center">
                 <div class="flex items-center gap-4">
-                    <button onclick="goBack()" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-primary hover:text-white transition-all shadow-sm">
+                    <button onclick="goBack()" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-primary hover:text-white transition-all shadow-sm" title="กลับ">
                         <i class="fas fa-arrow-left text-lg"></i>
                     </button>
                     <div>
@@ -113,19 +118,21 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            <!-- ฟอร์มสร้างประกาศ (สำหรับ Admin) -->
+            <!-- ฟอร์มสร้าง/แก้ไขประกาศ (สำหรับ Admin) -->
             <div id="creatorSection" class="lg:col-span-5 modern-card p-8 rounded-3xl sticky top-28 hidden">
                 <div class="flex items-center gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div class="w-14 h-14 bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-sky-500/30">
-                        <i class="fas fa-edit"></i>
+                        <i class="fas fa-edit" id="formIcon"></i>
                     </div>
                     <div>
-                        <h2 class="text-xl font-bold text-slate-900 dark:text-white">สร้างประกาศใหม่</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">เลือกประเภทและการแจ้งเตือน</p>
+                        <h2 class="text-xl font-bold text-slate-900 dark:text-white" id="formTitle">สร้างประกาศใหม่</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">เลือกประเภทและการแจ้งเตือนกลุ่มเป้าหมาย</p>
                     </div>
                 </div>
 
                 <form id="announcementForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                    <input type="hidden" id="editAnnouncementId">
+
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">ประเภทประกาศ <span class="text-red-500">*</span></label>
                         <select id="annCategory" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-sm outline-none font-bold">
@@ -146,30 +153,60 @@
                         <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-none"></textarea>
                     </div>
 
+                    <!-- ส่วนเลือกกลุ่มเป้าหมาย (ยกมาจาก admin_announcement) -->
                     <div class="p-4 bg-sky-50/50 dark:bg-slate-800/50 rounded-2xl border border-sky-100 dark:border-slate-700 space-y-3">
                         <label class="block text-xs font-bold uppercase tracking-wider text-sky-700 dark:text-sky-400">
                             <i class="fas fa-bullseye mr-1"></i> เลือกกลุ่มเป้าหมายนักเรียน
                         </label>
                         <select id="targetType" onchange="handleTargetTypeChange()" class="w-full px-4 py-3 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-sm outline-none font-medium">
                             <option value="all">📢 ทุกคนในระบบ (ประกาศทั่วไป)</option>
+                            <option value="level">🏫 ตามระดับชั้น (เช่น ม.1, ม.2, ม.3)</option>
                             <option value="course">📚 ตามคอร์สเรียน (เลือกคอร์ส)</option>
+                            <option value="specific">👤 รายบุคคล (เลือกรายชื่อนักเรียน)</option>
                         </select>
 
+                        <!-- ระดับชั้น -->
+                        <div id="levelContainer" class="hidden">
+                            <input type="text" id="targetLevelValue" placeholder="ระบุระดับชั้น เช่น ม.3, ม.2/4" class="w-full px-4 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none">
+                        </div>
+
+                        <!-- คอร์สเรียน -->
                         <div id="courseSelectContainer" class="hidden space-y-2">
                             <p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">เลือกคอร์สเรียนที่ต้องการ:</p>
                             <div id="courseCheckboxes" class="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-white dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
                                 <span class="text-xs text-slate-400">กำลังโหลดคอร์ส...</span>
                             </div>
                         </div>
+
+                        <!-- รายบุคคล -->
+                        <div id="studentSelectContainer" class="hidden space-y-2">
+                            <div class="flex items-center justify-between">
+                                <p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">เลือกนักเรียนเป้าหมาย:</p>
+                                <input type="text" id="searchStudentInput" onkeyup="filterStudentCheckboxes()" placeholder="ค้นหาชื่อ/รหัส..." class="px-2.5 py-1 text-[11px] bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-lg outline-none w-36">
+                            </div>
+                            <div id="studentCheckboxes" class="max-h-48 overflow-y-auto space-y-1.5 p-2 bg-white dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
+                                <span class="text-xs text-slate-400">กำลังโหลดรายชื่อนักเรียน...</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <button type="submit" class="w-full bg-sky-600 hover:bg-sky-700 text-white py-3.5 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-sky-500/20">
-                        โพสต์ประกาศ
-                    </button>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">แนบรูปภาพ / ไฟล์ (สูงสุด 5 ไฟล์)</label>
+                        <input type="file" id="annFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-600 hover:file:bg-sky-100 dark:file:bg-slate-800 dark:file:text-sky-400 cursor-pointer">
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" id="submitBtn" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-3.5 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2">
+                            <i class="fas fa-paper-plane"></i> โพสต์ประกาศ
+                        </button>
+                        <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden px-6 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all">
+                            ยกเลิก
+                        </button>
+                    </div>
                 </form>
             </div>
 
-            <!-- Feed ประกาศ -->
+            <!-- Feed ประกาศ (รองรับทั้งนักเรียนและแอดมิน) -->
             <div id="feedSection" class="lg:col-span-12 space-y-5">
                 <div class="modern-card p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-center gap-4">
                     <h3 class="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-3">
@@ -184,7 +221,8 @@
                             <input type="text" id="annSearchInput" oninput="renderFeed()" placeholder="ค้นหาประกาศ..." class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500">
                         </div>
 
-                        <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-darkinput p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shrink-0">
+                        <!-- ปุ่มกรองเฉพาะนักเรียน -->
+                        <div id="studentFilterBar" class="flex items-center gap-1.5 bg-slate-100 dark:bg-darkinput p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shrink-0 hidden">
                             <button onclick="setFilterMode('all')" id="btnFilterAll" class="px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-sm transition-all">
                                 ดูทั้งหมด
                             </button>
@@ -206,6 +244,14 @@
         </div>
     </main>
 
+    <!-- Modal สำหรับขยายดูรูปภาพ -->
+    <div id="imageModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4" onclick="closeImageModal()">
+        <div class="relative max-w-4xl max-h-[90vh]">
+            <button class="absolute -top-10 right-0 text-white text-2xl font-bold hover:text-sky-400" onclick="closeImageModal()"><i class="fas fa-xmark"></i></button>
+            <img id="modalImg" src="" class="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain">
+        </div>
+    </div>
+
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
@@ -215,48 +261,45 @@
         let currentStudentId = null;
         let currentStudentData = null;
         let enrolledCoursesList = [];
+        let allCoursesList = [];
+        let coursesMap = {};
+        let allStudentsList = [];
         let allAnnouncementsData = [];
         let notificationsDataCache = [];
         let currentFilterMode = 'all';
 
         const htmlElement = document.documentElement;
-        if (localStorage.getItem('theme') === 'dark') htmlElement.classList.add('dark');
+        const themeIcon = document.getElementById('themeIcon');
+        if (localStorage.getItem('theme') === 'dark') {
+            htmlElement.classList.add('dark');
+            if (themeIcon) themeIcon.classList.replace('fa-moon', 'fa-sun');
+        }
         document.getElementById('themeToggle').addEventListener('click', () => {
             htmlElement.classList.toggle('dark');
-            localStorage.setItem('theme', htmlElement.classList.contains('dark') ? 'dark' : 'light');
+            const isDark = htmlElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            if (themeIcon) themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
         async function initPage() {
             const urlParams = new URLSearchParams(window.location.search);
             currentStudentId = urlParams.get('student_id') || urlParams.get('id') || localStorage.getItem('student_id') || localStorage.getItem('id');
-            userRole = localStorage.getItem('role') || (currentStudentId ? 'student' : 'admin');
+            userRole = localStorage.getItem('role') || localStorage.getItem('user_role') || (currentStudentId ? 'student' : 'admin');
 
-            // ถ้าเป็น Admin ให้แสดงฟอร์มสร้างประกาศฝั่งซ้าย
             if (userRole !== 'student') {
                 document.getElementById('creatorSection').classList.remove('hidden');
                 document.getElementById('feedSection').className = 'lg:col-span-7 space-y-5';
+            } else {
+                document.getElementById('studentFilterBar').classList.remove('hidden');
             }
 
-            // โหลดข้อมูลนักเรียนและประวัติการอ่านถ้ามี
             if (currentStudentId) {
                 const { data: studentData } = await mySupabase.from('profiles').select('*').eq('id', currentStudentId).single();
-                if (studentData) {
-                    currentStudentData = studentData;
-                }
+                if (studentData) currentStudentData = studentData;
             }
 
-            // โหลดรายชื่อคอร์สทั้งหมดสำหรับฟอร์มสร้าง (Admin)
-            const { data: courses } = await mySupabase.from('courses').select('id, title, course_code, name');
-            if (courses && document.getElementById('courseCheckboxes')) {
-                document.getElementById('courseCheckboxes').innerHTML = courses.map(c => `
-                    <label class="flex items-center gap-2 text-xs cursor-pointer p-1">
-                        <input type="checkbox" name="courseCheckbox" value="${c.id}" class="rounded text-sky-600">
-                        <span class="dark:text-slate-200">${c.title || c.name || c.course_code}</span>
-                    </label>
-                `).join('');
-            }
+            await fetchCoursesAndStudents();
 
-            // ดึงข้อมูลคอร์สที่นักเรียนลงทะเบียนไว้จากตารางต่างๆ อย่างครอบคลุม
             if (currentStudentId) {
                 let enrollments = [];
                 const tables = ['course_enrollments', 'enrollments', 'student_courses', 'student_enrollments'];
@@ -271,17 +314,120 @@
             loadStudentNotificationsCount();
         }
 
-        // ตรวจสอบสิทธิ์แบบแม่นยำ (รองรับทั้ง ID, Course Code และชื่อคอร์ส)
+        function isUserAdmin(profileObj) {
+            if (!profileObj) return false;
+            const role = String(profileObj.role || profileObj.user_role || '').toLowerCase();
+            const email = String(profileObj.email || '').toLowerCase();
+            if (role === 'admin' || role === 'teacher' || role === 'instructor') return true;
+            if (email.includes('admin') || email.includes('teacher')) return true;
+            return false;
+        }
+
+        async function fetchCoursesAndStudents() {
+            const { data: courses } = await mySupabase.from('courses').select('id, title, course_code, name');
+            if (courses) {
+                allCoursesList = courses;
+                coursesMap = {};
+                courses.forEach(c => {
+                    const cTitle = c.title || c.name || c.course_code;
+                    coursesMap[c.id] = cTitle;
+                    coursesMap[c.course_code] = cTitle;
+                });
+
+                const container = document.getElementById('courseCheckboxes');
+                if (container) {
+                    container.innerHTML = courses.map(c => {
+                        const cTitle = c.title || c.name || c.course_code || 'คอร์สเรียน';
+                        return `
+                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded">
+                                <input type="checkbox" name="courseCheckbox" value="${c.id}" class="rounded text-sky-600 focus:ring-sky-500">
+                                <span class="dark:text-slate-200">${cTitle}</span>
+                            </label>
+                        `;
+                    }).join('') || '<span class="text-xs text-slate-400">ไม่พบข้อมูลคอร์สเรียน</span>';
+                }
+            }
+
+            const { data: students } = await mySupabase.from('profiles').select('*');
+            if (students) {
+                allStudentsList = students.filter(s => !isUserAdmin(s));
+                renderStudentCheckboxes(allStudentsList);
+            }
+        }
+
+        function formatCourseTargetValue(targetValue) {
+            if (!targetValue) return '-';
+            const parts = targetValue.split(',');
+            return parts.map(part => {
+                const trimmed = part.trim();
+                return coursesMap[trimmed] || trimmed;
+            }).join(', ');
+        }
+
+        function renderStudentCheckboxes(students) {
+            const container = document.getElementById('studentCheckboxes');
+            if (!container) return;
+            if (!students || students.length === 0) {
+                container.innerHTML = '<span class="text-xs text-slate-400">ไม่พบรายชื่อนักเรียน</span>';
+                return;
+            }
+
+            container.innerHTML = students.map(s => {
+                const sName = s.full_name || (s.first_name ? `${s.first_name} ${s.last_name || ''}` : '') || s.username || 'นักเรียน';
+                const sId = s.id || s.student_id;
+                const sUser = s.username || s.student_id || '-';
+                const sGrade = s.grade_level || s.grade ? ` (${s.grade_level || s.grade})` : '';
+                return `
+                    <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded">
+                        <input type="checkbox" name="studentCheckbox" value="${sId}" class="rounded text-sky-600 focus:ring-sky-500">
+                        <span class="dark:text-slate-200">${sName}${sGrade} [${sUser}]</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function filterStudentCheckboxes() {
+            const keyword = document.getElementById('searchStudentInput').value.toLowerCase();
+            const filtered = allStudentsList.filter(s => {
+                const text = `${s.full_name || ''} ${s.first_name || ''} ${s.username || ''} ${s.student_id || ''} ${s.grade_level || ''}`.toLowerCase();
+                return text.includes(keyword);
+            });
+            renderStudentCheckboxes(filtered);
+        }
+
+        function handleTargetTypeChange() {
+            const val = document.getElementById('targetType').value;
+            document.getElementById('levelContainer').classList.add('hidden');
+            document.getElementById('courseSelectContainer').classList.add('hidden');
+            document.getElementById('studentSelectContainer').classList.add('hidden');
+
+            if (val === 'level') {
+                document.getElementById('levelContainer').classList.remove('hidden');
+            } else if (val === 'course') {
+                document.getElementById('courseSelectContainer').classList.remove('hidden');
+            } else if (val === 'specific') {
+                document.getElementById('studentSelectContainer').classList.remove('hidden');
+            }
+        }
+
+        // ตรวจสอบสิทธิ์ว่าประกาศนี้ตรงกับนักเรียนคนนี้หรือไม่
         function isAnnouncementForThisStudent(announcement) {
             if (!announcement) return false;
+            if (userRole !== 'student') return true; // แอดมินเห็นทั้งหมด
+            
             const targetType = announcement.target_type || 'all';
 
-            // 1. ประกาศทั่วไปสำหรับทุกคน
             if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
                 return true;
             }
 
-            // 2. เจาะจงรายบุคคล (Specific ID)
+            if (targetType === 'level') {
+                const studentGrade = String(currentStudentData?.grade_level || currentStudentData?.grade || '').trim().toLowerCase();
+                const targetGrade = String(announcement.target_value || '').trim().toLowerCase();
+                if (!targetGrade || !studentGrade) return false;
+                return studentGrade.includes(targetGrade) || targetGrade.includes(studentGrade);
+            }
+
             if (targetType === 'specific') {
                 const studentId = String(currentStudentData?.id || currentStudentData?.student_id || currentStudentId || '').trim();
                 const targetValue = String(announcement.target_value || '').trim();
@@ -289,18 +435,14 @@
                 return targetValue.includes(studentId);
             }
 
-            // 3. ระบุตามคอร์สเรียน (Course)
             if (targetType === 'course') {
-                if (userRole !== 'student') return true; // แอดมินเห็นหมด
                 if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) return false;
 
                 const targetValue = String(announcement.target_value || '').trim();
                 if (!targetValue) return false;
 
-                // รายการ ID คอร์สที่ถูกเลือกตอนโพสต์ประกาศ
                 const announcementCourseIds = targetValue.split(',').map(id => id.trim().toLowerCase());
 
-                // รวบรวมข้อมูลคอร์สที่นักเรียนคนนี้ลงทะเบียนไว้ทุกมิติ
                 let studentIdentifiers = [];
                 enrolledCoursesList.forEach(e => {
                     if (e.course_id) studentIdentifiers.push(String(e.course_id).trim().toLowerCase());
@@ -311,13 +453,26 @@
                     if (e.id && e.id !== currentStudentId) studentIdentifiers.push(String(e.id).trim().toLowerCase());
                 });
 
-                // ตรวจสอบว่ามีคอร์สใดตรงกันบ้าง
                 return announcementCourseIds.some(acId => 
                     studentIdentifiers.some(si => si === acId || si.includes(acId) || acId.includes(si))
                 );
             }
 
-            return false;
+            return true;
+        }
+
+        async function loadAnnouncements() {
+            const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
+            
+            if (error || !anns) {
+                document.getElementById('announcementFeed').innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400">ไม่สามารถโหลดข้อมูลประกาศได้</div>`;
+                return;
+            }
+
+            allAnnouncementsData = anns;
+            notificationsDataCache = anns;
+            renderFeed();
+            loadStudentNotificationsCount();
         }
 
         function renderFeed() {
@@ -325,15 +480,12 @@
             const searchInput = document.getElementById('annSearchInput');
             const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-            // กรองประกาศเฉพาะที่นักเรียนคนนี้มีสิทธิ์มองเห็นตาม target_type
             let displayList = allAnnouncementsData.filter(a => isAnnouncementForThisStudent(a));
 
-            // ถ้านักเรียนกดเลือกปุ่มกรอง "เฉพาะคอร์สฉัน" เพิ่มเติม
             if (currentFilterMode === 'course' && userRole === 'student') {
                 displayList = displayList.filter(a => (a.target_type || 'all') === 'course');
             }
 
-            // กรองตามคำค้นหา (Search)
             if (keyword) {
                 displayList = displayList.filter(a => 
                     (a.title && a.title.toLowerCase().includes(keyword)) || 
@@ -346,7 +498,7 @@
                     <div class="modern-card p-12 rounded-3xl text-center text-slate-400">
                         <i class="fas fa-bullhorn text-3xl mb-3 text-sky-500"></i>
                         <h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ไม่พบประกาศในขณะนี้</h4>
-                        <p class="text-xs text-slate-400">ยังไม่มีประกาศที่ตรงกับสิทธิ์และคอร์สที่คุณลงทะเบียนไว้</p>
+                        <p class="text-xs text-slate-400">ยังไม่มีประกาศที่ตรงกับสิทธิ์หรือคอร์สเรียนของคุณ</p>
                     </div>
                 `;
                 return;
@@ -363,24 +515,83 @@
                 const category = a.category || 'general';
                 const isRead = readIds.includes(a.id);
 
-                let badge = `<span class="bg-sky-50 text-sky-600 text-[10px] font-bold px-2.5 py-1 rounded-lg">ประกาศทั่วไป</span>`;
-                if (category === 'exam') badge = `<span class="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2.5 py-1 rounded-lg">แจ้งเปิดข้อสอบ</span>`;
-                if (category === 'consult') badge = `<span class="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2.5 py-1 rounded-lg">เปิดระบบ Consult</span>`;
-                if (category === 'video') badge = `<span class="bg-sky-50 text-sky-600 text-[10px] font-bold px-2.5 py-1 rounded-lg">คลิปบทเรียนใหม่</span>`;
+                let categoryBadge = '';
+                if (category === 'exam') {
+                    categoryBadge = `<span class="bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-900"><i class="fas fa-file-pen mr-1"></i> แจ้งเปิดข้อสอบ</span>`;
+                } else if (category === 'consult') {
+                    categoryBadge = `<span class="bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900"><i class="fas fa-comments mr-1"></i> เปิดระบบ Consult</span>`;
+                } else if (category === 'video') {
+                    categoryBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-play-circle mr-1"></i> อัปโหลดคลิปใหม่</span>`;
+                } else {
+                    categoryBadge = `<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700"><i class="fas fa-bullhorn mr-1"></i> ประกาศทั่วไป</span>`;
+                }
+
+                let targetBadge = '';
+                if (a.target_type === 'level') {
+                    targetBadge = `<span class="bg-purple-50 dark:bg-purple-950/80 text-purple-600 dark:text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-purple-200 dark:border-purple-900"><i class="fas fa-layer-group mr-1"></i> ชั้น: ${a.target_value || '-'}</span>`;
+                } else if (a.target_type === 'course') {
+                    const courseNameDisplay = formatCourseTargetValue(a.target_value);
+                    targetBadge = `<span class="bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-900"><i class="fas fa-book mr-1"></i> คอร์ส: ${courseNameDisplay}</span>`;
+                } else if (a.target_type === 'specific') {
+                    targetBadge = `<span class="bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900"><i class="fas fa-user mr-1"></i> รายบุคคล</span>`;
+                } else {
+                    targetBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-globe mr-1"></i> ทุกคน</span>`;
+                }
+
+                let attachmentsHtml = '';
+                if (a.attachments && Array.isArray(a.attachments) && a.attachments.length > 0) {
+                    let filesList = a.attachments.map((url, idx) => {
+                        const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
+                        if (isImage) {
+                            return `
+                                <div class="relative group/img overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-darkinput cursor-pointer shadow-sm col-span-full" onclick="openImageModal('${url}')">
+                                    <img src="${url}" class="w-full max-h-72 object-cover group-hover/img:scale-[1.02] transition-transform duration-300">
+                                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                                        <i class="fas fa-magnifying-glass-plus text-base"></i> คลิกเพื่อดูรูปขนาดเต็ม
+                                    </div>
+                                </div>`;
+                        } else {
+                            return `<a href="${url}" target="_blank" class="flex items-center gap-2 p-3.5 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-sky-600 hover:underline shadow-sm"><i class="fas fa-file-arrow-down text-base text-sky-500"></i> ไฟล์แนบ ${idx + 1}</a>`;
+                        }
+                    }).join('');
+                    attachmentsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">${filesList}</div>`;
+                }
+
+                const safeTitle = (a.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safeContent = (a.content || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\r?\n/g, '\\n');
+
+                let adminButtons = '';
+                if (userRole !== 'student') {
+                    adminButtons = `
+                        <div class="flex gap-2">
+                            <button type="button" onclick="prepareEdit('${a.id}', '${safeTitle}', '${safeContent}', '${a.target_type || 'all'}', \`${a.target_value || ''}\`, '${category}')" class="action-btn-edit px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                <i class="fas fa-pen-to-square"></i> แก้ไข
+                            </button>
+                            <button type="button" onclick="deleteAnnouncement('${a.id}')" class="action-btn-delete px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                <i class="fas fa-trash-can"></i> ลบ
+                            </button>
+                        </div>
+                    `;
+                }
 
                 return `
-                    <div onclick="markSingleNotificationRead('${a.id}')" class="modern-card p-7 rounded-3xl space-y-3 cursor-pointer transition-all hover:border-sky-500/50 ${!isRead && userRole === 'student' ? 'border-l-4 border-l-sky-500 bg-sky-50/20 dark:bg-slate-900/40' : ''}">
-                        <div class="flex justify-between items-start">
+                    <div onclick="markSingleNotificationRead('${a.id}')" class="modern-card p-7 rounded-3xl relative overflow-hidden group cursor-pointer transition-all hover:border-sky-500/50 ${!isRead && userRole === 'student' ? 'border-l-4 border-l-sky-500 bg-sky-50/20 dark:bg-slate-900/40' : ''}">
+                        <div class="flex justify-between items-start mb-4">
                             <div>
-                                <div class="mb-2 flex items-center gap-2">
-                                    ${badge}
-                                    ${!isRead && userRole === 'student' ? '<span class="px-2 py-0.5 rounded-full bg-sky-500 text-white text-[9px] font-extrabold animate-pulse">ยังไม่อ่าน</span>' : '<span class="text-[10px] text-emerald-500 font-bold"><i class="fas fa-check-circle"></i> อ่านแล้ว</span>'}
+                                <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                                    ${categoryBadge}
+                                    ${targetBadge}
+                                    ${userRole === 'student' ? (!isRead ? '<span class="px-2 py-0.5 rounded-full bg-sky-500 text-white text-[9px] font-extrabold animate-pulse">ยังไม่อ่าน</span>' : '<span class="text-[10px] text-emerald-500 font-bold"><i class="fas fa-check-circle"></i> อ่านแล้ว</span>') : ''}
                                 </div>
                                 <h4 class="font-bold text-lg text-slate-900 dark:text-white">${titleText}</h4>
-                                <span class="text-xs text-slate-400">${dateStr}</span>
+                                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5 mt-1"><i class="far fa-clock"></i> ${dateStr}</span>
                             </div>
+                            ${adminButtons}
                         </div>
-                        <div class="text-slate-700 dark:text-slate-200 text-sm whitespace-pre-line bg-slate-50 dark:bg-darkinput p-4 rounded-2xl">${a.content}</div>
+                        <div>
+                            <div class="text-slate-700 dark:text-slate-200 text-sm whitespace-pre-line leading-relaxed bg-slate-50 dark:bg-darkinput/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">${a.content}</div>
+                            ${attachmentsHtml}
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -402,29 +613,146 @@
             renderFeed();
         }
 
-        async function loadAnnouncements() {
-            const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
-            
-            if (error || !anns) {
-                document.getElementById('announcementFeed').innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400">ไม่สามารถโหลดข้อมูลประกาศได้</div>`;
+        function openImageModal(url) {
+            document.getElementById('modalImg').src = url;
+            document.getElementById('imageModal').classList.remove('hidden');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editAnnouncementId').value;
+            const category = document.getElementById('annCategory').value;
+            const title = document.getElementById('annTitle').value;
+            const content = document.getElementById('annContent').value;
+            const targetType = document.getElementById('targetType').value;
+            let targetValue = '';
+
+            if (targetType === 'level') {
+                targetValue = document.getElementById('targetLevelValue').value;
+            } else if (targetType === 'course') {
+                targetValue = Array.from(document.querySelectorAll('input[name="courseCheckbox"]:checked')).map(cb => cb.value).join(',');
+            } else if (targetType === 'specific') {
+                targetValue = Array.from(document.querySelectorAll('input[name="studentCheckbox"]:checked')).map(cb => cb.value).join(',');
+            }
+
+            const fileInput = document.getElementById('annFiles');
+            if (fileInput.files.length > 5) {
+                Swal.fire('จำกัดจำนวนไฟล์', 'แนบไฟล์ได้สูงสุดไม่เกิน 5 ไฟล์ครับ', 'warning');
                 return;
             }
 
-            allAnnouncementsData = anns;
-            notificationsDataCache = anns;
-            renderFeed();
-            loadStudentNotificationsCount();
+            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            let attachmentUrls = [];
+            if (fileInput.files.length > 0) {
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    const file = fileInput.files[i];
+                    const cleanFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+                    const fileName = `ann_${Date.now()}_${i}_${cleanFileName}`;
+                    
+                    const { error: uploadError } = await mySupabase.storage.from('announcement_files').upload(fileName, file);
+                    if (!uploadError) {
+                        const { data } = mySupabase.storage.from('announcement_files').getPublicUrl(fileName);
+                        if (data && data.publicUrl) attachmentUrls.push(data.publicUrl);
+                    }
+                }
+            }
+
+            let payload = { title, content, category, target_type: targetType, target_value: targetValue };
+            if (attachmentUrls.length > 0) payload.attachments = attachmentUrls;
+
+            if (editId) {
+                if (attachmentUrls.length === 0) delete payload.attachments;
+                const { error } = await mySupabase.from('announcements').update(payload).eq('id', editId);
+                if (error) {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                    return;
+                }
+                Swal.fire({ icon: 'success', title: 'แก้ไขประกาศสำเร็จ', timer: 1500, showConfirmButton: false });
+            } else {
+                const { error } = await mySupabase.from('announcements').insert([payload]);
+                if (error) {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                    return;
+                }
+                await mySupabase.from('notifications').insert([{ type: 'announcement', message: `${title}: ${content.substring(0, 50)}...` }]);
+                Swal.fire({ icon: 'success', title: 'โพสต์ประกาศสำเร็จ', timer: 1500, showConfirmButton: false });
+            }
+
+            resetForm();
+            loadAnnouncements();
         }
 
-        // ระบบ Dropdown แจ้งเตือนบน Navbar
+        function prepareEdit(id, title, content, targetType, targetValue, category) {
+            document.getElementById('editAnnouncementId').value = id;
+            document.getElementById('annCategory').value = category || 'general';
+            document.getElementById('annTitle').value = title;
+            document.getElementById('annContent').value = content.replace(/\\n/g, '\n');
+            document.getElementById('targetType').value = targetType;
+            handleTargetTypeChange();
+
+            if (targetType === 'level') {
+                document.getElementById('targetLevelValue').value = targetValue;
+            } else if (targetType === 'course') {
+                const values = targetValue.split(',');
+                document.querySelectorAll('input[name="courseCheckbox"]').forEach(cb => {
+                    cb.checked = values.includes(cb.value);
+                });
+            } else if (targetType === 'specific') {
+                const values = targetValue.split(',');
+                document.querySelectorAll('input[name="studentCheckbox"]').forEach(cb => {
+                    cb.checked = values.includes(cb.value);
+                });
+            }
+
+            document.getElementById('formTitle').textContent = 'แก้ไขประกาศ';
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            document.getElementById('announcementForm').reset();
+            document.getElementById('editAnnouncementId').value = '';
+            document.getElementById('annCategory').value = 'general';
+            document.getElementById('formTitle').textContent = 'สร้างประกาศใหม่';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.querySelectorAll('input[name="courseCheckbox"], input[name="studentCheckbox"]').forEach(cb => cb.checked = false);
+            handleTargetTypeChange();
+        }
+
+        async function deleteAnnouncement(id) {
+            const res = await Swal.fire({
+                title: 'ลบประกาศนี้?',
+                text: 'การกระทำนี้จะไม่สามารถกู้คืนได้',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ใช่, ลบเลย',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if (res.isConfirmed) {
+                const { error } = await mySupabase.from('announcements').delete().eq('id', id);
+                if (error) {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                    return;
+                }
+                Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1200, showConfirmButton: false });
+                loadAnnouncements();
+            }
+        }
+
+        // ระบบแจ้งเตือน Navbar สำหรับนักเรียน
         function toggleNotifDropdown(event) {
             if (event) event.stopPropagation();
             const dropdown = document.getElementById('notifDropdownMenu');
             if (!dropdown) return;
             dropdown.classList.toggle('hidden');
-            if (!dropdown.classList.contains('hidden')) {
-                fetchAndRenderNotificationDropdown();
-            }
+            if (!dropdown.classList.contains('hidden')) fetchAndRenderNotificationDropdown();
         }
 
         window.addEventListener('click', function(e) {
@@ -438,21 +766,15 @@
 
         async function loadStudentNotificationsCount() {
             try {
-                if (!allAnnouncementsData || allAnnouncementsData.length === 0) return;
+                if (userRole !== 'student' || !allAnnouncementsData || allAnnouncementsData.length === 0) return;
                 const badge = document.getElementById('notifBadge');
-                
                 const myValidAnns = allAnnouncementsData.filter(a => isAnnouncementForThisStudent(a));
 
-                let readIds = [];
-                if (currentStudentData && currentStudentData.read_announcements) {
-                    readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
-                }
-
+                let readIds = currentStudentData?.read_announcements || [];
                 const unread = myValidAnns.filter(a => !readIds.includes(a.id));
+                
                 const headerCount = document.getElementById('notifHeaderCount');
-                if (headerCount) {
-                    headerCount.textContent = `${unread.length} ใหม่`;
-                }
+                if (headerCount) headerCount.textContent = `${unread.length} ใหม่`;
 
                 if (badge) {
                     if (unread.length > 0) {
@@ -478,10 +800,7 @@
                     return;
                 }
 
-                let readIds = [];
-                if (currentStudentData && currentStudentData.read_announcements) {
-                    readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
-                }
+                let readIds = currentStudentData?.read_announcements || [];
 
                 listContainer.innerHTML = myValidAnns.slice(0, 10).map(a => {
                     const isRead = readIds.includes(a.id);
@@ -516,10 +835,7 @@
 
         async function markSingleNotificationRead(annId) {
             if (userRole !== 'student' || !currentStudentId) return;
-            let readIds = [];
-            if (currentStudentData && currentStudentData.read_announcements) {
-                readIds = Array.isArray(currentStudentData.read_announcements) ? [...currentStudentData.read_announcements] : [];
-            }
+            let readIds = currentStudentData?.read_announcements ? [...currentStudentData.read_announcements] : [];
 
             if (!readIds.includes(annId)) {
                 readIds.push(annId);
@@ -533,13 +849,12 @@
 
         async function markAllNotificationsRead() {
             if (userRole !== 'student' || !currentStudentId || !notificationsDataCache) return;
-            let readIds = [];
-            if (currentStudentData && currentStudentData.read_announcements) {
-                readIds = Array.isArray(currentStudentData.read_announcements) ? [...currentStudentData.read_announcements] : [];
-            }
+            let readIds = currentStudentData?.read_announcements ? [...currentStudentData.read_announcements] : [];
 
             notificationsDataCache.forEach(a => {
-                if (!readIds.includes(a.id)) readIds.push(a.id);
+                if (isAnnouncementForThisStudent(a) && !readIds.includes(a.id)) {
+                    readIds.push(a.id);
+                }
             });
 
             if (currentStudentData) currentStudentData.read_announcements = readIds;
@@ -550,38 +865,8 @@
             Swal.fire({ icon: 'success', title: 'อ่านการแจ้งเตือนทั้งหมดแล้ว', timer: 1000, showConfirmButton: false });
         }
 
-        function handleTargetTypeChange() {
-            const val = document.getElementById('targetType').value;
-            document.getElementById('courseSelectContainer').classList.toggle('hidden', val !== 'course');
-        }
-
         function goBack() {
-            window.location.href = currentStudentId ? `student.html?student_id=${currentStudentId}` : 'admin.html';
-        }
-
-        async function handleFormSubmit(e) {
-            e.preventDefault();
-            const title = document.getElementById('annTitle').value;
-            const content = document.getElementById('annContent').value;
-            const category = document.getElementById('annCategory').value;
-            const targetType = document.getElementById('targetType').value;
-            let targetValue = '';
-
-            if (targetType === 'course') {
-                targetValue = Array.from(document.querySelectorAll('input[name="courseCheckbox"]:checked')).map(cb => cb.value).join(',');
-            }
-
-            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-            const { error } = await mySupabase.from('announcements').insert([{ title, content, category, target_type: targetType, target_value: targetValue }]);
-            if (error) {
-                Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
-                return;
-            }
-
-            Swal.fire({ icon: 'success', title: 'โพสต์สำเร็จ', timer: 1200, showConfirmButton: false });
-            document.getElementById('announcementForm').reset();
-            loadAnnouncements();
+            window.location.href = userRole === 'student' ? `student.html?student_id=${currentStudentId}` : 'admin.html';
         }
 
         initPage();
