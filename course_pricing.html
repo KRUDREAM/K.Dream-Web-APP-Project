@@ -70,7 +70,7 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 space-y-10">
         
-        <!-- SECTION 1: จัดการประกาศหน้าเว็บ (Manual Announcements) -->
+        <!-- SECTION 1: จัดการประกาศหน้าเว็บ (ตาราง announcements แยกอิสระ พร้อมอัปโหลดรูป & Tag Dropdown) -->
         <section class="space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-amber-500/10 dark:bg-amber-950/30 p-6 rounded-3xl border border-amber-500/20">
                 <div class="flex items-center gap-3">
@@ -79,10 +79,10 @@
                     </div>
                     <div>
                         <h2 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-                            ระบบจัดการประกาศหน้าเว็บ (Manual Announcements)
+                            ระบบจัดการประกาศหน้าเว็บ (Announcements Hub)
                             <span id="announcementCount" class="px-2.5 py-0.5 bg-amber-500 text-white rounded-full text-xs font-bold">0</span>
                         </h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">สร้างข้อความประกาศด่วน แจ้งเตือน หรือข่าวสาร เพื่อไปแสดงที่ Sidebar ซ้ายของหน้า `catalog.html` ฝั่งนักเรียน</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">สร้างประกาศ พร้อมแนบรูปภาพและเลือก/พิมพ์แท็กใหม่ เพื่อไปแสดงที่ Sidebar ซ้ายของหน้า `catalog.html`</p>
                     </div>
                 </div>
                 <button onclick="openAnnouncementModal()" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2 shrink-0">
@@ -142,9 +142,9 @@
         </section>
     </main>
 
-    <!-- Modal สำหรับเพิ่ม / แก้ไขประกาศ (Manual Announcement Modal) -->
+    <!-- Modal จัดการประกาศ (Announcements Modal) พร้อมอัปโหลดรูป & Tag Dropdown + Custom Input -->
     <div id="announcementModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="modern-card w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-4">
+        <div class="modern-card w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
             <button onclick="closeAnnouncementModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition">
                 <i class="fas fa-xmark"></i>
             </button>
@@ -155,7 +155,7 @@
                 </div>
                 <div>
                     <h3 class="text-base font-bold text-slate-900 dark:text-white" id="annModalTitle">สร้างประกาศใหม่</h3>
-                    <p class="text-[11px] text-slate-500 dark:text-slate-400">พิมพ์ข้อความแจ้งเตือนไปโชว์ที่ Sidebar หน้าแค็ตตาล็อกนักเรียน</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">พิมพ์ประกาศ แนบรูปภาพ และเลือก/พิมพ์แท็กใหม่เพื่อโชว์ที่หน้าเว็บ</p>
                 </div>
             </div>
 
@@ -167,14 +167,31 @@
                     <input type="text" id="annTitle" required placeholder="เช่น แจ้งตารางเรียนพิเศษเสาร์นี้" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 font-bold">
                 </div>
 
+                <!-- Tag แบบ Dropdown เลือกหรือพิมพ์เพิ่มใหม่ -->
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ป้ายแท็กหัวข้อ (Badge)</label>
-                    <input type="text" id="annBadge" placeholder="เช่น 🔥 ข่าวประกาศด่วน" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ป้ายแท็กหัวข้อ (Badge Tag)</label>
+                    <div class="space-y-2">
+                        <select id="annBadgeSelect" onchange="handleAnnouncementBadgeChange(this)" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 font-bold">
+                            <option value="">-- เลือกแท็กที่มีอยู่ หรือเพิ่มใหม่ --</option>
+                            <option value="🔥 ข่าวประกาศด่วน">🔥 ข่าวประกาศด่วน</option>
+                            <option value="📢 อัปเดตตารางเรียน">📢 อัปเดตตารางเรียน</option>
+                            <option value="⭐ กิจกรรมพิเศษ">⭐ กิจกรรมพิเศษ</option>
+                            <option value="NEW_CUSTOM">➕ พิมพ์แท็กใหม่เอง...</option>
+                        </select>
+                        <input type="text" id="annBadgeCustom" placeholder="พิมพ์ชื่อแท็กใหม่ที่ต้องการ..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 hidden font-bold">
+                    </div>
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">เนื้อหาประกาศ <span class="text-red-500">*</span></label>
                     <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 resize-none"></textarea>
+                </div>
+
+                <!-- อัปโหลดรูปภาพประกาศ -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">แนบรูปภาพประกอบประกาศ</label>
+                    <input type="file" id="annImageInput" accept="image/*" class="w-full px-3 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-white hover:file:bg-amber-600 cursor-pointer">
+                    <div id="annImagePreviewContainer" class="mt-2.5"></div>
                 </div>
 
                 <div class="flex items-center gap-2 pt-2">
@@ -345,6 +362,7 @@
         let allAnnouncements = [];
         let activeTag = 'all';
         let currentImageUrls = [];
+        let currentAnnouncementImageUrl = '';
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -386,12 +404,14 @@
             grid.innerHTML = allAnnouncements.map(a => {
                 const badge = a.badge_tag ? `<span class="px-2.5 py-1 bg-amber-500 text-white font-bold text-[10px] rounded-lg shadow">${a.badge_tag}</span>` : `<span class="px-2.5 py-1 bg-sky-500 text-white font-bold text-[10px] rounded-lg shadow">ทั่วไป</span>`;
                 const status = a.is_active ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold">แสดงผลอยู่</span>' : '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">ซ่อนอยู่</span>';
+                const imgHtml = a.image_url ? `<div class="aspect-video w-full rounded-xl overflow-hidden bg-slate-100"><img src="${a.image_url}" class="w-full h-full object-cover"></div>` : '';
 
                 return `
                     <div class="modern-card p-5 rounded-3xl flex flex-col justify-between space-y-3">
                         <div class="space-y-2">
                             <div class="flex justify-between items-center">${badge}${status}</div>
                             <h4 class="font-bold text-sm text-slate-900 dark:text-white">${a.title}</h4>
+                            ${imgHtml}
                             <p class="text-xs text-slate-600 dark:text-slate-300 font-light leading-relaxed whitespace-pre-line line-clamp-3">${a.content}</p>
                         </div>
                         <div class="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
@@ -403,24 +423,99 @@
             }).join('');
         }
 
+        window.handleAnnouncementBadgeChange = function(selectElem) {
+            const customInput = document.getElementById('annBadgeCustom');
+            if (selectElem.value === 'NEW_CUSTOM') {
+                customInput.classList.remove('hidden');
+                customInput.value = '';
+                customInput.focus();
+            } else {
+                customInput.classList.add('hidden');
+            }
+        }
+
         window.openAnnouncementModal = function(id = null) {
             document.getElementById('announcementForm').reset();
             document.getElementById('editAnnouncementId').value = '';
             document.getElementById('annModalTitle').textContent = 'สร้างประกาศใหม่';
             document.getElementById('annActive').checked = true;
+            document.getElementById('annBadgeCustom').classList.add('hidden');
+            currentAnnouncementImageUrl = '';
+            document.getElementById('annImagePreviewContainer').innerHTML = '';
 
             if (id) {
                 const a = allAnnouncements.find(x => x.id === id);
                 if (a) {
                     document.getElementById('editAnnouncementId').value = a.id;
                     document.getElementById('annTitle').value = a.title || '';
-                    document.getElementById('annBadge').value = a.badge_tag || '';
                     document.getElementById('annContent').value = a.content || '';
                     document.getElementById('annActive').checked = a.is_active;
+
+                    const selectElem = document.getElementById('annBadgeSelect');
+                    const customInput = document.getElementById('annBadgeCustom');
+                    const badgeVal = a.badge_tag || '';
+
+                    // เช็คว่ามีใน dropdown หรือไม่ ถ้าไม่มีให้เลือกพิมพ์ใหม่
+                    let found = false;
+                    for (let opt of selectElem.options) {
+                        if (opt.value === badgeVal) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (found || badgeVal === '') {
+                        selectElem.value = badgeVal;
+                        customInput.classList.add('hidden');
+                    } else {
+                        selectElem.value = 'NEW_CUSTOM';
+                        customInput.classList.remove('hidden');
+                        customInput.value = badgeVal;
+                    }
+
+                    currentAnnouncementImageUrl = a.image_url || '';
+                    if (currentAnnouncementImageUrl) {
+                        document.getElementById('annImagePreviewContainer').innerHTML = `
+                            <div class="relative w-24 h-16 rounded-xl overflow-hidden border border-slate-200">
+                                <img src="${currentAnnouncementImageUrl}" class="w-full h-full object-cover">
+                                <button type="button" onclick="removeAnnouncementImage()" class="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full text-[10px] flex items-center justify-center"><i class="fas fa-xmark"></i></button>
+                            </div>
+                        `;
+                    }
+
                     document.getElementById('annModalTitle').textContent = 'แก้ไขประกาศ';
                 }
             }
             document.getElementById('announcementModal').classList.remove('hidden');
+        }
+
+        document.getElementById('annImageInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            Swal.fire({ title: 'กำลังอัปโหลดรูปภาพ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const fileName = `announcement_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${file.name.split('.').pop()}`;
+            const { data, error } = await mySupabase.storage.from('course_images').upload(fileName, file);
+            Swal.close();
+            if (error) {
+                Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                return;
+            }
+            const { data: pub } = mySupabase.storage.from('course_images').getPublicUrl(fileName);
+            if (pub?.publicUrl) {
+                currentAnnouncementImageUrl = pub.publicUrl;
+                document.getElementById('annImagePreviewContainer').innerHTML = `
+                    <div class="relative w-24 h-16 rounded-xl overflow-hidden border border-slate-200">
+                        <img src="${currentAnnouncementImageUrl}" class="w-full h-full object-cover">
+                        <button type="button" onclick="removeAnnouncementImage()" class="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full text-[10px] flex items-center justify-center"><i class="fas fa-xmark"></i></button>
+                    </div>
+                `;
+            }
+        });
+
+        window.removeAnnouncementImage = function() {
+            currentAnnouncementImageUrl = '';
+            document.getElementById('annImageInput').value = '';
+            document.getElementById('annImagePreviewContainer').innerHTML = '';
         }
 
         window.closeAnnouncementModal = function() { document.getElementById('announcementModal').classList.add('hidden'); }
@@ -429,10 +524,18 @@
         window.handleAnnouncementSubmit = async function(e) {
             e.preventDefault();
             const id = document.getElementById('editAnnouncementId').value;
+            
+            const selectElem = document.getElementById('annBadgeSelect');
+            let badgeTag = selectElem.value;
+            if (badgeTag === 'NEW_CUSTOM') {
+                badgeTag = document.getElementById('annBadgeCustom').value.trim();
+            }
+
             const payload = {
                 title: document.getElementById('annTitle').value.trim(),
-                badge_tag: document.getElementById('annBadge').value.trim(),
+                badge_tag: badgeTag,
                 content: document.getElementById('annContent').value.trim(),
+                image_url: currentAnnouncementImageUrl,
                 is_active: document.getElementById('annActive').checked
             };
 
