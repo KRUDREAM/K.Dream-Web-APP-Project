@@ -4,7 +4,7 @@
     <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KRUDREAM LAND | Admin Catalog & Package Management</title>
+    <title>KRUDREAM LAND | Admin Catalog & Announcements Management</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -50,14 +50,14 @@
                     <div>
                         <h1 class="font-extrabold text-xl text-slate-900 dark:text-white flex items-center gap-2">
                             <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-boxes-stacked"></i></span>
-                            จัดการ Catalog สินค้าและแพ็กเกจคอร์สเรียน
+                            จัดการ Catalog และประกาศโปรโมชันหน้าคอร์ส
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมกรอบรูป 16:9, จัดลำดับภาพ, และกำหนดราคาแพ็กเกจ</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมแพ็กเกจคอร์ส และประกาศข้อความโปรโมชันฝั่งซ้ายของนักเรียน</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button onclick="window.location.href='admin_promos.html'" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2">
-                        <i class="fas fa-ticket"></i> จัดการโค้ดส่วนลด
+                    <button onclick="openAnnouncementModal()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2">
+                        <i class="fas fa-bullhorn"></i> เพิ่ม/แก้ไขประกาศโปรโมชัน
                     </button>
                     <button onclick="openPackageModal()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 flex items-center gap-2">
                         <i class="fas fa-plus"></i> เพิ่มแพ็กเกจใหม่
@@ -73,6 +73,21 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 space-y-6">
         
+        <!-- ส่วนจัดการรายการประกาศโปรโมชันปัจจุบัน -->
+        <div class="modern-card p-5 rounded-3xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <i class="fas fa-bullhorn text-amber-500"></i> ประกาศโปรโมชันที่แสดงบนหน้าเว็บนักเรียนปัจจุบัน
+                </h3>
+                <button onclick="openAnnouncementModal()" class="px-3 py-1.5 bg-sky-50 dark:bg-sky-950 text-sky-600 rounded-xl text-xs font-bold hover:bg-sky-100 transition">
+                    <i class="fas fa-plus mr-1"></i> สร้างประกาศใหม่
+                </button>
+            </div>
+            <div id="adminAnnouncementsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div class="text-xs text-slate-400 text-center py-4 col-span-full"><i class="fas fa-spinner fa-spin mr-1"></i> กำลังโหลดประกาศ...</div>
+            </div>
+        </div>
+
         <!-- Filter Bar ตาม Tag -->
         <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
             <button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>
@@ -101,6 +116,31 @@
             </div>
         </div>
     </main>
+
+    <!-- Modal จัดการประกาศโปรโมชัน -->
+    <div id="announcementModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="modern-card w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-4">
+            <button onclick="closeAnnouncementModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
+                <i class="fas fa-xmark"></i>
+            </button>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2" id="annModalTitle">เพิ่มประกาศโปรโมชันใหม่</h3>
+            <form id="announcementForm" onsubmit="handleAnnouncementSubmit(event)" class="space-y-3">
+                <input type="hidden" id="editAnnId">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">หัวข้อประกาศ / โปรโมชัน:</label>
+                    <input type="text" id="annTitle" required placeholder="เช่น 🎉 โปรต้อนรับปีใหม่ ลดกระหน่ำ!" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border rounded-xl text-xs outline-none focus:border-sky-500 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">รายละเอียดโปรโมชัน:</label>
+                    <textarea id="annDesc" rows="3" required placeholder="พิมพ์รายละเอียดสิทธิพิเศษหรือส่วนลดที่นี่..." class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border rounded-xl text-xs outline-none focus:border-sky-500 resize-none"></textarea>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-bold text-xs transition">บันทึกประกาศ</button>
+                    <button type="button" onclick="closeAnnouncementModal()" class="px-4 py-2.5 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs">ยกเลิก</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Modal สำหรับเพิ่ม / แก้ไขแพ็กเกจ -->
     <div id="packageModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
@@ -174,7 +214,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">เงื่อนไขโปรโมชั่น / ส่วนลดเพิ่มเติม</label>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">เงื่อนไขโปรโมชั่น / ส่วนลดเพิ่มเติม (พิมพ์เอง)</label>
                         <input type="text" id="pkgPromo" oninput="updateLivePreview()" placeholder="ลด 40% เฉพาะ 30 ท่านแรกเท่านั้น" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
                     </div>
 
@@ -256,6 +296,7 @@
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let allPackages = [];
+        let allAnnouncements = [];
         let activeTag = 'all';
         let currentImageUrls = [];
 
@@ -273,17 +314,83 @@
         });
 
         async function initPage() {
-            await fetchPackages();
+            await Promise.all([fetchPackages(), fetchAnnouncements()]);
         }
 
         async function fetchPackages() {
             const { data, error } = await mySupabase.from('course_packages').select('*').order('created_at', { ascending: false });
-            if (error || !data) {
-                document.getElementById('packagesGrid').innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">ไม่สามารถโหลดข้อมูลแพ็กเกจได้</div>`;
+            if (!error && data) {
+                allPackages = data;
+                renderPackagesGrid();
+            }
+        }
+
+        async function fetchAnnouncements() {
+            const { data, error } = await mySupabase.from('promotions').select('*').order('created_at', { ascending: false });
+            const container = document.getElementById('adminAnnouncementsList');
+            if (error || !data || data.length === 0) {
+                container.innerHTML = `<div class="text-xs text-slate-400 text-center py-4 col-span-full">ยังไม่มีประกาศโปรโมชัน</div>`;
                 return;
             }
-            allPackages = data;
-            renderPackagesGrid();
+            allAnnouncements = data;
+            container.innerHTML = data.map(ann => `
+                <div class="p-3 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 flex justify-between items-start gap-2">
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-xs text-slate-900 dark:text-white"><i class="fas fa-bullhorn text-amber-500 mr-1"></i> ${ann.title || ''}</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">${ann.description || ann.promo_details || ''}</p>
+                    </div>
+                    <div class="flex gap-1 shrink-0">
+                        <button onclick="editAnnouncement('${ann.id}')" class="px-2.5 py-1 bg-sky-50 text-sky-600 rounded-lg text-[10px] font-bold"><i class="fas fa-pen"></i></button>
+                        <button onclick="deleteAnnouncement('${ann.id}')" class="px-2.5 py-1 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-bold"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.openAnnouncementModal = function(id = null) {
+            document.getElementById('announcementForm').reset();
+            document.getElementById('editAnnId').value = '';
+            document.getElementById('annModalTitle').textContent = 'เพิ่มประกาศโปรโมชันใหม่';
+            if (id) {
+                const ann = allAnnouncements.find(a => String(a.id) === String(id));
+                if (ann) {
+                    document.getElementById('editAnnId').value = ann.id;
+                    document.getElementById('annTitle').value = ann.title || '';
+                    document.getElementById('annDesc').value = ann.description || ann.promo_details || '';
+                    document.getElementById('annModalTitle').textContent = 'แก้ไขประกาศโปรโมชัน';
+                }
+            }
+            document.getElementById('announcementModal').classList.remove('hidden');
+        }
+
+        window.closeAnnouncementModal = function() { document.getElementById('announcementModal').classList.add('hidden'); }
+        window.editAnnouncement = function(id) { openAnnouncementModal(id); }
+
+        window.handleAnnouncementSubmit = async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('editAnnId').value;
+            const payload = {
+                title: document.getElementById('annTitle').value.trim(),
+                description: document.getElementById('annDesc').value.trim(),
+                promo_details: document.getElementById('annDesc').value.trim(),
+                is_active: true
+            };
+
+            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const error = id ? (await mySupabase.from('promotions').update(payload).eq('id', id)).error : (await mySupabase.from('promotions').insert([payload])).error;
+
+            if (error) { Swal.fire('เกิดข้อผิดพลาด', error.message, 'error'); return; }
+            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1200, showConfirmButton: false });
+            closeAnnouncementModal();
+            fetchAnnouncements();
+        }
+
+        window.deleteAnnouncement = async function(id) {
+            const confirm = await Swal.fire({ title: 'ลบประกาศนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ลบเลย' });
+            if (confirm.isConfirmed) {
+                const { error } = await mySupabase.from('promotions').delete().eq('id', id);
+                if (!error) fetchAnnouncements();
+            }
         }
 
         window.filterByTag = function(tag) {
@@ -305,10 +412,8 @@
                 const title = (p.title || '').toLowerCase();
                 const code = (p.code || '').toLowerCase();
                 const tagsStr = Array.isArray(p.tags) ? p.tags.join(',').toLowerCase() : (p.tags || '').toLowerCase();
-                
                 const matchKeyword = title.includes(keyword) || code.includes(keyword) || tagsStr.includes(keyword);
                 const matchTag = activeTag === 'all' || tagsStr.includes(activeTag.toLowerCase());
-
                 return matchKeyword && matchTag;
             });
 
