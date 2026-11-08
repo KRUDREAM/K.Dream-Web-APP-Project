@@ -193,25 +193,26 @@
             await fetchAnnouncements();
         }
 
-async function fetchAnnouncements() {
-    try {
-        const { data, error } = await mySupabase.from('site_announcements').select('*').order('created_at', { ascending: false });
-        if (error) {
-            console.error("Supabase Error:", error.message);
-            return;
+        async function fetchAnnouncements() {
+            try {
+                const { data, error } = await mySupabase.from('site_announcements').select('*').order('created_at', { ascending: false });
+                if (error) {
+                    console.error("Supabase Error:", error.message);
+                    return;
+                }
+                allAnnouncements = data || [];
+                renderAnnouncementsGrid();
+            } catch (err) {
+                console.error("Fetch Error:", err);
+            }
         }
-        allAnnouncements = data || [];
-        renderAnnouncementsGrid();
-    } catch (err) {
-        console.error("Fetch Error:", err);
-    }
-}
 
-        // ฟังก์ชันเรนเดอร์การ์ดประกาศ พร้อมเช็คสถานะเปิด-ปิดตามเวลาจริง
         function renderAnnouncementsGrid() {
             const grid = document.getElementById('announcementsGrid');
             const count = document.getElementById('announcementCount');
-            count.textContent = allAnnouncements.length;
+            if (count) count.textContent = allAnnouncements.length;
+
+            if (!grid) return;
 
             if (allAnnouncements.length === 0) {
                 grid.innerHTML = `<div class="modern-card p-8 rounded-3xl text-center text-slate-400 col-span-full text-xs">ยังไม่มีประกาศในระบบ กดปุ่มสร้างประกาศใหม่ด้านบนได้เลย</div>`;
@@ -223,7 +224,6 @@ async function fetchAnnouncements() {
             grid.innerHTML = allAnnouncements.map(a => {
                 const badge = a.badge_tag ? `<span class="px-2.5 py-1 bg-amber-500 text-white font-bold text-[10px] rounded-lg shadow">${a.badge_tag}</span>` : `<span class="px-2.5 py-1 bg-sky-500 text-white font-bold text-[10px] rounded-lg shadow">ทั่วไป</span>`;
                 
-                // คำนวณสถานะการแสดงผลจริง (Live Status Checker)
                 let liveStatusBadge = '';
                 if (!a.is_active) {
                     liveStatusBadge = '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">🔴 ปิดใช้งาน (Manual)</span>';
@@ -280,7 +280,6 @@ async function fetchAnnouncements() {
             }
         }
 
-        // ฟังก์ชันเปิด Modal พร้อมแปลงเวลา UTC เป็น Local Time ตรงเป๊ะไม่เพี้ยน GMT
         window.openAnnouncementModal = function(id = null) {
             document.getElementById('announcementForm').reset();
             document.getElementById('editAnnouncementId').value = '';
