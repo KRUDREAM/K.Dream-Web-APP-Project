@@ -236,7 +236,7 @@
                     </select>
                     <div class="relative w-full sm:w-64 shrink-0">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fas fa-search text-xs"></i></span>
-                        <input type="text" id="studentSearchInput" oninput="filterSubmissions()" placeholder="ค้นหาชื่อ หรือรหัสนักเรียน..." class="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none">
+                        <input type="text" id="studentSearchInput" oninput="filterSubmissions()" placeholder="ค้นหาชื่อ, ชื่อเล่น หรือรหัสนักเรียน..." class="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none">
                     </div>
                 </div>
             </div>
@@ -246,7 +246,7 @@
                         <tr class="bg-slate-100 dark:bg-slate-800/80 font-bold border-b dark:border-slate-700">
                             <th class="p-3 w-12">ลำดับ</th>
                             <th class="p-3 w-28">รหัสนักเรียน</th>
-                            <th class="p-3 w-auto">ชื่อ-นามสกุล</th>
+                            <th class="p-3 w-auto">ชื่อ-นามสกุล / ชื่อเล่น</th>
                             <th class="p-3 text-center w-28">สถานะ</th>
                             <th class="p-3 text-center w-20">คะแนน</th>
                             <th class="p-3 text-center w-24">เวลาที่ใช้</th>
@@ -367,48 +367,105 @@
             return null;
         }
 
-        // คำนวณเวลาที่ใช้: รองรับการดึง remaining_time อย่างแม่นยำ
-function calculateTimeSpentMinutes(att) {
-    if (!att) return 0;
-    
-    // ดึงเวลาทั้งหมดของข้อสอบ (หน่วยเป็นนาที) จากข้อมูล exam
-    const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
-    const totalExamSeconds = examDurationMinutes * 60;
-    
-    // หากมี remaining_time (เก็บเป็นวินาทีที่เหลือ) นำไปลบออกจากเวลาทั้งหมด
-    if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
-        let remSeconds = Number(att.remaining_time);
-        // ป้องกันกรณีเวลาเหลือติดลบหรือเกินเวลาสอบ
-        if (remSeconds < 0) remSeconds = 0;
-        if (remSeconds > totalExamSeconds) remSeconds = totalExamSeconds;
-        
-        let spentSeconds = totalExamSeconds - remSeconds;
-        return spentSeconds / 60; // แปลงวินาทีที่ใช้ไปกลับเป็นนาที
-    }
+        function calculateTimeSpentMinutes(att) {
+            if (!att) return 0;
+            const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
+            const totalExamSeconds = examDurationMinutes * 60;
+            
+            if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
+                let remSeconds = Number(att.remaining_time);
+                if (remSeconds < 0) remSeconds = 0;
+                if (remSeconds > totalExamSeconds) remSeconds = totalExamSeconds;
+                let spentSeconds = totalExamSeconds - remSeconds;
+                return spentSeconds / 60;
+            }
 
-    // กรณีสำรอง: ถ้ามีฟิลด์ time_spent หรือ time_used ตรงๆ
-    if (att.time_spent !== undefined && att.time_spent !== null && !isNaN(att.time_spent)) {
-        const val = Number(att.time_spent);
-        return val > 120 ? val / 60 : val;
-    }
-    if (att.time_used !== undefined && att.time_used !== null && !isNaN(att.time_used)) {
-        const val = Number(att.time_used);
-        return val > 120 ? val / 60 : val;
-    }
+            if (att.time_spent !== undefined && att.time_spent !== null && !isNaN(att.time_spent)) {
+                const val = Number(att.time_spent);
+                return val > 120 ? val / 60 : val;
+            }
+            if (att.time_used !== undefined && att.time_used !== null && !isNaN(att.time_used)) {
+                const val = Number(att.time_used);
+                return val > 120 ? val / 60 : val;
+            }
 
-    // กรณีสำรองสุดท้าย: คำนวณจากเวลาเริ่มต้น (started_at)
-    const start = att.started_at || att.created_at || att.start_time;
-    const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at;
-    if (start) {
-        const diffMs = new Date(end || new Date()) - new Date(start);
-        if (diffMs > 0) {
-            const mins = diffMs / (1000 * 60);
-            return Math.min(mins, examDurationMinutes);
+            const start = att.started_at || att.created_at || att.start_time;
+            const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at;
+            if (start) {
+                const diffMs = new Date(end || new Date()) - new Date(start);
+                if (diffMs > 0) {
+                    const mins = diffMs / (1000 * 60);
+                    return Math.min(mins, examDurationMinutes);
+                }
+            }
+
+            return 0;
         }
-    }
 
-    return 0;
-}
+        // ฟังก์ชันตรวจสอบและทำ Auto-Submit สำหรับนักเรียนที่เวลาหมดแต่ยัง In Progress
+        async function checkAndAutoSubmitExpiredAttempts() {
+            if (!currentExam) return;
+            const examDurationMinutes = Number(currentExam.duration || currentExam.time_limit || currentExam.exam_duration || 30);
+            const now = new Date().getTime();
+
+            for (let att of allAttempts) {
+                const isSubmitted = att.status === 'submitted' || (att.total_score !== undefined && att.total_score !== null) || (att.score !== undefined && att.score !== null);
+                if (isSubmitted) continue;
+
+                // ตรวจสอบจากเวลาที่เริ่มทำ + เวลาสอบ
+                const startTimeStr = att.started_at || att.created_at || att.start_time;
+                if (startTimeStr) {
+                    const startTime = new Date(startTimeStr).getTime();
+                    const elapsedMinutes = (now - startTime) / (1000 * 60);
+
+                    // ตรวจสอบจาก remaining_time ด้วยถ้ามี
+                    let isExpired = elapsedMinutes >= examDurationMinutes;
+                    if (att.remaining_time !== undefined && att.remaining_time !== null) {
+                        if (Number(att.remaining_time) <= 0) isExpired = true;
+                    }
+
+                    if (isExpired) {
+                        // ทำการคำนวณคะแนนอัตโนมัติ
+                        let rawAns = att.answer_saved || att.answers || att.user_answers;
+                        if (typeof rawAns === 'string') { try { rawAns = JSON.parse(rawAns); } catch(e){} }
+
+                        let totalScore = 0;
+                        allQuestions.forEach(q => {
+                            if (rawAns && typeof rawAns === 'object') {
+                                let uAns = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number];
+                                let cAns = q.correct_answer || q.answer || q.solution;
+                                const uIdx = parseChoiceIndex(uAns);
+                                const cIdx = parseChoiceIndex(cAns);
+                                if (uIdx !== null && uIdx !== undefined && !isNaN(uIdx) && uIdx === cIdx) {
+                                    totalScore += (q.score !== undefined && q.score !== null ? Number(q.score) : 1);
+                                }
+                            }
+                        });
+
+                        // บันทึกส่งข้อสอบอัตโนมัติลง Supabase
+                        const updatePayload = {
+                            status: 'submitted',
+                            total_score: totalScore,
+                            score: totalScore,
+                            submitted_at: new Date().toISOString(),
+                            submission_time: new Date().toISOString(),
+                            remaining_time: 0
+                        };
+
+                        try {
+                            await mySupabase.from('exam_attempts').update(updatePayload).eq('id', att.id);
+                            att.status = 'submitted';
+                            att.total_score = totalScore;
+                            att.score = totalScore;
+                            att.submitted_at = updatePayload.submitted_at;
+                            console.log(`Auto-submitted expired attempt ID: ${att.id} for student ID: ${att.student_id || att.user_id}`);
+                        } catch(err) {
+                            console.error("Failed to auto-submit attempt:", err);
+                        }
+                    }
+                }
+            }
+        }
 
         async function initAnalytics() {
             if (!examId) {
@@ -432,6 +489,9 @@ function calculateTimeSpentMinutes(att) {
 
                 const attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examId);
                 allAttempts = attRes.data || [];
+
+                // ตรวจสอบและส่งข้อสอบอัตโนมัติสำหรับคนที่หมดเวลาแล้วแต่ยัง In Progress
+                await checkAndAutoSubmitExpiredAttempts();
 
                 const profRes = await mySupabase.from('profiles').select('*');
                 allProfiles = profRes.data || [];
@@ -487,6 +547,7 @@ function calculateTimeSpentMinutes(att) {
                         const attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examId);
                         if (attRes.data) {
                             allAttempts = attRes.data;
+                            await checkAndAutoSubmitExpiredAttempts();
                             computeAndRenderStats();
                         }
                     })
@@ -506,10 +567,12 @@ function calculateTimeSpentMinutes(att) {
             let studentMasterList = courseStudents.map(cs => {
                 const sId = String(cs.student_id || cs.user_id || cs.id);
                 const p = cs.profiles || allStudentsMap[sId] || cs;
+                const nickname = (p.nickname || p.nick_name || '').trim();
                 return {
                     studentId: sId,
                     profile: p,
                     fullName: (p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '') || 'ไม่ระบุชื่อ',
+                    nickname: nickname,
                     studentIdCode: p.student_id || p.code || '-'
                 };
             });
@@ -518,10 +581,12 @@ function calculateTimeSpentMinutes(att) {
                 const sId = String(att.student_id || att.user_id);
                 if (!studentMasterList.some(s => s.studentId === sId)) {
                     const p = allStudentsMap[sId] || {};
+                    const nickname = (p.nickname || p.nick_name || '').trim();
                     studentMasterList.push({
                         studentId: sId,
                         profile: p,
                         fullName: (p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '') || att.student_name || 'ไม่ระบุชื่อ',
+                        nickname: nickname,
                         studentIdCode: p.student_id || p.code || att.student_id_code || '-'
                     });
                 }
@@ -540,6 +605,7 @@ function calculateTimeSpentMinutes(att) {
                     studentId: item.studentId,
                     studentIdCode: item.studentIdCode,
                     fullName: item.fullName,
+                    nickname: item.nickname,
                     hasAttempt: hasAttempt,
                     isSubmitted: isSubmitted,
                     isInProgress: isInProgress,
@@ -559,7 +625,6 @@ function calculateTimeSpentMinutes(att) {
 
             const activeCount = combinedStudentRows.filter(r => r.isInProgress).length;
             const submittedCount = combinedStudentRows.filter(r => r.isSubmitted).length;
-            const totalStudentsCount = combinedStudentRows.length;
 
             const setSafeText = (id, text) => {
                 const el = document.getElementById(id);
@@ -621,7 +686,7 @@ function calculateTimeSpentMinutes(att) {
             let listHtml = targetRows.length === 0 ? `<div class="text-center py-6 text-slate-400">ไม่มีรายชื่อนักเรียนในสถานะนี้</div>` : targetRows.map((r, idx) => `
                 <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs">
                     <div>
-                        <div class="font-bold text-slate-800 dark:text-slate-100">${idx + 1}. ${escapeHtml(r.fullName)}</div>
+                        <div class="font-bold text-slate-800 dark:text-slate-100">${idx + 1}. ${escapeHtml(r.fullName)}${r.nickname ? ' (' + escapeHtml(r.nickname) + ')' : ''}</div>
                         <div class="text-slate-500 font-mono text-[11px]">รหัส: ${escapeHtml(r.studentIdCode)}</div>
                     </div>
                     <div>
@@ -721,11 +786,13 @@ function calculateTimeSpentMinutes(att) {
                 else if (currentRank === 2) rankBadge = `<span class="px-2 py-0.5 bg-slate-300/20 text-slate-500 dark:text-slate-400 font-extrabold rounded-md text-[11px]">🥈 2</span>`;
                 else if (currentRank === 3) rankBadge = `<span class="px-2 py-0.5 bg-amber-700/10 text-amber-600 font-extrabold rounded-md text-[11px]">🥉 3</span>`;
 
+                const displayName = escapeHtml(row.fullName) + (row.nickname ? ` (${escapeHtml(row.nickname)})` : '');
+
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-2 text-center">${rankBadge}</td>
-                        <td class="p-2 font-medium truncate" title="${escapeHtml(row.fullName)}">
-                            <div class="truncate">${escapeHtml(row.fullName)}</div>
+                        <td class="p-2 font-medium truncate" title="${displayName}">
+                            <div class="truncate">${displayName}</div>
                         </td>
                         <td class="p-2 text-center font-mono font-bold text-indigo-600 dark:text-indigo-400">${row.score}/${globalMaxScore}</td>
                     </tr>
@@ -939,8 +1006,6 @@ function calculateTimeSpentMinutes(att) {
                 }
 
                 const scoreText = row.isSubmitted ? `<span class="font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${row.score} / ${globalMaxScore}</span>` : `<span class="text-slate-400">-</span>`;
-                
-                // แก้ไขเงื่อนไขตรงนี้ จากเดิม row.minutesSpent > 0 เป็น row.minutesSpent >= 0 เพื่อให้แสดงผลได้แม้เพิ่งเริ่มทำหรือใช้เวลา 0 นาที
                 const timeText = row.hasAttempt ? `<span class="font-mono text-amber-600 dark:text-amber-400">${row.minutesSpent.toFixed(1)} นาที</span>` : `<span class="text-slate-400">-</span>`;
                 const dateText = row.isSubmitted && row.submittedAt ? new Date(row.submittedAt).toLocaleString('th-TH') : '-';
 
@@ -948,11 +1013,13 @@ function calculateTimeSpentMinutes(att) {
                     ? `<button onclick="viewAttemptDetail('${row.attempt.id}')" class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-xl transition-all text-[11px] whitespace-nowrap"><i class="fas fa-search-plus mr-1"></i> ตรวจคำตอบ</button>`
                     : `<span class="text-slate-400 text-[11px]">-</span>`;
 
+                const displayName = escapeHtml(row.fullName) + (row.nickname ? ` <span class="text-sky-500 font-normal">(${escapeHtml(row.nickname)})</span>` : '');
+
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-3 font-mono font-bold">${idx + 1}</td>
                         <td class="p-3 font-mono text-sky-600 truncate" title="${escapeHtml(row.studentIdCode)}"><div class="truncate">${escapeHtml(row.studentIdCode)}</div></td>
-                        <td class="p-3 font-bold truncate" title="${escapeHtml(row.fullName)}"><div class="truncate">${escapeHtml(row.fullName)}</div></td>
+                        <td class="p-3 font-bold truncate" title="${escapeHtml(row.fullName)}${row.nickname ? ' (' + row.nickname + ')' : ''}"><div class="truncate">${displayName}</div></td>
                         <td class="p-3 text-center">${statusBadge}</td>
                         <td class="p-3 text-center">${scoreText}</td>
                         <td class="p-3 text-center">${timeText}</td>
@@ -963,6 +1030,7 @@ function calculateTimeSpentMinutes(att) {
             }).join('');
         }
 
+        // เพิ่มการค้นหาตามชื่อเล่น (nickname) ด้วย
         function filterSubmissions() {
             const inputEl = document.getElementById('studentSearchInput');
             const statusFilter = document.getElementById('statusFilterSelect')?.value || 'all';
@@ -974,7 +1042,11 @@ function calculateTimeSpentMinutes(att) {
                 else if (statusFilter === 'in_progress') matchStatus = row.isInProgress;
                 else if (statusFilter === 'inactive') matchStatus = !row.hasAttempt;
 
-                const matchKeyword = !keyword || row.fullName.toLowerCase().includes(keyword) || row.studentIdCode.toLowerCase().includes(keyword);
+                const matchKeyword = !keyword || 
+                    row.fullName.toLowerCase().includes(keyword) || 
+                    (row.nickname && row.nickname.toLowerCase().includes(keyword)) || 
+                    row.studentIdCode.toLowerCase().includes(keyword);
+
                 return matchStatus && matchKeyword;
             });
 
