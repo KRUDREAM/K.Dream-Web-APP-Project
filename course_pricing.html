@@ -70,7 +70,7 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 space-y-10">
         
-        <!-- SECTION 1: จัดการประกาศหน้าเว็บ (ตาราง site_announcements) -->
+        <!-- SECTION 1: จัดการประกาศหน้าเว็บ -->
         <section class="space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-amber-500/10 dark:bg-amber-950/30 p-6 rounded-3xl border border-amber-500/20">
                 <div class="flex items-center gap-3">
@@ -82,7 +82,7 @@
                             ระบบจัดการประกาศหน้าเว็บ (Site Announcements Hub)
                             <span id="announcementCount" class="px-2.5 py-0.5 bg-amber-500 text-white rounded-full text-xs font-bold">0</span>
                         </h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">สร้างประกาศ พร้อมแนบรูปภาพและเลือก/พิมพ์แท็กใหม่ สำหรับหน้า `catalog.html`</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">สร้างประกาศ พร้อมตั้งเวลาเปิด-ปิดอัตโนมัติ หรือโพสต์ทันที</p>
                     </div>
                 </div>
                 <button onclick="openAnnouncementModal()" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2 shrink-0">
@@ -153,7 +153,7 @@
                 </div>
                 <div>
                     <h3 class="text-base font-bold text-slate-900 dark:text-white" id="annModalTitle">สร้างประกาศใหม่</h3>
-                    <p class="text-[11px] text-slate-500 dark:text-slate-400">พิมพ์ประกาศ แนบรูปภาพ และเลือก/พิมพ์แท็กใหม่เพื่อโชว์ที่หน้าเว็บ</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">ตั้งเวลาเปิด-ปิดอัตโนมัติ หรือโพสต์ทันที</p>
                 </div>
             </div>
 
@@ -184,6 +184,20 @@
                     <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 resize-none"></textarea>
                 </div>
 
+                <!-- โซนตั้งเวลาเปิด-ปิดอัตโนมัติ -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-slate-100 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">📅 วันเวลาเริ่มแสดงผล (เปิด)</label>
+                        <input type="datetime-local" id="annStartAt" class="w-full px-3 py-2 bg-white dark:bg-darkbox border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white outline-none">
+                        <p class="text-[10px] text-slate-400 mt-0.5">เว้นว่างไว้เพื่อเปิดทันที</p>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">⏳ วันเวลาสิ้นสุด (ปิด)</label>
+                        <input type="datetime-local" id="annEndAt" class="w-full px-3 py-2 bg-white dark:bg-darkbox border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white outline-none">
+                        <p class="text-[10px] text-slate-400 mt-0.5">เว้นว่างไว้ให้แสดงตลอดไป</p>
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">แนบรูปภาพประกอบประกาศ</label>
                     <input type="file" id="annImageInput" accept="image/*" class="w-full px-3 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-white hover:file:bg-amber-600 cursor-pointer">
@@ -192,7 +206,7 @@
 
                 <div class="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="annActive" checked class="w-4 h-4 text-amber-500 rounded focus:ring-amber-500">
-                    <label for="annActive" class="text-xs font-bold text-slate-700 dark:text-slate-300">เปิดแสดงผลประกาศนี้ทันทีบนหน้าเว็บนักเรียน</label>
+                    <label for="annActive" class="text-xs font-bold text-slate-700 dark:text-slate-300">เปิดใช้งานสถานะทั่วไป (หากไม่ตั้งเวลา จะแสดงผลทันที)</label>
                 </div>
 
                 <div class="flex gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -397,14 +411,25 @@
 
             grid.innerHTML = allAnnouncements.map(a => {
                 const badge = a.badge_tag ? `<span class="px-2.5 py-1 bg-amber-500 text-white font-bold text-[10px] rounded-lg shadow">${a.badge_tag}</span>` : `<span class="px-2.5 py-1 bg-sky-500 text-white font-bold text-[10px] rounded-lg shadow">ทั่วไป</span>`;
-                const status = a.is_active ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold">แสดงผลอยู่</span>' : '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">ซ่อนอยู่</span>';
+                
+                let scheduleText = '<span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-500 rounded-lg text-[10px] font-bold">โพสต์ทันที / แสดงตลอดไป</span>';
+                if (a.start_at && a.end_at) {
+                    scheduleText = `<span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 rounded-lg text-[10px] font-bold">⏰ ${new Date(a.start_at).toLocaleString('th-TH')} - ${new Date(a.end_at).toLocaleString('th-TH')}</span>`;
+                } else if (a.start_at) {
+                    scheduleText = `<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-[10px] font-bold">🚀 เริ่ม: ${new Date(a.start_at).toLocaleString('th-TH')}</span>`;
+                } else if (a.end_at) {
+                    scheduleText = `<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-600 rounded-lg text-[10px] font-bold">⏳ สิ้นสุด: ${new Date(a.end_at).toLocaleString('th-TH')}</span>`;
+                }
+
+                const status = a.is_active ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold">เปิดใช้งาน</span>' : '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">ปิดใช้งาน</span>';
                 const imgHtml = a.image_url ? `<div class="aspect-video w-full rounded-xl overflow-hidden bg-slate-100"><img src="${a.image_url}" class="w-full h-full object-cover"></div>` : '';
 
                 return `
                     <div class="modern-card p-5 rounded-3xl flex flex-col justify-between space-y-3">
                         <div class="space-y-2">
-                            <div class="flex justify-between items-center">${badge}${status}</div>
+                            <div class="flex justify-between items-center">${badge}<div class="flex gap-1">${status}</div></div>
                             <h4 class="font-bold text-sm text-slate-900 dark:text-white">${a.title}</h4>
+                            <div class="text-[11px]">${scheduleText}</div>
                             ${imgHtml}
                             <p class="text-xs text-slate-600 dark:text-slate-300 font-light leading-relaxed whitespace-pre-line line-clamp-3">${a.content}</p>
                         </div>
@@ -434,6 +459,8 @@
             document.getElementById('annModalTitle').textContent = 'สร้างประกาศใหม่';
             document.getElementById('annActive').checked = true;
             document.getElementById('annBadgeCustom').classList.add('hidden');
+            document.getElementById('annStartAt').value = '';
+            document.getElementById('annEndAt').value = '';
             currentAnnouncementImageUrl = '';
             document.getElementById('annImagePreviewContainer').innerHTML = '';
 
@@ -444,6 +471,13 @@
                     document.getElementById('annTitle').value = a.title || '';
                     document.getElementById('annContent').value = a.content || '';
                     document.getElementById('annActive').checked = a.is_active;
+
+                    if (a.start_at) {
+                        document.getElementById('annStartAt').value = new Date(a.start_at).toISOString().slice(0, 16);
+                    }
+                    if (a.end_at) {
+                        document.getElementById('annEndAt').value = new Date(a.end_at).toISOString().slice(0, 16);
+                    }
 
                     const selectElem = document.getElementById('annBadgeSelect');
                     const customInput = document.getElementById('annBadgeCustom');
@@ -524,12 +558,17 @@
                 badgeTag = document.getElementById('annBadgeCustom').value.trim();
             }
 
+            const startAtVal = document.getElementById('annStartAt').value;
+            const endAtVal = document.getElementById('annEndAt').value;
+
             const payload = {
                 title: document.getElementById('annTitle').value.trim(),
                 badge_tag: badgeTag,
                 content: document.getElementById('annContent').value.trim(),
                 image_url: currentAnnouncementImageUrl,
-                is_active: document.getElementById('annActive').checked
+                is_active: document.getElementById('annActive').checked,
+                start_at: startAtVal ? new Date(startAtVal).toISOString() : null,
+                end_at: endAtVal ? new Date(endAtVal).toISOString() : null
             };
 
             Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
