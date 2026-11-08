@@ -229,31 +229,46 @@
             window.location.href = currentStudentId ? `student_portal.html?student_id=${currentStudentId}` : 'student_portal.html';
         }
 
-        async function fetchCatalogData() {
-            if (currentStudentId) {
-                const { data: profile } = await mySupabase.from('profiles').select('full_name, username').eq('id', currentStudentId).maybeSingle();
-                if (profile) currentStudentName = profile.full_name || profile.username || 'นักเรียน';
+async function fetchCatalogData() {
+    if (currentStudentId) {
+        const { data: profile } = await mySupabase.from('profiles').select('full_name, username').eq('id', currentStudentId).maybeSingle();
+        if (profile) currentStudentName = profile.full_name || profile.username || 'นักเรียน';
 
-                const { data: enData } = await mySupabase.from('course_enrollments').select('*').eq('student_id', currentStudentId);
-                if (enData) {
-                    enrolledCourseIds = enData.map(e => String(e.course_id || e.package_id || ''));
-                }
-            }
-
-            const [pkgRes, reviewRes, annRes] = await Promise.all([
-                mySupabase.from('course_packages').select('*').order('created_at', { ascending: false }),
-                mySupabase.from('package_reviews').select('*'),
-                mySupabase.from('site_announcements').select('*').eq('is_active', true).order('created_at', { ascending: false })
-            ]);
-
-            allPackages = pkgRes.data || [];
-            allReviews = reviewRes.data || [];
-            siteAnnouncements = annRes.data || [];
-
-            renderAnnouncementsSidebar();
-            generateDynamicTags();
-            renderCatalog();
+        const { data: enData } = await mySupabase.from('course_enrollments').select('*').eq('student_id', currentStudentId);
+        if (enData) {
+            enrolledCourseIds = enData.map(e => String(e.course_id || e.package_id || ''));
         }
+    }
+
+    const [pkgRes, reviewRes, annRes] = await Promise.all([
+        mySupabase.from('course_packages').select('*').order('created_at', { ascending: false }),
+        mySupabase.from('package_reviews').select('*'),
+        mySupabase.from('site_announcements').select('*').eq('is_active', true).order('created_at', { ascending: false })
+    ]);
+
+    allPackages = pkgRes.data || [];
+    allReviews = reviewRes.data || [];
+
+    // ระบบกรองประกาศตามเวลาเปิด-ปิดอัตโนมัติ (Time Scheduler Filter)
+    const now = new Date();
+    const rawAnnouncements = annRes.data || [];
+    
+    siteAnnouncements = rawAnnouncements.filter(item => {
+        const startAt = item.start_at ? new Date(item.start_at) : null;
+        const endAt = item.end_at ? new Date(item.end_at) : null;
+
+        // ถ้าตั้งเวลาเริ่ม และยังไม่ถึงเวลา -> ซ่อน
+        if (startAt && now < startAt) return false;
+        // ถ้าตั้งเวลาสิ้นสุด และเลยเวลาแล้ว -> ซ่อน
+        if (endAt && now > endAt) return false;
+
+        return true; // นอกนั้นแสดงผลปกติ
+    });
+
+    renderAnnouncementsSidebar();
+    generateDynamicTags();
+    renderCatalog();
+}
 
         function renderAnnouncementsSidebar() {
             const container = document.getElementById('announcementSidebarList');
