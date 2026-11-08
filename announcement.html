@@ -441,9 +441,8 @@ function isAnnouncementForThisStudent(announcement) {
                 return targetValue.includes(studentId);
             }
 
-            // 4. ประกาศตามคอร์สเรียน (Strict: ต้องลงทะเบียนคอร์สนี้จริง ๆ ถึงจะแสดง)
+            // 4. ประกาศตามคอร์สเรียน (ตรวจสอบการจับคู่แบบละเอียด)
             if (targetType === 'course') {
-                // ถ้าเด็กยังไม่ได้ลงทะเบียนคอร์สใดๆ เลย ตัดทิ้งทันที
                 if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) {
                     return false;
                 }
@@ -451,22 +450,26 @@ function isAnnouncementForThisStudent(announcement) {
                 const targetValue = String(announcement.target_value || '').trim();
                 if (!targetValue) return false;
 
-                // รายการคอร์สที่ระบุในประกาศ
+                // คอร์สที่ระบุในประกาศ (อาจมีหลายคอร์สคั่นด้วยจุลภาค)
                 const announcementCourseIds = targetValue.split(',').map(id => id.trim().toLowerCase()).filter(Boolean);
 
-                // รายการคอร์สที่นักเรียนลงทะเบียนจริง
+                // ดึงฟิลด์ทั้งหมดที่เป็นไปได้จากตาราง enrollments ของนักเรียน
                 let studentEnrolledIds = [];
                 enrolledCoursesList.forEach(e => {
                     if (e.course_id) studentEnrolledIds.push(String(e.course_id).trim().toLowerCase());
                     if (e.courseid) studentEnrolledIds.push(String(e.courseid).trim().toLowerCase());
                     if (e.course_code) studentEnrolledIds.push(String(e.course_code).trim().toLowerCase());
                     if (e.course) studentEnrolledIds.push(String(e.course).trim().toLowerCase());
+                    if (e.id && e.id !== currentStudentId) studentEnrolledIds.push(String(e.id).trim().toLowerCase());
                 });
 
-                // ตรวจสอบว่ามีคอร์สที่ตรงกันจริง ๆ หรือไม่
+                // เช็คว่าตรงกันไหม
                 const hasMatchedCourse = announcementCourseIds.some(acId => 
                     studentEnrolledIds.some(seId => seId === acId || seId.includes(acId) || acId.includes(seId))
                 );
+
+                // พิมพ์ Debug ดูใน Console ว่าประกาศอันไหนผ่านหรือไม่ผ่าน
+                console.log(`Announcement [${announcement.title}] Target Courses:`, announcementCourseIds, '| Student Enrolled:', studentEnrolledIds, '| Match:', hasMatchedCourse);
 
                 return hasMatchedCourse;
             }
