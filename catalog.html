@@ -58,28 +58,30 @@
     </nav>
 
     <!-- Hero Section -->
-    <header class="pt-32 pb-12 px-4 text-center max-w-4xl mx-auto space-y-3">
+    <header class="pt-32 pb-8 px-4 text-center max-w-4xl mx-auto space-y-3">
         <span class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-full text-xs font-bold">📚 คอร์สเรียนทั้งหมด</span>
         <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">เลือกคอร์สที่ใช่ เพื่ออนาคตที่ดีกว่า</h2>
-        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">รวบรวมคอร์สเรียนและแพ็กเกจคุณภาพ ออกแบบมาเพื่อการสอบเข้าและความเข้าใจที่แท้จริง</p>
+        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">รวบรวมคอร์สเรียนและแพ็กเกจคุณภาพ ค้นหาคอร์สหรือเลือกแท็กยอดนิยมได้ทันที</p>
         
-        <!-- Search Bar -->
+        <!-- Search Bar (Realtime Search ค้นหาได้ทั้งชื่อ, รหัส, และ Tag) -->
         <div class="pt-4 max-w-xl mx-auto relative">
             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-            <input type="text" id="searchInput" oninput="renderCatalog()" placeholder="ค้นหาชื่อคอร์ส, วิชา, หรือรหัสแพ็กเกจ..." class="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm">
+            <input type="text" id="searchInput" oninput="renderCatalog()" placeholder="ค้นหาชื่อคอร์ส, รหัส, หรือแท็ก (เช่น สอบเข้า, ม.1)..." class="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm">
         </div>
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 space-y-8">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 space-y-6">
         
-        <!-- Tag Filter Bar -->
-        <div class="flex items-center justify-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="tagFilterContainer">
-            <button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>
-            <button onclick="filterByTag('สอบเข้าม1')" id="tag-สอบเข้าม1" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#สอบเข้าม1</button>
-            <button onclick="filterByTag('ภาษาไทย')" id="tag-ภาษาไทย" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#ภาษาไทย</button>
-            <button onclick="filterByTag('สังคมศึกษา')" id="tag-สังคมศึกษา" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#สังคมศึกษา</button>
-            <button onclick="filterByTag('โปรโมชั่น')" id="tag-โปรโมชั่น" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#โปรโมชั่นพิเศษ</button>
+        <!-- Popular Tag Filter Bar (แท็กยอดนิยมดึงแบบไดนามิกหรือชุดค่าฮิต) -->
+        <div class="space-y-2">
+            <div class="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 px-1">
+                <i class="fas fa-fire text-amber-500"></i> แท็กยอดนิยม:
+            </div>
+            <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="popularTagContainer">
+                <button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>
+                <!-- แท็กยอดนิยมจะถูกเรนเดอร์เพิ่มอัตโนมัติจากข้อมูลจริง หรือค่าเริ่มต้น -->
+            </div>
         </div>
 
         <!-- Catalog Grid -->
@@ -91,16 +93,13 @@
         </div>
     </main>
 
-    <!-- Modal รายละเอียดคอร์ส & สมัครเรียน (พร้อมช่องกรอก Promo Code) -->
+    <!-- Modal รายละเอียดคอร์ส & สมัครเรียน -->
     <div id="courseModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="modern-card w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-4">
             <button onclick="closeCourseModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
                 <i class="fas fa-xmark"></i>
             </button>
-            
-            <div id="modalContent" class="space-y-4">
-                <!-- ข้อมูลจะถูก Render ผ่าน JavaScript -->
-            </div>
+            <div id="modalContent" class="space-y-4"></div>
         </div>
     </div>
 
@@ -123,6 +122,7 @@
         let allPackages = [];
         let allPromos = [];
         let activeTag = 'all';
+        let availableTags = new Set(['สอบเข้าม.1', 'ภาษาไทย', 'สังคมศึกษา', 'โปรโมชั่นพิเศษ']);
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -149,7 +149,30 @@
 
             allPackages = pkgRes.data || [];
             allPromos = promoRes.data || [];
+
+            // รวบรวม Tag ทั้งหมดจากฐานข้อมูลมาทำเป็นแท็กยอดนิยมอัตโนมัติ
+            allPackages.forEach(p => {
+                if (Array.isArray(p.tags)) {
+                    p.tags.forEach(t => { if(t) availableTags.add(t.trim()); });
+                } else if (typeof p.tags === 'string' && p.tags.trim() !== '') {
+                    p.tags.split(',').forEach(t => { if(t) availableTags.add(t.trim()); });
+                }
+            });
+
+            renderPopularTags();
             renderCatalog();
+        }
+
+        function renderPopularTags() {
+            const container = document.getElementById('popularTagContainer');
+            let html = `<button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>`;
+            
+            availableTags.forEach(tag => {
+                if (tag !== 'all') {
+                    html += `<button onclick="filterByTag('${tag}')" id="tag-${tag}" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#${tag}</button>`;
+                }
+            });
+            container.innerHTML = html;
         }
 
         window.filterByTag = function(tag) {
@@ -169,10 +192,15 @@
             const filtered = allPackages.filter(p => {
                 const title = (p.title || '').toLowerCase();
                 const code = (p.code || '').toLowerCase();
-                const tagsStr = Array.isArray(p.tags) ? p.tags.join(',').toLowerCase() : (p.tags || '').toLowerCase();
+                
+                let tagsList = [];
+                if (Array.isArray(p.tags)) tagsList = p.tags.map(t => String(t).toLowerCase());
+                else if (typeof p.tags === 'string') tagsList = p.tags.split(',').map(t => t.trim().toLowerCase());
+
+                const tagsStr = tagsList.join(' ');
                 
                 const matchKeyword = title.includes(keyword) || code.includes(keyword) || tagsStr.includes(keyword);
-                const matchTag = activeTag === 'all' || tagsStr.includes(activeTag.toLowerCase());
+                const matchTag = activeTag === 'all' || tagsList.includes(activeTag.toLowerCase());
 
                 return matchKeyword && matchTag;
             });
@@ -197,6 +225,17 @@
                 const promo = p.promo_details ? `<p class="text-[11px] text-amber-500 font-medium"><i class="fas fa-bolt mr-1"></i>${p.promo_details}</p>` : '';
                 const freebies = p.freebies ? `<p class="text-[11px] text-emerald-600 font-medium"><i class="fas fa-gift mr-1"></i>${p.freebies}</p>` : '';
                 const desc = p.description || 'ไม่มีรายละเอียดเพิ่มเติม';
+
+                // แปลง tags ออกมาแสดงผลเป็นการ์ดป้ายกำกับบนสินค้า
+                let tagsArray = [];
+                if (Array.isArray(p.tags)) tagsArray = p.tags;
+                else if (typeof p.tags === 'string' && p.tags.trim() !== '') tagsArray = p.tags.split(',').map(t => t.trim());
+                
+                const tagsHtml = tagsArray.length > 0 ? `
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        ${tagsArray.map(t => `<span class="px-2 py-0.5 bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 rounded-lg text-[10px] font-bold">#${t}</span>`).join('')}
+                    </div>
+                ` : '';
                 
                 let imgList = Array.isArray(p.images) && p.images.length > 0 ? p.images : [p.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60'];
                 const mainImg = imgList[0];
@@ -217,6 +256,7 @@
                                     <span class="text-lg font-extrabold text-sky-600 dark:text-sky-400">${price}</span>
                                     ${origPrice ? `<span class="text-xs text-slate-400 line-through">${origPrice}</span>` : ''}
                                 </div>
+                                ${tagsHtml}
                                 ${promo}
                                 ${freebies}
                                 <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${desc}</p>
