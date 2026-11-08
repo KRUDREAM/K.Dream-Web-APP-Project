@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="th" class="light">
+<head>
+    <script src="lms_core.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KRUDREAM LAND | จัดการโค้ดโปรโมชั่นและส่วนลด</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        (function() {
+            const role = localStorage.getItem('role') || localStorage.getItem('user_role');
+            if (role === 'student') { window.location.replace('student.html'); }
+        })();
+    </script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { 
+                extend: { 
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] }, 
+                    colors: { primary: '#0284c7', darkbg: '#090d16', darkbox: '#0f172a', darkinput: '#1e293b' } 
+                } 
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .glass-nav { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(226, 232, 240, 0.8); }
+        .dark .glass-nav { background: rgba(9, 13, 22, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(30, 41, 59, 0.8); }
+        .modern-card { background: #ffffff; border: 1px solid rgba(226, 232, 240, 1); box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.08); }
+        .dark .modern-card { background: #0f172a; border: 1px solid rgba(30, 41, 59, 1); }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
+
+    <!-- Navigation -->
+    <nav class="glass-nav fixed w-full top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-20 items-center">
+                <div class="flex items-center gap-4">
+                    <button onclick="window.location.href='admin.html'" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-primary hover:text-white transition-all shadow-sm" title="กลับหน้า Admin">
+                        <i class="fas fa-arrow-left text-lg"></i>
+                    </button>
+                    <div>
+                        <h1 class="font-extrabold text-xl text-slate-900 dark:text-white flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-ticket"></i></span>
+                            ศูนย์จัดการโค้ดส่วนลดและโปรโมชั่น (Promo Hub)
+                        </h1>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดเงื่อนไขการใช้โค้ด ยอดซื้อขั้นต่ำ วันหมดเขต และจำนวนสิทธิ์</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="openPromoModal()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 flex items-center gap-2">
+                        <i class="fas fa-plus"></i> สร้างโค้ดส่วนลดใหม่
+                    </button>
+                    <button id="themeToggle" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                        <i class="fas fa-moon text-lg" id="themeIcon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 space-y-6">
+        <div class="flex items-center justify-between">
+            <h3 class="font-bold text-lg text-slate-900 dark:text-white">รายการโค้ดส่วนลดทั้งหมด</h3>
+            <span id="promoCount" class="px-3 py-1 bg-amber-500/10 text-amber-600 rounded-full text-xs font-bold">0 โค้ด</span>
+        </div>
+
+        <div id="promosGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">
+                <i class="fas fa-spinner fa-spin text-3xl mb-3 text-amber-500"></i>
+                <p class="text-sm font-medium">กำลังโหลดโค้ดส่วนลด...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal เพิ่ม/แก้ไขโปรโมชั่น -->
+    <div id="promoModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="modern-card w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closePromoModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition">
+                <i class="fas fa-xmark"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm shadow-md">
+                    <i class="fas fa-ticket"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white" id="modalTitle">สร้างโค้ดส่วนลดใหม่</h3>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">กำหนดเงื่อนไขราคาขั้นต่ำ วันหมดเขต และสิทธิ์การใช้</p>
+                </div>
+            </div>
+
+            <form id="promoForm" onsubmit="handlePromoSubmit(event)" class="space-y-4">
+                <input type="hidden" id="editPromoId">
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ชื่อโค้ดส่วนลด (Promo Code) <span class="text-red-500">*</span></label>
+                    <input type="text" id="promoCode" required placeholder="เช่น DREAM300" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 font-mono font-bold uppercase">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ประเภทส่วนลด</label>
+                        <select id="promoType" class="w-full px-3.5 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 font-bold">
+                            <option value="fixed">ลดเป็นบาท (Fixed)</option>
+                            <option value="percent">ลดเป็นเปอร์เซ็นต์ (%)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">มูลค่าส่วนลด <span class="text-red-500">*</span></label>
+                        <input type="number" id="promoValue" required min="0" step="any" placeholder="เช่น 300 หรือ 10" class="w-full px-3.5 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 font-bold text-amber-600">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ยอดซื้อขั้นต่ำ (บาท)</label>
+                        <input type="number" id="promoMinSpend" min="0" step="any" placeholder="เช่น 1000 (0 คือไม่จำกัด)" class="w-full px-3.5 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">จำกัดจำนวนสิทธิ์ (ครั้ง)</label>
+                        <input type="number" id="promoLimit" min="1" placeholder="เช่น 50 (ว่างไว้ = ไม่จำกัด)" class="w-full px-3.5 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">วันและเวลาหมดเขต</label>
+                    <input type="datetime-local" id="promoEndDate" class="w-full px-3.5 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500">
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="promoActive" checked class="w-4 h-4 text-amber-500 rounded focus:ring-amber-500">
+                    <label for="promoActive" class="text-xs font-bold text-slate-700 dark:text-slate-300">เปิดใช้งานโค้ดนี้ทันที</label>
+                </div>
+
+                <div class="flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold text-xs transition shadow-md shadow-amber-500/20">
+                        <i class="fas fa-floppy-disk mr-1"></i> บันทึกโค้ดส่วนลด
+                    </button>
+                    <button type="button" onclick="closePromoModal()" class="px-5 py-3 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs hover:bg-slate-200 transition">
+                        ยกเลิก
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
+        const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let allPromos = [];
+
+        const htmlElement = document.documentElement;
+        const themeIcon = document.getElementById('themeIcon');
+        if (localStorage.getItem('theme') === 'dark') {
+            htmlElement.classList.add('dark');
+            themeIcon.classList.replace('fa-moon', 'fa-sun');
+        }
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            htmlElement.classList.toggle('dark');
+            const isDark = htmlElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
+        });
+
+        async function initPage() { await fetchPromos(); }
+
+        async function fetchPromos() {
+            const { data, error } = await mySupabase.from('promotions').select('*').order('created_at', { ascending: false });
+            if (error || !data) {
+                document.getElementById('promosGrid').innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">ไม่สามารถโหลดโค้ดโปรโมชั่นได้</div>`;
+                return;
+            }
+            allPromos = data;
+            renderPromosGrid();
+        }
+
+        function renderPromosGrid() {
+            const grid = document.getElementById('promosGrid');
+            const count = document.getElementById('promoCount');
+            count.textContent = `${allPromos.length} โค้ด`;
+
+            if (allPromos.length === 0) {
+                grid.innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">ยังไม่มีโค้ดส่วนลดในระบบ กดปุ่มสร้างด้านบนได้เลย</div>`;
+                return;
+            }
+
+            grid.innerHTML = allPromos.map(p => {
+                const discountText = p.discount_type === 'percent' ? `ลด ${p.discount_value}%` : `ลด ฿${Number(p.discount_value).toLocaleString()}`;
+                const minSpend = p.min_spend > 0 ? `ขั้นต่ำ ฿${Number(p.min_spend).toLocaleString()}` : 'ไม่มีขั้นต่ำ';
+                const limit = p.usage_limit ? `สิทธิ์: ${p.used_count || 0}/${p.usage_limit}` : 'ไม่จำกัดสิทธิ์';
+                const status = p.is_active ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold">เปิดใช้งาน</span>' : '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">ปิดใช้งาน</span>';
+                const endDate = p.end_date ? `หมดเขต: ${new Date(p.end_date).toLocaleString('th-TH')}` : 'ไม่มีวันหมดเขต';
+
+                return `
+                    <div class="modern-card p-6 rounded-3xl flex flex-col justify-between space-y-4">
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-start">
+                                <span class="px-3 py-1 bg-amber-500 text-white font-mono font-black text-xs rounded-xl shadow">${p.code}</span>
+                                ${status}
+                            </div>
+                            <h4 class="text-xl font-black text-amber-600 dark:text-amber-400">${discountText}</h4>
+                            <div class="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                                <p><i class="fas fa-wallet mr-1.5"></i> ${minSpend}</p>
+                                <p><i class="fas fa-users mr-1.5"></i> ${limit}</p>
+                                <p><i class="fas fa-clock mr-1.5"></i> ${endDate}</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                            <button onclick="editPromo('${p.id}')" class="flex-1 py-2 bg-sky-50 dark:bg-sky-950/50 text-sky-600 rounded-xl text-xs font-bold transition">แก้ไข</button>
+                            <button onclick="deletePromo('${p.id}')" class="px-3 py-2 bg-rose-50 dark:bg-rose-950/50 text-rose-600 rounded-xl text-xs font-bold transition"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.openPromoModal = function(id = null) {
+            document.getElementById('promoForm').reset();
+            document.getElementById('editPromoId').value = '';
+            document.getElementById('modalTitle').textContent = 'สร้างโค้ดส่วนลดใหม่';
+            document.getElementById('promoActive').checked = true;
+
+            if (id) {
+                const p = allPromos.find(x => x.id === id);
+                if (p) {
+                    document.getElementById('editPromoId').value = p.id;
+                    document.getElementById('promoCode').value = p.code || '';
+                    document.getElementById('promoType').value = p.discount_type || 'fixed';
+                    document.getElementById('promoValue').value = p.discount_value || '';
+                    document.getElementById('promoMinSpend').value = p.min_spend || '';
+                    document.getElementById('promoLimit').value = p.usage_limit || '';
+                    if (p.end_date) document.getElementById('promoEndDate').value = p.end_date.substring(0, 16);
+                    document.getElementById('promoActive').checked = p.is_active;
+                    document.getElementById('modalTitle').textContent = 'แก้ไขโค้ดส่วนลด';
+                }
+            }
+            document.getElementById('promoModal').classList.remove('hidden');
+        }
+
+        window.closePromoModal = function() { document.getElementById('promoModal').classList.add('hidden'); }
+        window.editPromo = function(id) { openPromoModal(id); }
+
+        window.handlePromoSubmit = async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('editPromoId').value;
+            const payload = {
+                code: document.getElementById('promoCode').value.trim().toUpperCase(),
+                discount_type: document.getElementById('promoType').value,
+                discount_value: parseFloat(document.getElementById('promoValue').value) || 0,
+                min_spend: parseFloat(document.getElementById('promoMinSpend').value) || 0,
+                usage_limit: document.getElementById('promoLimit').value ? parseInt(document.getElementById('promoLimit').value) : null,
+                end_date: document.getElementById('promoEndDate').value ? new Date(document.getElementById('promoEndDate').value).toISOString() : null,
+                is_active: document.getElementById('promoActive').checked
+            };
+
+            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            let error = id ? (await mySupabase.from('promotions').update(payload).eq('id', id)).error : (await mySupabase.from('promotions').insert([payload])).error;
+
+            if (error) { Swal.fire('เกิดข้อผิดพลาด', error.message, 'error'); return; }
+            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1200, showConfirmButton: false });
+            closePromoModal();
+            fetchPromos();
+        }
+
+        window.deletePromo = async function(id) {
+            const confirm = await Swal.fire({ title: 'ลบโค้ดส่วนลดนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48' });
+            if (confirm.isConfirmed) {
+                const { error } = await mySupabase.from('promotions').delete().eq('id', id);
+                if (!error) fetchPromos();
+            }
+        }
+
+        initPage();
+    </script>
+</body>
+</html>
