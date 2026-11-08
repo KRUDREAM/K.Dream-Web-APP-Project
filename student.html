@@ -759,30 +759,6 @@ async function fetchAndRenderNotificationDropdown() {
     }
 }
 
-// 🌟 ฟังก์ชันช่วยเช็คว่าประกาศนี้ส่งตรงถึงนักเรียนคนนี้หรือไม่ (ตรวจสอบ target_type และ target_value)
-function isAnnouncementForThisStudent(ann) {
-    const tType = ann.target_type || 'all';
-    const tVal = String(ann.target_value || '');
-
-    // 1. ถ้าเป็นประกาศทั่วไปสำหรับทุกคน (all / general / หรือไม่ระบุ)
-    if (!tType || tType === 'all' || tType === 'general') {
-        return true;
-    }
-
-    // 2. ถ้าเป็นประกาศเฉพาะรายบุคคล (student)
-    if (tType === 'student' || tType === 'user') {
-        return tVal === String(currentStudentId);
-    }
-
-    // 3. ถ้าเป็นประกาศเฉพาะคอร์ส (course)
-    if (tType === 'course') {
-        // เช็คว่านักเรียนคนนี้ลงทะเบียนเรียนในคอร์ส ID นี้อยู่หรือไม่
-        return activeEnrolledCourseIds.includes(tVal) || enrolledCoursesList.some(c => String(c.id) === tVal);
-    }
-
-    return true;
-}
-
 // 🌟 เมื่อคลิกประกาศแต่ละรายการใน Dropdown
 async function clickNotificationItem(annId) {
     let readIds = [];
