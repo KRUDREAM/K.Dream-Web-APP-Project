@@ -353,6 +353,8 @@
         let currentSetting = null;
         let allSlots = [];
         let allCoursesList = [];
+        let coursesMap = {};
+        let studentEnrollmentsMap = {};
         let allBookedStudentsCache = [];
         let displayedYear = new Date().getFullYear();
         let displayedMonth = new Date().getMonth();
@@ -422,17 +424,45 @@
         
         async function initPage() {
             if (!checkAdminAuth()) return;
-            await loadCoursesList();
+            await loadCoursesAndEnrollments();
             await loadSettings();
             await loadAllSlots();
             await loadBookedStudents();
             setupConsultRealtime();
         }
 
-        async function loadCoursesList() {
-            const { data } = await mySupabase.from('courses').select('id, title, course_code');
-            allCoursesList = data || [];
-            renderAllowedCoursesCheckboxes();
+        async function loadCoursesAndEnrollments() {
+            try {
+                // 1. โหลดข้อมูลคอร์สทั้งหมด
+                const { data: coursesData } = await mySupabase.from('courses').select('id, title, course_code');
+                allCoursesList = coursesData || [];
+                coursesMap = {};
+                allCoursesList.forEach(c => {
+                    coursesMap[String(c.id)] = c;
+                });
+                renderAllowedCoursesCheckboxes();
+
+                // 2. โหลดข้อมูลการลงทะเบียนเรียน (enrollments / course_enrollments)
+                let enrollsData = [];
+                const eRes1 = await mySupabase.from('enrollments').select('*');
+                if (eRes1.data) enrollsData = [...enrollsData, ...eRes1.data];
+                const eRes2 = await mySupabase.from('course_enrollments').select('*');
+                if (eRes2.data) enrollsData = [...enrollsData, ...eRes2.data];
+
+                studentEnrollmentsMap = {};
+                enrollsData.forEach(en => {
+                    const sId = String(en.student_id || en.user_id || '');
+                    const cId = String(en.course_id || '');
+                    if (sId && cId && coursesMap[cId]) {
+                        if (!studentEnrollmentsMap[sId]) studentEnrollmentsMap[sId] = [];
+                        if (!studentEnrollmentsMap[sId].includes(cId)) {
+                            studentEnrollmentsMap[sId].push(cId);
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("Load courses/enrollments error:", err);
+            }
         }
 
         function renderAllowedCoursesCheckboxes() {
@@ -440,7 +470,7 @@
             if (!container) return;
 
             if (allCoursesList.length === 0) {
-                container.innerHTML = `<span class="text-slate-400 italic col-span-full">ไม่พบรายชื่อคอร์สในระบบ</span>`;
+                container.innerHTML = `<span class="text-slate-400 text-xs italic col-span-full text-center">ไม่พบรายชื่อคอร์สในระบบ</span>`;
                 return;
             }
 
@@ -629,7 +659,7 @@
             const nowIso = new Date().toISOString();
             const { data } = await mySupabase
                 .from('consult_slots')
-                .select('*, profiles(full_name, username, email, school, grade_level, nickname, line_id)')
+                .select('*, profiles(id, full_name, username, email, school, grade_level, nickname, line_id)')
                 .gt('end_time', nowIso)
                 .order('start_time', { ascending: true });
 
@@ -1086,52 +1116,70 @@
             }).join('');
         }
 
-        // 👤 ฟังก์ชันเปิดดูโปรไฟล์นักเรียน (เพิ่มชื่อเล่น, LINE ID, คอร์สที่ลงทะเบียน)
- // 👤 ฟังก์ชันเปิดดูโปรไฟล์นักเรียน (ดึงข้อมูลชื่อเล่น และ LINE ID)
-async function openStudentProfileModal(studentId) {
-    Swal.fire({ title: 'กำลังโหลดโปรไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        // 👤 ฟังก์ชันเปิดดูโปรไฟล์นักเรียน (ดึงชื่อเล่น, LINE ID, และคอร์สที่ลงทะเบียนเรียนจริง)
+        async function openStudentProfileModal(studentId) {
+            Swal.fire({ title: 'กำลังโหลดโปรไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-    // ดึงข้อมูลโปรไฟล์นักเรียน
-    const { data: profile, error } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
-    
-    if (error || !profile) {
-        Swal.fire('ไม่พบข้อมูล', 'ไม่สามารถดึงข้อมูลโปรไฟล์นักเรียนได้', 'error');
-        return;
-    }
+            // ดึงข้อมูลโปรไฟล์
+            const { data: profile, error } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
 
-    const isDark = document.documentElement.classList.contains('dark');
-    const fullName = profile.full_name || profile.name || 'ไม่ระบุชื่อ';
-    const nickname = profile.nickname || profile.nick_name || '-';
-    const lineId = profile.line_id || profile.line || '-';
-    const username = profile.username || '-';
-    const email = profile.email || '-';
-    const phone = profile.phone || profile.tel || '-';
-    const school = profile.school || '-';
-    const gradeLevel = profile.grade_level || profile.grade || '-';
+            if (error || !profile) {
+                Swal.fire('ไม่พบข้อมูล', 'ไม่สามารถดึงข้อมูลโปรไฟล์นักเรียนได้', 'error');
+                return;
+            }
 
-    Swal.fire({
-        title: '👤 ข้อมูลโปรไฟล์นักเรียน',
-        html: `
-            <div class="space-y-3 text-left text-xs">
-                <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
-                    <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อ-นามสกุล:</span><span class="font-bold text-slate-900 dark:text-white text-sm">${fullName}</span></div>
-                    <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อเล่น:</span><span class="font-bold text-sky-600 dark:text-sky-400">${nickname}</span></div>
-                    <div class="flex justify-between items-center"><span class="text-slate-400">LINE ID:</span><span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">${lineId}</span></div>
-                    <div class="flex justify-between items-center"><span class="text-slate-400">Username:</span><span class="font-mono text-indigo-500 font-bold">${username}</span></div>
-                    <div class="flex justify-between items-center"><span class="text-slate-400">อีเมล:</span><span class="text-slate-800 dark:text-slate-200">${email}</span></div>
-                    <div class="flex justify-between items-center"><span class="text-slate-400">เบอร์โทรศัพท์:</span><span class="text-slate-800 dark:text-slate-200">${phone}</span></div>
-                    <div class="flex justify-between items-center"><span class="text-slate-400">โรงเรียน:</span><span class="text-slate-800 dark:text-slate-200">${school}</span></div>
-                    <div class="flex justify-between items-center"><span class="text-slate-400">ระดับชั้น:</span><span class="text-slate-800 dark:text-slate-200">${gradeLevel}</span></div>
-                </div>
-            </div>
-        `,
-        width: '500px',
-        confirmButtonText: 'ปิดหน้าต่าง',
-        confirmButtonColor: '#0284c7',
-        background: isDark ? '#090d16' : '#ffffff',
-        color: isDark ? '#f1f5f9' : '#1e293b'
-    });
-}
+            const isDark = document.documentElement.classList.contains('dark');
+            const fullName = profile.full_name || profile.name || 'ไม่ระบุชื่อ';
+            const nickname = profile.nickname || profile.nick_name || '-';
+            const lineId = profile.line_id || profile.line || '-';
+            const username = profile.username || '-';
+            const email = profile.email || '-';
+            const phone = profile.phone || profile.tel || '-';
+            const school = profile.school || '-';
+            const gradeLevel = profile.grade_level || profile.grade || '-';
+
+            // ดึงคอร์สที่นักเรียนลงทะเบียนจาก studentEnrollmentsMap
+            const enrolledCIds = studentEnrollmentsMap[String(studentId)] || [];
+            let coursesHtml = '<span class="text-slate-400 italic">ยังไม่ได้ลงทะเบียนคอร์สเรียน</span>';
+            if (enrolledCIds.length > 0) {
+                coursesHtml = enrolledCIds.map(cId => {
+                    const cObj = coursesMap[cId];
+                    if (!cObj) return '';
+                    const title = cObj.course_code ? `[${cObj.course_code}] ${cObj.title}` : cObj.title;
+                    return `<span class="px-2.5 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-[11px] font-bold border border-indigo-500/20">${title}</span>`;
+                }).join(' ');
+            }
+
+            Swal.fire({
+                title: '👤 ข้อมูลโปรไฟล์นักเรียน',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
+                            <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อ-นามสกุล:</span><span class="font-bold text-slate-900 dark:text-white text-sm">${fullName}</span></div>
+                            <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อเล่น:</span><span class="font-bold text-sky-600 dark:text-sky-400">${nickname}</span></div>
+                            <div class="flex justify-between items-center"><span class="text-slate-400">LINE ID:</span><span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">${lineId}</span></div>
+                            <div class="flex justify-between items-center"><span class="text-slate-400">Username:</span><span class="font-mono text-indigo-500 font-bold">${username}</span></div>
+                            <div class="flex justify-between items-center"><span class="text-slate-400">อีเมล:</span><span class="text-slate-800 dark:text-slate-200">${email}</span></div>
+                            <div class="flex justify-between items-center"><span class="text-slate-400">เบอร์โทรศัพท์:</span><span class="text-slate-800 dark:text-slate-200">${phone}</span></div>
+                            <div class="flex justify-between items-center"><span class="text-slate-400">โรงเรียน:</span><span class="text-slate-800 dark:text-slate-200">${school}</span></div>
+                            <div class="flex justify-between items-center"><span class="text-slate-400">ระดับชั้น:</span><span class="text-slate-800 dark:text-slate-200">${gradeLevel}</span></div>
+                        </div>
+
+                        <div class="space-y-1.5 pt-1">
+                            <span class="font-bold text-slate-700 dark:text-slate-300 block"><i class="fas fa-book-open mr-1 text-indigo-500"></i> คอร์สที่ลงทะเบียนเรียน (${enrolledCIds.length} คอร์ส):</span>
+                            <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
+                                ${coursesHtml}
+                            </div>
+                        </div>
+                    </div>
+                `,
+                width: '550px',
+                confirmButtonText: 'ปิดหน้าต่าง',
+                confirmButtonColor: '#0284c7',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b'
+            });
+        }
 
         async function openRescheduleModal(oldSlotId, studentId, studentName) {
             const nowIso = new Date().toISOString();
