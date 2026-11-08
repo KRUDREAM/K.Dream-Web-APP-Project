@@ -651,6 +651,30 @@
             window.location.replace('index.html');
         }
 
+// 🌟 ฟังก์ชันตรวจสอบว่าประกาศนี้ตรงกับสิทธิ์ของนักเรียนคนนี้หรือไม่
+function isAnnouncementForThisStudent(announcement) {
+    // ถ้าประกาศตั้งค่าไว้ว่าเป็น 'all' หรือไม่มีการระบุกลุ่มเป้าหมาย ให้ทุกคนเห็นได้
+    if (!announcement.target_type || announcement.target_type === 'all' || announcement.target_type === 'everyone') {
+        return true;
+    }
+
+    // ตัวอย่างกรณีแบ่งตามห้องเรียน (เช่น ม.304)
+    if (announcement.target_type === 'room') {
+        // สมมติ currentStudentData เก็บห้องไว้ที่ field 'room' หรือ 'class_room'
+        const studentRoom = currentStudentData?.room || currentStudentData?.class_room;
+        return announcement.target_room === studentRoom;
+    }
+
+    // ตัวอย่างกรณีแบ่งตามคอร์สที่เรียน (เช่น คอร์สตะลุยโจทย์ C++, ค่าย สอวน.)
+    if (announcement.target_type === 'course') {
+        // สมมติ currentStudentData.enrolled_courses เป็น Array ของ ID คอร์สที่นักเรียนเรียน
+        const enrolledCourses = currentStudentData?.enrolled_courses || [];
+        return enrolledCourses.includes(announcement.course_id);
+    }
+
+    return true;
+}
+        
 // 🌟 โหลดและนับจำนวนการแจ้งเตือนที่ยังไม่อ่าน (กรองเฉพาะประกาศที่ตรงกับสิทธิ์ของนักเรียนคนนี้)
 async function loadStudentNotificationsCount() {
     try {
