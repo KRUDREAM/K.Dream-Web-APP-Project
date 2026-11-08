@@ -1087,72 +1087,51 @@
         }
 
         // 👤 ฟังก์ชันเปิดดูโปรไฟล์นักเรียน (เพิ่มชื่อเล่น, LINE ID, คอร์สที่ลงทะเบียน)
-        async function openStudentProfileModal(studentId) {
-            Swal.fire({ title: 'กำลังโหลดโปรไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+ // 👤 ฟังก์ชันเปิดดูโปรไฟล์นักเรียน (ดึงข้อมูลชื่อเล่น และ LINE ID)
+async function openStudentProfileModal(studentId) {
+    Swal.fire({ title: 'กำลังโหลดโปรไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            // ดึงข้อมูลโปรไฟล์
-            const { data: profile, error } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
-            
-            // ดึงข้อมูลคอร์สที่นักเรียนลงทะเบียนไว้จากตาราง enrollments
-            const { data: enrollments } = await mySupabase
-                .from('enrollments')
-                .select('course_id, courses(id, title, course_code)')
-                .eq('student_id', studentId);
+    // ดึงข้อมูลโปรไฟล์นักเรียน
+    const { data: profile, error } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
+    
+    if (error || !profile) {
+        Swal.fire('ไม่พบข้อมูล', 'ไม่สามารถดึงข้อมูลโปรไฟล์นักเรียนได้', 'error');
+        return;
+    }
 
-            if (error || !profile) {
-                Swal.fire('ไม่พบข้อมูล', 'ไม่สามารถดึงข้อมูลโปรไฟล์นักเรียนได้', 'error');
-                return;
-            }
+    const isDark = document.documentElement.classList.contains('dark');
+    const fullName = profile.full_name || profile.name || 'ไม่ระบุชื่อ';
+    const nickname = profile.nickname || profile.nick_name || '-';
+    const lineId = profile.line_id || profile.line || '-';
+    const username = profile.username || '-';
+    const email = profile.email || '-';
+    const phone = profile.phone || profile.tel || '-';
+    const school = profile.school || '-';
+    const gradeLevel = profile.grade_level || profile.grade || '-';
 
-            const isDark = document.documentElement.classList.contains('dark');
-            const fullName = profile.full_name || profile.name || 'ไม่ระบุชื่อ';
-            const nickname = profile.nickname || '-';
-            const lineId = profile.line_id || profile.line || '-';
-            const username = profile.username || '-';
-            const email = profile.email || '-';
-            const phone = profile.phone || profile.tel || '-';
-            const school = profile.school || '-';
-            const gradeLevel = profile.grade_level || profile.grade || '-';
-
-            let coursesHtml = '<span class="text-slate-400 italic">ยังไม่ได้ลงทะเบียนคอร์สใดๆ</span>';
-            if (enrollments && enrollments.length > 0) {
-                coursesHtml = enrollments.map(en => {
-                    const c = en.courses;
-                    if (!c) return '';
-                    return `<span class="px-2.5 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-[11px] font-bold border border-indigo-500/20">[${c.course_code || 'CRS'}] ${c.title}</span>`;
-                }).join(' ');
-            }
-
-            Swal.fire({
-                title: '👤 ข้อมูลโปรไฟล์นักเรียน',
-                html: `
-                    <div class="space-y-3 text-left text-xs">
-                        <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
-                            <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อ-นามสกุล:</span><span class="font-bold text-slate-900 dark:text-white text-sm">${fullName}</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อเล่น:</span><span class="font-bold text-sky-600 dark:text-sky-400">${nickname}</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">LINE ID:</span><span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">${lineId}</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">Username:</span><span class="font-mono text-indigo-500 font-bold">${username}</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">อีเมล:</span><span class="text-slate-800 dark:text-slate-200">${email}</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">เบอร์โทรศัพท์:</span><span class="text-slate-800 dark:text-slate-200">${phone}</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">โรงเรียน:</span><span class="text-slate-800 dark:text-slate-200">${school}</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">ระดับชั้น:</span><span class="text-slate-800 dark:text-slate-200">${gradeLevel}</span></div>
-                        </div>
-
-                        <div class="space-y-1.5 pt-1">
-                            <span class="font-bold text-slate-700 dark:text-slate-300 block"><i class="fas fa-book-open mr-1 text-indigo-500"></i> คอร์สที่ลงทะเบียนเรียน (${enrollments ? enrollments.length : 0} คอร์ส):</span>
-                            <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
-                                ${coursesHtml}
-                            </div>
-                        </div>
-                    </div>
-                `,
-                width: '550px',
-                confirmButtonText: 'ปิดหน้าต่าง',
-                confirmButtonColor: '#0284c7',
-                background: isDark ? '#090d16' : '#ffffff',
-                color: isDark ? '#f1f5f9' : '#1e293b'
-            });
-        }
+    Swal.fire({
+        title: '👤 ข้อมูลโปรไฟล์นักเรียน',
+        html: `
+            <div class="space-y-3 text-left text-xs">
+                <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
+                    <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อ-นามสกุล:</span><span class="font-bold text-slate-900 dark:text-white text-sm">${fullName}</span></div>
+                    <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อเล่น:</span><span class="font-bold text-sky-600 dark:text-sky-400">${nickname}</span></div>
+                    <div class="flex justify-between items-center"><span class="text-slate-400">LINE ID:</span><span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">${lineId}</span></div>
+                    <div class="flex justify-between items-center"><span class="text-slate-400">Username:</span><span class="font-mono text-indigo-500 font-bold">${username}</span></div>
+                    <div class="flex justify-between items-center"><span class="text-slate-400">อีเมล:</span><span class="text-slate-800 dark:text-slate-200">${email}</span></div>
+                    <div class="flex justify-between items-center"><span class="text-slate-400">เบอร์โทรศัพท์:</span><span class="text-slate-800 dark:text-slate-200">${phone}</span></div>
+                    <div class="flex justify-between items-center"><span class="text-slate-400">โรงเรียน:</span><span class="text-slate-800 dark:text-slate-200">${school}</span></div>
+                    <div class="flex justify-between items-center"><span class="text-slate-400">ระดับชั้น:</span><span class="text-slate-800 dark:text-slate-200">${gradeLevel}</span></div>
+                </div>
+            </div>
+        `,
+        width: '500px',
+        confirmButtonText: 'ปิดหน้าต่าง',
+        confirmButtonColor: '#0284c7',
+        background: isDark ? '#090d16' : '#ffffff',
+        color: isDark ? '#f1f5f9' : '#1e293b'
+    });
+}
 
         async function openRescheduleModal(oldSlotId, studentId, studentName) {
             const nowIso = new Date().toISOString();
