@@ -4,7 +4,7 @@
     <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KRUDREAM LAND | จัดการโค้ดส่วนลดและโปรโมชั่นจำกัดสิทธิ์</title>
+    <title>KRUDREAM LAND | จัดการโปรโมชั่นและเลือกสินค้าที่ร่วมรายการ</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -52,12 +52,12 @@
                             <span class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-tags"></i></span>
                             ศูนย์จัดการโปรโมชั่น & โค้ดส่วนลด (Promo Hub)
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดเวลาเปิด-ปิดการใช้งานโปรโมชั่นและจำกัดสิทธิ์</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดเงื่อนไขโปรโมชั่น เลือกสินค้าที่เข้าร่วม และจำกัดสิทธิ์</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
                     <button onclick="openPromoModal()" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2">
-                        <i class="fas fa-plus"></i> สร้างโปรโมชั่น / โค้ดใหม่
+                        <i class="fas fa-plus"></i> สร้างโปรโมชั่นใหม่
                     </button>
                     <button id="themeToggle" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                         <i class="fas fa-moon text-lg" id="themeIcon"></i>
@@ -84,7 +84,7 @@
 
     <!-- Modal เพิ่ม/แก้ไขโปรโมชั่น -->
     <div id="promoModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="modern-card w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+        <div class="modern-card w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onclick="closePromoModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition">
                 <i class="fas fa-xmark"></i>
             </button>
@@ -95,7 +95,7 @@
                 </div>
                 <div>
                     <h3 class="text-base font-bold text-slate-900 dark:text-white" id="modalTitle">สร้างโปรโมชั่นใหม่</h3>
-                    <p class="text-[11px] text-slate-500 dark:text-slate-400">กำหนดเวลาเปิด-ปิด และเงื่อนไขสิทธิ์</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">เลือกประเภท เลือกสินค้าที่ร่วมรายการ และกำหนดเวลา</p>
                 </div>
             </div>
 
@@ -126,6 +126,15 @@
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ป้ายแท็กแสดงหน้าเว็บ</label>
                         <input type="text" id="promoBadge" placeholder="เช่น 🔥 จำกัด 30 สิทธิ์แรก" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500">
                     </div>
+                </div>
+
+                <!-- เลือกสินค้าที่เข้าร่วมรายการ -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">📦 สินค้า/แพ็กเกจที่เข้าร่วมรายการ</label>
+                    <div id="applicableCoursesCheckboxes" class="p-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl max-h-40 overflow-y-auto space-y-2">
+                        <p class="text-xs text-slate-400">กำลังโหลดรายการสินค้า...</p>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">* หากไม่ติ๊กเลือกรายการใดเลย จะถือว่าโปรโมชั่นนี้ใช้ได้กับสินค้าทุกชิ้นในร้าน</p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -187,6 +196,7 @@
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let allPromos = [];
+        let allCoursesList = [];
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -201,7 +211,35 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        async function initPage() { await fetchPromos(); }
+        async function initPage() {
+            await fetchCoursesList();
+            await fetchPromos();
+        }
+
+        async function fetchCoursesList() {
+            const { data } = await mySupabase.from('course_packages').select('id, title, code');
+            allCoursesList = data || [];
+            renderCourseCheckboxes();
+        }
+
+        function renderCourseCheckboxes(selectedIds = []) {
+            const container = document.getElementById('applicableCoursesCheckboxes');
+            if (allCoursesList.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400">ยังไม่มีสินค้าในระบบ</p>`;
+                return;
+            }
+
+            container.innerHTML = allCoursesList.map(c => {
+                const isChecked = selectedIds.includes(c.id) ? 'checked' : '';
+                return `
+                    <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-darkinput p-1.5 rounded-lg transition">
+                        <input type="checkbox" value="${c.id}" class="course-checkbox w-4 h-4 text-amber-500 rounded focus:ring-amber-500" ${isChecked}>
+                        <span class="font-bold text-sky-600 dark:text-sky-400">[${c.code || 'BUNDLE'}]</span>
+                        <span class="truncate">${c.title}</span>
+                    </label>
+                `;
+            }).join('');
+        }
 
         async function fetchPromos() {
             const { data, error } = await mySupabase.from('promotions').select('*').order('created_at', { ascending: false });
@@ -254,9 +292,12 @@
                 const limit = p.usage_limit ? `สิทธิ์: ${used} / ${p.usage_limit} ท่าน` : `ใช้ไปแล้ว ${used} ท่าน (ไม่จำกัดสิทธิ์)`;
                 const status = p.is_active ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold">เปิดใช้งาน</span>' : '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">ปิดใช้งาน</span>';
                 
+                const applicableCount = Array.isArray(p.applicable_course_ids) && p.applicable_course_ids.length > 0 
+                    ? `<p class="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold"><i class="fas fa-box mr-1"></i> ใช้ได้กับ ${p.applicable_course_ids.length} สินค้าที่เลือก</p>` 
+                    : `<p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold"><i class="fas fa-globe mr-1"></i> ใช้ได้กับทุกสินค้าในร้าน</p>`;
+
                 const startDate = p.start_date ? `เริ่ม: ${new Date(p.start_date).toLocaleString('th-TH')}` : 'เริ่มทันที';
                 const endDate = p.end_date ? `หมดเขต: ${new Date(p.end_date).toLocaleString('th-TH')}` : 'ไม่มีวันหมดเขต';
-                const tagBadge = p.badge_tag ? `<p class="text-[11px] text-rose-500 font-bold"><i class="fas fa-tag mr-1"></i>${p.badge_tag}</p>` : '';
 
                 return `
                     <div class="modern-card p-6 rounded-3xl flex flex-col justify-between space-y-4">
@@ -267,7 +308,7 @@
                             </div>
                             <h4 class="text-base font-bold text-slate-900 dark:text-white">${mainTitle}</h4>
                             <h3 class="text-xl font-black text-amber-600 dark:text-amber-400">${discountText}</h3>
-                            ${tagBadge}
+                            ${applicableCount}
                             <div class="space-y-1 text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
                                 <p><i class="fas fa-wallet mr-1.5"></i> ${minSpend}</p>
                                 <p><i class="fas fa-users mr-1.5 text-sky-500"></i> <strong class="text-sky-600 dark:text-sky-400">${limit}</strong></p>
@@ -291,6 +332,7 @@
             document.getElementById('promoActive').checked = true;
             document.getElementById('promoType').value = 'code';
             togglePromoTypeFields();
+            renderCourseCheckboxes([]);
 
             if (id) {
                 const p = allPromos.find(x => x.id === id);
@@ -313,6 +355,8 @@
                     if (p.start_date) document.getElementById('promoStartDate').value = p.start_date.substring(0, 16);
                     if (p.end_date) document.getElementById('promoEndDate').value = p.end_date.substring(0, 16);
                     document.getElementById('promoActive').checked = p.is_active;
+
+                    renderCourseCheckboxes(p.applicable_course_ids || []);
                     document.getElementById('modalTitle').textContent = 'แก้ไขโปรโมชั่น';
                 }
             }
@@ -327,11 +371,15 @@
             const id = document.getElementById('editPromoId').value;
             const promoType = document.getElementById('promoType').value;
 
+            // รวบรวม ID ของสินค้าที่ถูกติ๊กเลือก
+            const selectedCourses = Array.from(document.querySelectorAll('.course-checkbox:checked')).map(cb => cb.value);
+
             const payload = {
                 promo_type: promoType,
                 code: promoType === 'code' ? document.getElementById('promoCode').value.trim().toUpperCase() : `CAMP_${Date.now()}`,
                 title: promoType === 'campaign' ? document.getElementById('promoTitle').value.trim() : null,
                 badge_tag: promoType === 'campaign' ? document.getElementById('promoBadge').value.trim() : null,
+                applicable_course_ids: selectedCourses,
                 discount_type: document.getElementById('discountType').value,
                 discount_value: parseFloat(document.getElementById('promoValue').value) || 0,
                 min_spend: parseFloat(document.getElementById('promoMinSpend').value) || 0,
