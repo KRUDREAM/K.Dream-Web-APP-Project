@@ -305,7 +305,11 @@
                 const title = (p.title || '').toLowerCase();
                 const code = (p.code || '').toLowerCase();
                 const tagsStr = Array.isArray(p.tags) ? p.tags.join(',').toLowerCase() : (p.tags || '').toLowerCase();
-                return title.includes(keyword) || code.includes(keyword) || tagsStr.includes(keyword);
+                
+                const matchKeyword = title.includes(keyword) || code.includes(keyword) || tagsStr.includes(keyword);
+                const matchTag = activeTag === 'all' || tagsStr.includes(activeTag.toLowerCase());
+
+                return matchKeyword && matchTag;
             });
 
             if (countBadge) countBadge.textContent = `${filtered.length} รายการ`;
