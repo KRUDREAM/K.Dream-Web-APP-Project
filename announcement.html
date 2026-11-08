@@ -410,18 +410,22 @@
         }
 
         // ปรับปรุงเงื่อนไขการตรวจสอบประกาศสำหรับนักเรียนให้ยืดหยุ่นและแม่นยำยิ่งขึ้น
-        function isAnnouncementForThisStudent(announcement) {
+ function isAnnouncementForThisStudent(announcement) {
             if (!announcement) return false;
+             console.log("Student ID:", currentStudentId);
+console.log("Enrolled Courses:", enrolledCoursesList);
+console.log("All Announcements:", allAnnouncementsData);
+            // ถ้าเป็นแอดมินหรือครู ให้เห็นทั้งหมด
             if (userRole !== 'student') return true;
             
             const targetType = announcement.target_type || 'all';
 
-            // ถ้าเป็นประกาศทั่วไป หรือไม่มีระบุประเภท ให้แสดงผลทั้งหมด
+            // 1. ถ้าเป็นประกาศทั่วไป หรือทุกคน
             if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
                 return true;
             }
 
-            // ถ้ากำหนดตามระดับชั้น
+            // 2. ถ้ากำหนดตามระดับชั้น
             if (targetType === 'level') {
                 const studentGrade = String(currentStudentData?.grade_level || currentStudentData?.grade || '').trim().toLowerCase();
                 const targetGrade = String(announcement.target_value || '').trim().toLowerCase();
@@ -429,7 +433,7 @@
                 return studentGrade.includes(targetGrade) || targetGrade.includes(studentGrade);
             }
 
-            // ถ้ากำหนดตามรายบุคคล
+            // 3. ถ้ากำหนดตามรายบุคคล
             if (targetType === 'specific') {
                 const studentId = String(currentStudentData?.id || currentStudentData?.student_id || currentStudentId || '').trim();
                 const targetValue = String(announcement.target_value || '').trim();
@@ -437,32 +441,34 @@
                 return targetValue.includes(studentId);
             }
 
-            // ถ้ากำหนดตามคอร์สเรียน (ตรวจสอบว่านักเรียนลงทะเบียนคอร์สนี้หรือไม่)
+            // 4. ถ้ากำหนดตามคอร์สเรียน (แสดงเฉพาะคอร์สที่นักเรียนลงทะเบียนไว้จริงๆ)
             if (targetType === 'course') {
                 const targetValue = String(announcement.target_value || '').trim();
                 if (!targetValue) return false;
 
-                const announcementCourseIds = targetValue.split(',').map(id => id.trim().toLowerCase());
+                // รายการคอร์สที่ประกาศนี้ระบุ (แยกด้วยเครื่องหมายจุลภาค)
+                const announcementCourseIds = targetValue.split(',').map(id => id.trim().toLowerCase()).filter(Boolean);
 
-                // รวบรวมรหัสคอร์สหรือข้อมูลคอร์สที่นักเรียนลงทะเบียนไว้
-                let studentCourseKeys = [];
+                // ดึงรหัสคอร์สที่นักเรียนลงทะเบียนจาก enrolledCoursesList
+                let studentEnrolledIds = [];
                 if (Array.isArray(enrolledCoursesList)) {
                     enrolledCoursesList.forEach(e => {
-                        if (e.course_id) studentCourseKeys.push(String(e.course_id).trim().toLowerCase());
-                        if (e.courseid) studentCourseKeys.push(String(e.courseid).trim().toLowerCase());
-                        if (e.course_code) studentCourseKeys.push(String(e.course_code).trim().toLowerCase());
+                        if (e.course_id) studentEnrolledIds.push(String(e.course_id).trim().toLowerCase());
+                        if (e.courseid) studentEnrolledIds.push(String(e.courseid).trim().toLowerCase());
+                        if (e.course_code) studentEnrolledIds.push(String(e.course_code).trim().toLowerCase());
+                        if (e.id) studentEnrolledIds.push(String(e.id).trim().toLowerCase());
                     });
                 }
 
-                // ตรวจสอบว่ามีคอร์สใดที่ตรงกัน หรือถ้าไม่มีข้อมูลใน enrollments ให้ลองเช็คจากข้อมูลคอร์สในโปรไฟล์นักเรียน (ถ้ามี)
-                const isMatched = announcementCourseIds.some(acId => studentCourseKeys.includes(acId));
-                if (isMatched) return true;
+                // ตรวจสอบว่ามีคอร์สใดในประกาศที่ตรงกับคอร์สที่นักเรียนลงทะเบียนหรือไม่
+                const hasMatchedCourse = announcementCourseIds.some(acId => 
+                    studentEnrolledIds.some(seId => seId === acId || seId.includes(acId) || acId.includes(seId))
+                );
 
-                // กรณีสำรอง: ถ้าในประกาศกำหนดคอร์ส แต่ในหน้าจอนักเรียนควรเห็นประกาศทั่วไปด้วย หรือคอร์สตรงกัน
-                return false;
+                return hasMatchedCourse;
             }
 
-            return true;
+            return false;
         }
 
         async function loadAnnouncements() {
