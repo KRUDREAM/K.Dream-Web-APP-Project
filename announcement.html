@@ -412,7 +412,6 @@ async function initPage() {
             }
         }
 
-        // ปรับปรุงเงื่อนไขการตรวจสอบประกาศสำหรับนักเรียนให้ยืดหยุ่นและแม่นยำยิ่งขึ้น
 function isAnnouncementForThisStudent(announcement) {
             if (!announcement) return false;
             // ถ้าเป็นแอดมินหรือครู ให้เห็นทั้งหมด
@@ -441,37 +440,40 @@ function isAnnouncementForThisStudent(announcement) {
                 return targetValue.includes(studentId);
             }
 
-            // 4. ประกาศตามคอร์สเรียน (ตรวจสอบการจับคู่แบบละเอียด)
+            // 4. ประกาศตามคอร์สเรียน (รองรับทั้งเทียบด้วย UUID, รหัสคอร์ส และชื่อคอร์ส)
             if (targetType === 'course') {
                 if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) {
                     return false;
                 }
 
-                const targetValue = String(announcement.target_value || '').trim();
+                const targetValue = String(announcement.target_value || '').trim().toLowerCase();
                 if (!targetValue) return false;
 
-                // คอร์สที่ระบุในประกาศ (อาจมีหลายคอร์สคั่นด้วยจุลภาค)
-                const announcementCourseIds = targetValue.split(',').map(id => id.trim().toLowerCase()).filter(Boolean);
+                // ค่าที่แอดมินเลือกเก็บไว้ในประกาศ (อาจคั่นด้วยจุลภาค)
+                const targetParts = targetValue.split(',').map(id => id.trim()).filter(Boolean);
 
-                // ดึงฟิลด์ทั้งหมดที่เป็นไปได้จากตาราง enrollments ของนักเรียน
-                let studentEnrolledIds = [];
+                // ดึงรายชื่อคอร์สทั้งหมดที่นักเรียนลงทะเบียนจริง (แปลงทั้ง course_id และชื่อคอร์สที่เกี่ยวข้อง)
+                let studentValidIdentifiers = [];
                 enrolledCoursesList.forEach(e => {
-                    if (e.course_id) studentEnrolledIds.push(String(e.course_id).trim().toLowerCase());
-                    if (e.courseid) studentEnrolledIds.push(String(e.courseid).trim().toLowerCase());
-                    if (e.course_code) studentEnrolledIds.push(String(e.course_code).trim().toLowerCase());
-                    if (e.course) studentEnrolledIds.push(String(e.course).trim().toLowerCase());
-                    if (e.id && e.id !== currentStudentId) studentEnrolledIds.push(String(e.id).trim().toLowerCase());
+                    const cId = String(e.course_id || e.courseid || '').trim().toLowerCase();
+                    if (cId) {
+                        studentValidIdentifiers.push(cId);
+                        // ถ้ามี mapping ชื่อคอร์สหรือรหัสคอร์สจาก coursesMap ให้ดึงมาใส่ด้วย
+                        const courseObj = allCoursesList.find(c => String(c.id).toLowerCase() === cId);
+                        if (courseObj) {
+                            if (courseObj.title) studentValidIdentifiers.push(String(courseObj.title).trim().toLowerCase());
+                            if (courseObj.name) studentValidIdentifiers.push(String(courseObj.name).trim().toLowerCase());
+                            if (courseObj.course_code) studentValidIdentifiers.push(String(courseObj.course_code).trim().toLowerCase());
+                        }
+                    }
                 });
 
-                // เช็คว่าตรงกันไหม
-                const hasMatchedCourse = announcementCourseIds.some(acId => 
-                    studentEnrolledIds.some(seId => seId === acId || seId.includes(acId) || acId.includes(seId))
+                // ตรวจสอบว่า targetParts ของประกาศ ตรงกับคอร์สที่นักเรียนลงทะเบียนหรือไม่
+                const isMatch = targetParts.some(tp => 
+                    studentValidIdentifiers.some(sv => sv === tp || sv.includes(tp) || tp.includes(sv))
                 );
 
-                // พิมพ์ Debug ดูใน Console ว่าประกาศอันไหนผ่านหรือไม่ผ่าน
-                console.log(`Announcement [${announcement.title}] Target Courses:`, announcementCourseIds, '| Student Enrolled:', studentEnrolledIds, '| Match:', hasMatchedCourse);
-
-                return hasMatchedCourse;
+                return isMatch;
             }
 
             return false;
