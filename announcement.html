@@ -281,7 +281,6 @@
                 if (feed) feed.className = 'lg:col-span-12 space-y-5';
 
                 if (studentId) {
-                    // ค้นหาโปรไฟล์นักเรียน ทั้งแบบ id (UUID) และ student_id
                     let { data: sData } = await mySupabase.from('profiles').select('*').eq('id', studentId).maybeSingle();
                     if (!sData) {
                         const { data: sData2 } = await mySupabase.from('profiles').select('*').eq('student_id', studentId).maybeSingle();
@@ -318,6 +317,40 @@
             if (role === 'admin' || role === 'teacher' || role === 'instructor') return true;
             if (email.includes('admin') || email.includes('teacher')) return true;
             return false;
+        }
+
+        // 🌟 ฟังก์ชันตรวจสอบสิทธิ์ประกาศของนักเรียน (เชื่อมโยงกับ lms_core.js หรือใช้ตรรกะเดียวกัน)
+        function isAnnouncementForThisStudent(a) {
+            if (userRole !== 'student') return true;
+            if (typeof window.isAnnouncementForThisStudent === 'function' && window.isAnnouncementForThisStudent !== isAnnouncementForThisStudent) {
+                return window.isAnnouncementForThisStudent(a);
+            }
+
+            const tType = a.target_type || 'all';
+            const tVal = a.target_value || '';
+            const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
+
+            if (tType === 'all' || !tType) return true;
+            if (a.category === 'exam' && (!tVal || tType === 'all')) return true;
+
+            if (tType === 'level') {
+                const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
+                if (!studentGrade) return true;
+                return tVal.toLowerCase().includes(studentGrade.toLowerCase());
+            }
+            if (tType === 'course') {
+                if (studentEnrolledCourses.length === 0) return true;
+                const targetCourses = tVal.split(',').map(c => c.trim().toLowerCase());
+                return studentEnrolledCourses.some(c => targetCourses.includes(c.toLowerCase()));
+            }
+            if (tType === 'specific') {
+                const targetStudents = tVal.split(',').map(s => s.trim());
+                const uuidMatch = currentStudentData?.id && targetStudents.includes(String(currentStudentData.id));
+                const idMatch = targetStudents.includes(String(studentId));
+                const usernameMatch = currentStudentData?.username && targetStudents.includes(String(currentStudentData.username));
+                return uuidMatch || idMatch || usernameMatch || targetStudents.length === 0;
+            }
+            return true;
         }
 
         function renderStudentCheckboxes(students) {
@@ -403,33 +436,13 @@
                 return;
             }
 
+            // 🌟 กรองประกาศโดยใช้ฟังก์ชัน isAnnouncementForThisStudent
             let filteredAnns = anns.filter(a => {
-                if (userRole !== 'student') return true;
-                const tType = a.target_type || 'all';
-                const tVal = a.target_value || '';
-                const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
-
-                if (tType === 'all' || !tType) return true;
-                if (a.category === 'exam' && (!tVal || tType === 'all')) return true;
-
-                if (tType === 'level') {
-                    const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
-                    if (!studentGrade) return true;
-                    return tVal.toLowerCase().includes(studentGrade.toLowerCase());
+                try {
+                    return isAnnouncementForThisStudent(a);
+                } catch (e) {
+                    return true;
                 }
-                if (tType === 'course') {
-                    if (studentEnrolledCourses.length === 0) return true;
-                    const targetCourses = tVal.split(',').map(c => c.trim().toLowerCase());
-                    return studentEnrolledCourses.some(c => targetCourses.includes(c.toLowerCase()));
-                }
-                if (tType === 'specific') {
-                    const targetStudents = tVal.split(',').map(s => s.trim());
-                    const uuidMatch = currentStudentData?.id && targetStudents.includes(String(currentStudentData.id));
-                    const idMatch = targetStudents.includes(String(studentId));
-                    const usernameMatch = currentStudentData?.username && targetStudents.includes(String(currentStudentData.username));
-                    return uuidMatch || idMatch || usernameMatch || targetStudents.length === 0;
-                }
-                return true;
             });
 
             document.getElementById('annCount').textContent = `${filteredAnns.length} รายการ`;
