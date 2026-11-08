@@ -652,9 +652,10 @@
         }
 
 // 🌟 โหลดและนับจำนวนการแจ้งเตือนที่ยังไม่อ่าน
+// 🌟 โหลดและนับจำนวนการแจ้งเตือนที่ยังไม่อ่าน (กรองเฉพาะประกาศที่ตรงกับสิทธิ์ของนักเรียนคนนี้)
 async function loadStudentNotificationsCount() {
     try {
-        const { data: anns, error } = await mySupabase.from('announcements').select('id, created_at').order('created_at', { ascending: false }).limit(20);
+        const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(30);
         const badge = document.getElementById('notifBadge');
         
         if (error || !anns || anns.length === 0) {
@@ -662,7 +663,9 @@ async function loadStudentNotificationsCount() {
             return;
         }
 
-        notificationsDataCache = anns; // เก็บใส่ Cache ไว้ใช้แสดงผล
+        // กรองประกาศให้เหลือเฉพาะที่นักเรียนคนนี้มีสิทธิ์เห็น
+        const myValidAnns = anns.filter(a => isAnnouncementForThisStudent(a));
+        notificationsDataCache = myValidAnns; // เก็บใส่ Cache เฉพาะตัวที่ถูกต้อง
 
         // ดึงรายการ ID ที่อ่านแล้วจาก currentStudentData
         let readIds = [];
@@ -670,7 +673,7 @@ async function loadStudentNotificationsCount() {
             readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
         }
 
-        const unread = anns.filter(a => !readIds.includes(a.id));
+        const unread = myValidAnns.filter(a => !readIds.includes(a.id));
         
         const headerCount = document.getElementById('notifHeaderCount');
         if (headerCount) {
@@ -688,6 +691,97 @@ async function loadStudentNotificationsCount() {
     }
 }
 
+// 🌟 ดึงข้อมูลและเรนเดอร์รายการประกาศลงใน Dropdown กระดิ่ง (กรองเฉพาะที่ตรงกับนักเรียน)
+async function fetchAndRenderNotificationDropdown() {
+    const listContainer = document.getElementById('notifDropdownList');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> กำลังโหลด...</div>`;
+
+    try {
+        const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(20);
+        
+        if (error || !anns || anns.length === 0) {
+            listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs">ยังไม่มีประกาศในขณะนี้</div>`;
+            return;
+        }
+
+        // กรองประกาศเฉพาะของนักเรียนคนนี้
+        const myValidAnns = anns.filter(a => isAnnouncementForThisStudent(a));
+        notificationsDataCache = myValidAnns;
+
+        if (myValidAnns.length === 0) {
+            listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs">ยังไม่มีประกาศสำหรับคุณในขณะนี้</div>`;
+            return;
+        }
+
+        let readIds = [];
+        if (currentStudentData && currentStudentData.read_announcements) {
+            readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
+        }
+
+        const unread = myValidAnns.filter(a => !readIds.includes(a.id));
+        const headerCount = document.getElementById('notifHeaderCount');
+        if (headerCount) {
+            headerCount.textContent = `${unread.length} ใหม่`;
+        }
+
+        listContainer.innerHTML = myValidAnns.map(a => {
+            const isRead = readIds.includes(a.id);
+            const timeAgoStr = getTimeAgo(a.created_at);
+            const category = a.category || 'general';
+
+            let catIcon = 'fa-bullhorn text-sky-500';
+            if (category === 'exam') catIcon = 'fa-file-pen text-indigo-500';
+            if (category === 'consult') catIcon = 'fa-comments text-emerald-500';
+            if (category === 'video') catIcon = 'fa-play-circle text-rose-500';
+
+            return `
+                <div onclick="clickNotificationItem('${a.id}')" class="px-4 py-3 hover:bg-sky-50 dark:hover:bg-slate-800/80 cursor-pointer transition-all flex items-start gap-3 ${isRead ? 'opacity-70' : 'bg-sky-50/40 dark:bg-slate-900/40 font-bold'}">
+                    <div class="w-8 h-8 rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                        <i class="fas ${catIcon} text-xs"></i>
+                    </div>
+                    <div class="flex-1 min-w-0 space-y-0.5">
+                        <div class="flex justify-between items-center gap-1">
+                            <h5 class="text-xs text-slate-900 dark:text-white truncate">${a.title || 'ประกาศจากโรงเรียน'}</h5>
+                            ${!isRead ? '<span class="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>' : ''}
+                        </div>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 font-light line-clamp-1">${a.content || ''}</p>
+                        <span class="text-[9px] text-slate-400 block">${timeAgoStr}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.warn("Render dropdown error:", err);
+        listContainer.innerHTML = `<div class="px-4 py-6 text-center text-rose-500 text-xs">ไม่สามารถโหลดการแจ้งเตือนได้</div>`;
+    }
+}
+
+// 🌟 ฟังก์ชันช่วยเช็คว่าประกาศนี้ส่งตรงถึงนักเรียนคนนี้หรือไม่ (ตรวจสอบ target_type และ target_value)
+function isAnnouncementForThisStudent(ann) {
+    const tType = ann.target_type || 'all';
+    const tVal = String(ann.target_value || '');
+
+    // 1. ถ้าเป็นประกาศทั่วไปสำหรับทุกคน (all / general / หรือไม่ระบุ)
+    if (!tType || tType === 'all' || tType === 'general') {
+        return true;
+    }
+
+    // 2. ถ้าเป็นประกาศเฉพาะรายบุคคล (student)
+    if (tType === 'student' || tType === 'user') {
+        return tVal === String(currentStudentId);
+    }
+
+    // 3. ถ้าเป็นประกาศเฉพาะคอร์ส (course)
+    if (tType === 'course') {
+        // เช็คว่านักเรียนคนนี้ลงทะเบียนเรียนในคอร์ส ID นี้อยู่หรือไม่
+        return activeEnrolledCourseIds.includes(tVal) || enrolledCoursesList.some(c => String(c.id) === tVal);
+    }
+
+    return true;
+}
 // 🌟 ดึงข้อมูลและเรนเดอร์รายการประกาศลงใน Dropdown กระดิ่ง
 async function fetchAndRenderNotificationDropdown() {
     const listContainer = document.getElementById('notifDropdownList');
