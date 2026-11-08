@@ -251,7 +251,7 @@
 
                     <div class="relative flex-1 md:w-60">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fas fa-search text-xs"></i></span>
-                        <input type="text" id="globalStudentSearchInput" oninput="renderAllStudentsTable()" placeholder="ค้นหาชื่อ หรือ รหัส นร..." class="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-500">
+                        <input type="text" id="globalStudentSearchInput" oninput="renderAllStudentsTable()" placeholder="ค้นหาชื่อ, ชื่อเล่น หรือ รหัส นร..." class="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-500">
                     </div>
                 </div>
             </div>
@@ -265,7 +265,7 @@
                     <thead>
                         <tr class="bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
                             <th class="p-3">ลำดับ</th>
-                            <th class="p-3">ชื่อ-นามสกุล</th>
+                            <th class="p-3">ชื่อ-นามสกุล (ชื่อเล่น)</th>
                             <th class="p-3">รหัสนักเรียน / ID</th>
                             <th class="p-3 text-center">ชุดข้อสอบที่ทำแล้ว</th>
                             <th class="p-3 text-center">คะแนนสะสมรวม</th>
@@ -366,6 +366,11 @@
             return profileObj.full_name || profileObj.name || profileObj.username || profileObj.display_name || `นักเรียน (${String(studentId).substring(0, 6)}...)`;
         }
 
+        function getStudentNickname(profileObj) {
+            if (!profileObj) return '';
+            return profileObj.nickname || profileObj.nick_name || '';
+        }
+
         function isUserAdmin(profileObj) {
             if (!profileObj) return false;
             const role = String(profileObj.role || profileObj.user_role || '').toLowerCase();
@@ -373,62 +378,6 @@
             if (role === 'admin' || role === 'teacher' || role === 'instructor') return true;
             if (email.includes('admin') || email.includes('teacher')) return true;
             return false;
-        }
-
-        function formatAnswerText(ansValue, examObj = null) {
-            if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
-            const strVal = String(ansValue).trim();
-
-            const formatType = (examObj && examObj.choice_format) ? examObj.choice_format : 'num';
-            let labels = ['1', '2', '3', '4', '5'];
-            if (formatType === 'th_num') labels = ['ก', 'ข', 'ค', 'ง', 'จ'];
-            else if (formatType === 'upper') labels = ['A', 'B', 'C', 'D', 'E'];
-            else if (formatType === 'lower') labels = ['a', 'b', 'c', 'd', 'e'];
-
-            if (/^\d+$/.test(strVal)) {
-                const idx = Number(strVal);
-                if (idx >= 0 && idx < labels.length) {
-                    return labels[idx];
-                }
-            }
-            return strVal;
-        }
-
-        function getCorrectAnswer(q, examObj = null) {
-            let raw = q.correct_answer !== undefined ? q.correct_answer : 
-                    (q.answer !== undefined ? q.answer : 
-                    (q.key !== undefined ? q.key : 
-                    (q.solution !== undefined ? q.solution : '')));
-            return formatAnswerText(raw, examObj);
-        }
-
-        function extractStudentAnswer(att, q, index, examObj = null) {
-            let raw = att.answer_saved || att.answers || att.user_answers || att.student_answers;
-            if (!raw) return '-';
-            if (typeof raw === 'string') {
-                try { raw = JSON.parse(raw); } catch(e) { return '-'; }
-            }
-
-            let val = null;
-            if (typeof raw === 'object' && raw !== null) {
-                if (raw[q.id] !== undefined) val = raw[q.id];
-                else if (raw[String(q.id)] !== undefined) val = raw[String(q.id)];
-                else if (q.question_number !== undefined) {
-                    if (raw[q.question_number] !== undefined) val = raw[q.question_number];
-                    else if (raw[String(q.question_number)] !== undefined) val = raw[String(q.question_number)];
-                    else if (raw[`q${q.question_number}`] !== undefined) val = raw[`q${q.question_number}`];
-                }
-                if (val === null && Array.isArray(raw)) {
-                    if (raw[index] !== undefined) val = raw[index];
-                    else if (raw[index + 1] !== undefined) val = raw[index + 1];
-                }
-                if (val === null) {
-                    const keys = Object.keys(raw);
-                    if (keys[index] !== undefined) val = raw[keys[index]];
-                }
-            }
-
-            return formatAnswerText(val, examObj);
         }
 
         async function initDashboard() {
@@ -452,7 +401,6 @@
                 }
             }
 
-            // 🌟 กรองรายชื่อนักเรียนเฉพาะที่ลงทะเบียนในคอร์ส (ถ้ามีการเลือกคอร์ส)
             let validStudentIds = null;
             if (filterCourseId) {
                 let enrollments = [];
@@ -724,9 +672,10 @@
             let studentList = Object.keys(studentStats).map(id => {
                 const profileInfo = allProfilesMap[id];
                 const name = getStudentName(profileInfo, id);
+                const nickname = getStudentNickname(profileInfo);
                 const stat = studentStats[id];
                 const avgPct = stat.totalMax > 0 ? (stat.totalScore / stat.totalMax) * 100 : 0;
-                return { id, name, total: stat.totalScore, avgPct: avgPct.toFixed(1), count: stat.count };
+                return { id, name, nickname, total: stat.totalScore, avgPct: avgPct.toFixed(1), count: stat.count };
             });
 
             let topList = [...studentList].sort((a, b) => b.total - a.total).slice(0, 5);
@@ -739,7 +688,7 @@
                         <div class="flex items-center gap-3">
                             <span class="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-600 font-bold flex items-center justify-center text-xs">${idx + 1}</span>
                             <div>
-                                <div class="font-extrabold text-slate-900 dark:text-white text-sm">${s.name}</div>
+                                <div class="font-extrabold text-slate-900 dark:text-white text-sm">${s.name}${s.nickname ? ' (' + s.nickname + ')' : ''}</div>
                                 <div class="text-[11px] text-slate-400">ทำข้อสอบแล้ว ${s.count} ชุด (เฉลี่ย ${s.avgPct}%)</div>
                             </div>
                         </div>
@@ -758,7 +707,7 @@
                 riskContainer.innerHTML = atRiskList.map(s => `
                     <div class="p-3.5 bg-rose-50 dark:bg-rose-950/20 rounded-xl flex justify-between items-center text-xs border border-rose-200 dark:border-rose-900/40">
                         <div>
-                            <div class="font-extrabold text-slate-900 dark:text-white text-sm">${s.name}</div>
+                            <div class="font-extrabold text-slate-900 dark:text-white text-sm">${s.name}${s.nickname ? ' (' + s.nickname + ')' : ''}</div>
                             <div class="text-[11px] text-slate-400">ทำข้อสอบแล้ว ${s.count} ชุด</div>
                         </div>
                         <div class="px-3 py-1 bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-300 font-bold rounded-lg text-xs">
@@ -769,6 +718,7 @@
             }
         }
 
+        // 🌟 อัปเดตฟังก์ชันค้นหาให้รองรับชื่อเล่น (Nickname) อย่างสมบูรณ์แบบ
         function renderAllStudentsTable() {
             const tbody = document.getElementById('allStudentsTableBody');
             const searchKeyword = document.getElementById('globalStudentSearchInput').value.trim().toLowerCase();
@@ -777,13 +727,14 @@
             let combinedStudents = allProfilesList.map(p => {
                 const sId = p.id || p.user_id || p.student_id;
                 const name = getStudentName(p, sId);
+                const nickname = getStudentNickname(p);
                 const studentIdCode = p.student_id || '-';
 
                 const studentAttempts = allAttempts.filter(a => String(a.student_id || a.user_id) === String(sId));
                 const totalScore = studentAttempts.reduce((acc, curr) => acc + getAttemptScore(curr), 0);
                 const count = studentAttempts.length;
 
-                return { sId, name, studentIdCode, totalScore, count, studentAttempts };
+                return { sId, name, nickname, studentIdCode, totalScore, count, studentAttempts };
             });
 
             const totalStudentsCount = combinedStudents.length > 0 ? combinedStudents.length : 1;
@@ -794,7 +745,10 @@
 
             let filtered = combinedStudents.filter(s => {
                 if (searchKeyword === '') return true;
-                return s.name.toLowerCase().includes(searchKeyword) || String(s.studentIdCode).toLowerCase().includes(searchKeyword);
+                const matchName = s.name.toLowerCase().includes(searchKeyword);
+                const matchNickname = s.nickname && s.nickname.toLowerCase().includes(searchKeyword);
+                const matchIdCode = String(s.studentIdCode).toLowerCase().includes(searchKeyword);
+                return matchName || matchNickname || matchIdCode;
             });
 
             filtered.sort((a, b) => {
@@ -815,26 +769,30 @@
                 return;
             }
 
-            tbody.innerHTML = filtered.map((s, idx) => `
-                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td class="p-3 font-mono font-bold">${idx + 1}</td>
-                    <td class="p-3 font-bold text-slate-900 dark:text-white">${s.name}</td>
-                    <td class="p-3 font-mono text-slate-500">${s.studentIdCode}</td>
-                    <td class="p-3 text-center font-mono">${s.count} ชุด</td>
-                    <td class="p-3 text-center font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${s.totalScore} คะแนน</td>
-                    <td class="p-3 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400">${s.percentile}%</td>
-                    <td class="p-3 text-center">
-                        <button onclick="viewIndividualStudentProfile('${s.sId}')" class="px-3.5 py-1.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-extrabold text-[11px] rounded-xl shadow-md transition-all flex items-center gap-1.5 mx-auto">
-                            <i class="fas fa-eye animate-pulse"></i> ดูภาพรวม
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = filtered.map((s, idx) => {
+                const displayName = s.name + (s.nickname ? ` <span class="text-sky-500 font-normal">(${s.nickname})</span>` : '');
+                return `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td class="p-3 font-mono font-bold">${idx + 1}</td>
+                        <td class="p-3 font-bold text-slate-900 dark:text-white">${displayName}</td>
+                        <td class="p-3 font-mono text-slate-500">${s.studentIdCode}</td>
+                        <td class="p-3 text-center font-mono">${s.count} ชุด</td>
+                        <td class="p-3 text-center font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${s.totalScore} คะแนน</td>
+                        <td class="p-3 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400">${s.percentile}%</td>
+                        <td class="p-3 text-center">
+                            <button onclick="viewIndividualStudentProfile('${s.sId}')" class="px-3.5 py-1.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-extrabold text-[11px] rounded-xl shadow-md transition-all flex items-center gap-1.5 mx-auto">
+                                <i class="fas fa-eye animate-pulse"></i> ดูภาพรวม
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function viewIndividualStudentProfile(studentId) {
             const profile = allProfilesMap[studentId];
             const name = getStudentName(profile, studentId);
+            const nickname = getStudentNickname(profile);
             const studentIdCode = profile?.student_id || '-';
             const studentAttempts = allAttempts.filter(a => String(a.student_id || a.user_id) === String(studentId));
 
@@ -874,7 +832,7 @@
                 <div class="text-left space-y-4 max-h-[70vh] overflow-y-auto pr-1 text-xs">
                     <div class="flex justify-between items-center p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30">
                         <div class="space-y-1">
-                            <div class="text-sm font-extrabold text-sky-600 dark:text-sky-400">${name}</div>
+                            <div class="text-sm font-extrabold text-sky-600 dark:text-sky-400">${name}${nickname ? ' (' + nickname + ')' : ''}</div>
                             <div class="text-slate-500 dark:text-slate-400">รหัสนักเรียน: <span class="font-mono font-bold text-slate-800 dark:text-slate-200">${studentIdCode}</span></div>
                             <div class="flex gap-4 pt-1 font-semibold text-slate-700 dark:text-slate-300">
                                 <span>ทำแล้ว: <strong>${studentAttempts.length} ชุด</strong></span>
@@ -940,10 +898,17 @@
             const score = att ? getAttemptScore(att) : 0;
 
             let questionsHtml = questions.map((q, index) => {
-                const userAns = att ? extractStudentAnswer(att, q, index, exam) : '-';
-                const correctAns = getCorrectAnswer(q, exam);
-                const userAnsStr = userAns !== undefined && userAns !== null ? String(userAns).trim().toLowerCase() : '';
-                const correctAnsStr = String(correctAns).trim().toLowerCase();
+                let rawAns = att ? (att.answer_saved || att.answers || att.user_answers || att.student_answers) : null;
+                if (typeof rawAns === 'string') { try { rawAns = JSON.parse(rawAns); } catch(e){} }
+
+                let userVal = '-';
+                if (rawAns && typeof rawAns === 'object') {
+                    userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] || '-';
+                }
+
+                const correctVal = q.correct_answer || q.answer || q.solution || '-';
+                const userAnsStr = userVal !== undefined && userVal !== null ? String(userVal).trim().toLowerCase() : '';
+                const correctAnsStr = String(correctVal).trim().toLowerCase();
                 const isCorrect = userAnsStr !== '' && userAnsStr === correctAnsStr;
 
                 return `
@@ -953,7 +918,7 @@
                             <span class="${isCorrect ? 'text-emerald-500' : 'text-rose-500'}">${isCorrect ? '✅ ถูกต้อง' : '❌ ตอบผิด'}</span>
                         </div>
                         <div class="text-[11px] text-slate-500 dark:text-slate-400">
-                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${userAns}</span> | เฉลยที่ถูกต้อง: <span class="font-bold text-emerald-600">${correctAns}</span>
+                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${userVal}</span> | เฉลยที่ถูกต้อง: <span class="font-bold text-emerald-600">${correctVal}</span>
                         </div>
                     </div>
                 `;
@@ -1046,18 +1011,25 @@
                 `);
 
                 questions.forEach((q, index) => {
-                    const userAns = att ? extractStudentAnswer(att, q, index, exam) : '-';
-                    const correctAns = getCorrectAnswer(q, exam);
-                    const userAnsStr = userAns !== undefined && userAns !== null ? String(userAns).trim().toLowerCase() : '';
-                    const correctAnsStr = String(correctAns).trim().toLowerCase();
+                    let rawAns = att ? (att.answer_saved || att.answers || att.user_answers || att.student_answers) : null;
+                    if (typeof rawAns === 'string') { try { rawAns = JSON.parse(rawAns); } catch(e){} }
+
+                    let userVal = '-';
+                    if (rawAns && typeof rawAns === 'object') {
+                        userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] || '-';
+                    }
+
+                    const correctVal = q.correct_answer || q.answer || q.solution || '-';
+                    const userAnsStr = userVal !== undefined && userVal !== null ? String(userVal).trim().toLowerCase() : '';
+                    const correctAnsStr = String(correctVal).trim().toLowerCase();
                     const isCorrect = userAnsStr !== '' && userAnsStr === correctAnsStr;
 
                     printWindow.document.write(`
                         <tr>
                             <td>${q.question_number}</td>
                             <td>${q.question_text || q.content || '-'}</td>
-                            <td><strong>${userAns}</strong></td>
-                            <td>${correctAns}</td>
+                            <td><strong>${userVal}</strong></td>
+                            <td>${correctVal}</td>
                             <td class="${isCorrect ? 'correct' : 'wrong'}">${isCorrect ? 'ถูกต้อง' : 'ตอบผิด'}</td>
                         </tr>
                     `);
