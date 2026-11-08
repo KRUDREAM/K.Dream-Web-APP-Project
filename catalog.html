@@ -57,7 +57,7 @@
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <button onclick="window.location.href='student.html'" class="px-4 py-2 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 rounded-xl text-xs font-bold transition hover:bg-sky-100">
+                    <button onclick="goToStudentPortal()" class="px-4 py-2 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 rounded-xl text-xs font-bold transition hover:bg-sky-100">
                         <i class="fas fa-user mr-1"></i> ระบบนักเรียน
                     </button>
                     <button id="themeToggle" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
@@ -82,10 +82,12 @@
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 space-y-8">
+        <!-- Tag Filters -->
         <div class="flex items-center justify-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="tagFilterContainer">
             <button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>
         </div>
 
+        <!-- Catalog Grid -->
         <div id="catalogGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">
                 <i class="fas fa-spinner fa-spin text-3xl mb-3 text-sky-600"></i>
@@ -110,7 +112,7 @@
             <button onclick="closeGalleryModal()" class="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
                 <i class="fas fa-xmark"></i>
             </button>
-            <h4 class="font-bold text-base mb-4" id="galleryTitle">รูปภาพทั้งหมดของคอร์ส</h4>
+            <h4 class="font-bold text-base mb-4 text-slate-900 dark:text-white" id="galleryTitle">รูปภาพทั้งหมดของคอร์ส</h4>
             <div id="galleryImagesGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto"></div>
         </div>
     </div>
@@ -123,6 +125,7 @@
         let allPackages = [];
         let allPromos = [];
         let activeTag = 'all';
+        let currentStudentId = localStorage.getItem('student_id') || localStorage.getItem('id');
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -137,6 +140,10 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
+        function goToStudentPortal() {
+            window.location.href = currentStudentId ? `student_portal.html?student_id=${currentStudentId}` : 'student_portal.html';
+        }
+
         async function fetchCatalogData() {
             const [pkgRes, promoRes] = await Promise.all([
                 mySupabase.from('course_packages').select('*').order('created_at', { ascending: false }),
@@ -144,7 +151,29 @@
             ]);
             allPackages = pkgRes.data || [];
             allPromos = promoRes.data || [];
+
+            generateDynamicTags();
             renderCatalog();
+        }
+
+        function generateDynamicTags() {
+            const tagSet = new Set();
+            allPackages.forEach(p => {
+                if (Array.isArray(p.tags)) {
+                    p.tags.forEach(t => tagSet.add(t.trim()));
+                } else if (typeof p.tags === 'string' && p.tags.trim() !== '') {
+                    p.tags.split(',').forEach(t => tagSet.add(t.trim()));
+                }
+            });
+
+            const container = document.getElementById('tagFilterContainer');
+            let html = `<button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>`;
+            
+            tagSet.forEach(tag => {
+                html += `<button onclick="filterByTag('${tag}')" id="tag-${tag}" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">${tag}</button>`;
+            });
+
+            container.innerHTML = html;
         }
 
         window.filterByTag = function(tag) {
@@ -187,12 +216,11 @@
                 
                 let imgList = Array.isArray(p.images) && p.images.length > 0 ? p.images : [p.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60'];
                 const mainImg = imgList[0];
-                const moreBtn = imgList.length > 1 ? `<button onclick="openGalleryModal(${JSON.stringify(imgList).replace(/"/g, '&quot;')}, '${title}')" class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-xl"><i class="fas fa-images mr-1"></i> ${imgList.length} รูป</button>` : '';
+                const moreBtn = imgList.length > 1 ? `<button onclick="event.stopPropagation(); openGalleryModal(${JSON.stringify(imgList).replace(/"/g, '&quot;')}, '${title}')" class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-xl"><i class="fas fa-images mr-1"></i> ${imgList.length} รูป</button>` : '';
 
                 return `
                     <div class="modern-card rounded-3xl overflow-hidden flex flex-col justify-between group cursor-pointer hover:border-sky-500 transition" onclick="openCourseDetail('${p.id}')">
                         <div>
-                            <!-- ใช้ object-contain เพื่อให้รูปพอดีกรอบและไม่ถูกตัด -->
                             <div class="relative aspect-video overflow-hidden bg-slate-900/5 dark:bg-slate-800/50 flex items-center justify-center p-2">
                                 <img src="${mainImg}" class="w-full h-full object-contain rounded-xl group-hover:scale-105 transition-transform duration-500">
                                 <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-xl">${code}</div>
@@ -236,18 +264,45 @@
                 ` : ''}
                 <div class="space-y-2">
                     <h3 class="text-xl font-bold text-slate-900 dark:text-white">${pkg.title}</h3>
-                    <span class="text-2xl font-black text-sky-600 dark:text-sky-400">฿${Number(pkg.price || 0).toLocaleString()}</span>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">${pkg.description || ''}</p>
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl font-black text-sky-600 dark:text-sky-400">฿${Number(pkg.price || 0).toLocaleString()}</span>
+                        ${pkg.original_price ? `<span class="text-sm text-slate-400 line-through">฿${Number(pkg.original_price).toLocaleString()}</span>` : ''}
+                    </div>
+                    ${pkg.promo_details ? `<p class="text-xs text-amber-500 font-medium"><i class="fas fa-bolt mr-1"></i>${pkg.promo_details}</p>` : ''}
+                    ${pkg.freebies ? `<p class="text-xs text-emerald-600 font-medium"><i class="fas fa-gift mr-1"></i>${pkg.freebies}</p>` : ''}
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">${pkg.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
                 </div>
-                <button onclick="Swal.fire('สำเร็จ', 'ลงทะเบียนเรียนเรียบร้อย', 'success'); closeCourseModal();" class="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold text-xs">ยืนยันสมัครเรียน</button>
+                <button onclick="handleEnroll('${pkg.id}', '${pkg.title}')" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition shadow-md shadow-emerald-500/20">ยืนยันสมัครเรียน / ติดต่อลงทะเบียน</button>
             `;
             document.getElementById('courseModal').classList.remove('hidden');
+        }
+
+        window.handleEnroll = function(packageId, packageTitle) {
+            Swal.fire({
+                title: 'สนใจสมัครเรียนคอร์สนี้?',
+                text: `คุณต้องการสมัครแพ็กเกจ "${packageTitle}" ใช่หรือไม่`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'ใช่, แจ้งสมัครเรียน',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#0284c7'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'บันทึกความสนใจสำเร็จ!',
+                        text: 'เจ้าหน้าที่หรือระบบจะทำการตรวจสอบและติดต่อกลับเพื่อยืนยันการลงทะเบียน',
+                        confirmButtonColor: '#0284c7'
+                    });
+                    closeCourseModal();
+                }
+            });
         }
 
         window.closeCourseModal = function() { document.getElementById('courseModal').classList.add('hidden'); }
         window.openGalleryModal = function(imgList, title) {
             document.getElementById('galleryTitle').textContent = `รูปภาพ: ${title}`;
-            document.getElementById('galleryImagesGrid').innerHTML = imgList.map(img => `<div class="rounded-2xl overflow-hidden aspect-video bg-slate-900/5 flex items-center justify-center p-2"><img src="${img}" class="w-full h-full object-contain"></div>`).join('');
+            document.getElementById('galleryImagesGrid').innerHTML = imgList.map(img => `<div class="rounded-2xl overflow-hidden aspect-video bg-slate-900/5 dark:bg-slate-800/50 flex items-center justify-center p-2"><img src="${img}" class="w-full h-full object-contain rounded-xl"></div>`).join('');
             document.getElementById('galleryModal').classList.remove('hidden');
         }
         window.closeGalleryModal = function() { document.getElementById('galleryModal').classList.add('hidden'); }
