@@ -322,8 +322,7 @@
             return false;
         }
 
-        // 🌟 ฟังก์ชันตรวจสอบสิทธิ์ประกาศของนักเรียน (กรองคอร์ส/ระดับชั้นอย่างแม่นยำ)
-// 🌟 ฟังก์ชันตรวจสอบสิทธิ์ประกาศ (กรองเฉพาะคอร์สที่นักเรียนลงทะเบียนจริง ๆ เท่านั้น)
+        // 🌟 ฟังก์ชันตรวจสอบสิทธิ์ประกาศ (กรองเฉพาะคอร์สที่นักเรียนลงทะเบียนจริง ๆ เท่านั้น)
         function isAnnouncementForThisStudent(a) {
             if (userRole !== 'student') return true;
             if (typeof window.isAnnouncementForThisStudent === 'function' && window.isAnnouncementForThisStudent !== isAnnouncementForThisStudent) {
@@ -349,10 +348,8 @@
                 if (!tVal) return false;
                 if (studentEnrolledCourses.length === 0 && studentEnrolledCourseIds.length === 0) return false;
                 
-                // แยกรายการคอร์สที่แอดมินเลือกในประกาศนี้
                 const targetItems = tVal.split(',').map(item => item.trim().toLowerCase());
                 
-                // เช็คว่ามีตัวใดตัวหนึ่งใน targetItems ตรงกับคอร์สที่นักเรียนลงทะเบียนไว้เป๊ะๆ หรือไม่
                 let isMatch = targetItems.some(target => {
                     return studentEnrolledCourses.some(enrolled => enrolled === target || enrolled.includes(target) || target.includes(enrolled)) ||
                            studentEnrolledCourseIds.some(id => target === id.toLowerCase());
@@ -372,7 +369,7 @@
 
             return false;
         }
-        
+
         function renderStudentCheckboxes(students) {
             const container = document.getElementById('studentCheckboxes');
             if (!container) return;
@@ -456,7 +453,7 @@
                 return;
             }
 
-            // 🌟 กรองประกาศโดยใช้ฟังก์ชัน isAnnouncementForThisStudent ที่ปรับปรุงแล้ว
+            // 🌟 กรองประกาศโดยใช้ฟังก์ชัน isAnnouncementForThisStudent
             let filteredAnns = anns.filter(a => {
                 try {
                     return isAnnouncementForThisStudent(a);
