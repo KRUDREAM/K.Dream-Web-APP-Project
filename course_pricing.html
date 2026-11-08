@@ -4,7 +4,7 @@
     <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KRUDREAM LAND | จัดการ Catalog สินค้าและแพ็กเกจคอร์สเรียน</title>
+    <title>KRUDREAM LAND | จัดการ Catalog สินค้าและแพ็กเกจคอร์สเรียนระดับโปร</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -49,10 +49,10 @@
                     </button>
                     <div>
                         <h1 class="font-extrabold text-xl text-slate-900 dark:text-white flex items-center gap-2">
-                            <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-images"></i></span>
-                            Catalog สินค้า & แพ็กเกจคอร์สเรียน (Multi-Image)
+                            <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-store"></i></span>
+                            Catalog สินค้า & แพ็กเกจคอร์สเรียน (Pro Version)
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">อัปโหลดรูปภาพได้หลายรูป จัดการแท็กและโปรโมชั่นแบบครบวงจร</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">ระบบจัดการสินค้าครบวงจร แท็ก คูปอง รีวิว และ Flash Sale</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -99,7 +99,7 @@
         </div>
     </main>
 
-    <!-- Modal สำหรับเพิ่ม / แก้ไขแพ็กเกจ (รองรับอัปโหลดหลายรูป) -->
+    <!-- Modal สำหรับเพิ่ม / แก้ไขแพ็กเกจ -->
     <div id="packageModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="modern-card w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onclick="closePackageModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition">
@@ -112,7 +112,7 @@
                 </div>
                 <div>
                     <h3 class="text-lg font-bold text-slate-900 dark:text-white" id="modalTitle">เพิ่มแพ็กเกจคอร์สใหม่</h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">อัปโหลดรูปภาพได้หลายรูปและกำหนดข้อมูลสินค้า</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดข้อมูลสินค้า ของแถม และ Flash Sale</p>
                 </div>
             </div>
 
@@ -158,6 +158,17 @@
                     </div>
                 </div>
 
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">🎁 ของแถมพิเศษ (Freebies)</label>
+                        <input type="text" id="pkgFreebies" placeholder="เช่น แถมสรุปชีวะ 1 เล่ม" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">⭐ คะแนนรีวิว (1-5)</label>
+                        <input type="number" id="pkgRating" min="1" max="5" step="0.1" value="5.0" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">เงื่อนไขโปรโมชั่น / ส่วนลด</label>
                     <input type="text" id="pkgPromo" placeholder="เช่น ลด 40% เฉพาะ 30 ท่านแรกเท่านั้น" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
@@ -169,7 +180,6 @@
                     <input type="file" id="pkgImagesInput" multiple accept="image/*" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer">
                     <p class="text-[10px] text-slate-400 mt-1">รูปแรกสุดจะถูกใช้เป็นรูปปกหลักของสินค้า</p>
                     
-                    <!-- พื้นที่พรีวิวรูปที่อัปโหลด -->
                     <div id="imagePreviewContainer" class="flex flex-wrap gap-2 mt-3"></div>
                 </div>
 
@@ -208,7 +218,7 @@
 
         let allPackages = [];
         let activeTag = 'all';
-        let currentImageUrls = []; // เก็บอาเรย์รูปภาพที่กำลังแก้ไข/เพิ่ม
+        let currentImageUrls = [];
 
         // Theme Toggle
         const htmlElement = document.documentElement;
@@ -229,7 +239,6 @@
         }
 
         async function fetchPackages() {
-            // ดึงข้อมูลตาราง course_packages (และรองรับคอลัมน์ images ที่เป็น Array)
             const { data, error } = await mySupabase.from('course_packages').select('*').order('created_at', { ascending: false });
             if (error || !data) {
                 document.getElementById('packagesGrid').innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">ไม่สามารถโหลดข้อมูลแพ็กเกจได้</div>`;
@@ -239,12 +248,16 @@
             renderPackagesGrid();
         }
 
-        function filterByTag(tag) {
+        // 🌟 ประกาศฟังก์ชัน filterByTag ไว้ใน Global Scope ป้องกัน Error ปลอม
+        window.filterByTag = function(tag) {
             activeTag = tag;
             document.querySelectorAll('.tag-btn').forEach(btn => {
                 btn.className = 'tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50';
             });
-            document.getElementById(`tag-${tag}`).className = 'tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md';
+            const activeBtn = document.getElementById(`tag-${tag}`);
+            if (activeBtn) {
+                activeBtn.className = 'tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md';
+            }
             renderPackagesGrid();
         }
 
@@ -284,9 +297,10 @@
                 const origPrice = p.original_price ? `฿${Number(p.original_price).toLocaleString()}` : '';
                 const badge = p.badge_tag ? `<span class="px-2 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">${p.badge_tag}</span>` : '';
                 const promo = p.promo_details ? `<p class="text-[11px] text-amber-500 font-medium"><i class="fas fa-bolt mr-1"></i>${p.promo_details}</p>` : '';
+                const freebies = p.freebies ? `<p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium"><i class="fas fa-gift mr-1"></i>${p.freebies}</p>` : '';
+                const rating = p.rating ? `<span class="text-xs font-bold text-amber-500"><i class="fas fa-star mr-1"></i>${p.rating} (${p.review_count || 10})</span>` : '';
                 const desc = p.description || 'ไม่มีรายละเอียดเพิ่มเติม';
                 
-                // จัดการรูปภาพ (รองรับทั้งฟิลด์ images เป็น Array และ image_url เดี่ยว)
                 let imgList = [];
                 if (Array.isArray(p.images) && p.images.length > 0) {
                     imgList = p.images;
@@ -317,12 +331,16 @@
                                 ${moreImagesBtn}
                             </div>
                             <div class="p-6 space-y-2.5">
-                                <h4 class="font-bold text-base text-slate-900 dark:text-white line-clamp-1">${title}</h4>
+                                <div class="flex justify-between items-center">
+                                    <h4 class="font-bold text-base text-slate-900 dark:text-white line-clamp-1">${title}</h4>
+                                    ${rating}
+                                </div>
                                 <div class="flex items-center gap-2">
                                     <span class="text-lg font-extrabold text-sky-600 dark:text-sky-400">${price}</span>
                                     ${origPrice ? `<span class="text-xs text-slate-400 line-through">${origPrice}</span>` : ''}
                                 </div>
                                 ${promo}
+                                ${freebies}
                                 <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${desc}</p>
                             </div>
                         </div>
@@ -339,8 +357,7 @@
             }).join('');
         }
 
-        // เปิด Modal เพิ่ม/แก้ไข
-        function openPackageModal(pkgId = null) {
+        window.openPackageModal = function(pkgId = null) {
             document.getElementById('packageForm').reset();
             document.getElementById('editPackageId').value = '';
             document.getElementById('imagePreviewContainer').innerHTML = '';
@@ -357,10 +374,11 @@
                     document.getElementById('pkgTags').value = Array.isArray(pkg.tags) ? pkg.tags.join(', ') : (pkg.tags || '');
                     document.getElementById('pkgOriginalPrice').value = pkg.original_price || '';
                     document.getElementById('pkgPrice').value = pkg.price || '';
+                    document.getElementById('pkgFreebies').value = pkg.freebies || '';
+                    document.getElementById('pkgRating').value = pkg.rating || 5.0;
                     document.getElementById('pkgPromo').value = pkg.promo_details || '';
                     document.getElementById('pkgDesc').value = pkg.description || '';
                     
-                    // โหลดรูปภาพเดิมเข้ามา
                     if (Array.isArray(pkg.images) && pkg.images.length > 0) {
                         currentImageUrls = [...pkg.images];
                     } else if (pkg.image_url) {
@@ -374,11 +392,14 @@
             document.getElementById('packageModal').classList.remove('hidden');
         }
 
-        function closePackageModal() {
+        window.closePackageModal = function() {
             document.getElementById('packageModal').classList.add('hidden');
         }
 
-        // จัดการเมื่อเลือกไฟล์รูปภาพใหม่
+        window.editPackage = function(id) {
+            openPackageModal(id);
+        }
+
         document.getElementById('pkgImagesInput').addEventListener('change', async (e) => {
             const files = e.target.files;
             if (!files || files.length === 0) return;
@@ -386,7 +407,7 @@
             Swal.fire({ title: 'กำลังอัปโหลดรูปภาพ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             for (let file of files) {
-                const fileName = `course_${Date.now()}_${Math.random().toString(36.substring(2, 7))}.${file.name.split('.').pop()}`;
+                const fileName = `course_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${file.name.split('.').pop()}`;
                 const { data, error } = await mySupabase.storage.from('course_images').upload(fileName, file);
 
                 if (!error) {
@@ -413,17 +434,12 @@
             `).join('');
         }
 
-        function removeImage(index) {
+        window.removeImage = function(index) {
             currentImageUrls.splice(index, 1);
             renderImagePreviews();
         }
 
-        function editPackage(id) {
-            openPackageModal(id);
-        }
-
-        // บันทึกข้อมูลลง Supabase
-        async function handlePackageSubmit(e) {
+        window.handlePackageSubmit = async function(e) {
             e.preventDefault();
             const id = document.getElementById('editPackageId').value;
             const tagsInput = document.getElementById('pkgTags').value;
@@ -436,9 +452,11 @@
                 tags: tagsArray,
                 original_price: document.getElementById('pkgOriginalPrice').value ? parseFloat(document.getElementById('pkgOriginalPrice').value) : null,
                 price: parseFloat(document.getElementById('pkgPrice').value) || 0,
+                freebies: document.getElementById('pkgFreebies').value.trim(),
+                rating: parseFloat(document.getElementById('pkgRating').value) || 5.0,
                 promo_details: document.getElementById('pkgPromo').value.trim(),
                 images: currentImageUrls,
-                image_url: currentImageUrls.length > 0 ? currentImageUrls[0] : null, // เก็บรูปแรกไว้กันความเข้ากันได้
+                image_url: currentImageUrls.length > 0 ? currentImageUrls[0] : null,
                 description: document.getElementById('pkgDesc').value.trim()
             };
 
@@ -463,7 +481,7 @@
             fetchPackages();
         }
 
-        async function deletePackage(id) {
+        window.deletePackage = async function(id) {
             const confirm = await Swal.fire({ title: 'ลบแพ็กเกจนี้?', text: 'การกระทำนี้จะไม่สามารถย้อนกลับได้', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก' });
             if (confirm.isConfirmed) {
                 Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -477,8 +495,7 @@
             }
         }
 
-        // Modal สำหรับดูรูปทั้งหมด (Gallery)
-        function openGalleryModal(imgList, title) {
+        window.openGalleryModal = function(imgList, title) {
             document.getElementById('galleryTitle').textContent = `รูปภาพทั้งหมด: ${title}`;
             const grid = document.getElementById('galleryImagesGrid');
             grid.innerHTML = imgList.map(img => `
@@ -489,7 +506,7 @@
             document.getElementById('galleryModal').classList.remove('hidden');
         }
 
-        function closeGalleryModal() {
+        window.closeGalleryModal = function() {
             document.getElementById('galleryModal').classList.add('hidden');
         }
 
