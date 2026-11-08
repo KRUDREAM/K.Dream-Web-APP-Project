@@ -226,7 +226,7 @@
             localStorage.setItem('theme', htmlElement.classList.contains('dark') ? 'dark' : 'light');
         });
 
-        async function initPage() {
+async function initPage() {
             const urlParams = new URLSearchParams(window.location.search);
             currentStudentId = urlParams.get('student_id') || urlParams.get('id') || localStorage.getItem('student_id') || localStorage.getItem('id');
             userRole = localStorage.getItem('role') || (currentStudentId ? 'student' : 'admin');
@@ -256,7 +256,7 @@
                 `).join('');
             }
 
-            // ดึงข้อมูลคอร์สที่นักเรียนลงทะเบียนไว้จากตารางต่างๆ
+            // ดึงข้อมูลคอร์สที่นักเรียนลงทะเบียนไว้จากตารางต่างๆ อย่างครอบคลุม
             if (currentStudentId) {
                 let enrollments = [];
                 const tables = ['course_enrollments', 'enrollments', 'student_courses', 'student_enrollments'];
@@ -271,72 +271,53 @@
             loadStudentNotificationsCount();
         }
 
-        function setFilterMode(mode) {
-            currentFilterMode = mode;
-            const btnAll = document.getElementById('btnFilterAll');
-            const btnCourse = document.getElementById('btnFilterCourse');
-
-            if (mode === 'all') {
-                btnAll.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-sm transition-all';
-                btnCourse.className = 'px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 transition-all';
-            } else {
-                btnCourse.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-sm transition-all';
-                btnAll.className = 'px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 transition-all';
-            }
-
-            renderFeed();
-        }
-
-        async function loadAnnouncements() {
-            const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
-            
-            if (error || !anns) {
-                document.getElementById('announcementFeed').innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400">ไม่สามารถโหลดข้อมูลประกาศได้</div>`;
-                return;
-            }
-
-            allAnnouncementsData = anns;
-            notificationsDataCache = anns;
-            renderFeed();
-            loadStudentNotificationsCount();
-        }
-
-        // ตรวจสอบสิทธิ์ว่าประกาศนี้ตรงกับนักเรียนคนนี้หรือไม่
+        // 🌟 ตรวจสอบสิทธิ์แบบเข้มงวด (ถ้าเลือกเฉพาะคอร์ส ต้องตรงกับที่ลงทะเบียนจริงๆ เท่านั้น)
         function isAnnouncementForThisStudent(announcement) {
             if (!announcement) return false;
             const targetType = announcement.target_type || 'all';
 
+            // 1. ถ้าเป็นประกาศทั่วไปสำหรับทุกคน แสดงผลปกติ
             if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
                 return true;
             }
 
+            // 2. ถ้าเป็นแบบเจาะจงรายบุคคล (Specific ID)
             if (targetType === 'specific') {
                 const studentId = String(currentStudentData?.id || currentStudentData?.student_id || currentStudentId || '').trim();
                 const targetValue = String(announcement.target_value || '').trim();
-                if (!targetValue) return true;
+                if (!targetValue) return false;
                 return targetValue.includes(studentId);
             }
 
+            // 3. ถ้าเป็นแบบระบุคอร์สเรียน (Course)
             if (targetType === 'course') {
+                // ถ้าเป็น Admin ให้เห็นทั้งหมดเสมอ
+                if (userRole !== 'student') return true;
+
+                // ถ้าเป็นนักเรียน แต่ไม่มีข้อมูลคอร์สที่ลงทะเบียนเลย -> ไม่ให้แสดง
                 if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) {
-                    return true;
+                    return false;
                 }
 
-                const targetValue = String(announcement.target_value || '').trim().toLowerCase();
-                const announcementCourses = targetValue.split(',').map(c => c.trim());
+                const targetValue = String(announcement.target_value || '').trim();
+                if (!targetValue) return false;
 
-                let studentIdentifiers = [];
-                enrolledCoursesList.forEach(c => {
-                    if (c.course_id) studentIdentifiers.push(String(c.course_id).trim().toLowerCase());
-                    if (c.id) studentIdentifiers.push(String(c.id).trim().toLowerCase());
+                // ดึง ID คอร์สที่ประกาศระบุไว้ (อาจคั่นด้วย comma หลายคอร์ส)
+                const announcementCourseIds = targetValue.split(',').map(id => id.trim().toLowerCase());
+
+                // รวบรวม ID คอร์สทั้งหมดที่นักเรียนคนนี้ลงทะเบียนไว้
+                let studentCourseIds = [];
+                enrolledCoursesList.forEach(e => {
+                    if (e.course_id) studentCourseIds.push(String(e.course_id).trim().toLowerCase());
+                    if (e.courseid) studentCourseIds.push(String(e.courseid).trim().toLowerCase());
+                    if (e.id && e.id !== currentStudentId) studentCourseIds.push(String(e.id).trim().toLowerCase());
                 });
 
-                return announcementCourses.some(ac => 
-                    studentIdentifiers.some(si => si === ac || si.includes(ac) || ac.includes(si))
-                );
+                // ตรวจสอบว่ามีคอร์สใดคอร์สหนึ่งตรงกันหรือไม่
+                return announcementCourseIds.some(acId => studentCourseIds.includes(acId));
             }
 
-            return true;
+            return false;
         }
 
         function renderFeed() {
@@ -344,11 +325,12 @@
             const searchInput = document.getElementById('annSearchInput');
             const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-            let displayList = allAnnouncementsData;
+            // กรองเฉพาะประกาศที่ตรงกับสิทธิ์ของนักเรียนคนนี้ก่อนเสมอ (ไม่ให้หลุดมาแสดงหากไม่ได้เลือกคอร์ส)
+            let displayList = allAnnouncementsData.filter(a => isAnnouncementForThisStudent(a));
 
-            // กรองตามโหมด (ทั้งหมด / เฉพาะคอร์สที่ฉันลง)
+            // ถ้าเลือกโหมด "เฉพาะคอร์สฉัน" เพิ่มเติม
             if (currentFilterMode === 'course' && userRole === 'student') {
-                displayList = allAnnouncementsData.filter(a => isAnnouncementForThisStudent(a));
+                displayList = displayList.filter(a => (a.target_type || 'all') === 'course');
             }
 
             // กรองตามคำค้นหา
@@ -364,7 +346,7 @@
                     <div class="modern-card p-12 rounded-3xl text-center text-slate-400">
                         <i class="fas fa-bullhorn text-3xl mb-3 text-sky-500"></i>
                         <h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ไม่พบประกาศในขณะนี้</h4>
-                        <p class="text-xs text-slate-400">ลองเปลี่ยนคำค้นหา หรือสลับมุมมองประกาศด้านบนได้ครับ</p>
+                        <p class="text-xs text-slate-400">ยังไม่มีประกาศที่ตรงกับคอร์สที่คุณลงทะเบียนไว้</p>
                     </div>
                 `;
                 return;
@@ -402,6 +384,36 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        function setFilterMode(mode) {
+            currentFilterMode = mode;
+            const btnAll = document.getElementById('btnFilterAll');
+            const btnCourse = document.getElementById('btnFilterCourse');
+
+            if (mode === 'all') {
+                btnAll.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-sm transition-all';
+                btnCourse.className = 'px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 transition-all';
+            } else {
+                btnCourse.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-sm transition-all';
+                btnAll.className = 'px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 transition-all';
+            }
+
+            renderFeed();
+        }
+
+        async function loadAnnouncements() {
+            const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
+            
+            if (error || !anns) {
+                document.getElementById('announcementFeed').innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400">ไม่สามารถโหลดข้อมูลประกาศได้</div>`;
+                return;
+            }
+
+            allAnnouncementsData = anns;
+            notificationsDataCache = anns;
+            renderFeed();
+            loadStudentNotificationsCount();
         }
 
         // ระบบ Dropdown แจ้งเตือนบน Navbar
