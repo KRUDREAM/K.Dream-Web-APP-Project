@@ -82,7 +82,7 @@
                             ระบบจัดการประกาศหน้าเว็บ (Site Announcements Hub)
                             <span id="announcementCount" class="px-2.5 py-0.5 bg-amber-500 text-white rounded-full text-xs font-bold">0</span>
                         </h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">สร้างประกาศ พร้อมตั้งเวลาเปิด-ปิดอัตโนมัติ หรือโพสต์ทันที</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">สร้างประกาศ ตั้งเวลาเปิด-ปิดอัตโนมัติ พร้อมแสดงสถานะปัจจุบัน</p>
                     </div>
                 </div>
                 <button onclick="openAnnouncementModal()" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2 shrink-0">
@@ -95,46 +95,6 @@
                 <div class="modern-card p-8 rounded-3xl text-center text-slate-400 col-span-full">
                     <i class="fas fa-spinner fa-spin text-2xl mb-2 text-amber-500"></i>
                     <p class="text-xs font-medium">กำลังโหลดประกาศ...</p>
-                </div>
-            </div>
-        </section>
-
-        <hr class="border-slate-200 dark:border-slate-800">
-
-        <!-- SECTION 2: จัดการแพ็กเกจคอร์สเรียน -->
-        <section class="space-y-6">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center text-lg shadow-md">
-                        <i class="fas fa-boxes-stacked"></i>
-                    </div>
-                    <div>
-                        <h2 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-                            รายการแพ็กเกจคอร์สเรียนทั้งหมด
-                            <span id="packageCount" class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-full text-xs font-bold">0 รายการ</span>
-                        </h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมแพ็กเกจ ราคา และรูปภาพสำหรับให้นักเรียนเลือกซื้อ</p>
-                    </div>
-                </div>
-                <button onclick="openPackageModal()" class="px-5 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-sky-500/20 flex items-center gap-2 shrink-0">
-                    <i class="fas fa-plus"></i> เพิ่มแพ็กเกจใหม่
-                </button>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
-                <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none w-full sm:w-auto" id="tagFilterContainer">
-                    <button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>
-                </div>
-                <div class="relative w-full sm:w-80">
-                    <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="searchInput" oninput="renderPackagesGrid()" placeholder="ค้นหาชื่อแพ็กเกจ หรือรหัส..." class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm">
-                </div>
-            </div>
-
-            <div id="packagesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">
-                    <i class="fas fa-spinner fa-spin text-3xl mb-3 text-sky-600"></i>
-                    <p class="text-sm font-medium">กำลังโหลดแพ็กเกจ...</p>
                 </div>
             </div>
         </section>
@@ -206,7 +166,7 @@
 
                 <div class="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="annActive" checked class="w-4 h-4 text-amber-500 rounded focus:ring-amber-500">
-                    <label for="annActive" class="text-xs font-bold text-slate-700 dark:text-slate-300">เปิดใช้งานสถานะทั่วไป (หากไม่ตั้งเวลา จะแสดงผลทันที)</label>
+                    <label for="annActive" class="text-xs font-bold text-slate-700 dark:text-slate-300">เปิดใช้งานสถานะทั่วไป (Master Switch)</label>
                 </div>
 
                 <div class="flex gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -221,176 +181,18 @@
         </div>
     </div>
 
-    <!-- Modal จัดการแพ็กเกจคอร์ส -->
-    <div id="packageModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="modern-card w-full max-w-4xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-6">
-            <button onclick="closePackageModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
-                <i class="fas fa-xmark"></i>
-            </button>
-
-            <div class="md:col-span-7 space-y-4">
-                <div class="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <div class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md">
-                        <i class="fas fa-pen-to-square"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-slate-900 dark:text-white" id="modalTitle">เพิ่มแพ็กเกจคอร์สใหม่</h3>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400">กำหนดราคา รายละเอียด และจัดการรูปภาพ</p>
-                    </div>
-                </div>
-
-                <form id="packageForm" onsubmit="handlePackageSubmit(event)" class="space-y-4">
-                    <input type="hidden" id="editPackageId">
-
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ชื่อแพ็กเกจ / คอร์ส <span class="text-red-500">*</span></label>
-                        <input type="text" id="pkgTitle" required oninput="updateLivePreview()" placeholder="เช่น Bundle เหมาเรียน ม.3 ทั้งเทอม" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500 font-bold">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">รหัสสินค้า</label>
-                            <input type="text" id="pkgCode" oninput="updateLivePreview()" placeholder="BUNDLE-M3" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ป้ายแท็กพิเศษ</label>
-                            <select id="pkgBadge" onchange="updateLivePreview()" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500 font-bold">
-                                <option value="">-- ไม่แสดงป้ายแท็ก --</option>
-                                <option value="🔥 โปรโมชั่นพิเศษ">🔥 โปรโมชั่นพิเศษ</option>
-                                <option value="🏷️ ลดราคาแรง">🏷️ ลดราคาแรง</option>
-                                <option value="⭐ ยอดฮิตสุด">⭐ ยอดฮิตสุด</option>
-                                <option value="🚀 เปิดใหม่">🚀 เปิดใหม่</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">แท็กหมวดหมู่ (คั่นด้วยจุลภาค)</label>
-                        <input type="text" id="pkgTags" placeholder="ไทย, สอบเข้าม1" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ราคาปกติ (บาท)</label>
-                            <input type="number" id="pkgOriginalPrice" oninput="updateLivePreview()" min="0" step="any" placeholder="2500" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ราคาขายจริง <span class="text-red-500">*</span></label>
-                            <input type="number" id="pkgPrice" required oninput="updateLivePreview()" min="0" step="any" placeholder="1500" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500 font-bold text-sky-600">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">🎁 ของแถมพิเศษ</label>
-                            <input type="text" id="pkgFreebies" oninput="updateLivePreview()" placeholder="แถมสรุปชีวะ 1 เล่ม" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">⏳ สิทธิ์จำกัด (ท่าน)</label>
-                            <input type="number" id="pkgMaxSlots" placeholder="เช่น 50" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">เงื่อนไขโปรโมชั่น / ส่วนลดเพิ่มเติม (พิมพ์เอง)</label>
-                        <input type="text" id="pkgPromo" oninput="updateLivePreview()" placeholder="ลด 40% เฉพาะ 30 ท่านแรกเท่านั้น" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">อัปโหลดรูปภาพ (16:9 Frame) & จัดลำดับ</label>
-                        <input type="file" id="pkgImagesInput" multiple accept="image/*" class="w-full px-3 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer">
-                        <p class="text-[10px] text-slate-400 mt-1">รูปแรกซ้ายสุดจะถูกใช้เป็นรูปปกหลักของสินค้า</p>
-                        <div id="imagePreviewContainer" class="flex flex-wrap gap-2 mt-2.5"></div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">รายละเอียดคอร์ส</label>
-                        <textarea id="pkgDesc" rows="3" oninput="updateLivePreview()" placeholder="อธิบายสิ่งที่นักเรียนจะได้รับ..." class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500 resize-none"></textarea>
-                    </div>
-
-                    <div class="flex gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                        <button type="submit" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-xl font-bold text-xs transition shadow-md shadow-sky-500/20">
-                            <i class="fas fa-floppy-disk mr-1"></i> บันทึกแพ็กเกจ
-                        </button>
-                        <button type="button" onclick="closePackageModal()" class="px-5 py-3 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs hover:bg-slate-200 transition">
-                            ยกเลิก
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="md:col-span-5 bg-slate-100/80 dark:bg-darkinput/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-                <div>
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-[10px] uppercase font-black tracking-wider text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2.5 py-1 rounded-lg">
-                            <i class="fas fa-eye mr-1"></i> พรีวิวหน้าเว็บนักเรียน
-                        </span>
-                        <span class="text-[10px] text-slate-400">16:9 Frame</span>
-                    </div>
-                    <div class="modern-card rounded-2xl overflow-hidden shadow-md bg-white dark:bg-darkbox">
-                        <div class="relative aspect-video overflow-hidden bg-slate-200 dark:bg-slate-800">
-                            <img id="previewImg" src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60" class="w-full h-full object-cover">
-                            <div id="previewCodeBadge" class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-lg">BUNDLE-M3</div>
-                            <div id="previewTagBadge" class="absolute top-2 right-2"></div>
-                        </div>
-                        <div class="p-4 space-y-2">
-                            <h4 id="previewTitle" class="font-bold text-sm text-slate-900 dark:text-white line-clamp-1">ชื่อแพ็กเกจตัวอย่าง</h4>
-                            <div class="flex items-center gap-2">
-                                <span id="previewPrice" class="text-base font-extrabold text-sky-600 dark:text-sky-400">฿1,500</span>
-                                <span id="previewOrigPrice" class="text-[11px] text-slate-400 line-through">฿2,500</span>
-                            </div>
-                            <p id="previewPromo" class="text-[10px] text-amber-500 font-medium"></p>
-                            <p id="previewFreebies" class="text-[10px] text-emerald-600 font-medium"></p>
-                            <p id="previewDesc" class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">รายละเอียดคอร์สตัวอย่าง...</p>
-                        </div>
-                    </div>
-                </div>
-                <p class="text-[10px] text-slate-400 text-center mt-4">รูปภาพและข้อมูลจะปรับเปลี่ยนตามที่คุณกรอกแบบเรียลไทม์</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gallery Modal -->
-    <div id="galleryModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-darkbox w-full max-w-2xl rounded-3xl p-6 relative">
-            <button onclick="closeGalleryModal()" class="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
-                <i class="fas fa-xmark"></i>
-            </button>
-            <h4 class="font-bold text-base mb-4" id="galleryTitle">รูปภาพทั้งหมด</h4>
-            <div id="galleryImagesGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto"></div>
-        </div>
-    </div>
-
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let allPackages = [];
         let allAnnouncements = [];
-        let activeTag = 'all';
-        let currentImageUrls = [];
         let currentAnnouncementImageUrl = '';
-
-        const htmlElement = document.documentElement;
-        const themeIcon = document.getElementById('themeIcon');
-        if (localStorage.getItem('theme') === 'dark') {
-            htmlElement.classList.add('dark');
-            themeIcon.classList.replace('fa-moon', 'fa-sun');
-        }
-        document.getElementById('themeToggle').addEventListener('click', () => {
-            htmlElement.classList.toggle('dark');
-            const isDark = htmlElement.classList.contains('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
-        });
 
         async function initPage() {
             await fetchAnnouncements();
-            await fetchPackages();
         }
 
-        // --- ระบบประกาศ (ใช้ตาราง site_announcements) ---
         async function fetchAnnouncements() {
             const { data, error } = await mySupabase.from('site_announcements').select('*').order('created_at', { ascending: false });
             if (!error && data) {
@@ -399,6 +201,7 @@
             }
         }
 
+        // ฟังก์ชันเรนเดอร์การ์ดประกาศ พร้อมเช็คสถานะเปิด-ปิดตามเวลาจริง
         function renderAnnouncementsGrid() {
             const grid = document.getElementById('announcementsGrid');
             const count = document.getElementById('announcementCount');
@@ -409,27 +212,45 @@
                 return;
             }
 
+            const now = new Date();
+
             grid.innerHTML = allAnnouncements.map(a => {
                 const badge = a.badge_tag ? `<span class="px-2.5 py-1 bg-amber-500 text-white font-bold text-[10px] rounded-lg shadow">${a.badge_tag}</span>` : `<span class="px-2.5 py-1 bg-sky-500 text-white font-bold text-[10px] rounded-lg shadow">ทั่วไป</span>`;
                 
-                let scheduleText = '<span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-500 rounded-lg text-[10px] font-bold">โพสต์ทันที / แสดงตลอดไป</span>';
-                if (a.start_at && a.end_at) {
-                    scheduleText = `<span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 rounded-lg text-[10px] font-bold">⏰ ${new Date(a.start_at).toLocaleString('th-TH')} - ${new Date(a.end_at).toLocaleString('th-TH')}</span>`;
-                } else if (a.start_at) {
-                    scheduleText = `<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-[10px] font-bold">🚀 เริ่ม: ${new Date(a.start_at).toLocaleString('th-TH')}</span>`;
-                } else if (a.end_at) {
-                    scheduleText = `<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-600 rounded-lg text-[10px] font-bold">⏳ สิ้นสุด: ${new Date(a.end_at).toLocaleString('th-TH')}</span>`;
+                // คำนวณสถานะการแสดงผลจริง (Live Status Checker)
+                let liveStatusBadge = '';
+                if (!a.is_active) {
+                    liveStatusBadge = '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">🔴 ปิดใช้งาน (Manual)</span>';
+                } else {
+                    const startAt = a.start_at ? new Date(a.start_at) : null;
+                    const endAt = a.end_at ? new Date(a.end_at) : null;
+
+                    if (startAt && now < startAt) {
+                        liveStatusBadge = '<span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 rounded-lg text-[10px] font-bold">⏳ ยังไม่ถึงเวลาเปิด</span>';
+                    } else if (endAt && now > endAt) {
+                        liveStatusBadge = '<span class="px-2.5 py-0.5 bg-slate-500/10 text-slate-500 rounded-lg text-[10px] font-bold">⚫ หมดเวลาแสดงผล</span>';
+                    } else {
+                        liveStatusBadge = '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold">🟢 กำลังแสดงผลอยู่ (Active)</span>';
+                    }
                 }
 
-                const status = a.is_active ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold">เปิดใช้งาน</span>' : '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">ปิดใช้งาน</span>';
+                let scheduleText = '<span class="text-[11px] text-slate-400">📅 แสดงผลตลอดไป (ไม่มีกำหนดเวลา)</span>';
+                if (a.start_at && a.end_at) {
+                    scheduleText = `<span class="text-[11px] text-slate-600 dark:text-slate-300">⏰ ${new Date(a.start_at).toLocaleString('th-TH')} - ${new Date(a.end_at).toLocaleString('th-TH')}</span>`;
+                } else if (a.start_at) {
+                    scheduleText = `<span class="text-[11px] text-slate-600 dark:text-slate-300">🚀 เริ่ม: ${new Date(a.start_at).toLocaleString('th-TH')}</span>`;
+                } else if (a.end_at) {
+                    scheduleText = `<span class="text-[11px] text-slate-600 dark:text-slate-300">⏳ ถึง: ${new Date(a.end_at).toLocaleString('th-TH')}</span>`;
+                }
+
                 const imgHtml = a.image_url ? `<div class="aspect-video w-full rounded-xl overflow-hidden bg-slate-100"><img src="${a.image_url}" class="w-full h-full object-cover"></div>` : '';
 
                 return `
                     <div class="modern-card p-5 rounded-3xl flex flex-col justify-between space-y-3">
                         <div class="space-y-2">
-                            <div class="flex justify-between items-center">${badge}<div class="flex gap-1">${status}</div></div>
+                            <div class="flex justify-between items-center gap-2">${badge}${liveStatusBadge}</div>
                             <h4 class="font-bold text-sm text-slate-900 dark:text-white">${a.title}</h4>
-                            <div class="text-[11px]">${scheduleText}</div>
+                            <div class="bg-slate-50 dark:bg-darkinput p-2 rounded-xl">${scheduleText}</div>
                             ${imgHtml}
                             <p class="text-xs text-slate-600 dark:text-slate-300 font-light leading-relaxed whitespace-pre-line line-clamp-3">${a.content}</p>
                         </div>
@@ -453,6 +274,7 @@
             }
         }
 
+        // ฟังก์ชันเปิด Modal พร้อมแปลงเวลา UTC เป็น Local Time ตรงเป๊ะไม่เพี้ยน GMT
         window.openAnnouncementModal = function(id = null) {
             document.getElementById('announcementForm').reset();
             document.getElementById('editAnnouncementId').value = '';
@@ -472,12 +294,19 @@
                     document.getElementById('annContent').value = a.content || '';
                     document.getElementById('annActive').checked = a.is_active;
 
-                    if (a.start_at) {
-                        document.getElementById('annStartAt').value = new Date(a.start_at).toISOString().slice(0, 16);
-                    }
-                    if (a.end_at) {
-                        document.getElementById('annEndAt').value = new Date(a.end_at).toISOString().slice(0, 16);
-                    }
+                    const formatForInput = (utcString) => {
+                        if (!utcString) return '';
+                        const date = new Date(utcString);
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const hours = String(date.getHours()).padStart(2, '0');
+                        const minutes = String(date.getMinutes()).padStart(2, '0');
+                        return `${year}-${month}-${day}T${hours}:${minutes}`;
+                    };
+
+                    if (a.start_at) document.getElementById('annStartAt').value = formatForInput(a.start_at);
+                    if (a.end_at) document.getElementById('annEndAt').value = formatForInput(a.end_at);
 
                     const selectElem = document.getElementById('annBadgeSelect');
                     const customInput = document.getElementById('annBadgeCustom');
@@ -485,10 +314,7 @@
 
                     let found = false;
                     for (let opt of selectElem.options) {
-                        if (opt.value === badgeVal) {
-                            found = true;
-                            break;
-                        }
+                        if (opt.value === badgeVal) { found = true; break; }
                     }
 
                     if (found || badgeVal === '') {
@@ -587,255 +413,6 @@
                 if (!error) fetchAnnouncements();
             }
         }
-
-        // --- ระบบแพ็กเกจคอร์สเรียน ---
-        async function fetchPackages() {
-            const { data, error } = await mySupabase.from('course_packages').select('*').order('created_at', { ascending: false });
-            if (!error && data) {
-                allPackages = data;
-                generateDynamicTags();
-                renderPackagesGrid();
-            }
-        }
-
-        function generateDynamicTags() {
-            const tagSet = new Set();
-            allPackages.forEach(p => {
-                if (Array.isArray(p.tags)) {
-                    p.tags.forEach(t => tagSet.add(t.trim()));
-                } else if (typeof p.tags === 'string' && p.tags.trim() !== '') {
-                    p.tags.split(',').forEach(t => tagSet.add(t.trim()));
-                }
-            });
-
-            const container = document.getElementById('tagFilterContainer');
-            let html = `<button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>`;
-            
-            tagSet.forEach(tag => {
-                html += `<button onclick="filterByTag('${tag}')" id="tag-${tag}" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">${tag}</button>`;
-            });
-
-            container.innerHTML = html;
-        }
-
-        window.filterByTag = function(tag) {
-            activeTag = tag;
-            document.querySelectorAll('.tag-btn').forEach(btn => {
-                btn.className = 'tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50';
-            });
-            const activeBtn = document.getElementById(`tag-${tag}`);
-            if (activeBtn) activeBtn.className = 'tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md';
-            renderPackagesGrid();
-        }
-
-        function renderPackagesGrid() {
-            const grid = document.getElementById('packagesGrid');
-            const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
-            const countBadge = document.getElementById('packageCount');
-
-            const filtered = allPackages.filter(p => {
-                const title = (p.title || '').toLowerCase();
-                const code = (p.code || '').toLowerCase();
-                const tagsStr = Array.isArray(p.tags) ? p.tags.join(',').toLowerCase() : (p.tags || '').toLowerCase();
-                const matchKeyword = title.includes(keyword) || code.includes(keyword) || tagsStr.includes(keyword);
-                const matchTag = activeTag === 'all' || tagsStr.includes(activeTag.toLowerCase());
-                return matchKeyword && matchTag;
-            });
-
-            if (countBadge) countBadge.textContent = `${filtered.length} รายการ`;
-
-            if (filtered.length === 0) {
-                grid.innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full"><p class="text-xs text-slate-400">ไม่พบแพ็กเกจสินค้า</p></div>`;
-                return;
-            }
-
-            grid.innerHTML = filtered.map(p => {
-                const title = p.title || 'แพ็กเกจคอร์ส';
-                const code = p.code ? `รหัส: ${p.code}` : 'BUNDLE';
-                const price = `฿${Number(p.price || 0).toLocaleString()}`;
-                const origPrice = p.original_price ? `฿${Number(p.original_price).toLocaleString()}` : '';
-                const badge = p.badge_tag ? `<span class="px-2.5 py-1 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">${p.badge_tag}</span>` : '';
-                const promo = p.promo_details ? `<p class="text-[11px] text-amber-500 font-medium"><i class="fas fa-bolt mr-1"></i>${p.promo_details}</p>` : '';
-                const freebies = p.freebies ? `<p class="text-[11px] text-emerald-600 font-medium"><i class="fas fa-gift mr-1"></i>${p.freebies}</p>` : '';
-                const desc = p.description || 'ไม่มีรายละเอียดเพิ่มเติม';
-                
-                let imgList = Array.isArray(p.images) && p.images.length > 0 ? p.images : [p.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60'];
-                const mainImg = imgList[0];
-                const moreBtn = imgList.length > 1 ? `<button onclick="openGalleryModal(${JSON.stringify(imgList).replace(/"/g, '&quot;')}, '${title}')" class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-xl"><i class="fas fa-images mr-1"></i> ${imgList.length} รูป</button>` : '';
-
-                return `
-                    <div class="modern-card rounded-3xl overflow-hidden flex flex-col justify-between group">
-                        <div>
-                            <div class="relative aspect-video overflow-hidden bg-slate-100 dark:bg-darkinput">
-                                <img src="${mainImg}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-                                <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-xl">${code}</div>
-                                <div class="absolute top-3 right-3">${badge}</div>
-                                ${moreBtn}
-                            </div>
-                            <div class="p-6 space-y-2">
-                                <h4 class="font-bold text-base text-slate-900 dark:text-white line-clamp-1">${title}</h4>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-lg font-extrabold text-sky-600">${price}</span>
-                                    ${origPrice ? `<span class="text-xs text-slate-400 line-through">${origPrice}</span>` : ''}
-                                </div>
-                                ${promo}
-                                ${freebies}
-                                <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">${desc}</p>
-                            </div>
-                        </div>
-                        <div class="p-6 pt-0 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 mt-4 gap-2">
-                            <button onclick="editPackage('${p.id}')" class="flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition">แก้ไข</button>
-                            <button onclick="deletePackage('${p.id}')" class="px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold transition"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        window.openPackageModal = function(pkgId = null) {
-            document.getElementById('packageForm').reset();
-            document.getElementById('editPackageId').value = '';
-            document.getElementById('imagePreviewContainer').innerHTML = '';
-            currentImageUrls = [];
-            document.getElementById('modalTitle').textContent = 'เพิ่มแพ็กเกจคอร์สใหม่';
-
-            if (pkgId) {
-                const pkg = allPackages.find(p => p.id === pkgId);
-                if (pkg) {
-                    document.getElementById('editPackageId').value = pkg.id;
-                    document.getElementById('pkgTitle').value = pkg.title || '';
-                    document.getElementById('pkgCode').value = pkg.code || '';
-                    document.getElementById('pkgBadge').value = pkg.badge_tag || '';
-                    document.getElementById('pkgTags').value = Array.isArray(pkg.tags) ? pkg.tags.join(', ') : (pkg.tags || '');
-                    document.getElementById('pkgOriginalPrice').value = pkg.original_price || '';
-                    document.getElementById('pkgPrice').value = pkg.price || '';
-                    document.getElementById('pkgFreebies').value = pkg.freebies || '';
-                    document.getElementById('pkgMaxSlots').value = pkg.max_slots || '';
-                    document.getElementById('pkgPromo').value = pkg.promo_details || '';
-                    document.getElementById('pkgDesc').value = pkg.description || '';
-                    
-                    currentImageUrls = Array.isArray(pkg.images) ? [...pkg.images] : (pkg.image_url ? [pkg.image_url] : []);
-                    renderImagePreviews();
-                    document.getElementById('modalTitle').textContent = 'แก้ไขแพ็กเกจคอร์ส';
-                }
-            }
-            updateLivePreview();
-            document.getElementById('packageModal').classList.remove('hidden');
-        }
-
-        window.closePackageModal = function() { document.getElementById('packageModal').classList.add('hidden'); }
-        window.editPackage = function(id) { openPackageModal(id); }
-
-        document.getElementById('pkgImagesInput').addEventListener('change', async (e) => {
-            const files = e.target.files;
-            if (!files || files.length === 0) return;
-            Swal.fire({ title: 'กำลังอัปโหลดรูปภาพ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            for (let file of files) {
-                const fileName = `course_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${file.name.split('.').pop()}`;
-                const { data, error } = await mySupabase.storage.from('course_images').upload(fileName, file);
-                if (!error) {
-                    const { data: pub } = mySupabase.storage.from('course_images').getPublicUrl(fileName);
-                    if (pub?.publicUrl) currentImageUrls.push(pub.publicUrl);
-                }
-            }
-            Swal.close();
-            renderImagePreviews();
-        });
-
-        function renderImagePreviews() {
-            const container = document.getElementById('imagePreviewContainer');
-            container.innerHTML = currentImageUrls.map((url, index) => `
-                <div class="relative w-20 h-12 rounded-lg overflow-hidden border border-slate-200 shadow-sm group">
-                    <img src="${url}" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition">
-                        ${index > 0 ? `<button type="button" onclick="moveImage(${index}, -1)" class="text-white text-[10px]"><i class="fas fa-chevron-left"></i></button>` : ''}
-                        <button type="button" onclick="removeImage(${index})" class="text-rose-300 text-[10px]"><i class="fas fa-trash"></i></button>
-                        ${index < currentImageUrls.length - 1 ? `<button type="button" onclick="moveImage(${index}, 1)" class="text-white text-[10px]"><i class="fas fa-chevron-right"></i></button>` : ''}
-                    </div>
-                </div>
-            `).join('');
-            updateLivePreview();
-        }
-
-        window.moveImage = function(index, direction) {
-            const target = index + direction;
-            if (target < 0 || target >= currentImageUrls.length) return;
-            const temp = currentImageUrls[index];
-            currentImageUrls[index] = currentImageUrls[target];
-            currentImageUrls[target] = temp;
-            renderImagePreviews();
-        }
-
-        window.removeImage = function(index) {
-            currentImageUrls.splice(index, 1);
-            renderImagePreviews();
-        }
-
-        function updateLivePreview() {
-            const title = document.getElementById('pkgTitle').value || 'ชื่อแพ็กเกจตัวอย่าง';
-            const code = document.getElementById('pkgCode').value || 'BUNDLE-M3';
-            const price = document.getElementById('pkgPrice').value ? `฿${Number(document.getElementById('pkgPrice').value).toLocaleString()}` : '฿1,500';
-            const origPrice = document.getElementById('pkgOriginalPrice').value ? `฿${Number(document.getElementById('pkgOriginalPrice').value).toLocaleString()}` : '';
-            const badge = document.getElementById('pkgBadge').value;
-            const promo = document.getElementById('pkgPromo').value;
-            const freebies = document.getElementById('pkgFreebies').value;
-            const desc = document.getElementById('pkgDesc').value || 'รายละเอียดคอร์สตัวอย่าง...';
-
-            document.getElementById('previewTitle').textContent = title;
-            document.getElementById('previewCodeBadge').textContent = code;
-            document.getElementById('previewPrice').textContent = price;
-            document.getElementById('previewOrigPrice').textContent = origPrice;
-            document.getElementById('previewPromo').textContent = promo ? `⚡ ${promo}` : '';
-            document.getElementById('previewFreebies').textContent = freebies ? `🎁 ${freebies}` : '';
-            document.getElementById('previewDesc').textContent = desc;
-            document.getElementById('previewTagBadge').innerHTML = badge ? `<span class="bg-rose-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg shadow">${badge}</span>` : '';
-            if (currentImageUrls.length > 0) document.getElementById('previewImg').src = currentImageUrls[0];
-        }
-
-        window.handlePackageSubmit = async function(e) {
-            e.preventDefault();
-            const id = document.getElementById('editPackageId').value;
-            const tagsInput = document.getElementById('pkgTags').value;
-            const tagsArray = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
-
-            const payload = {
-                title: document.getElementById('pkgTitle').value.trim(),
-                code: document.getElementById('pkgCode').value.trim(),
-                badge_tag: document.getElementById('pkgBadge').value,
-                tags: tagsArray,
-                original_price: document.getElementById('pkgOriginalPrice').value ? parseFloat(document.getElementById('pkgOriginalPrice').value) : null,
-                price: parseFloat(document.getElementById('pkgPrice').value) || 0,
-                freebies: document.getElementById('pkgFreebies').value.trim(),
-                max_slots: document.getElementById('pkgMaxSlots').value ? parseInt(document.getElementById('pkgMaxSlots').value) : null,
-                promo_details: document.getElementById('pkgPromo').value.trim(),
-                images: currentImageUrls,
-                image_url: currentImageUrls.length > 0 ? currentImageUrls[0] : null,
-                description: document.getElementById('pkgDesc').value.trim()
-            };
-
-            Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            let error = id ? (await mySupabase.from('course_packages').update(payload).eq('id', id)).error : (await mySupabase.from('course_packages').insert([payload])).error;
-
-            if (error) { Swal.fire('เกิดข้อผิดพลาด', error.message, 'error'); return; }
-            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1200, showConfirmButton: false });
-            closePackageModal();
-            fetchPackages();
-        }
-
-        window.deletePackage = async function(id) {
-            const confirm = await Swal.fire({ title: 'ลบแพ็กเกจนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก' });
-            if (confirm.isConfirmed) {
-                const { error } = await mySupabase.from('course_packages').delete().eq('id', id);
-                if (!error) fetchPackages();
-            }
-        }
-
-        window.openGalleryModal = function(imgList, title) {
-            document.getElementById('galleryTitle').textContent = `รูปภาพทั้งหมด: ${title}`;
-            document.getElementById('galleryImagesGrid').innerHTML = imgList.map(img => `<div class="rounded-2xl overflow-hidden aspect-video bg-slate-100"><img src="${img}" class="w-full h-full object-cover"></div>`).join('');
-            document.getElementById('galleryModal').classList.remove('hidden');
-        }
-        window.closeGalleryModal = function() { document.getElementById('galleryModal').classList.add('hidden'); }
 
         initPage();
     </script>
