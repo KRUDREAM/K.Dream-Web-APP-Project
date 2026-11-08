@@ -294,66 +294,22 @@ async function initPage() {
             }
 
             if (currentStudentId) {
-                const { data: studentData, error: profileErr } = await mySupabase.from('profiles').select('*').eq('id', currentStudentId).single();
-                if (studentData) {
-                    currentStudentData = studentData;
-                    console.log("🔍 Profiles Data Found:", studentData);
-                } else {
-                    console.warn("⚠️ Profile not found or error:", profileErr);
-                }
+                const { data: studentData } = await mySupabase.from('profiles').select('*').eq('id', currentStudentId).single();
+                if (studentData) currentStudentData = studentData;
             }
 
             await fetchCoursesAndStudents();
 
-            // 🔎 ระบบสืบค้นข้อมูลการลงทะเบียนจากหลายตารางที่เป็นไปได้แบบปลอดภัย
+            // ดึงข้อมูลการลงทะเบียนจากตาราง enrollments ด้วย student_id ที่ถูกต้อง
             if (currentStudentId) {
                 let enrollments = [];
-
-                // ลองตารางที่ 1: course_enrollments (student_id)
                 try {
-                    const { data, error } = await mySupabase.from('course_enrollments').select('*').eq('student_id', currentStudentId);
-                    console.log("Test table [course_enrollments where student_id]:", data, error);
-                    if (data && data.length > 0) enrollments = enrollments.concat(data);
+                    const { data } = await mySupabase.from('enrollments').select('*').eq('student_id', currentStudentId);
+                    if (data) enrollments = data;
                 } catch(e) {}
-
-                // ลองตารางที่ 2: course_enrollments (user_id)
-                try {
-                    const { data, error } = await mySupabase.from('course_enrollments').select('*').eq('user_id', currentStudentId);
-                    console.log("Test table [course_enrollments where user_id]:", data, error);
-                    if (data && data.length > 0) enrollments = enrollments.concat(data);
-                } catch(e) {}
-
-                // ลองตารางที่ 3: enrollments (student_id)
-                try {
-                    const { data, error } = await mySupabase.from('enrollments').select('*').eq('student_id', currentStudentId);
-                    console.log("Test table [enrollments where student_id]:", data, error);
-                    if (data && data.length > 0) enrollments = enrollments.concat(data);
-                } catch(e) {}
-
-                // ลองตารางที่ 4: enrollments (user_id)
-                try {
-                    const { data, error } = await mySupabase.from('enrollments').select('*').eq('user_id', currentStudentId);
-                    console.log("Test table [enrollments where user_id]:", data, error);
-                    if (data && data.length > 0) enrollments = enrollments.concat(data);
-                } catch(e) {}
-
-                // ลองเช็คจากฟิลด์ในตาราง profiles โดยตรง (เผื่อเก็บเป็น Array หรือ JSON)
-                if (currentStudentData) {
-                    for (let key in currentStudentData) {
-                        const val = currentStudentData[key];
-                        if (Array.isArray(val) && val.length > 0) {
-                            console.log(`💡 Found array in profiles.${key}:`, val);
-                            // ถ้าสมาชิกใน array เป็น ID คอร์ส
-                            val.forEach(item => {
-                                if (typeof item === 'string') enrollments.push({ course_id: item });
-                                else if (item && item.course_id) enrollments.push(item);
-                            });
-                        }
-                    }
-                }
 
                 enrolledCoursesList = enrollments;
-                console.log("🎯 Final Resolved Enrolled Courses:", enrolledCoursesList);
+                console.log("Verified Enrolled Courses:", enrolledCoursesList);
             }
 
             await loadAnnouncements();
