@@ -222,6 +222,7 @@
         let userRole = 'admin';
         let currentStudentData = null;
         let studentEnrolledCourses = [];
+        let studentEnrolledCourseIds = []; // เก็บ UUID ของคอร์สที่นักเรียนลงทะเบียน
         let allCoursesList = [];
         let allStudentsList = [];
         let coursesMap = {};
@@ -290,17 +291,19 @@
 
                     const realUuid = sData?.id || studentId;
                     const { data: en1 } = await mySupabase.from('course_enrollments').select('course_id').eq('student_id', realUuid);
-                    if (en1 && en1.length > 0) {
-                        for (let e of en1) {
-                            const { data: cData } = await mySupabase.from('courses').select('title, course_code').eq('id', e.course_id).maybeSingle();
-                            if (cData) studentEnrolledCourses.push(cData.title || cData.course_code);
-                        }
-                    } else {
+                    let enrollments = en1;
+                    if (!enrollments || enrollments.length === 0) {
                         const { data: en2 } = await mySupabase.from('course_enrollments').select('course_id').eq('student_id', studentId);
-                        if (en2) {
-                            for (let e of en2) {
-                                const { data: cData } = await mySupabase.from('courses').select('title, course_code').eq('id', e.course_id).maybeSingle();
-                                if (cData) studentEnrolledCourses.push(cData.title || cData.course_code);
+                        enrollments = en2;
+                    }
+
+                    if (enrollments && enrollments.length > 0) {
+                        for (let e of enrollments) {
+                            studentEnrolledCourseIds.push(String(e.course_id));
+                            const { data: cData } = await mySupabase.from('courses').select('id, title, course_code').eq('id', e.course_id).maybeSingle();
+                            if (cData) {
+                                if (cData.title) studentEnrolledCourses.push(cData.title.trim().toLowerCase());
+                                if (cData.course_code) studentEnrolledCourses.push(cData.course_code.trim().toLowerCase());
                             }
                         }
                     }
@@ -319,7 +322,7 @@
             return false;
         }
 
-        // 🌟 ฟังก์ชันตรวจสอบสิทธิ์ประกาศของนักเรียน (เชื่อมโยงกับ lms_core.js หรือใช้ตรรกะเดียวกัน)
+        // 🌟 ฟังก์ชันตรวจสอบสิทธิ์ประกาศของนักเรียน (กรองคอร์ส/ระดับชั้นอย่างแม่นยำ)
         function isAnnouncementForThisStudent(a) {
             if (userRole !== 'student') return true;
             if (typeof window.isAnnouncementForThisStudent === 'function' && window.isAnnouncementForThisStudent !== isAnnouncementForThisStudent) {
@@ -333,23 +336,35 @@
             if (tType === 'all' || !tType) return true;
             if (a.category === 'exam' && (!tVal || tType === 'all')) return true;
 
+            // 1. เช็คตามระดับชั้น
             if (tType === 'level') {
                 const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
                 if (!studentGrade) return true;
                 return tVal.toLowerCase().includes(studentGrade.toLowerCase());
             }
+
+            // 2. เช็คตามคอร์สเรียน (ตรวจสอบรหัส/ชื่อ/ID คอร์สให้ตรงกันจริง ๆ)
             if (tType === 'course') {
-                if (studentEnrolledCourses.length === 0) return true;
-                const targetCourses = tVal.split(',').map(c => c.trim().toLowerCase());
-                return studentEnrolledCourses.some(c => targetCourses.includes(c.toLowerCase()));
+                if (!tVal) return false;
+                const targetItems = tVal.split(',').map(item => item.trim().toLowerCase());
+                
+                let isMatch = targetItems.some(target => {
+                    return studentEnrolledCourses.some(enrolled => enrolled === target || enrolled.includes(target) || target.includes(enrolled)) ||
+                           studentEnrolledCourseIds.some(id => target === id.toLowerCase());
+                });
+                return isMatch;
             }
+
+            // 3. เช็คตามรายบุคคล
             if (tType === 'specific') {
+                if (!tVal) return false;
                 const targetStudents = tVal.split(',').map(s => s.trim());
                 const uuidMatch = currentStudentData?.id && targetStudents.includes(String(currentStudentData.id));
                 const idMatch = targetStudents.includes(String(studentId));
                 const usernameMatch = currentStudentData?.username && targetStudents.includes(String(currentStudentData.username));
-                return uuidMatch || idMatch || usernameMatch || targetStudents.length === 0;
+                return uuidMatch || idMatch || usernameMatch;
             }
+
             return true;
         }
 
@@ -436,7 +451,7 @@
                 return;
             }
 
-            // 🌟 กรองประกาศโดยใช้ฟังก์ชัน isAnnouncementForThisStudent
+            // 🌟 กรองประกาศโดยใช้ฟังก์ชัน isAnnouncementForThisStudent ที่ปรับปรุงแล้ว
             let filteredAnns = anns.filter(a => {
                 try {
                     return isAnnouncementForThisStudent(a);
