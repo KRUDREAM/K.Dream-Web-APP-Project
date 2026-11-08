@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="th" class="light">
+<head>
+    <script src="lms_core.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KRUDREAM LAND | เลือกดูคอร์สเรียนและแพ็กเกจทั้งหมด</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { 
+                extend: { 
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] }, 
+                    colors: { primary: '#0284c7', darkbg: '#090d16', darkbox: '#0f172a', darkinput: '#1e293b' } 
+                } 
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .glass-nav { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(226, 232, 240, 0.8); }
+        .dark .glass-nav { background: rgba(9, 13, 22, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(30, 41, 59, 0.8); }
+        .modern-card { background: #ffffff; border: 1px solid rgba(226, 232, 240, 1); box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.08); }
+        .dark .modern-card { background: #0f172a; border: 1px solid rgba(30, 41, 59, 1); }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
+
+    <!-- Navigation -->
+    <nav class="glass-nav fixed w-full top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-20 items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-sky-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-sky-500/30">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-lg text-slate-900 dark:text-white">KRUDREAM LAND</h1>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400">คอร์สเรียนและแพ็กเกจคุณภาพ</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="window.location.href='student.html'" class="px-4 py-2 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 rounded-xl text-xs font-bold transition hover:bg-sky-100">
+                        <i class="fas fa-user mr-1"></i> เข้าสู่ระบบนักเรียน
+                    </button>
+                    <button id="themeToggle" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                        <i class="fas fa-moon text-sm" id="themeIcon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="pt-32 pb-12 px-4 text-center max-w-4xl mx-auto space-y-3">
+        <span class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-full text-xs font-bold">📚 คอร์สเรียนทั้งหมด</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">เลือกคอร์สที่ใช่ เพื่ออนาคตที่ดีกว่า</h2>
+        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">รวบรวมคอร์สเรียนและแพ็กเกจคุณภาพ ออกแบบมาเพื่อการสอบเข้าและความเข้าใจที่แท้จริง</p>
+        
+        <!-- Search Bar -->
+        <div class="pt-4 max-w-xl mx-auto relative">
+            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" id="searchInput" oninput="renderCatalog()" placeholder="ค้นหาชื่อคอร์ส, วิชา, หรือรหัสแพ็กเกจ..." class="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm">
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 space-y-8">
+        
+        <!-- Tag Filter Bar -->
+        <div class="flex items-center justify-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="tagFilterContainer">
+            <button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>
+            <button onclick="filterByTag('สอบเข้าม1')" id="tag-สอบเข้าม1" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#สอบเข้าม1</button>
+            <button onclick="filterByTag('ภาษาไทย')" id="tag-ภาษาไทย" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#ภาษาไทย</button>
+            <button onclick="filterByTag('สังคมศึกษา')" id="tag-สังคมศึกษา" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#สังคมศึกษา</button>
+            <button onclick="filterByTag('โปรโมชั่น')" id="tag-โปรโมชั่น" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#โปรโมชั่นพิเศษ</button>
+        </div>
+
+        <!-- Catalog Grid -->
+        <div id="catalogGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">
+                <i class="fas fa-spinner fa-spin text-3xl mb-3 text-sky-600"></i>
+                <p class="text-sm font-medium">กำลังโหลดคอร์สเรียน...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal รายละเอียดคอร์ส & สมัครเรียน (พร้อมช่องกรอก Promo Code) -->
+    <div id="courseModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="modern-card w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-4">
+            <button onclick="closeCourseModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
+                <i class="fas fa-xmark"></i>
+            </button>
+            
+            <div id="modalContent" class="space-y-4">
+                <!-- ข้อมูลจะถูก Render ผ่าน JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Gallery Modal -->
+    <div id="galleryModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-darkbox w-full max-w-2xl rounded-3xl p-6 relative">
+            <button onclick="closeGalleryModal()" class="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
+                <i class="fas fa-xmark"></i>
+            </button>
+            <h4 class="font-bold text-base mb-4" id="galleryTitle">รูปภาพทั้งหมดของคอร์ส</h4>
+            <div id="galleryImagesGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
+        const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let allPackages = [];
+        let allPromos = [];
+        let activeTag = 'all';
+
+        const htmlElement = document.documentElement;
+        const themeIcon = document.getElementById('themeIcon');
+        if (localStorage.getItem('theme') === 'dark') {
+            htmlElement.classList.add('dark');
+            themeIcon.classList.replace('fa-moon', 'fa-sun');
+        }
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            htmlElement.classList.toggle('dark');
+            const isDark = htmlElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
+        });
+
+        async function initPage() {
+            await fetchCatalogData();
+        }
+
+        async function fetchCatalogData() {
+            // โหลดแพ็กเกจคอร์ส และโปรโมชั่นพร้อมกัน
+            const [pkgRes, promoRes] = await Promise.all([
+                mySupabase.from('course_packages').select('*').order('created_at', { ascending: false }),
+                mySupabase.from('promotions').select('*').eq('is_active', true)
+            ]);
+
+            allPackages = pkgRes.data || [];
+            allPromos = promoRes.data || [];
+            renderCatalog();
+        }
+
+        window.filterByTag = function(tag) {
+            activeTag = tag;
+            document.querySelectorAll('.tag-btn').forEach(btn => {
+                btn.className = 'tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50';
+            });
+            const activeBtn = document.getElementById(`tag-${tag}`);
+            if (activeBtn) activeBtn.className = 'tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md';
+            renderCatalog();
+        }
+
+        function renderCatalog() {
+            const grid = document.getElementById('catalogGrid');
+            const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            const filtered = allPackages.filter(p => {
+                const title = (p.title || '').toLowerCase();
+                const code = (p.code || '').toLowerCase();
+                const tagsStr = Array.isArray(p.tags) ? p.tags.join(',').toLowerCase() : (p.tags || '').toLowerCase();
+                
+                const matchKeyword = title.includes(keyword) || code.includes(keyword) || tagsStr.includes(keyword);
+                const matchTag = activeTag === 'all' || tagsStr.includes(activeTag.toLowerCase());
+
+                return matchKeyword && matchTag;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">
+                        <i class="fas fa-book-open text-3xl mb-3 text-sky-500"></i>
+                        <h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ไม่พบคอร์สเรียนที่ค้นหา</h4>
+                        <p class="text-xs text-slate-400">ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่แท็กอื่นดูนะคร้าบ</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(p => {
+                const title = p.title || 'แพ็กเกจคอร์ส';
+                const code = p.code ? `รหัส: ${p.code}` : 'BUNDLE';
+                const price = `฿${Number(p.price || 0).toLocaleString()}`;
+                const origPrice = p.original_price ? `฿${Number(p.original_price).toLocaleString()}` : '';
+                const badge = p.badge_tag ? `<span class="px-2.5 py-1 bg-rose-500 text-white rounded-xl text-[10px] font-bold shadow">${p.badge_tag}</span>` : '';
+                const promo = p.promo_details ? `<p class="text-[11px] text-amber-500 font-medium"><i class="fas fa-bolt mr-1"></i>${p.promo_details}</p>` : '';
+                const freebies = p.freebies ? `<p class="text-[11px] text-emerald-600 font-medium"><i class="fas fa-gift mr-1"></i>${p.freebies}</p>` : '';
+                const desc = p.description || 'ไม่มีรายละเอียดเพิ่มเติม';
+                
+                let imgList = Array.isArray(p.images) && p.images.length > 0 ? p.images : [p.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60'];
+                const mainImg = imgList[0];
+                const moreBtn = imgList.length > 1 ? `<button onclick="openGalleryModal(${JSON.stringify(imgList).replace(/"/g, '&quot;')}, '${title}')" class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-xl"><i class="fas fa-images mr-1"></i> ${imgList.length} รูป</button>` : '';
+
+                return `
+                    <div class="modern-card rounded-3xl overflow-hidden flex flex-col justify-between group cursor-pointer hover:border-sky-500 transition" onclick="openCourseDetail('${p.id}')">
+                        <div>
+                            <div class="relative aspect-video overflow-hidden bg-slate-100 dark:bg-darkinput">
+                                <img src="${mainImg}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-xl">${code}</div>
+                                <div class="absolute top-3 right-3">${badge}</div>
+                                ${moreBtn}
+                            </div>
+                            <div class="p-6 space-y-2.5">
+                                <h4 class="font-bold text-base text-slate-900 dark:text-white line-clamp-1">${title}</h4>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-lg font-extrabold text-sky-600 dark:text-sky-400">${price}</span>
+                                    ${origPrice ? `<span class="text-xs text-slate-400 line-through">${origPrice}</span>` : ''}
+                                </div>
+                                ${promo}
+                                ${freebies}
+                                <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${desc}</p>
+                            </div>
+                        </div>
+                        <div class="p-6 pt-0 border-t border-slate-100 dark:border-slate-800 mt-4">
+                            <button class="w-full py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl text-xs font-bold transition shadow-md shadow-sky-500/20 flex items-center justify-center gap-2">
+                                <i class="fas fa-arrow-right"></i> ดูรายละเอียด & สมัครเรียน
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // เปิด Modal รายละเอียดคอร์สเมื่อคลิกการ์ด
+        window.openCourseDetail = function(id) {
+            const pkg = allPackages.find(x => x.id === id);
+            if (!pkg) return;
+
+            let imgList = Array.isArray(pkg.images) && pkg.images.length > 0 ? pkg.images : [pkg.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60'];
+            
+            const modalContent = document.getElementById('modalContent');
+            modalContent.innerHTML = `
+                <div class="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 dark:bg-darkinput shadow-inner">
+                    <img src="${imgList[0]}" class="w-full h-full object-cover" id="modalMainImg">
+                </div>
+                ${imgList.length > 1 ? `
+                    <div class="flex gap-2 overflow-x-auto pb-1">
+                        ${imgList.map((img, idx) => `<img src="${img}" onclick="document.getElementById('modalMainImg').src='${img}'" class="w-16 h-10 object-cover rounded-lg cursor-pointer border border-slate-200 hover:border-sky-500">`).join('')}
+                    </div>
+                ` : ''}
+                
+                <div class="space-y-2">
+                    <div class="flex justify-between items-start">
+                        <span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-xs font-bold">[${pkg.code || 'BUNDLE'}]</span>
+                        ${pkg.badge_tag ? `<span class="px-2 py-0.5 bg-rose-500 text-white rounded-lg text-[10px] font-bold">${pkg.badge_tag}</span>` : ''}
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-white">${pkg.title}</h3>
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl font-black text-sky-600 dark:text-sky-400" id="finalPriceDisplay" data-price="${pkg.price}">฿${Number(pkg.price || 0).toLocaleString()}</span>
+                        ${pkg.original_price ? `<span class="text-sm text-slate-400 line-through">฿${Number(pkg.original_price).toLocaleString()}</span>` : ''}
+                    </div>
+                    ${pkg.promo_details ? `<p class="text-xs text-amber-500 font-medium"><i class="fas fa-bolt mr-1"></i>${pkg.promo_details}</p>` : ''}
+                    ${pkg.freebies ? `<p class="text-xs text-emerald-600 font-medium"><i class="fas fa-gift mr-1"></i>${pkg.freebies}</p>` : ''}
+                </div>
+
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">รายละเอียดหลักสูตร</label>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed whitespace-pre-line">${pkg.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
+                </div>
+
+                <!-- ช่องกรอกโค้ดส่วนลด -->
+                <div class="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">🎟️ มีโค้ดส่วนลด?</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="couponInput" placeholder="กรอกโค้ดส่วนลดที่นี่" class="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl text-xs uppercase font-mono font-bold outline-none focus:border-amber-500">
+                        <button type="button" onclick="applyCoupon(${pkg.price}, '${pkg.id}')" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition">ใช้โค้ด</button>
+                    </div>
+                    <p id="couponMsg" class="text-[11px] font-medium"></p>
+                </div>
+
+                <div class="pt-4">
+                    <button onclick="handleEnroll('${pkg.title}')" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
+                        <i class="fas fa-check-circle"></i> ยืนยันสมัครเรียนแพ็กเกจนี้
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('courseModal').classList.remove('hidden');
+        }
+
+        window.closeCourseModal = function() {
+            document.getElementById('courseModal').classList.add('hidden');
+        }
+
+        // ระบบตรวจสอบและคำนวณส่วนลดจากโค้ด
+        window.applyCoupon = function(originalPrice, courseId) {
+            const code = document.getElementById('couponInput').value.trim().toUpperCase();
+            const msg = document.getElementById('couponMsg');
+            const display = document.getElementById('finalPriceDisplay');
+
+            const promo = allPromos.find(x => x.code === code && x.promo_type === 'code');
+
+            if (!promo) {
+                msg.textContent = '❌ โค้ดส่วนลดไม่ถูกต้องหรือหมดอายุแล้ว';
+                msg.className = 'text-[11px] text-rose-500 font-bold';
+                display.textContent = `฿${Number(originalPrice).toLocaleString()}`;
+                return;
+            }
+
+            // ตรวจสอบเงื่อนไขยอดขั้นต่ำ
+            if (originalPrice < (promo.min_spend || 0)) {
+                msg.textContent = `❌ ยอดซื้อไม่ถึงขั้นต่ำ (ต้องมียอดซื้ออย่างน้อย ฿${Number(promo.min_spend).toLocaleString()})`;
+                msg.className = 'text-[11px] text-rose-500 font-bold';
+                return;
+            }
+
+            // ตรวจสอบว่าโค้ดนี้จำกัดเฉพาะสินค้าชิ้นนี้ไหม
+            if (Array.isArray(promo.applicable_course_ids) && promo.applicable_course_ids.length > 0) {
+                if (!promo.applicable_course_ids.includes(courseId)) {
+                    msg.textContent = '❌ โค้ดส่วนลดนี้ไม่สามารถใช้ร่วมกับคอร์สนี้ได้';
+                    msg.className = 'text-[11px] text-rose-500 font-bold';
+                    return;
+                }
+            }
+
+            // คำนวณส่วนลด
+            let discount = 0;
+            if (promo.discount_type === 'percent') {
+                discount = (originalPrice * promo.discount_value) / 100;
+            } else {
+                discount = promo.discount_value;
+            }
+
+            let finalPrice = Math.max(0, originalPrice - discount);
+            display.textContent = `฿${Number(finalPrice).toLocaleString()}`;
+            msg.textContent = `✅ ใช้โค้ดสำเร็จ! ประหยัดไป ฿${Number(discount).toLocaleString()}`;
+            msg.className = 'text-[11px] text-emerald-600 font-bold';
+        }
+
+        window.handleEnroll = function(title) {
+            Swal.fire({
+                icon: 'success',
+                title: 'สมัครเรียนสำเร็จ!',
+                text: `คุณได้ลงทะเบียนใน "${title}" เรียบร้อยแล้ว กรุณาดำเนินการชำระเงินต่อไป`,
+                confirmButtonColor: '#0284c7'
+            }).then(() => {
+                closeCourseModal();
+            });
+        }
+
+        window.openGalleryModal = function(imgList, title) {
+            document.getElementById('galleryTitle').textContent = `รูปภาพทั้งหมด: ${title}`;
+            document.getElementById('galleryImagesGrid').innerHTML = imgList.map(img => `<div class="rounded-2xl overflow-hidden aspect-video bg-slate-100"><img src="${img}" class="w-full h-full object-cover"></div>`).join('');
+            document.getElementById('galleryModal').classList.remove('hidden');
+        }
+        window.closeGalleryModal = function() { document.getElementById('galleryModal').classList.add('hidden'); }
+
+        initPage();
+    </script>
+</body>
+</html>
