@@ -300,30 +300,13 @@ async function initPage() {
 
             await fetchCoursesAndStudents();
 
-            // ดึงข้อมูลคอร์สลงทะเบียนแบบปลอดภัย แยกตารางและฟิลด์เพื่อป้องกัน Error 400
+            // ดึงข้อมูลเฉพาะตาราง course_enrollments ด้วย student_id (ตัดตารางและฟิลด์ที่ไม่มีจริงออก)
             if (currentStudentId) {
                 let enrollments = [];
-                
                 try {
-                    const { data: d1 } = await mySupabase.from('course_enrollments').select('*').eq('student_id', currentStudentId);
-                    if (d1) enrollments = enrollments.concat(d1);
+                    const { data } = await mySupabase.from('course_enrollments').select('*').eq('student_id', currentStudentId);
+                    if (data) enrollments = data;
                 } catch(e) {}
-
-                try {
-                    const { data: d2 } = await mySupabase.from('course_enrollments').select('*').eq('user_id', currentStudentId);
-                    if (d2) enrollments = enrollments.concat(d2);
-                } catch(e) {}
-
-                try {
-                    const { data: d3 } = await mySupabase.from('enrollments').select('*').eq('student_id', currentStudentId);
-                    if (d3) enrollments = enrollments.concat(d3);
-                } catch(e) {}
-
-                try {
-                    const { data: d4 } = await mySupabase.from('enrollments').select('*').eq('user_id', currentStudentId);
-                    if (d4) enrollments = enrollments.concat(d4);
-                } catch(e) {}
-
                 enrolledCoursesList = enrollments;
             }
 
@@ -331,17 +314,7 @@ async function initPage() {
             loadStudentNotificationsCount();
         }
 
-        function isUserAdmin(profileObj) {
-            if (!profileObj) return false;
-            const role = String(profileObj.role || profileObj.user_role || '').toLowerCase();
-            const email = String(profileObj.email || '').toLowerCase();
-            if (role === 'admin' || role === 'teacher' || role === 'instructor') return true;
-            if (email.includes('admin') || email.includes('teacher')) return true;
-            return false;
-        }
-
-           async function fetchCoursesAndStudents() {
-            // ดึงแบบเซฟตี้ ไม่ระบุคอลัมน์เจาะจง ป้องกันกรณีคอลัมน์บางตัวไม่มีจริง
+        async function fetchCoursesAndStudents() {
             const { data: courses } = await mySupabase.from('courses').select('*');
             if (courses) {
                 allCoursesList = courses;
@@ -371,6 +344,15 @@ async function initPage() {
                 allStudentsList = students.filter(s => !isUserAdmin(s));
                 renderStudentCheckboxes(allStudentsList);
             }
+        }
+
+        function isUserAdmin(profileObj) {
+            if (!profileObj) return false;
+            const role = String(profileObj.role || profileObj.user_role || '').toLowerCase();
+            const email = String(profileObj.email || '').toLowerCase();
+            if (role === 'admin' || role === 'teacher' || role === 'instructor') return true;
+            if (email.includes('admin') || email.includes('teacher')) return true;
+            return false;
         }
 
         function formatCourseTargetValue(targetValue) {
