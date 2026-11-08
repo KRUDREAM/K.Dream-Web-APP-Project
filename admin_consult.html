@@ -272,7 +272,7 @@
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <div class="relative flex-1 sm:w-64">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fas fa-search text-xs"></i></span>
-                        <input type="text" id="studentSearchInput" oninput="filterBookedStudentsList()" placeholder="ค้นหาชื่อ, รหัส, อีเมลนักเรียน..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                        <input type="text" id="studentSearchInput" oninput="filterBookedStudentsList()" placeholder="ค้นหาชื่อ, ชื่อเล่น, รหัส, อีเมล..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
                     </div>
                     <button onclick="exportAllBookingsExcel()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 shrink-0">
                         <i class="fas fa-file-excel"></i> Export
@@ -1096,13 +1096,14 @@
                 const startStr = new Date(s.start_time).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
                 const endStr = new Date(s.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
                 const studentName = s.profiles?.full_name || 'นักเรียน';
+                const studentNickname = s.profiles?.nickname ? ` (${s.profiles.nickname})` : '';
                 const studentId = s.student_id;
 
                 return `
                     <div class="p-3 rounded-xl bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
                         <div>
                             <span class="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                                <i class="fas fa-user-graduate text-indigo-500"></i> ${studentName}
+                                <i class="fas fa-user-graduate text-indigo-500"></i> ${studentName}${studentNickname}
                                 ${studentId ? `<button onclick="openStudentProfileModal('${studentId}')" class="text-[10px] px-2 py-0.5 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 dark:text-indigo-400 rounded-lg font-bold transition-all"><i class="fas fa-search"></i> ดูโปรไฟล์</button>` : ''}
                             </span>
                             <div class="text-[10px] text-slate-400 mt-0.5">⏰ ${startStr} - ${endStr} น.</div>
@@ -1116,16 +1117,40 @@
             }).join('');
         }
 
-        // 👤 ฟังก์ชันเปิดดูโปรไฟล์นักเรียน (ดึงชื่อเล่น, LINE ID, และคอร์สที่ลงทะเบียนเรียนจริง)
+        // 👤 ฟังก์ชันเปิดดูโปรไฟล์นักเรียน พร้อมดึงผลการสอบและการบ้าน / สถิติมาร่วมแสดง
         async function openStudentProfileModal(studentId) {
-            Swal.fire({ title: 'กำลังโหลดโปรไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            Swal.fire({ title: 'กำลังโหลดโปรไฟล์และผลงาน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            // ดึงข้อมูลโปรไฟล์
+            // 1. ดึงข้อมูลโปรไฟล์
             const { data: profile, error } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
 
             if (error || !profile) {
                 Swal.fire('ไม่พบข้อมูล', 'ไม่สามารถดึงข้อมูลโปรไฟล์นักเรียนได้', 'error');
                 return;
+            }
+
+            // 2. ดึงผลการสอบ (exam_attempts) ของนักเรียนคนนี้
+            let examAttempts = [];
+            try {
+                const { data: attemptsData } = await mySupabase.from('exam_attempts').select('*, exams(title, exam_code)').eq('student_id', studentId);
+                examAttempts = attemptsData || [];
+            } catch(e) {
+                try {
+                    const { data: attemptsData2 } = await mySupabase.from('exam_attempts').select('*, exams(title, exam_code)').eq('user_id', studentId);
+                    examAttempts = attemptsData2 || [];
+                } catch(err) { console.warn("Could not fetch exam attempts", err); }
+            }
+
+            // 3. ดึงผลการส่งการบ้าน / แบบฝึกหัด (หากมีตาราง submissions หรือ homework_submissions)
+            let homeworkSubmissions = [];
+            try {
+                const { data: hwData } = await mySupabase.from('submissions').select('*').eq('student_id', studentId);
+                homeworkSubmissions = hwData || [];
+            } catch(e) {
+                try {
+                    const { data: hwData2 } = await mySupabase.from('homework_submissions').select('*').eq('student_id', studentId);
+                    homeworkSubmissions = hwData2 || [];
+                } catch(err) { console.warn("Could not fetch homework submissions", err); }
             }
 
             const isDark = document.documentElement.classList.contains('dark');
@@ -1138,7 +1163,7 @@
             const school = profile.school || '-';
             const gradeLevel = profile.grade_level || profile.grade || '-';
 
-            // ดึงคอร์สที่นักเรียนลงทะเบียนจาก studentEnrollmentsMap
+            // จัดการคอร์สที่ลงทะเบียน
             const enrolledCIds = studentEnrollmentsMap[String(studentId)] || [];
             let coursesHtml = '<span class="text-slate-400 italic">ยังไม่ได้ลงทะเบียนคอร์สเรียน</span>';
             if (enrolledCIds.length > 0) {
@@ -1150,10 +1175,31 @@
                 }).join(' ');
             }
 
+            // จัดการตารางผลการสอบ
+            let examsHtml = '<div class="text-slate-400 italic text-center py-2">ยังไม่มีประวัติการทำข้อสอบ</div>';
+            if (examAttempts.length > 0) {
+                examsHtml = examAttempts.map((att, idx) => {
+                    const examTitle = att.exams?.title || att.exam_title || 'ชุดข้อสอบ';
+                    const score = att.total_score !== undefined && att.total_score !== null ? att.total_score : (att.score || 0);
+                    const dateStr = att.submitted_at || att.created_at ? new Date(att.submitted_at || att.created_at).toLocaleDateString('th-TH') : '-';
+                    return `
+                        <div class="p-2 bg-slate-100 dark:bg-slate-900 rounded-xl flex justify-between items-center text-[11px]">
+                            <div>
+                                <span class="font-bold text-slate-800 dark:text-slate-200">${idx + 1}. ${escapeHtml(examTitle)}</span>
+                                <div class="text-[10px] text-slate-400">ส่งเมื่อ: ${dateStr}</div>
+                            </div>
+                            <div class="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                คะแนน: ${score}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
             Swal.fire({
-                title: '👤 ข้อมูลโปรไฟล์นักเรียน',
+                title: '👤 ข้อมูลโปรไฟล์และผลการเรียนนักเรียน',
                 html: `
-                    <div class="space-y-3 text-left text-xs">
+                    <div class="space-y-3 text-left text-xs max-h-[70vh] overflow-y-auto pr-1">
                         <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
                             <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อ-นามสกุล:</span><span class="font-bold text-slate-900 dark:text-white text-sm">${fullName}</span></div>
                             <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อเล่น:</span><span class="font-bold text-sky-600 dark:text-sky-400">${nickname}</span></div>
@@ -1167,18 +1213,35 @@
 
                         <div class="space-y-1.5 pt-1">
                             <span class="font-bold text-slate-700 dark:text-slate-300 block"><i class="fas fa-book-open mr-1 text-indigo-500"></i> คอร์สที่ลงทะเบียนเรียน (${enrolledCIds.length} คอร์ส):</span>
-                            <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
                                 ${coursesHtml}
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5 pt-1">
+                            <span class="font-bold text-slate-700 dark:text-slate-300 block"><i class="fas fa-chart-line mr-1 text-emerald-500"></i> ประวัติผลการสอบ (${examAttempts.length} ชุด):</span>
+                            <div class="space-y-1.5 max-h-36 overflow-y-auto p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
+                                ${examsHtml}
                             </div>
                         </div>
                     </div>
                 `,
-                width: '550px',
+                width: '600px',
                 confirmButtonText: 'ปิดหน้าต่าง',
                 confirmButtonColor: '#0284c7',
                 background: isDark ? '#090d16' : '#ffffff',
                 color: isDark ? '#f1f5f9' : '#1e293b'
             });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
 
         async function openRescheduleModal(oldSlotId, studentId, studentName) {
