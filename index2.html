@@ -35,7 +35,6 @@
     <style>
         body { font-family: 'Prompt', sans-serif; overflow-x: hidden; }
 
-        /* Glassmorphism & Smooth Effects */
         .glass-nav { 
             background: rgba(255, 255, 255, 0.75); 
             backdrop-filter: blur(20px); 
@@ -83,7 +82,6 @@
             border: 1px solid rgba(51, 65, 85, 0.8);
         }
 
-        /* ปุ่มเรืองแสงพรีเมียม */
         .glow-btn {
             background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
             box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.45);
@@ -94,14 +92,11 @@
             box-shadow: 0 15px 35px -5px rgba(79, 70, 229, 0.6);
         }
 
-        /* แอนิเมชันลอยตัวละมุนๆ (Floating Effect) ไม่แข็งทื่อ */
         @keyframes floatSlow {
             0%, 100% { transform: translateY(0px) rotate(0deg); }
             50% { transform: translateY(-10px) rotate(1deg); }
         }
-        .floating-element {
-            animation: floatSlow 6s ease-in-out infinite;
-        }
+        .floating-element { animation: floatSlow 6s ease-in-out infinite; }
 
         @keyframes pulseGlow {
             0%, 100% { opacity: 0.4; transform: scale(1); }
@@ -121,11 +116,10 @@
 </head>
 <body class="bg-lightbg dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 flex flex-col justify-between transition-colors duration-300 relative">
 
-    <!-- Background Dynamic Glows -->
     <div class="bg-glow-blob top-10 left-[-5%]"></div>
     <div class="bg-glow-blob bottom-20 right-[-5%]" style="animation-delay: 4s;"></div>
 
-    <!-- Navigation Bar -->
+    <!-- Navigation Bar พร้อมเพิ่ม Tab ทดลองเรียน -->
     <nav class="glass-nav fixed w-full top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-20 items-center">
@@ -136,13 +130,16 @@
                     <span class="font-black text-lg sm:text-xl text-slate-900 dark:text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-sky-500 to-indigo-600">KRUDREAM LAND</span>
                 </div>
                 
-                <!-- Tab สลับหน้า -->
-                <div class="flex items-center gap-1.5 glass-input p-1.5 rounded-2xl">
+                <!-- Tab สลับหน้า (รวมหน้าแรก, แคตตาล็อก, และทดลองเรียน) -->
+                <div class="hidden md:flex items-center gap-1.5 glass-input p-1.5 rounded-2xl">
                     <a href="index.html" class="px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-md shadow-sky-500/25">
                         <i class="fas fa-home mr-1"></i> หน้าแรก
                     </a>
                     <a href="catalog.html" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-sky-600 transition">
                         <i class="fas fa-book-open mr-1"></i> แคตตาล็อกคอร์ส
+                    </a>
+                    <a href="catalog.html?tab=trial" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-sky-600 transition">
+                        <i class="fas fa-play-circle mr-1 text-emerald-500"></i> ทดลองเรียน
                     </a>
                 </div>
 
@@ -178,7 +175,6 @@
                 </div>
             </div>
             
-            <!-- การ์ดโลโก้ลอยตัวละมุนๆ (Floating Element) -->
             <div class="lg:col-span-5 flex justify-center">
                 <div class="relative w-full max-w-md aspect-square rounded-[2.5rem] overflow-hidden glass-card p-4 shadow-2xl border border-white/60 dark:border-slate-700 flex items-center justify-center floating-element group">
                     <div class="absolute inset-0 bg-gradient-to-tr from-sky-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -211,11 +207,12 @@
         <p>&copy; 2026 KRUDREAM LAND. All rights reserved.</p>
     </footer>
 
-    <!-- Auth Modal (เข้าสู่ระบบ / สมัครสมาชิก พร้อมฟิลด์เพศ) -->
+    <!-- Auth Modal (แก้ไขปุ่มกากบาทไม่ให้ทับกับช่องกรอกข้อมูลแล้ว) -->
     <div id="authModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md hidden flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-lg p-8 rounded-[2.5rem] shadow-2xl relative max-h-[90vh] overflow-y-auto border border-white/20">
-            <button onclick="closeAuthModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-2xl glass-input text-slate-500 hover:text-red-500 transition">
-                <i class="fas fa-xmark"></i>
+        <div class="glass-card w-full max-w-lg p-8 pt-16 rounded-[2.5rem] shadow-2xl relative max-h-[90vh] overflow-y-auto border border-white/20">
+            <!-- ปุ่มกากบาทถูกย้ายมาวางลอยมุมขวาบนอย่างอิสระ ไม่ทับฟอร์ม -->
+            <button onclick="closeAuthModal()" class="absolute top-5 right-5 w-10 h-10 flex items-center justify-center rounded-2xl glass-input text-slate-500 hover:text-red-500 transition shadow-md z-20">
+                <i class="fas fa-xmark text-sm font-bold"></i>
             </button>
 
             <div class="flex gap-2 mb-6 glass-input p-1.5 rounded-2xl">
@@ -236,7 +233,7 @@
                 <button type="submit" class="w-full glow-btn text-white py-3.5 rounded-2xl font-bold text-xs transition shadow-lg shadow-sky-500/20">เข้าสู่ระบบ</button>
             </form>
 
-            <!-- Register Form (มีช่องเลือกเพศ Dropdown ชาย/หญิง) -->
+            <!-- Register Form -->
             <form id="regForm" class="space-y-3.5 hidden">
                 <div class="grid grid-cols-2 gap-2">
                     <div>
@@ -264,7 +261,6 @@
                         <input type="text" id="regGradeLevel" required placeholder="เช่น ม.3/1" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
                     </div>
                     <div>
-                        <!-- ช่องเลือกเพศ ชาย / หญิง -->
                         <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">เพศ <span class="text-rose-500">*</span></label>
                         <select id="regGender" required class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500 font-bold cursor-pointer">
                             <option value="" disabled selected>-- เลือกเพศ --</option>
@@ -326,7 +322,6 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        // โหลดคอร์สยอดนิยม
         async function loadLandingCourses() {
             const grid = document.getElementById('landingCoursesGrid');
             try {
@@ -398,7 +393,6 @@
             }
         }
 
-        // Login Submit
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value.trim();
@@ -413,7 +407,6 @@
             window.location.replace('student.html');
         });
 
-        // Register Submit (บันทึกข้อมูลรวมถึงฟิลด์ "เพศ" ลงตาราง profiles)
         document.getElementById('regForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const firstName = document.getElementById('regFirstName').value.trim();
@@ -421,7 +414,7 @@
             const email = document.getElementById('regEmail').value.trim();
             const nickname = document.getElementById('regNickname').value.trim();
             const gradeLevel = document.getElementById('regGradeLevel').value.trim();
-            const gender = document.getElementById('regGender').value; // ดึงค่าเพศ ชาย/หญิง
+            const gender = document.getElementById('regGender').value;
             const phone = document.getElementById('regPhone').value.trim();
             const school = document.getElementById('regSchool').value.trim();
             const lineId = document.getElementById('regLineId').value.trim();
@@ -429,7 +422,6 @@
             
             Swal.fire({ title: 'กำลังสร้างบัญชี...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             
-            // 1. สมัครผ่าน Supabase Auth
             const { data, error } = await mySupabase.auth.signUp({ 
                 email, 
                 password,
@@ -441,7 +433,6 @@
                 return;
             }
 
-            // 2. บันทึกข้อมูลละเอียดลงตาราง profiles
             if (data.user) {
                 await mySupabase.from('profiles').upsert([{
                     id: data.user.id,
@@ -452,7 +443,7 @@
                     full_name: `${firstName} ${lastName}`,
                     nickname: nickname,
                     grade_level: gradeLevel,
-                    gender: gender, // บันทึกข้อมูลเพศลงฐานข้อมูล
+                    gender: gender,
                     phone: phone,
                     school: school,
                     line_id: lineId,
