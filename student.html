@@ -596,53 +596,51 @@ function isAnnouncementForThisStudent(announcement) {
 
     const targetType = announcement.target_type || 'all';
 
-    // 1. ถ้าเป็นประกาศทั่วไป (ทุกคนเห็นได้)
+    // 1. ถ้าแอดมินตั้งเป็น 'all', 'everyone' หรือไม่ระบุ ให้ทุกคนเห็นได้ทันที
     if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
         return true;
     }
 
-    // 2. ถ้าแบ่งตามระดับชั้น (level) เช่น ม.1, ม.2
+    // 2. ถ้าแบ่งตามระดับชั้น (level)
     if (targetType === 'level') {
         const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
         const targetLevel = announcement.target_value || '';
-        if (!studentGrade || !targetLevel) return false;
-
-        // รองรับกรณีระบุหลายระดับชั้นคั่นด้วยคอมมา
-        const allowedLevels = String(targetLevel).split(',').map(l => l.trim().toLowerCase());
-        return allowedLevels.includes(String(studentGrade).trim().toLowerCase());
+        if (!studentGrade || !targetLevel) return true; // ถ้าข้อมูลนักเรียนยังไม่มา ให้แสดงไว้ก่อนกันเหนียว
+        return String(targetLevel).toLowerCase().includes(String(studentGrade).toLowerCase());
     }
 
-    // 3. ถ้าแบ่งตามคอร์สเรียน (course) ที่แอดมินเลือกจาก Checkbox
+    // 3. ถ้าแบ่งตามคอร์สเรียน (course)
     if (targetType === 'course') {
-        // ดึงรายการคอร์สที่นักเรียนลงทะเบียนเรียนอยู่ (สมมติเก็บไว้ใน enrolled_courses หรือ courses เป็น Array หรือ String)
-        const studentCourses = currentStudentData?.enrolled_courses || currentStudentData?.courses || [];
+        const studentCourses = currentStudentData?.enrolled_courses || currentStudentData?.courses || currentStudentData?.course_ids;
         const targetValue = announcement.target_value || '';
         
-        if (!targetValue) return false;
+        // ถ้าประกาศไม่ได้ระบุ target_value ไว้ ให้ผ่าน
+        if (!targetValue) return true;
 
-        // แยกคอร์สในประกาศที่คั่นด้วยคอมมา (เช่น "C++ Programming, Python 101")
-        const announcementCourses = String(targetValue).split(',').map(c => c.trim());
-
-        // ตรวจสอบว่าคอร์สของนักเรียนตรงกับคอร์สในประกาศหรือไม่
-        if (Array.isArray(studentCourses)) {
-            // เช็กว่ามีคอร์สใดคอร์สหนึ่งในอาเรย์ของนักเรียนตรงกับประกาศ
-            return studentCourses.some(sc => announcementCourses.includes(String(sc).trim()));
-        } else if (typeof studentCourses === 'string') {
-            const studentCourseList = studentCourses.split(',').map(c => c.trim());
-            return studentCourseList.some(sc => announcementCourses.includes(sc));
+        // ถ้าข้อมูลคอร์สของนักเรียนยังโหลดไม่เสร็จ (เป็นค่าว่าง) ให้แสดงไว้ก่อน เพื่อไม่ให้หน้าจอว่างเปล่า
+        if (!studentCourses || (Array.isArray(studentCourses) && studentCourses.length === 0)) {
+            return true; 
         }
 
-        return false;
+        const announcementCourses = String(targetValue).split(',').map(c => c.trim().toLowerCase());
+
+        let studentCourseArray = [];
+        if (Array.isArray(studentCourses)) {
+            studentCourseArray = studentCourses.map(c => String(c).trim().toLowerCase());
+        } else if (typeof studentCourses === 'string') {
+            studentCourseArray = studentCourses.split(',').map(c => String(c).trim().toLowerCase());
+        }
+
+        // ตรวจสอบว่าตรงกันไหม
+        return studentCourseArray.some(sc => announcementCourses.some(ac => ac.includes(sc) || sc.includes(ac)));
     }
 
-    // 4. ถ้าเป็นการส่งแบบรายบุคคล (specific) บันทึก ID นักเรียนไว้
+    // 4. ถ้ารายบุคคล (specific)
     if (targetType === 'specific') {
-        const studentId = currentStudentData?.id || currentStudentData?.student_id || '';
+        const studentId = String(currentStudentData?.id || currentStudentData?.student_id || '');
         const targetValue = announcement.target_value || '';
-        if (!studentId || !targetValue) return false;
-
-        const allowedStudentIds = String(targetValue).split(',').map(id => id.trim());
-        return allowedStudentIds.includes(String(studentId).trim());
+        if (!studentId) return true;
+        return targetValue.includes(studentId);
     }
 
     return true;
