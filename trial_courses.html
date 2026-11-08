@@ -133,165 +133,196 @@
         .player-container.portrait { aspect-ratio: 9 / 16; max-height: 80vh; margin-left: auto; margin-right: auto; max-width: 420px; }
     </style>
 </head>
-<body class="bg-lightbg dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-16 sm:pb-12 relative overflow-x-hidden" oncontextmenu="return false;">
+<body class="bg-lightbg dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 flex flex-col justify-between relative overflow-x-hidden" oncontextmenu="return false;">
 
     <div class="bg-glow-blob top-10 left-[-5%]"></div>
     <div class="bg-glow-blob bottom-20 right-[-5%]" style="animation-delay: 4s;"></div>
 
-    <!-- Navigation Bar -->
-    <nav class="glass-nav fixed w-full top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div class="flex justify-between h-20 items-center">
-                
-                <!-- โลโก้ด้านซ้าย -->
-                <div class="flex items-center gap-3.5 z-10">
-                    <div class="w-11 h-11 rounded-2xl overflow-hidden shadow-xl border border-blue-500/40 shrink-0 bg-gradient-to-tr from-blue-700 to-indigo-600 p-0.5">
-                        <img src="logo.jpg" alt="Logo" class="w-full h-full object-cover rounded-[14px]">
-                    </div>
-                    <span class="font-black text-lg sm:text-xl text-slate-900 dark:text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400">KRUDREAM LAND</span>
-                </div>
-                
-                <!-- Tab เมนูกึ่งกลาง (Centered Navigation) -->
-                <div class="hidden md:flex items-center gap-1.5 glass-input p-1.5 rounded-2xl absolute left-1/2 transform -translate-x-1/2 shadow-inner border border-blue-500/15">
-                    <a href="index2.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
-                        <i class="fas fa-home mr-1.5"></i> หน้าแรก
-                    </a>
-                    <a href="catalog.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
-                        <i class="fas fa-book-open mr-1.5"></i> แคตตาล็อกคอร์ส
-                    </a>
-                    <a href="trial_courses.html" class="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-lg shadow-blue-500/30">
-                        <i class="fas fa-play-circle mr-1.5 text-white"></i> ทดลองเรียน
-                    </a>
-                </div>
-
-                <!-- ปุ่มสลับธีมด้านขวา -->
-                <div class="flex items-center gap-3 z-10">
-                    <button id="themeToggle" class="w-11 h-11 rounded-2xl glass-input shadow-xl border border-blue-500/30 flex items-center justify-center text-slate-600 dark:text-slate-300 transition hover:scale-110 hover:border-blue-500">
-                        <i class="fas fa-moon text-lg" id="themeIcon"></i>
-                    </button>
-                </div>
-
-            </div>
-        </div>
-    </nav>
-
-    <!-- Main Layout -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 sm:pt-32 space-y-6">
-        
-        <!-- มุมมองที่ 1: หน้าแรกแสดงการ์ดคอร์สทดลองเรียนทั้งหมด (Grid View) -->
-        <div id="courseCatalogView" class="space-y-6">
-            <div class="hitech-card p-8 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border border-blue-500/30 bg-gradient-to-r from-blue-500/[0.08] via-transparent to-indigo-500/[0.05] shadow-2xl">
-                <div class="space-y-2">
-                    <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-xs font-extrabold border border-blue-500/30">
-                        <i class="fas fa-sparkles text-amber-400"></i> สัมผัสประสบการณ์เรียนรู้ระดับพรีเมียม
-                    </span>
-                    <h2 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">คลังคอร์สทดลองเรียนฟรี</h2>
-                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-light max-w-2xl leading-relaxed">
-                        เลือกคอร์สที่คุณสนใจเพื่อรับชมวิดีโอตัวอย่างบทเรียนและเอกสารประกอบการเรียนคุณภาพสูง ได้ทันทีโดยไม่มีค่าใช้จ่าย
-                    </p>
-                </div>
-                <div class="px-5 py-3 glass-input rounded-2xl flex items-center gap-3 border border-blue-500/30 shrink-0 shadow-lg">
-                    <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-500 flex items-center justify-center font-bold">
-                        <i class="fas fa-layer-group"></i>
-                    </div>
-                    <div>
-                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">คอร์สทั้งหมด</div>
-                        <div class="text-base font-black text-slate-900 dark:text-white"><span id="totalTrialCount">0</span> คอร์ส</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Grid แสดงรายการคอร์สทั้งหมด -->
-            <div id="trialCoursesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="hitech-card p-12 rounded-[2rem] text-center text-slate-400 text-xs col-span-full border border-blue-500/20">
-                    <i class="fas fa-spinner fa-spin text-2xl text-blue-600 mb-2"></i>
-                    <p class="font-medium">กำลังโหลดคอร์สทดลองเรียน...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- มุมมองที่ 2: หน้าห้องเรียนรายคอร์ส (Player & Lessons View) -->
-        <div id="coursePlayerView" class="hidden space-y-4 sm:space-y-6">
-            <div class="hitech-card p-4 sm:p-5 rounded-2xl flex items-center justify-between border border-blue-500/30 bg-blue-500/[0.04] shadow-lg">
-                <button onclick="backToCatalog()" class="px-4 py-2.5 glow-btn text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
-                    <i class="fas fa-arrow-left"></i> กลับไปหน้าเลือกคอร์สอื่น
-                </button>
-                <div class="text-xs sm:text-sm font-extrabold text-slate-800 dark:text-white truncate max-w-sm sm:max-w-xl px-2 text-right" id="activeCourseTitleHeader">
-                    -
-                </div>
-            </div>
-
-            <div class="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
-                <!-- Sidebar รายการบทเรียน -->
-                <div id="sidebarPanel" class="w-full lg:w-80 hitech-card p-4 rounded-[2rem] space-y-3.5 flex flex-col h-[440px] lg:h-[calc(100vh-240px)] lg:sticky lg:top-28 shrink-0 overflow-hidden shadow-xl border border-blue-500/20">
-                    <div class="space-y-2.5 pb-3 border-b border-slate-200/60 dark:border-slate-800/80">
-                        <div class="flex justify-between items-center">
-                            <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                                <i class="fas fa-list-ul text-blue-500"></i> บทเรียนทดลอง (<span id="videoCountDisplay">0</span>)
-                            </h3>
-                            <button onclick="toggleSidebar()" class="px-3 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-bold text-[11px] rounded-xl transition hover:bg-blue-500/20">
-                                <span id="sidebarToggleText">ซ่อน</span>
-                            </button>
+    <div>
+        <!-- Navigation Bar -->
+        <nav class="glass-nav fixed w-full top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                <div class="flex justify-between h-20 items-center">
+                    
+                    <!-- โลโก้ด้านซ้าย -->
+                    <div class="flex items-center gap-3.5 z-10">
+                        <div class="w-11 h-11 rounded-2xl overflow-hidden shadow-xl border border-blue-500/40 shrink-0 bg-gradient-to-tr from-blue-700 to-indigo-600 p-0.5">
+                            <img src="logo.jpg" alt="Logo" class="w-full h-full object-cover rounded-[14px]">
                         </div>
-                        <div class="relative">
-                            <i class="fas fa-search absolute left-3.5 top-3 text-slate-400 text-xs"></i>
-                            <input type="text" id="videoSearchInput" oninput="handleLiveSearch()" class="w-full pl-9 pr-3 py-2 glass-input rounded-xl text-xs focus:outline-none focus:border-blue-500 shadow-sm" placeholder="ค้นหาบทเรียน...">
-                        </div>
+                        <span class="font-black text-lg sm:text-xl text-slate-900 dark:text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400">KRUDREAM LAND</span>
+                    </div>
+                    
+                    <!-- Tab เมนูกึ่งกลาง (Centered Navigation) -->
+                    <div class="hidden md:flex items-center gap-1.5 glass-input p-1.5 rounded-2xl absolute left-1/2 transform -translate-x-1/2 shadow-inner border border-blue-500/15">
+                        <a href="index2.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
+                            <i class="fas fa-home mr-1.5"></i> หน้าแรก
+                        </a>
+                        <a href="catalog.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
+                            <i class="fas fa-book-open mr-1.5"></i> แคตตาล็อกคอร์ส
+                        </a>
+                        <a href="trial_courses.html" class="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-lg shadow-blue-500/30">
+                            <i class="fas fa-play-circle mr-1.5 text-white"></i> ทดลองเรียน
+                        </a>
                     </div>
 
-                    <div id="videoListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 hide-scrollbar">
-                        <div class="text-center py-8 text-slate-400 text-xs">กำลังโหลดบทเรียน...</div>
-                    </div>
-
-                    <div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/80 space-y-2 shrink-0">
-                        <h4 class="font-extrabold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
-                            <i class="fas fa-folder-open text-indigo-500"></i> เอกสารตัวอย่าง (<span id="fileCountDisplay">0</span>)
-                        </h4>
-                        <div id="fileListContainer" class="max-h-28 overflow-y-auto space-y-1.5 pr-1 hide-scrollbar">
-                            <div class="text-center py-3 text-slate-400 text-[11px]">ไม่มีไฟล์เอกสาร</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Video Player Panel -->
-                <div id="mainPlayerPanel" class="flex-1 w-full hitech-card p-5 sm:p-7 rounded-[2rem] space-y-4 flex flex-col shadow-2xl border border-blue-500/20">
-                    <div id="showSidebarTrigger" class="hidden">
-                        <button onclick="toggleSidebar()" class="px-4 py-2.5 glow-btn text-white font-extrabold text-xs rounded-xl shadow-lg flex items-center gap-2">
-                            <i class="fas fa-columns"></i> แสดงรายการบทเรียน
+                    <!-- ปุ่มสลับธีมด้านขวา -->
+                    <div class="flex items-center gap-3 z-10">
+                        <button id="themeToggle" class="w-11 h-11 rounded-2xl glass-input shadow-xl border border-blue-500/30 flex items-center justify-center text-slate-600 dark:text-slate-300 transition hover:scale-110 hover:border-blue-500">
+                            <i class="fas fa-moon text-lg" id="themeIcon"></i>
                         </button>
                     </div>
 
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-slate-200/60 dark:border-slate-800/80 gap-3">
-                        <h3 id="currentPlayingTitle" class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2.5 truncate pr-2 w-full sm:w-auto">
-                            <i class="fas fa-play-circle text-blue-500 text-base shrink-0"></i> <span class="truncate">เลือกบทเรียนจากด้านซ้ายเพื่อเริ่มรับชม</span>
-                        </h3>
-                        <div class="flex items-center gap-1 glass-input p-1 rounded-xl border border-blue-500/20 text-[11px] shrink-0">
-                            <button onclick="setVideoOrientation('landscape')" id="btnLandscape" class="px-3 py-1.5 rounded-lg font-bold transition-all glow-btn text-white shadow-md"><i class="fas fa-desktop mr-1"></i> แนวนอน</button>
-                            <button onclick="setVideoOrientation('portrait')" id="btnPortrait" class="px-3 py-1.5 rounded-lg font-bold transition-all text-slate-600 dark:text-slate-300 hover:text-blue-500 flex items-center gap-1"><i class="fas fa-mobile-screen mr-1"></i> แนวตั้ง</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Layout -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 sm:pt-32 pb-16 space-y-6">
+            
+            <!-- มุมมองที่ 1: หน้าแรกแสดงการ์ดคอร์สทดลองเรียนทั้งหมด (Grid View) -->
+            <div id="courseCatalogView" class="space-y-6">
+                <div class="hitech-card p-8 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border border-blue-500/30 bg-gradient-to-r from-blue-500/[0.08] via-transparent to-indigo-500/[0.05] shadow-2xl">
+                    <div class="space-y-2">
+                        <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-xs font-extrabold border border-blue-500/30">
+                            <i class="fas fa-sparkles text-amber-400"></i> สัมผัสประสบการณ์เรียนรู้ระดับพรีเมียม
+                        </span>
+                        <h2 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">คลังคอร์สทดลองเรียนฟรี</h2>
+                        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-light max-w-2xl leading-relaxed">
+                            เลือกคอร์สที่คุณสนใจเพื่อรับชมวิดีโอตัวอย่างบทเรียนและเอกสารประกอบการเรียนคุณภาพสูง ได้ทันทีโดยไม่มีค่าใช้จ่าย
+                        </p>
+                    </div>
+                    <div class="px-5 py-3 glass-input rounded-2xl flex items-center gap-3 border border-blue-500/30 shrink-0 shadow-lg">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-500 flex items-center justify-center font-bold">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">คอร์สทั้งหมด</div>
+                            <div class="text-base font-black text-slate-900 dark:text-white"><span id="totalTrialCount">0</span> คอร์ส</div>
                         </div>
                     </div>
+                </div>
 
-                    <div id="playerWrapperContainer" class="player-container landscape shadow-2xl border border-slate-800">
-                        <div id="bunnyPlayerWrapper" class="w-full h-full relative flex items-center justify-center text-slate-500 text-xs bg-slate-950">
-                            <div class="text-center space-y-3 p-6">
-                                <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center text-xl mx-auto animate-pulse">
-                                    <i class="fas fa-film"></i>
-                                </div>
-                                <p class="text-slate-400 font-medium">ยังไม่ได้เลือกวิดีโอตัวอย่าง</p>
-                            </div>
-                        </div>
-                        
-                        <div id="watermarkElement" class="watermark-layer">KRUDREAM LAND TRIAL • ผู้เยี่ยมชม</div>
-                    </div>
-
-                    <div class="flex justify-between items-center pt-2 text-[11px] text-slate-400 font-medium">
-                        <span><i class="fas fa-shield-alt text-blue-500 mr-1"></i> ระบบรับชมวิดีโอความปลอดภัยสูง</span>
-                        <span id="videoPublishDate">--</span>
+                <!-- Grid แสดงรายการคอร์สทั้งหมด -->
+                <div id="trialCoursesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="hitech-card p-12 rounded-[2rem] text-center text-slate-400 text-xs col-span-full border border-blue-500/20">
+                        <i class="fas fa-spinner fa-spin text-2xl text-blue-600 mb-2"></i>
+                        <p class="font-medium">กำลังโหลดคอร์สทดลองเรียน...</p>
                     </div>
                 </div>
             </div>
+
+            <!-- มุมมองที่ 2: หน้าห้องเรียนรายคอร์ส (Player & Lessons View) -->
+            <div id="coursePlayerView" class="hidden space-y-4 sm:space-y-6">
+                <div class="hitech-card p-4 sm:p-5 rounded-2xl flex items-center justify-between border border-blue-500/30 bg-blue-500/[0.04] shadow-lg">
+                    <button onclick="backToCatalog()" class="px-4 py-2.5 glow-btn text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
+                        <i class="fas fa-arrow-left"></i> กลับไปหน้าเลือกคอร์สอื่น
+                    </button>
+                    <div class="text-xs sm:text-sm font-extrabold text-slate-800 dark:text-white truncate max-w-sm sm:max-w-xl px-2 text-right" id="activeCourseTitleHeader">
+                        -
+                    </div>
+                </div>
+
+                <div class="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
+                    <!-- Sidebar รายการบทเรียน -->
+                    <div id="sidebarPanel" class="w-full lg:w-80 hitech-card p-4 rounded-[2rem] space-y-3.5 flex flex-col h-[440px] lg:h-[calc(100vh-240px)] lg:sticky lg:top-28 shrink-0 overflow-hidden shadow-xl border border-blue-500/20">
+                        <div class="space-y-2.5 pb-3 border-b border-slate-200/60 dark:border-slate-800/80">
+                            <div class="flex justify-between items-center">
+                                <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                                    <i class="fas fa-list-ul text-blue-500"></i> บทเรียนทดลอง (<span id="videoCountDisplay">0</span>)
+                                </h3>
+                                <button onclick="toggleSidebar()" class="px-3 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-bold text-[11px] rounded-xl transition hover:bg-blue-500/20">
+                                    <span id="sidebarToggleText">ซ่อน</span>
+                                </button>
+                            </div>
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                                <input type="text" id="videoSearchInput" oninput="handleLiveSearch()" class="w-full pl-9 pr-3 py-2 glass-input rounded-xl text-xs focus:outline-none focus:border-blue-500 shadow-sm" placeholder="ค้นหาบทเรียน...">
+                            </div>
+                        </div>
+
+                        <div id="videoListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 hide-scrollbar">
+                            <div class="text-center py-8 text-slate-400 text-xs">กำลังโหลดบทเรียน...</div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/80 space-y-2 shrink-0">
+                            <h4 class="font-extrabold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <i class="fas fa-folder-open text-indigo-500"></i> เอกสารตัวอย่าง (<span id="fileCountDisplay">0</span>)
+                            </h4>
+                            <div id="fileListContainer" class="max-h-28 overflow-y-auto space-y-1.5 pr-1 hide-scrollbar">
+                                <div class="text-center py-3 text-slate-400 text-[11px]">ไม่มีไฟล์เอกสาร</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Player Panel -->
+                    <div id="mainPlayerPanel" class="flex-1 w-full hitech-card p-5 sm:p-7 rounded-[2rem] space-y-4 flex flex-col shadow-2xl border border-blue-500/20">
+                        <div id="showSidebarTrigger" class="hidden">
+                            <button onclick="toggleSidebar()" class="px-4 py-2.5 glow-btn text-white font-extrabold text-xs rounded-xl shadow-lg flex items-center gap-2">
+                                <i class="fas fa-columns"></i> แสดงรายการบทเรียน
+                            </button>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-slate-200/60 dark:border-slate-800/80 gap-3">
+                            <h3 id="currentPlayingTitle" class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2.5 truncate pr-2 w-full sm:w-auto">
+                                <i class="fas fa-play-circle text-blue-500 text-base shrink-0"></i> <span class="truncate">เลือกบทเรียนจากด้านซ้ายเพื่อเริ่มรับชม</span>
+                            </h3>
+                            <div class="flex items-center gap-1 glass-input p-1 rounded-xl border border-blue-500/20 text-[11px] shrink-0">
+                                <button onclick="setVideoOrientation('landscape')" id="btnLandscape" class="px-3 py-1.5 rounded-lg font-bold transition-all glow-btn text-white shadow-md"><i class="fas fa-desktop mr-1"></i> แนวนอน</button>
+                                <button onclick="setVideoOrientation('portrait')" id="btnPortrait" class="px-3 py-1.5 rounded-lg font-bold transition-all text-slate-600 dark:text-slate-300 hover:text-blue-500 flex items-center gap-1"><i class="fas fa-mobile-screen mr-1"></i> แนวตั้ง</button>
+                            </div>
+                        </div>
+
+                        <div id="playerWrapperContainer" class="player-container landscape shadow-2xl border border-slate-800">
+                            <div id="bunnyPlayerWrapper" class="w-full h-full relative flex items-center justify-center text-slate-500 text-xs bg-slate-950">
+                                <div class="text-center space-y-3 p-6">
+                                    <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center text-xl mx-auto animate-pulse">
+                                        <i class="fas fa-film"></i>
+                                    </div>
+                                    <p class="text-slate-400 font-medium">ยังไม่ได้เลือกวิดีโอตัวอย่าง</p>
+                                </div>
+                            </div>
+                            
+                            <div id="watermarkElement" class="watermark-layer">KRUDREAM LAND TRIAL • ผู้เยี่ยมชม</div>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-2 text-[11px] text-slate-400 font-medium">
+                            <span><i class="fas fa-shield-alt text-blue-500 mr-1"></i> ระบบรับชมวิดีโอความปลอดภัยสูง</span>
+                            <span id="videoPublishDate">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200/60 dark:border-slate-800/80 bg-white/40 dark:bg-darkbox/40 backdrop-blur-xl py-12 text-slate-600 dark:text-slate-400 text-xs transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8 items-center text-center md:text-left">
+            <div>
+                <div class="flex items-center justify-center md:justify-start gap-3 mb-3">
+                    <div class="w-8 h-8 rounded-xl overflow-hidden shadow border border-blue-500/40">
+                        <img src="logo.jpg" alt="Logo" class="w-full h-full object-cover">
+                    </div>
+                    <span class="font-extrabold text-slate-900 dark:text-white tracking-wider">KRUDREAM LAND</span>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">ศูนย์การเรียนรู้ออนไลน์และคอร์สพัฒนาศักยภาพเพื่ออนาคตของคุณ</p>
+            </div>
+            <div class="space-y-1.5 text-[11px]">
+                <p class="font-bold text-slate-700 dark:text-slate-300 mb-1"><i class="fas fa-address-book text-blue-500 mr-1"></i> ช่องทางการติดต่อ</p>
+                <p><i class="fas fa-phone-alt text-blue-500 mr-1.5 w-4"></i> เบอร์โทรศัพท์ : 0984050709</p>
+                <p><i class="fab fa-line text-emerald-500 mr-1.5 w-4"></i> LINE ID : dreambaa</p>
+                <p><i class="fab fa-facebook text-blue-600 mr-1.5 w-4"></i> Facebook : <a href="https://www.facebook.com/p/ไทย-สังคมยาก-แต่เราเก่งค่ะ-BY-ครูดรีม-61585979912512/" target="_blank" class="text-blue-500 hover:underline">ไทย-สังคมยากแต่เราเก่งค่ะ BY ครูดรีม</a></p>
+            </div>
+            <div class="md:text-right text-[11px] text-slate-500 dark:text-slate-400 space-y-1">
+                <p>&copy; 2026 KRUDREAM LAND. All rights reserved.</p>
+                <p class="space-x-2">
+                    <button onclick="openTermsModal()" class="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-bold transition underline">ข้อกำหนดและเงื่อนไข</button>
+                    <span class="text-slate-400">|</span>
+                    <button onclick="openPrivacyModal()" class="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-bold transition underline">นโยบายความเป็นส่วนตัว</button>
+                </p>
+            </div>
         </div>
-    </main>
+    </footer>
 
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
@@ -317,6 +348,53 @@
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
+
+        // ฟังก์ชันเช็กโหมด Dark/Light สำหรับ SweetAlert2 Popup
+        function isDarkMode() {
+            return document.documentElement.classList.contains('dark');
+        }
+
+        // ฟังก์ชันแสดง Popup ข้อกำหนดและเงื่อนไข
+        function openTermsModal() {
+            const dark = isDarkMode();
+            Swal.fire({
+                title: '<span class="text-lg font-black text-blue-500">ข้อกำหนดและเงื่อนไขการใช้งาน (Terms & Conditions)</span>',
+                html: `
+                    <div class="text-left text-xs space-y-3 max-h-[60vh] overflow-y-auto pr-2 ${dark ? 'text-slate-300' : 'text-slate-600'}">
+                        <p><strong>1. การยอมรับเงื่อนไข:</strong> การเข้าใช้งานเว็บไซต์ KRUDREAM LAND และการสมัครสมาชิกถือว่าท่านได้อ่านและยอมรับข้อกำหนดเงื่อนไขทั้งหมดนี้แล้ว</p>
+                        <p><strong>2. บัญชีผู้ใช้งาน:</strong> สิทธิ์การใช้งานบัญชีเป็นของท่านแต่เพียงผู้เดียว ไม่อนุญาตให้แชร์รหัสผ่านหรือบัญชีผู้ใช้ให้ผู้อื่นใช้งานร่วมกัน</p>
+                        <p><strong>3. ทรัพย์สินทางปัญญา:</strong> วิดีโอ เอกสารประกอบการเรียน และข้อสอบทั้งหมดในระบบถือเป็นลิขสิทธิ์ของ KRUDREAM LAND ห้ามมิให้มีการบันทึกหน้าจอ คัดลอก หรือเผยแพร่ต่อสาธารณะโดยไม่ได้รับอนุญาต</p>
+                        <p><strong>4. การระงับสิทธิ์:</strong> หากพบการละเมิดเงื่อนไขหรือการทุจริต ทางสถาบันขอสงวนสิทธิ์ในการระงับบัญชีผู้ใช้ทันทีโดยไม่ต้องแจ้งให้ทราบล่วงหน้า</p>
+                    </div>
+                `,
+                confirmButtonText: 'ปิด',
+                confirmButtonColor: '#3b82f6',
+                width: '600px',
+                background: dark ? '#090d1a' : '#ffffff',
+                color: dark ? '#f1f5f9' : '#1e293b'
+            });
+        }
+
+        // ฟังก์ชันแสดง Popup นโยบายความเป็นส่วนตัว
+        function openPrivacyModal() {
+            const dark = isDarkMode();
+            Swal.fire({
+                title: '<span class="text-lg font-black text-blue-500">นโยบายความเป็นส่วนตัว (Privacy Policy)</span>',
+                html: `
+                    <div class="text-left text-xs space-y-3 max-h-[60vh] overflow-y-auto pr-2 ${dark ? 'text-slate-300' : 'text-slate-600'}">
+                        <p><strong>1. การเก็บรวบรวมข้อมูล:</strong> เราเก็บรวบรวมข้อมูลส่วนบุคคลของท่าน เช่น ชื่อ นามสกุล อีเมล เบอร์โทรศัพท์ และโรงเรียน เพื่อใช้ในการจัดการเรียนการสอนและบริการของสถาบัน</p>
+                        <p><strong>2. การใช้ประโยชน์จากข้อมูล:</strong> ข้อมูลของท่านจะถูกใช้เพื่อยืนยันตัวตน ติดต่อสื่อสาร จัดส่งสื่อการเรียน และพัฒนาประสิทธิภาพการให้บริการ</p>
+                        <p><strong>3. ความปลอดภัยของข้อมูล:</strong> เรามีมาตรการรักษาความปลอดภัยที่รัดกุม เพื่อป้องกันการเข้าถึงหรือเปิดเผยข้อมูลส่วนบุคคลโดยไม่ได้รับอนุญาต</p>
+                        <p><strong>4. สิทธิของเจ้าของข้อมูล:</strong> ท่านมีสิทธิในการขอเข้าถึง แก้ไข หรือลบข้อมูลส่วนบุคคลของท่านได้โดยติดต่อผ่านช่องทางสนับสนุนของสถาบัน</p>
+                    </div>
+                `,
+                confirmButtonText: 'ปิด',
+                confirmButtonColor: '#3b82f6',
+                width: '600px',
+                background: dark ? '#090d1a' : '#ffffff',
+                color: dark ? '#f1f5f9' : '#1e293b'
+            });
+        }
 
         function toggleSidebar() {
             isSidebarOpen = !isSidebarOpen;
@@ -532,7 +610,7 @@
                 <iframe src="${embedUrl}" loading="lazy" style="border:none;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
             `;
 
-            renderCourseContent(); // อัปเดตสถานะ Active ใน List ให้เปลี่ยนสีทันที
+            renderCourseContent();
         }
 
         function resetPlayerToEmpty() {
