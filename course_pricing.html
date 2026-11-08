@@ -193,13 +193,19 @@
             await fetchAnnouncements();
         }
 
-        async function fetchAnnouncements() {
-            const { data, error } = await mySupabase.from('site_announcements').select('*').order('created_at', { ascending: false });
-            if (!error && data) {
-                allAnnouncements = data;
-                renderAnnouncementsGrid();
-            }
+async function fetchAnnouncements() {
+    try {
+        const { data, error } = await mySupabase.from('site_announcements').select('*').order('created_at', { ascending: false });
+        if (error) {
+            console.error("Supabase Error:", error.message);
+            return;
         }
+        allAnnouncements = data || [];
+        renderAnnouncementsGrid();
+    } catch (err) {
+        console.error("Fetch Error:", err);
+    }
+}
 
         // ฟังก์ชันเรนเดอร์การ์ดประกาศ พร้อมเช็คสถานะเปิด-ปิดตามเวลาจริง
         function renderAnnouncementsGrid() {
