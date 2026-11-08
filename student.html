@@ -629,12 +629,21 @@
             return true;
         }
 
+        // 🌟 บล็อกการแจ้งเตือน หากนักเรียนไม่มีคอร์สในระบบหรือคอร์สหมดอายุหมดแล้ว
         async function loadStudentNotificationsCount() {
             try {
+                const badge = document.getElementById('notifBadge');
+                const headerCount = document.getElementById('notifHeaderCount');
+
+                if (!activeEnrolledCourseIds || activeEnrolledCourseIds.length === 0) {
+                    if (badge) badge.classList.add('hidden');
+                    if (headerCount) headerCount.textContent = '0 ใหม่';
+                    return;
+                }
+
                 if (typeof mySupabase === 'undefined') return;
 
                 const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(50);
-                const badge = document.getElementById('notifBadge');
                 
                 if (error || !anns || !Array.isArray(anns)) {
                     if (badge) badge.classList.add('hidden');
@@ -655,7 +664,6 @@
 
                 const unread = myValidAnns.filter(a => !readIds.includes(a.id));
                 
-                const headerCount = document.getElementById('notifHeaderCount');
                 if (headerCount) {
                     headerCount.textContent = `${unread.length} ใหม่`;
                 }
@@ -733,79 +741,84 @@
             window.location.replace('index.html');
         }
 
-async function fetchAndRenderNotificationDropdown() {
-    const listContainer = document.getElementById('notifDropdownList');
-    if (!listContainer) return;
+        // 🌟 บล็อกการเรนเดอร์ในกล่องดรอปดาวน์ประกาศ หากนักเรียนไม่มีคอร์สในระบบหรือคอร์สหมดอายุ
+        async function fetchAndRenderNotificationDropdown() {
+            const listContainer = document.getElementById('notifDropdownList');
+            if (!listContainer) return;
 
-    listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> กำลังโหลด...</div>`;
-
-    try {
-        const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(30);
-        
-        if (error || !anns || !Array.isArray(anns) || anns.length === 0) {
-            listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs">ยังไม่มีประกาศในขณะนี้</div>`;
-            return;
-        }
-
-        // กรองประกาศเฉพาะที่ตรงกับสิทธิ์ของนักเรียนคนนี้
-        const myValidAnns = anns.filter(a => {
-            try {
-                return isAnnouncementForThisStudent(a);
-            } catch (e) {
-                return true;
+            if (!activeEnrolledCourseIds || activeEnrolledCourseIds.length === 0) {
+                listContainer.innerHTML = `<div class="px-4 py-8 text-center text-slate-400 text-xs"><i class="fas fa-lock text-amber-500 text-base mb-1"></i><br>ยังไม่มีคอร์สเรียนที่ใช้งานได้ จึงไม่สามารถดูประกาศได้</div>`;
+                return;
             }
-        });
 
-        notificationsDataCache = myValidAnns;
+            listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> กำลังโหลด...</div>`;
 
-        if (myValidAnns.length === 0) {
-            listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs">ยังไม่มีประกาศสำหรับคุณในขณะนี้</div>`;
-            return;
-        }
+            try {
+                const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(30);
+                
+                if (error || !anns || !Array.isArray(anns) || anns.length === 0) {
+                    listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs">ยังไม่มีประกาศในขณะนี้</div>`;
+                    return;
+                }
 
-        let readIds = [];
-        if (currentStudentData && currentStudentData.read_announcements) {
-            readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
-        }
+                const myValidAnns = anns.filter(a => {
+                    try {
+                        return isAnnouncementForThisStudent(a);
+                    } catch (e) {
+                        return true;
+                    }
+                });
 
-        const unread = myValidAnns.filter(a => !readIds.includes(a.id));
-        const headerCount = document.getElementById('notifHeaderCount');
-        if (headerCount) {
-            headerCount.textContent = `${unread.length} ใหม่`;
-        }
+                notificationsDataCache = myValidAnns;
 
-        listContainer.innerHTML = myValidAnns.map(a => {
-            const isRead = readIds.includes(a.id);
-            const timeAgoStr = typeof getTimeAgo === 'function' ? getTimeAgo(a.created_at) : 'เร็วๆ นี้';
-            const category = a.category || 'general';
+                if (myValidAnns.length === 0) {
+                    listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs">ยังไม่มีประกาศสำหรับคุณในขณะนี้</div>`;
+                    return;
+                }
 
-            let catIcon = 'fa-bullhorn text-sky-500';
-            if (category === 'exam') catIcon = 'fa-file-pen text-indigo-500';
-            if (category === 'consult') catIcon = 'fa-comments text-emerald-500';
-            if (category === 'video') catIcon = 'fa-play-circle text-rose-500';
+                let readIds = [];
+                if (currentStudentData && currentStudentData.read_announcements) {
+                    readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
+                }
 
-            return `
-                <div onclick="clickNotificationItem('${a.id}')" class="px-4 py-3 hover:bg-sky-50 dark:hover:bg-slate-800/85 cursor-pointer transition-all flex items-start gap-3 ${isRead ? 'opacity-70' : 'bg-sky-50/40 dark:bg-slate-900/40 font-bold'}">
-                    <div class="w-8 h-8 rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                        <i class="fas ${catIcon} text-xs"></i>
-                    </div>
-                    <div class="flex-1 min-w-0 space-y-0.5">
-                        <div class="flex justify-between items-center gap-1">
-                            <h5 class="text-xs text-slate-900 dark:text-white truncate">${a.title || 'ประกาศจากระบบ'}</h5>
-                            ${!isRead ? '<span class="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>' : ''}
+                const unread = myValidAnns.filter(a => !readIds.includes(a.id));
+                const headerCount = document.getElementById('notifHeaderCount');
+                if (headerCount) {
+                    headerCount.textContent = `${unread.length} ใหม่`;
+                }
+
+                listContainer.innerHTML = myValidAnns.map(a => {
+                    const isRead = readIds.includes(a.id);
+                    const timeAgoStr = typeof getTimeAgo === 'function' ? getTimeAgo(a.created_at) : 'เร็วๆ นี้';
+                    const category = a.category || 'general';
+
+                    let catIcon = 'fa-bullhorn text-sky-500';
+                    if (category === 'exam') catIcon = 'fa-file-pen text-indigo-500';
+                    if (category === 'consult') catIcon = 'fa-comments text-emerald-500';
+                    if (category === 'video') catIcon = 'fa-play-circle text-rose-500';
+
+                    return `
+                        <div onclick="clickNotificationItem('${a.id}')" class="px-4 py-3 hover:bg-sky-50 dark:hover:bg-slate-800/85 cursor-pointer transition-all flex items-start gap-3 ${isRead ? 'opacity-70' : 'bg-sky-50/40 dark:bg-slate-900/40 font-bold'}">
+                            <div class="w-8 h-8 rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                                <i class="fas ${catIcon} text-xs"></i>
+                            </div>
+                            <div class="flex-1 min-w-0 space-y-0.5">
+                                <div class="flex justify-between items-center gap-1">
+                                    <h5 class="text-xs text-slate-900 dark:text-white truncate">${a.title || 'ประกาศจากระบบ'}</h5>
+                                    ${!isRead ? '<span class="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>' : ''}
+                                </div>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-light line-clamp-1">${a.content || ''}</p>
+                                <span class="text-[9px] text-slate-400 block">${timeAgoStr}</span>
+                            </div>
                         </div>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400 font-light line-clamp-1">${a.content || ''}</p>
-                        <span class="text-[9px] text-slate-400 block">${timeAgoStr}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
+                    `;
+                }).join('');
 
-    } catch (err) {
-        console.warn("Render dropdown error:", err);
-        listContainer.innerHTML = `<div class="px-4 py-6 text-center text-rose-500 text-xs">ไม่สามารถโหลดการแจ้งเตือนได้</div>`;
-    }
-}
+            } catch (err) {
+                console.warn("Render dropdown error:", err);
+                listContainer.innerHTML = `<div class="px-4 py-6 text-center text-rose-500 text-xs">ไม่สามารถโหลดการแจ้งเตือนได้</div>`;
+            }
+        }
 
         async function clickNotificationItem(annId) {
             let readIds = [];
@@ -1089,6 +1102,11 @@ async function fetchAndRenderNotificationDropdown() {
         }
 
         async function openNotificationsModal() {
+            if (!activeEnrolledCourseIds || activeEnrolledCourseIds.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'ไม่สามารถดูประกาศได้', text: 'คุณยังไม่มีคอร์สเรียนที่ใช้งานได้ในระบบ', confirmButtonColor: '#0284c7' });
+                return;
+            }
+
             const isDark = document.documentElement.classList.contains('dark');
             Swal.fire({ title: 'กำลังโหลดประกาศและการแจ้งเตือน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -1264,6 +1282,10 @@ async function fetchAndRenderNotificationDropdown() {
         }
 
         function goToAnnouncementPage() {
+            if (!activeEnrolledCourseIds || activeEnrolledCourseIds.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'ไม่สามารถเปิดหน้าประกาศได้', text: 'คุณยังไม่มีคอร์สเรียนที่ใช้งานได้ในระบบ', confirmButtonColor: '#0284c7' });
+                return;
+            }
             const studentId = currentStudentId || localStorage.getItem('student_id') || localStorage.getItem('id');
             localStorage.setItem('role', 'student');
             window.location.href = studentId ? `announcement.html?student_id=${studentId}` : 'announcement.html';
@@ -1379,6 +1401,9 @@ async function fetchAndRenderNotificationDropdown() {
             const now = Date.now();
             activeEnrolledCoursesList = enrolledCoursesList.filter(c => !c.expires_at || new Date(c.expires_at).getTime() >= now);
             activeEnrolledCourseIds = activeEnrolledCoursesList.map(c => String(c.id));
+
+            // โหลดจำนวนและการแจ้งเตือนใหม่หลังจากเช็คสิทธิ์คอร์สเรียนเรียบร้อยแล้ว
+            loadStudentNotificationsCount();
 
             const courseSelect = document.getElementById('globalCourseSelect');
             if (activeEnrolledCoursesList.length === 0) {
@@ -1539,7 +1564,6 @@ async function fetchAndRenderNotificationDropdown() {
             });
         }
 
-        // 🌟 แก้ไขส่วนนี้: ตรวจสอบ activeEnrolledCourseIds ถ้าไม่มีคอร์สในระบบ ให้บล็อกข้อสอบทั้งหมดทันที
         function renderExamCatalog() {
             const container = document.getElementById('examCategoriesGroupContainer');
             const quickPendingContainer = document.getElementById('quickPendingContainer');
@@ -1547,7 +1571,6 @@ async function fetchAndRenderNotificationDropdown() {
             const keyword = document.getElementById('searchExamInput').value.toLowerCase();
             const now = new Date();
 
-            // 🛑 เช็คว่าหากไม่มีคอร์สที่ใช้งานได้ ให้แสดงกล่องข้อความแจ้งเตือนและตัดออกทันที
             if (!activeEnrolledCourseIds || activeEnrolledCourseIds.length === 0) {
                 container.innerHTML = `
                     <div class="hitech-card p-8 rounded-3xl text-center space-y-3 border-amber-500/40 bg-amber-500/5">
@@ -1572,7 +1595,6 @@ async function fetchAndRenderNotificationDropdown() {
                 
                 const examCourseId = String(exam.course_id || exam.courseid || '');
                 
-                // ตรวจสอบสิทธิ์คอร์สเรียนอย่างเข้มงวด
                 if (examCourseId && !activeEnrolledCourseIds.includes(examCourseId)) return false;
                 if (selectedGlobalCourseId !== 'all' && examCourseId !== String(selectedGlobalCourseId)) return false;
                 if (!exam.title.toLowerCase().includes(keyword) && (!exam.description || !exam.description.toLowerCase().includes(keyword))) return false;
