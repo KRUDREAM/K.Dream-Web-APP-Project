@@ -153,7 +153,7 @@
                         <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-none"></textarea>
                     </div>
 
-                    <!-- ส่วนเลือกกลุ่มเป้าหมาย (ยกมาจาก admin_announcement) -->
+                    <!-- ส่วนเลือกกลุ่มเป้าหมาย -->
                     <div class="p-4 bg-sky-50/50 dark:bg-slate-800/50 rounded-2xl border border-sky-100 dark:border-slate-700 space-y-3">
                         <label class="block text-xs font-bold uppercase tracking-wider text-sky-700 dark:text-sky-400">
                             <i class="fas fa-bullseye mr-1"></i> เลือกกลุ่มเป้าหมายนักเรียน
@@ -206,7 +206,7 @@
                 </form>
             </div>
 
-            <!-- Feed ประกาศ (รองรับทั้งนักเรียนและแอดมิน) -->
+            <!-- Feed ประกาศ -->
             <div id="feedSection" class="lg:col-span-12 space-y-5">
                 <div class="modern-card p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-center gap-4">
                     <h3 class="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-3">
@@ -300,13 +300,30 @@
 
             await fetchCoursesAndStudents();
 
+            // ดึงข้อมูลคอร์สลงทะเบียนแบบปลอดภัย ไม่ทำให้เกิด Error 400/404
             if (currentStudentId) {
                 let enrollments = [];
-                const tables = ['course_enrollments', 'enrollments', 'student_courses', 'student_enrollments'];
-                for (let t of tables) {
-                    const { data } = await mySupabase.from(t).select('*').or(`student_id.eq.${currentStudentId},user_id.eq.${currentStudentId}`);
-                    if (data && data.length > 0) enrollments = enrollments.concat(data);
-                }
+                
+                try {
+                    const { data: d1 } = await mySupabase.from('course_enrollments').select('*').eq('student_id', currentStudentId);
+                    if (d1) enrollments = enrollments.concat(d1);
+                } catch(e) {}
+
+                try {
+                    const { data: d2 } = await mySupabase.from('course_enrollments').select('*').eq('user_id', currentStudentId);
+                    if (d2) enrollments = enrollments.concat(d2);
+                } catch(e) {}
+
+                try {
+                    const { data: d3 } = await mySupabase.from('enrollments').select('*').eq('student_id', currentStudentId);
+                    if (d3) enrollments = enrollments.concat(d3);
+                } catch(e) {}
+
+                try {
+                    const { data: d4 } = await mySupabase.from('enrollments').select('*').eq('user_id', currentStudentId);
+                    if (d4) enrollments = enrollments.concat(d4);
+                } catch(e) {}
+
                 enrolledCoursesList = enrollments;
             }
 
@@ -410,10 +427,9 @@
             }
         }
 
-        // ตรวจสอบสิทธิ์ว่าประกาศนี้ตรงกับนักเรียนคนนี้หรือไม่
         function isAnnouncementForThisStudent(announcement) {
             if (!announcement) return false;
-            if (userRole !== 'student') return true; // แอดมินเห็นทั้งหมด
+            if (userRole !== 'student') return true;
             
             const targetType = announcement.target_type || 'all';
 
@@ -746,7 +762,6 @@
             }
         }
 
-        // ระบบแจ้งเตือน Navbar สำหรับนักเรียน
         function toggleNotifDropdown(event) {
             if (event) event.stopPropagation();
             const dropdown = document.getElementById('notifDropdownMenu');
