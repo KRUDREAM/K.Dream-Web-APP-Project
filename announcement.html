@@ -281,7 +281,7 @@
             if (themeIcon) themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        async function initPage() {
+async function initPage() {
             const urlParams = new URLSearchParams(window.location.search);
             currentStudentId = urlParams.get('student_id') || urlParams.get('id') || localStorage.getItem('student_id') || localStorage.getItem('id');
             userRole = localStorage.getItem('role') || localStorage.getItem('user_role') || (currentStudentId ? 'student' : 'admin');
@@ -300,19 +300,36 @@
 
             await fetchCoursesAndStudents();
 
+            // ดึงข้อมูลคอร์สที่นักเรียนลงทะเบียนจริง ๆ (เช็คทั้งตาราง course_enrollments และฟิลด์ใน profiles)
             if (currentStudentId) {
                 let enrollments = [];
+                
+                // 1. ลองดึงจากตาราง course_enrollments
                 try {
                     const { data } = await mySupabase.from('course_enrollments').select('*').eq('student_id', currentStudentId);
-                    if (data) enrollments = data;
+                    if (data) enrollments = enrollments.concat(data);
                 } catch(e) {}
+
+                // 2. ลองเช็คจากข้อมูลใน profiles (เผื่อระบบเก็บคอร์สไว้ที่โปรไฟล์นักเรียน เช่น courses หรือ enrolled_courses)
+                if (currentStudentData) {
+                    const profileCourses = currentStudentData.courses || currentStudentData.enrolled_courses || currentStudentData.course_ids;
+                    if (profileCourses) {
+                        if (Array.isArray(profileCourses)) {
+                            profileCourses.forEach(cId => enrollments.push({ course_id: cId }));
+                        } else if (typeof profileCourses === 'string') {
+                            profileCourses.split(',').forEach(cId => enrollments.push({ course_id: cId.trim() }));
+                        }
+                    }
+                }
+
                 enrolledCoursesList = enrollments;
+                console.log("Verified Enrolled Courses for Student:", enrolledCoursesList);
             }
 
             await loadAnnouncements();
             loadStudentNotificationsCount();
         }
-
+        
         async function fetchCoursesAndStudents() {
             const { data: courses } = await mySupabase.from('courses').select('*');
             if (courses) {
@@ -412,50 +429,55 @@
         // ปรับปรุงเงื่อนไขการตรวจสอบประกาศสำหรับนักเรียนให้ยืดหยุ่นและแม่นยำยิ่งขึ้น
 function isAnnouncementForThisStudent(announcement) {
             if (!announcement) return false;
+            // ถ้าเป็นแอดมินหรือครู ให้เห็นทั้งหมด
             if (userRole !== 'student') return true;
             
             const targetType = announcement.target_type || 'all';
 
-            // ถ้าเป็นประกาศทั่วไป หรือทุกคน ให้แสดงได้เลยทันที
+            // 1. ประกาศทั่วไป / ทุกคน (แสดงปกติ)
             if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
                 return true;
             }
 
-            // ถ้ากำหนดตามระดับชั้น
+            // 2. ประกาศตามระดับชั้น
             if (targetType === 'level') {
                 const studentGrade = String(currentStudentData?.grade_level || currentStudentData?.grade || '').trim().toLowerCase();
                 const targetGrade = String(announcement.target_value || '').trim().toLowerCase();
-                if (!targetGrade || !studentGrade) return true; // ถ้าข้อมูลเกรดไม่ครบ ให้แสดงกันเหนียวไว้ก่อน
+                if (!targetGrade || !studentGrade) return false;
                 return studentGrade.includes(targetGrade) || targetGrade.includes(studentGrade);
             }
 
-            // ถ้ากำหนดตามรายบุคคล
+            // 3. ประกาศรายบุคคล
             if (targetType === 'specific') {
                 const studentId = String(currentStudentData?.id || currentStudentData?.student_id || currentStudentId || '').trim();
                 const targetValue = String(announcement.target_value || '').trim();
-                if (!targetValue) return true;
+                if (!targetValue) return false;
                 return targetValue.includes(studentId);
             }
 
-            // ถ้ากำหนดตามคอร์สเรียน
+            // 4. ประกาศตามคอร์สเรียน (Strict: ต้องลงทะเบียนคอร์สนี้จริง ๆ ถึงจะแสดง)
             if (targetType === 'course') {
-                // ถ้าสนักเรียนยังไม่มีข้อมูลคอร์สในระบบ ให้แสดงประกาศไว้ก่อน (กันหน้าจอโล่ง) หรือถ้ามี ให้เช็กว่าตรงกันไหม
+                // ถ้าเด็กยังไม่ได้ลงทะเบียนคอร์สใดๆ เลย ตัดทิ้งทันที
                 if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) {
-                    return true; // ป้องกันกรณีข้อมูลคอร์สยังไม่มา ให้แสดงประกาศไปก่อน
+                    return false;
                 }
 
                 const targetValue = String(announcement.target_value || '').trim();
-                if (!targetValue) return true;
+                if (!targetValue) return false;
 
+                // รายการคอร์สที่ระบุในประกาศ
                 const announcementCourseIds = targetValue.split(',').map(id => id.trim().toLowerCase()).filter(Boolean);
 
+                // รายการคอร์สที่นักเรียนลงทะเบียนจริง
                 let studentEnrolledIds = [];
                 enrolledCoursesList.forEach(e => {
                     if (e.course_id) studentEnrolledIds.push(String(e.course_id).trim().toLowerCase());
                     if (e.courseid) studentEnrolledIds.push(String(e.courseid).trim().toLowerCase());
                     if (e.course_code) studentEnrolledIds.push(String(e.course_code).trim().toLowerCase());
+                    if (e.course) studentEnrolledIds.push(String(e.course).trim().toLowerCase());
                 });
 
+                // ตรวจสอบว่ามีคอร์สที่ตรงกันจริง ๆ หรือไม่
                 const hasMatchedCourse = announcementCourseIds.some(acId => 
                     studentEnrolledIds.some(seId => seId === acId || seId.includes(acId) || acId.includes(seId))
                 );
@@ -463,7 +485,7 @@ function isAnnouncementForThisStudent(announcement) {
                 return hasMatchedCourse;
             }
 
-            return true;
+            return false;
         }
         
         async function loadAnnouncements() {
