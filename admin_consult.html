@@ -207,7 +207,7 @@
             <div id="calendarGrid" class="grid grid-cols-7 gap-1.5"></div>
         </div>
 
-        <!-- รายละเอียด Slot / คิวในวันที่เลือก (แยกช่องจองแล้วกับยังไม่จองชัดเจน) -->
+        <!-- รายละเอียด Slot / คิวในวันที่เลือก -->
         <div class="hitech-card p-5 rounded-2xl space-y-3">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div class="flex items-center gap-2">
@@ -433,7 +433,6 @@
 
         async function loadCoursesAndEnrollments() {
             try {
-                // 1. โหลดข้อมูลคอร์สทั้งหมด
                 const { data: coursesData } = await mySupabase.from('courses').select('id, title, course_code');
                 allCoursesList = coursesData || [];
                 coursesMap = {};
@@ -442,7 +441,6 @@
                 });
                 renderAllowedCoursesCheckboxes();
 
-                // 2. โหลดข้อมูลการลงทะเบียนเรียน (enrollments / course_enrollments)
                 let enrollsData = [];
                 const eRes1 = await mySupabase.from('enrollments').select('*');
                 if (eRes1.data) enrollsData = [...enrollsData, ...eRes1.data];
@@ -778,13 +776,13 @@
                                 <input type="checkbox" name="dailySlotCheckbox" value="${s.id}" class="w-4 h-4 accent-emerald-500 rounded shrink-0 cursor-pointer">
                                 <div>
                                     <span class="font-extrabold text-slate-900 dark:text-white"><i class="far fa-clock mr-1 text-emerald-500"></i> ${startStr} - ${endStr} น.</span>
-                                    <div class="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold mt-0.5 flex items-center gap-1.5">
+                                    <div class="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold mt-0.5 flex items-center gap-1.5 flex-wrap">
                                         <span>จองโดย: ${studentName}</span>
-                                        ${studentId ? `<button onclick="openStudentProfileModal('${studentId}')" class="text-[10px] px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-semibold transition-all"><i class="fas fa-search"></i> โปรไฟล์</button>` : ''}
+                                        ${studentId ? `<button onclick="openStudentDetailModal('${s.id}', '${studentId}')" class="text-[10px] px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md font-bold transition-all shadow-sm"><i class="fas fa-file-alt mr-1"></i> รายละเอียดการตอบ</button>` : ''}
                                     </div>
                                 </div>
                             </div>
-                            <div class="flex gap-1.5">
+                            <div class="flex gap-1.5 shrink-0">
                                 <button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${studentName}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>
                                 <button onclick="deleteSlot('${s.id}')" class="px-2.5 py-1 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ลบ</button>
                             </div>
@@ -1102,13 +1100,13 @@
                 return `
                     <div class="p-3 rounded-xl bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
                         <div>
-                            <span class="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                            <span class="font-extrabold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                                 <i class="fas fa-user-graduate text-indigo-500"></i> ${studentName}${studentNickname}
-                                ${studentId ? `<button onclick="openStudentProfileModal('${studentId}')" class="text-[10px] px-2 py-0.5 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 dark:text-indigo-400 rounded-lg font-bold transition-all"><i class="fas fa-search"></i> ดูโปรไฟล์</button>` : ''}
+                                ${studentId ? `<button onclick="openStudentDetailModal('${s.id}', '${studentId}')" class="text-[10px] px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 dark:text-indigo-400 rounded-lg font-bold transition-all shadow-sm"><i class="fas fa-file-alt mr-1"></i> รายละเอียดการตอบ</button>` : ''}
                             </span>
-                            <div class="text-[10px] text-slate-400 mt-0.5">⏰ ${startStr} - ${endStr} น.</div>
+                            <div class="text-[10px] text-slate-400 mt-1">⏰ ${startStr} - ${endStr} น.</div>
                         </div>
-                        <div class="flex gap-1.5">
+                        <div class="flex gap-1.5 shrink-0">
                             <button onclick="openRescheduleModal('${s.id}', '${s.student_id}', '${studentName}')" class="px-2.5 py-1 bg-sky-500/10 text-sky-500 hover:bg-sky-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ย้าย</button>
                             <button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${studentName}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>
                         </div>
@@ -1117,17 +1115,13 @@
             }).join('');
         }
 
-        // 👤 ฟังก์ชันเปิดดูโปรไฟล์นักเรียน พร้อมดึงผลการสอบและการบ้าน / สถิติมาร่วมแสดง
-        async function openStudentProfileModal(studentId) {
-            Swal.fire({ title: 'กำลังโหลดโปรไฟล์และผลงาน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        // 📋 ฟังก์ชันเปิดดูรายละเอียดการตอบ / ข้อมูลการจองเชิงลึก (คล้ายหน้า admin_analytics)
+        async function openStudentDetailModal(slotId, studentId) {
+            Swal.fire({ title: 'กำลังโหลดรายละเอียด...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            // 1. ดึงข้อมูลโปรไฟล์
-            const { data: profile, error } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
-
-            if (error || !profile) {
-                Swal.fire('ไม่พบข้อมูล', 'ไม่สามารถดึงข้อมูลโปรไฟล์นักเรียนได้', 'error');
-                return;
-            }
+            // 1. ดึงข้อมูล Slot และข้อมูลโปรไฟล์
+            const slotObj = allSlots.find(s => s.id === slotId) || allBookedStudentsCache.find(s => s.id === slotId);
+            const profile = slotObj?.profiles || {};
 
             // 2. ดึงผลการสอบ (exam_attempts) ของนักเรียนคนนี้
             let examAttempts = [];
@@ -1141,7 +1135,7 @@
                 } catch(err) { console.warn("Could not fetch exam attempts", err); }
             }
 
-            // 3. ดึงผลการส่งการบ้าน / แบบฝึกหัด (หากมีตาราง submissions หรือ homework_submissions)
+            // 3. ดึงผลการส่งการบ้าน / แบบฝึกหัด
             let homeworkSubmissions = [];
             try {
                 const { data: hwData } = await mySupabase.from('submissions').select('*').eq('student_id', studentId);
@@ -1163,7 +1157,10 @@
             const school = profile.school || '-';
             const gradeLevel = profile.grade_level || profile.grade || '-';
 
-            // จัดการคอร์สที่ลงทะเบียน
+            const startStr = slotObj ? new Date(slotObj.start_time).toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }) : '-';
+            const endStr = slotObj ? new Date(slotObj.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' }) : '-';
+
+            // คอร์สที่ลงทะเบียน
             const enrolledCIds = studentEnrollmentsMap[String(studentId)] || [];
             let coursesHtml = '<span class="text-slate-400 italic">ยังไม่ได้ลงทะเบียนคอร์สเรียน</span>';
             if (enrolledCIds.length > 0) {
@@ -1175,7 +1172,7 @@
                 }).join(' ');
             }
 
-            // จัดการตารางผลการสอบ
+            // ประวัติผลการสอบ
             let examsHtml = '<div class="text-slate-400 italic text-center py-2">ยังไม่มีประวัติการทำข้อสอบ</div>';
             if (examAttempts.length > 0) {
                 examsHtml = examAttempts.map((att, idx) => {
@@ -1183,7 +1180,7 @@
                     const score = att.total_score !== undefined && att.total_score !== null ? att.total_score : (att.score || 0);
                     const dateStr = att.submitted_at || att.created_at ? new Date(att.submitted_at || att.created_at).toLocaleDateString('th-TH') : '-';
                     return `
-                        <div class="p-2 bg-slate-100 dark:bg-slate-900 rounded-xl flex justify-between items-center text-[11px]">
+                        <div class="p-2.5 bg-slate-100 dark:bg-slate-900 rounded-xl flex justify-between items-center text-[11px]">
                             <div>
                                 <span class="font-bold text-slate-800 dark:text-slate-200">${idx + 1}. ${escapeHtml(examTitle)}</span>
                                 <div class="text-[10px] text-slate-400">ส่งเมื่อ: ${dateStr}</div>
@@ -1197,20 +1194,28 @@
             }
 
             Swal.fire({
-                title: '👤 ข้อมูลโปรไฟล์และผลการเรียนนักเรียน',
+                title: '📋 รายละเอียดการตอบและการจอง Consult',
                 html: `
-                    <div class="space-y-3 text-left text-xs max-h-[70vh] overflow-y-auto pr-1">
-                        <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
+                    <div class="space-y-3 text-left text-xs max-h-[75vh] overflow-y-auto pr-1">
+                        <!-- เวลาที่จอง -->
+                        <div class="p-3.5 bg-sky-50 dark:bg-sky-950/30 rounded-2xl border border-sky-500/30 flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400 font-bold"><i class="far fa-clock text-sky-500 mr-1.5"></i> ช่วงเวลาที่จอง:</span>
+                            <span class="font-extrabold text-sky-700 dark:text-sky-300 text-sm">${startStr} - ${endStr} น.</span>
+                        </div>
+
+                        <!-- ข้อมูลส่วนตัว -->
+                        <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
+                            <span class="font-bold text-slate-700 dark:text-slate-300 block pb-1 border-b border-slate-200 dark:border-slate-700"><i class="fas fa-user-graduate text-indigo-500 mr-1"></i> ข้อมูลนักเรียน</span>
                             <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อ-นามสกุล:</span><span class="font-bold text-slate-900 dark:text-white text-sm">${fullName}</span></div>
                             <div class="flex justify-between items-center"><span class="text-slate-400">ชื่อเล่น:</span><span class="font-bold text-sky-600 dark:text-sky-400">${nickname}</span></div>
                             <div class="flex justify-between items-center"><span class="text-slate-400">LINE ID:</span><span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">${lineId}</span></div>
                             <div class="flex justify-between items-center"><span class="text-slate-400">Username:</span><span class="font-mono text-indigo-500 font-bold">${username}</span></div>
                             <div class="flex justify-between items-center"><span class="text-slate-400">อีเมล:</span><span class="text-slate-800 dark:text-slate-200">${email}</span></div>
                             <div class="flex justify-between items-center"><span class="text-slate-400">เบอร์โทรศัพท์:</span><span class="text-slate-800 dark:text-slate-200">${phone}</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">โรงเรียน:</span><span class="text-slate-800 dark:text-slate-200">${school}</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">ระดับชั้น:</span><span class="text-slate-800 dark:text-slate-200">${gradeLevel}</span></div>
+                            <div class="flex justify-between items-center"><span class="text-slate-400">โรงเรียน / ชั้น:</span><span class="text-slate-800 dark:text-slate-200">${school} (${gradeLevel})</span></div>
                         </div>
 
+                        <!-- คอร์สที่ลงทะเบียน -->
                         <div class="space-y-1.5 pt-1">
                             <span class="font-bold text-slate-700 dark:text-slate-300 block"><i class="fas fa-book-open mr-1 text-indigo-500"></i> คอร์สที่ลงทะเบียนเรียน (${enrolledCIds.length} คอร์ส):</span>
                             <div class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
@@ -1218,6 +1223,7 @@
                             </div>
                         </div>
 
+                        <!-- ผลการสอบ / การบ้าน -->
                         <div class="space-y-1.5 pt-1">
                             <span class="font-bold text-slate-700 dark:text-slate-300 block"><i class="fas fa-chart-line mr-1 text-emerald-500"></i> ประวัติผลการสอบ (${examAttempts.length} ชุด):</span>
                             <div class="space-y-1.5 max-h-36 overflow-y-auto p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
@@ -1226,7 +1232,7 @@
                         </div>
                     </div>
                 `,
-                width: '600px',
+                width: '650px',
                 confirmButtonText: 'ปิดหน้าต่าง',
                 confirmButtonColor: '#0284c7',
                 background: isDark ? '#090d16' : '#ffffff',
