@@ -27,7 +27,7 @@
             theme: { 
                 extend: { 
                     fontFamily: { sans: ['Prompt', 'sans-serif'] }, 
-                    colors: { primary: '#0284c7', secondary: '#3b82f6', lightbg: '#f8fafc', darkbg: '#060913', darkbox: '#0f172a' } 
+                    colors: { primary: '#3b82f6', secondary: '#1d4ed8', lightbg: '#f8fafc', darkbg: '#020617', darkbox: '#090d1a' } 
                 } 
             }
         }
@@ -35,61 +35,75 @@
     <style>
         body { font-family: 'Prompt', sans-serif; overflow-x: hidden; }
 
+        /* Glassmorphism Navy Theme */
         .glass-nav { 
-            background: rgba(255, 255, 255, 0.75); 
-            backdrop-filter: blur(20px); 
-            -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.4); 
-            box-shadow: 0 10px 30px 0 rgba(31, 38, 135, 0.04);
+            background: rgba(255, 255, 255, 0.8); 
+            backdrop-filter: blur(25px); 
+            -webkit-backdrop-filter: blur(25px);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.15); 
+            box-shadow: 0 15px 35px 0 rgba(30, 58, 138, 0.06);
         }
         .dark .glass-nav { 
-            background: rgba(9, 13, 22, 0.75); 
-            backdrop-filter: blur(20px); 
-            -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06); 
-            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+            background: rgba(2, 6, 23, 0.8); 
+            backdrop-filter: blur(25px); 
+            -webkit-backdrop-filter: blur(25px);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2); 
+            box-shadow: 0 15px 35px 0 rgba(0, 0, 0, 0.5);
         }
 
         .glass-card { 
-            background: rgba(255, 255, 255, 0.82);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border: 1px solid rgba(255, 255, 255, 0.7);
-            box-shadow: 0 20px 40px -15px rgba(31, 38, 135, 0.07);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            box-shadow: 0 20px 50px -15px rgba(30, 58, 138, 0.08);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .dark .glass-card { 
-            background: rgba(15, 23, 42, 0.78);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.4);
+            background: rgba(9, 13, 26, 0.82);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
         }
         .glass-card:hover {
             transform: translateY(-6px);
-            box-shadow: 0 30px 60px -12px rgba(2, 132, 199, 0.18);
-            border-color: rgba(2, 132, 199, 0.4);
+            box-shadow: 0 30px 60px -12px rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.6);
         }
 
         .glass-input {
             background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px);
             border: 1px solid rgba(226, 232, 240, 0.8);
         }
         .dark .glass-input {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(51, 65, 85, 0.8);
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(30, 58, 138, 0.6);
         }
 
+        /* ปุ่มสีน้ำเงินเข้มประกายทอง/ฟ้าเงางาม */
         .glow-btn {
-            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
-            box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.45);
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+            box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.5);
             transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
+        .glow-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(60deg, transparent, rgba(255,255,255,0.2), transparent);
+            transform: rotate(45deg);
+            transition: 0.7s;
+            opacity: 0;
+        }
+        .glow-btn:hover::after { opacity: 1; transform: rotate(45deg) translate(50%, 50%); }
         .glow-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 15px 35px -5px rgba(79, 70, 229, 0.6);
+            box-shadow: 0 15px 35px -5px rgba(59, 130, 246, 0.7);
         }
 
         @keyframes floatSlow {
@@ -99,15 +113,15 @@
         .floating-element { animation: floatSlow 6s ease-in-out infinite; }
 
         @keyframes pulseGlow {
-            0%, 100% { opacity: 0.4; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.05); }
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.08); }
         }
         .bg-glow-blob {
             position: absolute;
-            width: 550px;
-            height: 550px;
-            background: linear-gradient(180deg, rgba(56, 189, 248, 0.2) 0%, rgba(99, 102, 241, 0.2) 100%);
-            filter: blur(90px);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(30, 64, 175, 0.25) 0%, rgba(59, 130, 246, 0.15) 60%, transparent 100%);
+            filter: blur(100px);
             border-radius: 50%;
             z-index: -1;
             animation: pulseGlow 8s ease-in-out infinite;
@@ -119,33 +133,35 @@
     <div class="bg-glow-blob top-10 left-[-5%]"></div>
     <div class="bg-glow-blob bottom-20 right-[-5%]" style="animation-delay: 4s;"></div>
 
-    <!-- Navigation Bar พร้อมเพิ่ม Tab ทดลองเรียน -->
+    <!-- Navigation Bar -->
     <nav class="glass-nav fixed w-full top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div class="flex justify-between h-20 items-center">
-                <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-2xl overflow-hidden shadow-lg border border-sky-500/30">
-                        <img src="logo.jpg" alt="Logo" class="w-full h-full object-cover">
+                <!-- โลโก้ด้านซ้าย -->
+                <div class="flex items-center gap-3.5 z-10">
+                    <div class="w-11 h-11 rounded-2xl overflow-hidden shadow-xl border border-blue-500/40 shrink-0 bg-gradient-to-tr from-blue-700 to-indigo-600 p-0.5">
+                        <img src="logo.jpg" alt="Logo" class="w-full h-full object-cover rounded-[14px]">
                     </div>
-                    <span class="font-black text-lg sm:text-xl text-slate-900 dark:text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-sky-500 to-indigo-600">KRUDREAM LAND</span>
+                    <span class="font-black text-lg sm:text-xl text-slate-900 dark:text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400">KRUDREAM LAND</span>
                 </div>
                 
-                <!-- Tab สลับหน้า (รวมหน้าแรก, แคตตาล็อก, และทดลองเรียน) -->
-                <div class="hidden md:flex items-center gap-1.5 glass-input p-1.5 rounded-2xl">
-                    <a href="index.html" class="px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-md shadow-sky-500/25">
-                        <i class="fas fa-home mr-1"></i> หน้าแรก
+                <!-- Tab เมนูกึ่งกลาง (Centered Navigation) -->
+                <div class="hidden md:flex items-center gap-1.5 glass-input p-1.5 rounded-2xl absolute left-1/2 transform -translate-x-1/2 shadow-inner border border-blue-500/15">
+                    <a href="index.html" class="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-lg shadow-blue-500/30">
+                        <i class="fas fa-home mr-1.5"></i> หน้าแรก
                     </a>
-                    <a href="catalog.html" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-sky-600 transition">
-                        <i class="fas fa-book-open mr-1"></i> แคตตาล็อกคอร์ส
+                    <a href="catalog.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
+                        <i class="fas fa-book-open mr-1.5"></i> แคตตาล็อกคอร์ส
                     </a>
-                    <a href="trial_courses.html" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-sky-600 transition">
-                        <i class="fas fa-play-circle mr-1 text-emerald-500"></i> ทดลองเรียน
+                    <a href="trial_courses.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
+                        <i class="fas fa-play-circle mr-1.5 text-blue-500"></i> ทดลองเรียน
                     </a>
                 </div>
 
-                <div class="flex items-center gap-3">
-                    <button onclick="openAuthModal('login')" class="px-5 py-2.5 glow-btn text-white rounded-2xl text-xs font-bold transition flex items-center gap-2">
-                        <i class="fas fa-right-to-bracket"></i> เข้าสู่ระบบ / สมัครสมาชิก
+                <!-- ปุ่มเข้าสู่ระบบด้านขวา -->
+                <div class="flex items-center gap-3 z-10">
+                    <button onclick="openAuthModal('login')" class="px-5 py-2.5 glow-btn text-white rounded-2xl text-xs font-bold transition flex items-center gap-2 shadow-lg">
+                        <i class="fas fa-right-to-bracket"></i> เข้าสู่ระบบ
                     </button>
                 </div>
             </div>
@@ -156,28 +172,31 @@
     <header class="pt-36 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full relative">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
-                <span class="inline-flex items-center gap-2 px-4 py-1.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-full text-xs font-extrabold border border-sky-500/20 backdrop-blur-md shadow-sm">
-                    <i class="fas fa-sparkles text-amber-400 animate-spin" style="animation-duration: 4s;"></i> ศูนย์รวมคอร์สพัฒนาทักษะและเตรียมสอบคุณภาพสูง
+                <span class="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-xs font-extrabold border border-blue-500/30 backdrop-blur-md shadow-sm">
+                    <i class="fas fa-graduation-cap text-amber-400 animate-bounce"></i> สถาบันพัฒนาศักยภาพและการศึกษาชั้นนำระดับพรีเมียม
                 </span>
+                
                 <h1 class="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white leading-[1.15] tracking-tight">
-                    เปลี่ยนความฝัน <br>ให้เป็นความจริงกับ <br><span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-600">KRUDREAM LAND</span>
+                    ปัญญาคือพลังขับเคลื่อน <br>อนาคตของคุณกับ <br><span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400">KRUDREAM LAND</span>
                 </h1>
+                
                 <p class="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-xl mx-auto lg:mx-0 font-light leading-relaxed">
-                    ยกระดับผลการเรียนและพิชิตเป้าหมายของคุณด้วยหลักสูตรเข้มข้น เทคนิคทำโจทย์แพรวพราว และระบบจำลองการสอบที่เสมือนจริงที่สุด
+                    ยกระดับทักษะความรู้ เจาะลึกเทคนิคทำโจทย์ระดับเข้มข้น และสร้างรากฐานความสำเร็จทางการศึกษาด้วยหลักสูตรที่ออกแบบมาเพื่ออนาคตของคุณโดยเฉพาะ
                 </p>
+                
                 <div class="flex flex-wrap justify-center lg:justify-start gap-3.5 pt-4">
-                    <a href="catalog.html" class="px-8 py-4 glow-btn text-white rounded-2xl font-bold text-sm transition flex items-center gap-2 shadow-xl shadow-sky-500/30">
-                        <i class="fas fa-book-open"></i> ดูคอร์สเรียนทั้งหมด
+                    <a href="catalog.html" class="px-8 py-4 glow-btn text-white rounded-2xl font-bold text-sm transition flex items-center gap-2 shadow-xl shadow-blue-500/30">
+                        <i class="fas fa-book-open"></i> สำรวจคอร์สเรียนทั้งหมด
                     </a>
-                    <button onclick="openAuthModal('register')" class="px-8 py-4 glass-input hover:bg-slate-200/50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm transition border border-slate-300/60 dark:border-slate-700">
-                        <i class="fas fa-user-plus mr-1.5 text-sky-500"></i> สมัครสมาชิกใหม่
+                    <button onclick="openAuthModal('register')" class="px-8 py-4 glass-input hover:bg-blue-500/10 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm transition border border-blue-500/30">
+                        <i class="fas fa-user-plus mr-1.5 text-blue-500"></i> สมัครสมาชิกใหม่
                     </button>
                 </div>
             </div>
             
             <div class="lg:col-span-5 flex justify-center">
-                <div class="relative w-full max-w-md aspect-square rounded-[2.5rem] overflow-hidden glass-card p-4 shadow-2xl border border-white/60 dark:border-slate-700 flex items-center justify-center floating-element group">
-                    <div class="absolute inset-0 bg-gradient-to-tr from-sky-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div class="relative w-full max-w-md aspect-square rounded-[2.5rem] overflow-hidden glass-card p-4 shadow-2xl border border-blue-500/40 flex items-center justify-center floating-element group">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-blue-600/20 to-indigo-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                     <img src="logo.jpg" alt="KRUDREAM LAND" class="w-full h-full object-contain rounded-3xl z-10 drop-shadow-2xl">
                 </div>
             </div>
@@ -185,17 +204,17 @@
     </header>
 
     <!-- Courses Showcase Section -->
-    <section id="coursesSection" class="py-20 glass-card border-y border-slate-200/60 dark:border-slate-800/80">
+    <section id="coursesSection" class="py-20 glass-card border-y border-blue-500/20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-2xl mx-auto mb-14 space-y-3">
-                <span class="text-xs font-bold text-sky-600 dark:text-sky-400 tracking-wider uppercase bg-sky-500/10 px-3 py-1 rounded-full border border-sky-500/20">POPULAR COURSES</span>
-                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">คอร์สเรียนยอดนิยม</h2>
-                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">เลือกคอร์สที่ใช่สำหรับคุณ แล้วเริ่มต้นเรียนรู้เพื่อความสำเร็จได้ทันที</p>
+                <span class="text-xs font-bold text-blue-600 dark:text-blue-400 tracking-wider uppercase bg-blue-500/10 px-3.5 py-1.5 rounded-full border border-blue-500/30">PRESTIGIOUS COURSES</span>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">หลักสูตรยอดนิยมเพื่อความเป็นเลิศ</h2>
+                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">เลือกเส้นทางความสำเร็จของคุณ แล้วก้าวสู่เป้าหมายไปพร้อมกับเรา</p>
             </div>
 
             <div id="landingCoursesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div class="glass-card p-12 rounded-3xl text-center text-slate-400 col-span-full">
-                    <i class="fas fa-spinner fa-spin text-3xl mb-3 text-sky-600"></i>
+                    <i class="fas fa-spinner fa-spin text-3xl mb-3 text-blue-600"></i>
                     <p class="text-sm font-medium">กำลังโหลดคอร์สเรียน...</p>
                 </div>
             </div>
@@ -203,19 +222,18 @@
     </section>
 
     <!-- Footer -->
-    <footer class="py-10 text-center text-xs text-slate-400 border-t border-slate-200/60 dark:border-slate-800/80 space-y-2">
-        <p>&copy; 2026 KRUDREAM LAND. All rights reserved.</p>
+    <footer class="py-10 text-center text-xs text-slate-400 border-t border-blue-500/20 space-y-2">
+        <p>&copy; 2026 KRUDREAM LAND. All rights reserved. • Excellence in Education.</p>
     </footer>
 
-    <!-- Auth Modal (แก้ไขปุ่มกากบาทไม่ให้ทับกับช่องกรอกข้อมูลแล้ว) -->
+    <!-- Auth Modal -->
     <div id="authModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md hidden flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-lg p-8 pt-16 rounded-[2.5rem] shadow-2xl relative max-h-[90vh] overflow-y-auto border border-white/20">
-            <!-- ปุ่มกากบาทถูกย้ายมาวางลอยมุมขวาบนอย่างอิสระ ไม่ทับฟอร์ม -->
+        <div class="glass-card w-full max-w-lg p-8 pt-16 rounded-[2.5rem] shadow-2xl relative max-h-[90vh] overflow-y-auto border border-blue-500/30">
             <button onclick="closeAuthModal()" class="absolute top-5 right-5 w-10 h-10 flex items-center justify-center rounded-2xl glass-input text-slate-500 hover:text-red-500 transition shadow-md z-20">
                 <i class="fas fa-xmark text-sm font-bold"></i>
             </button>
 
-            <div class="flex gap-2 mb-6 glass-input p-1.5 rounded-2xl">
+            <div class="flex gap-2 mb-6 glass-input p-1.5 rounded-2xl border border-blue-500/20">
                 <button type="button" onclick="switchAuthTab('login')" id="tabLoginBtn" class="flex-1 py-2.5 rounded-xl text-xs font-bold transition glow-btn text-white shadow-sm">เข้าสู่ระบบ</button>
                 <button type="button" onclick="switchAuthTab('register')" id="tabRegBtn" class="flex-1 py-2.5 rounded-xl text-xs font-bold transition text-slate-600 dark:text-slate-300">สมัครสมาชิก</button>
             </div>
@@ -224,13 +242,13 @@
             <form id="loginForm" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">อีเมล หรือ Username (Email)</label>
-                    <input type="text" id="loginEmail" required placeholder="yourname@gmail.com" class="w-full px-4 py-3 glass-input rounded-2xl text-xs font-bold dark:text-white outline-none focus:border-sky-500">
+                    <input type="text" id="loginEmail" required placeholder="yourname@gmail.com" class="w-full px-4 py-3 glass-input rounded-2xl text-xs font-bold dark:text-white outline-none focus:border-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">รหัสผ่าน (Password)</label>
-                    <input type="password" id="loginPass" required placeholder="••••••••" class="w-full px-4 py-3 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
+                    <input type="password" id="loginPass" required placeholder="••••••••" class="w-full px-4 py-3 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500">
                 </div>
-                <button type="submit" class="w-full glow-btn text-white py-3.5 rounded-2xl font-bold text-xs transition shadow-lg shadow-sky-500/20">เข้าสู่ระบบ</button>
+                <button type="submit" class="w-full glow-btn text-white py-3.5 rounded-2xl font-bold text-xs transition shadow-lg shadow-blue-500/30">เข้าสู่ระบบ</button>
             </form>
 
             <!-- Register Form -->
@@ -238,31 +256,31 @@
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">ชื่อจริง <span class="text-rose-500">*</span></label>
-                        <input type="text" id="regFirstName" required placeholder="ชื่อจริง" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
+                        <input type="text" id="regFirstName" required placeholder="ชื่อจริง" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500">
                     </div>
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">นามสกุล <span class="text-rose-500">*</span></label>
-                        <input type="text" id="regLastName" required placeholder="นามสกุล" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
+                        <input type="text" id="regLastName" required placeholder="นามสกุล" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">อีเมล (Gmail สำหรับเข้าสู่ระบบ) <span class="text-rose-500">*</span></label>
-                    <input type="email" id="regEmail" required placeholder="yourname@gmail.com" class="w-full px-3.5 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
+                    <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">อีเมล (Gmail) <span class="text-rose-500">*</span></label>
+                    <input type="email" id="regEmail" required placeholder="yourname@gmail.com" class="w-full px-3.5 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500">
                 </div>
 
                 <div class="grid grid-cols-3 gap-2">
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">ชื่อเล่น <span class="text-rose-500">*</span></label>
-                        <input type="text" id="regNickname" required placeholder="ชื่อเล่น" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
+                        <input type="text" id="regNickname" required placeholder="ชื่อเล่น" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500">
                     </div>
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">ระดับชั้น <span class="text-rose-500">*</span></label>
-                        <input type="text" id="regGradeLevel" required placeholder="เช่น ม.3/1" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
+                        <input type="text" id="regGradeLevel" required placeholder="เช่น ม.3/1" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500">
                     </div>
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">เพศ <span class="text-rose-500">*</span></label>
-                        <select id="regGender" required class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500 font-bold cursor-pointer">
+                        <select id="regGender" required class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500 font-bold cursor-pointer">
                             <option value="" disabled selected>-- เลือกเพศ --</option>
                             <option value="ชาย">ชาย</option>
                             <option value="หญิง">หญิง</option>
@@ -273,25 +291,25 @@
                 <div class="grid grid-cols-3 gap-2">
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">เบอร์โทร <span class="text-rose-500">*</span></label>
-                        <input type="tel" id="regPhone" required placeholder="089xxxxxxx" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
+                        <input type="tel" id="regPhone" required placeholder="089xxxxxxx" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500">
                     </div>
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">โรงเรียน <span class="text-rose-500">*</span></label>
-                        <input type="text" id="regSchool" required placeholder="ชื่อโรงเรียน" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
+                        <input type="text" id="regSchool" required placeholder="ชื่อโรงเรียน" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500">
                     </div>
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">LINE ID <span class="text-rose-500">*</span></label>
-                        <input type="text" id="regLineId" required placeholder="@line_id" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
+                        <input type="text" id="regLineId" required placeholder="@line_id" class="w-full px-3 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">ตั้งรหัสผ่าน (Password) <span class="text-rose-500">*</span></label>
-                    <input type="password" id="regPass" required placeholder="••••••••" class="w-full px-3.5 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-sky-500">
+                    <input type="password" id="regPass" required placeholder="••••••••" class="w-full px-3.5 py-2.5 glass-input rounded-2xl text-xs dark:text-white outline-none focus:border-blue-500">
                 </div>
 
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-2xl font-bold text-xs transition shadow-lg shadow-emerald-500/25 mt-2">
-                    สมัครสมาชิก (บัญชีภายนอก)
+                <button type="submit" class="w-full glow-btn text-white py-3.5 rounded-2xl font-bold text-xs transition shadow-lg shadow-blue-500/30 mt-2">
+                    สมัครสมาชิก
                 </button>
             </form>
         </div>
@@ -299,7 +317,7 @@
 
     <!-- Theme Toggle Floating Button -->
     <div class="fixed bottom-6 right-6 z-50">
-        <button id="themeToggle" class="w-12 h-12 rounded-2xl glass-card shadow-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition hover:scale-110">
+        <button id="themeToggle" class="w-12 h-12 rounded-2xl glass-card shadow-xl border border-blue-500/30 flex items-center justify-center text-slate-600 dark:text-slate-300 transition hover:scale-110">
             <i class="fas fa-moon text-lg" id="themeIcon"></i>
         </button>
     </div>
@@ -340,19 +358,19 @@
                     let imgList = Array.isArray(c.images) && c.images.length > 0 ? c.images : [c.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60'];
                     
                     return `
-                        <div class="glass-card rounded-[2rem] overflow-hidden flex flex-col justify-between group">
+                        <div class="glass-card rounded-[2rem] overflow-hidden flex flex-col justify-between group border border-blue-500/20">
                             <div>
                                 <div class="relative aspect-video overflow-hidden bg-slate-900/5 dark:bg-slate-800/50 flex items-center justify-center p-2">
                                     <img src="${imgList[0]}" class="w-full h-full object-contain rounded-2xl group-hover:scale-105 transition-transform duration-500">
-                                    <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-xl">${code}</div>
+                                    <div class="absolute top-3 left-3 bg-blue-950/80 backdrop-blur-md text-blue-300 text-[10px] font-bold px-3 py-1 rounded-xl border border-blue-500/30">${code}</div>
                                 </div>
                                 <div class="p-6 space-y-2.5">
-                                    <h3 class="font-bold text-base text-slate-900 dark:text-white line-clamp-1">${title}</h3>
+                                    <h3 class="font-bold text-base text-slate-900 dark:text-white line-clamp-1 group-hover:text-blue-500 transition-colors">${title}</h3>
                                     <div class="flex items-center gap-2">
-                                        <span class="text-lg font-black text-sky-600 dark:text-sky-400">${price}</span>
+                                        <span class="text-lg font-black text-blue-600 dark:text-blue-400">${price}</span>
                                         ${origPrice ? `<span class="text-xs text-slate-400 line-through">${origPrice}</span>` : ''}
                                     </div>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">${desc}</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 font-light">${desc}</p>
                                 </div>
                             </div>
                             <div class="p-6 pt-0 border-t border-slate-100/50 dark:border-slate-800/50 mt-4">
@@ -386,7 +404,7 @@
                 loginForm.classList.remove('hidden');
                 regForm.classList.add('hidden');
             } else {
-                regBtn.className = 'flex-1 py-2.5 rounded-xl text-xs font-bold transition bg-emerald-600 text-white shadow-sm';
+                regBtn.className = 'flex-1 py-2.5 rounded-xl text-xs font-bold transition glow-btn text-white shadow-sm';
                 loginBtn.className = 'flex-1 py-2.5 rounded-xl text-xs font-bold transition text-slate-600 dark:text-slate-300';
                 regForm.classList.remove('hidden');
                 loginForm.classList.add('hidden');
