@@ -59,7 +59,6 @@
         .dark .modern-card { background: #090d16; border: 1px solid rgba(30, 58, 138, 0.6); }
         .btn-glow { transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(2, 132, 199, 0.25); }
         .btn-glow:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(2, 132, 199, 0.4); }
-        .preview-image-container { aspect-ratio: 16 / 9; width: 100%; overflow: hidden; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
@@ -76,7 +75,7 @@
                             <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-bullhorn"></i></span>
                             ศูนย์รวมประกาศและข่าวสาร
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">ประกาศและข่าวสารแจ้งเตือนตามคอร์สเรียนของคุณ</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">ประกาศและข่าวสารแจ้งเตือนทั้งหมดในระบบ</p>
                     </div>
                 </div>
                 <button id="themeToggle" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
@@ -90,20 +89,18 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             <!-- ฟอร์มสร้างประกาศ (สำหรับ Admin) -->
-            <div id="creatorSection" class="lg:col-span-5 modern-card p-8 rounded-3xl sticky top-28">
+            <div id="creatorSection" class="lg:col-span-5 modern-card p-8 rounded-3xl sticky top-28 hidden">
                 <div class="flex items-center gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div class="w-14 h-14 bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-sky-500/30">
-                        <i class="fas fa-edit" id="formIcon"></i>
+                        <i class="fas fa-edit"></i>
                     </div>
                     <div>
-                        <h2 class="text-xl font-bold text-slate-900 dark:text-white" id="formTitle">สร้างประกาศใหม่</h2>
+                        <h2 class="text-xl font-bold text-slate-900 dark:text-white">สร้างประกาศใหม่</h2>
                         <p class="text-xs text-slate-500 dark:text-slate-400">เลือกประเภทและการแจ้งเตือน</p>
                     </div>
                 </div>
 
                 <form id="announcementForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
-                    <input type="hidden" id="editAnnouncementId">
-                    
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">ประเภทประกาศ <span class="text-red-500">*</span></label>
                         <select id="annCategory" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-sm outline-none font-bold">
@@ -116,12 +113,12 @@
 
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">หัวข้อประกาศ <span class="text-red-500">*</span></label>
-                        <input type="text" id="annTitle" required placeholder="เช่น เปิดข้อสอบชุดที่ 1..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm transition-all shadow-sm">
+                        <input type="text" id="annTitle" required placeholder="เช่น เปิดข้อสอบชุดที่ 1..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm">
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">เนื้อหาประกาศ <span class="text-red-500">*</span></label>
-                        <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-none transition-all shadow-sm leading-relaxed"></textarea>
+                        <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-none"></textarea>
                     </div>
 
                     <div class="p-4 bg-sky-50/50 dark:bg-slate-800/50 rounded-2xl border border-sky-100 dark:border-slate-700 space-y-3">
@@ -141,11 +138,6 @@
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">แนบไฟล์ / รูปภาพ</label>
-                        <input type="file" id="annFiles" multiple accept="image/*,.pdf,.doc,.docx" class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-600 cursor-pointer">
-                    </div>
-
                     <button type="submit" class="w-full bg-sky-600 hover:bg-sky-700 text-white py-3.5 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-sky-500/20">
                         โพสต์ประกาศ
                     </button>
@@ -153,13 +145,22 @@
             </div>
 
             <!-- Feed ประกาศ -->
-            <div id="feedSection" class="lg:col-span-7 space-y-5">
-                <div class="flex justify-between items-center modern-card p-6 rounded-3xl">
+            <div id="feedSection" class="lg:col-span-12 space-y-5">
+                <div class="modern-card p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-center gap-4">
                     <h3 class="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-3">
                         <span class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-sky-600 flex items-center justify-center text-sm"><i class="fas fa-bullhorn"></i></span>
-                        ประกาศสำหรับคุณ
+                        ประกาศทั้งหมดในระบบ
                     </h3>
-                    <span id="annCount" class="text-xs bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 px-4 py-2 rounded-xl font-bold border border-sky-100 dark:border-sky-900/50">0 รายการ</span>
+                    
+                    <!-- ปุ่มสลับโหมดการแสดงผล (ช่วยให้เช็กได้ทันทีว่าติดปัญหาอะไร) -->
+                    <div class="flex items-center gap-2 bg-slate-100 dark:bg-darkinput p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <button onclick="setFilterMode('all')" id="btnFilterAll" class="px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-sm transition-all">
+                            ดูประกาศทั้งหมด
+                        </button>
+                        <button onclick="setFilterMode('course')" id="btnFilterCourse" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 transition-all">
+                            เฉพาะคอร์สที่ฉันลง
+                        </button>
+                    </div>
                 </div>
 
                 <div id="announcementFeed" class="space-y-4">
@@ -181,8 +182,8 @@
         let userRole = 'admin';
         let currentStudentId = null;
         let studentEnrolledCourses = [];
-        let allCoursesList = [];
-        let coursesMap = {};
+        let allAnnouncementsData = [];
+        let currentFilterMode = 'all'; // 'all' หรือ 'course'
 
         const htmlElement = document.documentElement;
         if (localStorage.getItem('theme') === 'dark') htmlElement.classList.add('dark');
@@ -196,114 +197,95 @@
             currentStudentId = urlParams.get('student_id') || urlParams.get('id') || localStorage.getItem('student_id') || localStorage.getItem('id');
             userRole = localStorage.getItem('role') || (currentStudentId ? 'student' : 'admin');
 
-            // 1. โหลดคอร์สทั้งหมด
+            // ถ้าเป็น Admin ให้แสดงฟอร์มสร้างประกาศฝั่งซ้าย
+            if (userRole !== 'student') {
+                document.getElementById('creatorSection').classList.remove('hidden');
+                document.getElementById('feedSection').className = 'lg:col-span-7 space-y-5';
+            }
+
+            // โหลดรายชื่อคอร์สทั้งหมดสำหรับฟอร์มสร้าง (Admin)
             const { data: courses } = await mySupabase.from('courses').select('id, title, course_code, name');
-            if (courses) {
-                allCoursesList = courses;
-                coursesMap = {};
-                courses.forEach(c => {
-                    coursesMap[c.id] = c.title || c.name || c.course_code;
-                    if (c.course_code) coursesMap[c.course_code] = c.title || c.name;
-                });
+            if (courses && document.getElementById('courseCheckboxes')) {
+                document.getElementById('courseCheckboxes').innerHTML = courses.map(c => `
+                    <label class="flex items-center gap-2 text-xs cursor-pointer p-1">
+                        <input type="checkbox" name="courseCheckbox" value="${c.id}" class="rounded text-sky-600">
+                        <span class="dark:text-slate-200">${c.title || c.name || c.course_code}</span>
+                    </label>
+                `).join('');
+            }
 
-                const container = document.getElementById('courseCheckboxes');
-                if (container) {
-                    container.innerHTML = courses.map(c => `
-                        <label class="flex items-center gap-2 text-xs cursor-pointer p-1">
-                            <input type="checkbox" name="courseCheckbox" value="${c.id}" class="rounded text-sky-600">
-                            <span class="dark:text-slate-200">${c.title || c.name || c.course_code}</span>
-                        </label>
-                    `).join('');
+            // ดึงข้อมูลคอร์สที่นักเรียนลงทะเบียนไว้จากตารางต่างๆ
+            if (currentStudentId) {
+                let enrollments = [];
+                const tables = ['course_enrollments', 'enrollments', 'student_courses', 'student_enrollments'];
+                for (let t of tables) {
+                    const { data } = await mySupabase.from(t).select('*').or(`student_id.eq.${currentStudentId},user_id.eq.${currentStudentId}`);
+                    if (data && data.length > 0) enrollments = enrollments.concat(data);
                 }
+
+                studentEnrolledCourses = enrollments.map(e => String(e.course_id || e.courseid || e.id || '').trim().toLowerCase()).filter(Boolean);
             }
 
-            // 2. ถ้าเป็นนักเรียน ให้ดึงคอร์สที่ลงทะเบียนไว้จริง ๆ
-            if (userRole === 'student' || currentStudentId) {
-                userRole = 'student';
-                const creator = document.getElementById('creatorSection');
-                if (creator) creator.style.display = 'none';
-                const feed = document.getElementById('feedSection');
-                if (feed) feed.className = 'lg:col-span-12 space-y-5';
-
-                if (currentStudentId) {
-                    let enrollments = [];
-                    const { data: en1 } = await mySupabase.from('course_enrollments').select('*').eq('student_id', currentStudentId);
-                    if (en1) enrollments = enrollments.concat(en1);
-                    const { data: en2 } = await mySupabase.from('course_enrollments').select('*').eq('user_id', currentStudentId);
-                    if (en2) enrollments = enrollments.concat(en2);
-                    const { data: en3 } = await mySupabase.from('enrollments').select('*').eq('student_id', currentStudentId);
-                    if (en3) enrollments = enrollments.concat(en3);
-
-                    // เก็บ ID หรือรหัสคอร์สที่นักเรียนลงทะเบียน
-                    studentEnrolledCourses = enrollments.map(e => String(e.course_id || e.courseid || '').trim().toLowerCase()).filter(Boolean);
-                }
-            }
-
-            loadAnnouncements();
+            await loadAnnouncements();
         }
 
-        // ฟังก์ชันเช็กว่าประกาศนี้ตรงกับคอร์สที่นักเรียนลงทะเบียนหรือไม่
-        function isAnnouncementForThisStudent(announcement) {
-            if (userRole !== 'student') return true;
-            if (!announcement) return false;
+        function setFilterMode(mode) {
+            currentFilterMode = mode;
+            const btnAll = document.getElementById('btnFilterAll');
+            const btnCourse = document.getElementById('btnFilterCourse');
 
-            const targetType = announcement.target_type || 'all';
-
-            // ถ้าเป็นประกาศทั่วไป ให้แสดงทั้งหมด
-            if (targetType === 'all' || !announcement.target_type) {
-                return true;
+            if (mode === 'all') {
+                btnAll.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-sm transition-all';
+                btnCourse.className = 'px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 transition-all';
+            } else {
+                btnCourse.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-sm transition-all';
+                btnAll.className = 'px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 transition-all';
             }
 
-            // ถ้าเป็นประกาศเฉพาะคอร์ส
-            if (targetType === 'course') {
-                const targetValue = String(announcement.target_value || '').trim();
-                if (!targetValue) return true;
-
-                const announcementCourses = targetValue.split(',').map(c => c.trim().toLowerCase());
-                
-                // ตรวจสอบว่ามีคอร์สใดในประกาศที่ตรงกับคอร์สที่นักเรียนลงทะเบียน
-                return announcementCourses.some(ac => studentEnrolledCourses.includes(ac));
-            }
-
-            return true;
-        }
-
-        function handleTargetTypeChange() {
-            const val = document.getElementById('targetType').value;
-            document.getElementById('courseSelectContainer').classList.toggle('hidden', val !== 'course');
-        }
-
-        function goBack() {
-            window.location.href = currentStudentId ? `student.html?student_id=${currentStudentId}` : 'admin.html';
+            renderFeed();
         }
 
         async function loadAnnouncements() {
             const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
             
-            const feed = document.getElementById('announcementFeed');
-            if (error || !anns || anns.length === 0) {
-                feed.innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400">ยังไม่มีประกาศในระบบ</div>`;
-                document.getElementById('annCount').textContent = '0 รายการ';
+            if (error || !anns) {
+                document.getElementById('announcementFeed').innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400">ไม่สามารถโหลดข้อมูลประกาศได้</div>`;
                 return;
             }
 
-            // กรองประกาศตามคอร์สที่ลงทะเบียน
-            let filteredAnns = anns.filter(a => isAnnouncementForThisStudent(a));
+            allAnnouncementsData = anns;
+            renderFeed();
+        }
 
-            document.getElementById('annCount').textContent = `${filteredAnns.length} รายการ`;
+        function renderFeed() {
+            const feed = document.getElementById('announcementFeed');
+            let displayList = allAnnouncementsData;
 
-            if (filteredAnns.length === 0) {
+            // ถ้าเลือกโหมดเฉพาะคอร์สที่ลงทะเบียน
+            if (currentFilterMode === 'course' && userRole === 'student') {
+                displayList = allAnnouncementsData.filter(a => {
+                    const targetType = a.target_type || 'all';
+                    if (targetType === 'all' || !a.target_type) return true;
+                    if (targetType === 'course') {
+                        const targetVal = String(a.target_value || '').toLowerCase();
+                        return studentEnrolledCourses.some(sc => targetVal.includes(sc));
+                    }
+                    return false;
+                });
+            }
+
+            if (displayList.length === 0) {
                 feed.innerHTML = `
                     <div class="modern-card p-12 rounded-3xl text-center text-slate-400">
                         <i class="fas fa-bullhorn text-3xl mb-3 text-sky-500"></i>
-                        <h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ยังไม่มีประกาศสำหรับคอร์สของคุณ</h4>
-                        <p class="text-xs text-slate-400">ระบบจะแสดงเฉพาะประกาศจากคอร์สที่คุณลงทะเบียนเรียนไว้เท่านั้น</p>
+                        <h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ยังไม่มีประกาศในหมวดหมู่นี้</h4>
+                        <p class="text-xs text-slate-400">ลองสลับไปดู "ดูประกาศทั้งหมด" ด้านบนได้ครับ</p>
                     </div>
                 `;
                 return;
             }
 
-            feed.innerHTML = filteredAnns.map(a => {
+            feed.innerHTML = displayList.map(a => {
                 const dateStr = new Date(a.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
                 const titleText = a.title || 'ประกาศจากทางโรงเรียน';
                 const category = a.category || 'general';
@@ -326,6 +308,15 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        function handleTargetTypeChange() {
+            const val = document.getElementById('targetType').value;
+            document.getElementById('courseSelectContainer').classList.toggle('hidden', val !== 'course');
+        }
+
+        function goBack() {
+            window.location.href = currentStudentId ? `student.html?student_id=${currentStudentId}` : 'admin.html';
         }
 
         async function handleFormSubmit(e) {
