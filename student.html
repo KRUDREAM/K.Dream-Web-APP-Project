@@ -591,97 +591,87 @@
             return false;
         }
 
-function isAnnouncementForThisStudent(announcement) {
-    if (!announcement) return false;
-    const targetType = announcement.target_type || 'all';
+        function isAnnouncementForThisStudent(announcement) {
+            if (!announcement) return false;
+            const targetType = announcement.target_type || 'all';
 
-    // 1. ถ้าเป็นประกาศสำหรับทุกคน ให้ผ่านได้เลย
-    if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
-        return true;
-    }
-
-    // 2. ถ้าเป็นประกาศเจาะจงรายบุคคล (Specific Student ID)
-    if (targetType === 'specific') {
-        const studentId = String(currentStudentData?.id || currentStudentData?.student_id || '').trim();
-        const targetValue = String(announcement.target_value || '').trim();
-        // ถ้าไอดีตรงกัน หรือประกาศไม่ได้ระบุเจาะจงไอดีเฉพาะ ให้ผ่าน
-        if (!targetValue) return true;
-        return targetValue.includes(studentId);
-    }
-
-    // 3. ถ้าเป็นประกาศตามคอร์ส (Course) แต่ตอนนี้ enrolledCoursesList ยังว่างเปล่า
-    // ให้ลองเช็คว่าถ้ายังโหลดคอร์สไม่เสร็จ จะให้แสดงไว้ก่อน หรือดึงจาก Attribute อื่นของ student แทน
-    if (targetType === 'course') {
-        // ถ้ายังไม่มีข้อมูลคอร์สในระบบ ให้ RETURN true ไปก่อนเพื่อให้ประกาศแสดงผล (กันเหนียวตอนข้อมูลกำลังโหลด)
-        if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) {
-            console.warn("Enrolled courses list is empty, allowing announcement by default.");
-            return true; 
-        }
-
-        const targetValue = String(announcement.target_value || '').trim().toLowerCase();
-        const announcementCourses = targetValue.split(',').map(c => c.trim());
-
-        let studentIdentifiers = [];
-        enrolledCoursesList.forEach(c => {
-            if (c.id) studentIdentifiers.push(String(c.id).trim().toLowerCase());
-            if (c.title) studentIdentifiers.push(String(c.title).trim().toLowerCase());
-            if (c.name) studentIdentifiers.push(String(c.name).trim().toLowerCase());
-        });
-
-        return announcementCourses.some(ac => 
-            studentIdentifiers.some(si => si === ac || si.includes(ac) || ac.includes(si))
-        );
-    }
-
-    return true;
-}
-// 🌟 ฟังก์ชันรองรับการนับจำนวนการแจ้งเตือน (ป้องกัน Error: loadStudentNotificationsCount is not defined)
-async function loadStudentNotificationsCount() {
-    try {
-        // ตรวจสอบว่ามีตาราง announcements หรือไม่ แล้วดึงเฉพาะประกาศที่ตรงกับคอร์สของนักเรียน
-        if (typeof mySupabase === 'undefined') return;
-
-        const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(50);
-        const badge = document.getElementById('notifBadge');
-        
-        if (error || !anns || !Array.isArray(anns)) {
-            if (badge) badge.classList.add('hidden');
-            return;
-        }
-
-        // กรองประกาศตามสิทธิ์ของนักเรียน
-        const myValidAnns = anns.filter(a => {
-            if (typeof isAnnouncementForThisStudent === 'function') {
-                return isAnnouncementForThisStudent(a);
+            if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
+                return true;
             }
+
+            if (targetType === 'specific') {
+                const studentId = String(currentStudentData?.id || currentStudentData?.student_id || '').trim();
+                const targetValue = String(announcement.target_value || '').trim();
+                if (!targetValue) return true;
+                return targetValue.includes(studentId);
+            }
+
+            if (targetType === 'course') {
+                if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) {
+                    return true; 
+                }
+
+                const targetValue = String(announcement.target_value || '').trim().toLowerCase();
+                const announcementCourses = targetValue.split(',').map(c => c.trim());
+
+                let studentIdentifiers = [];
+                enrolledCoursesList.forEach(c => {
+                    if (c.id) studentIdentifiers.push(String(c.id).trim().toLowerCase());
+                    if (c.title) studentIdentifiers.push(String(c.title).trim().toLowerCase());
+                    if (c.name) studentIdentifiers.push(String(c.name).trim().toLowerCase());
+                });
+
+                return announcementCourses.some(ac => 
+                    studentIdentifiers.some(si => si === ac || si.includes(ac) || ac.includes(si))
+                );
+            }
+
             return true;
-        });
-
-        // ดึงรายการที่อ่านแล้ว
-        let readIds = [];
-        if (typeof currentStudentData !== 'undefined' && currentStudentData && currentStudentData.read_announcements) {
-            readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
         }
 
-        const unread = myValidAnns.filter(a => !readIds.includes(a.id));
-        
-        const headerCount = document.getElementById('notifHeaderCount');
-        if (headerCount) {
-            headerCount.textContent = `${unread.length} ใหม่`;
-        }
+        async function loadStudentNotificationsCount() {
+            try {
+                if (typeof mySupabase === 'undefined') return;
 
-        if (badge) {
-            if (unread.length > 0) {
-                badge.textContent = unread.length > 9 ? '9+' : unread.length;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
+                const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(50);
+                const badge = document.getElementById('notifBadge');
+                
+                if (error || !anns || !Array.isArray(anns)) {
+                    if (badge) badge.classList.add('hidden');
+                    return;
+                }
+
+                const myValidAnns = anns.filter(a => {
+                    if (typeof isAnnouncementForThisStudent === 'function') {
+                        return isAnnouncementForThisStudent(a);
+                    }
+                    return true;
+                });
+
+                let readIds = [];
+                if (typeof currentStudentData !== 'undefined' && currentStudentData && currentStudentData.read_announcements) {
+                    readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
+                }
+
+                const unread = myValidAnns.filter(a => !readIds.includes(a.id));
+                
+                const headerCount = document.getElementById('notifHeaderCount');
+                if (headerCount) {
+                    headerCount.textContent = `${unread.length} ใหม่`;
+                }
+
+                if (badge) {
+                    if (unread.length > 0) {
+                        badge.textContent = unread.length > 9 ? '9+' : unread.length;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            } catch (err) {
+                console.warn("Notification count warning:", err);
             }
         }
-    } catch (err) {
-        console.warn("Notification count warning:", err);
-    }
-}
         
         async function authenticateStudent() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -743,134 +733,129 @@ async function loadStudentNotificationsCount() {
             window.location.replace('index.html');
         }
 
-// 🌟 เรนเดอร์รายการใน Dropdown (ปลอดภัยจาก Error)
-async function fetchAndRenderNotificationDropdown() {
-    const listContainer = document.getElementById('notifDropdownList');
-    if (!listContainer) return;
+        async function fetchAndRenderNotificationDropdown() {
+            const listContainer = document.getElementById('notifDropdownList');
+            if (!listContainer) return;
 
-    listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> กำลังโหลด...</div>`;
+            listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> กำลังโหลด...</div>`;
 
-    try {
-        const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(30);
-        
-        if (error || !anns || !Array.isArray(anns) || anns.length === 0) {
-            listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs">ยังไม่มีประกาศในขณะนี้</div>`;
-            return;
-        }
-
-        // กรองเฉพาะประกาศที่ตรงกับนักเรียน
-        const myValidAnns = anns.filter(a => {
             try {
-                return isAnnouncementForThisStudent(a);
-            } catch (e) {
-                return true;
-            }
-        });
+                const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(30);
+                
+                if (error || !anns || !Array.isArray(anns) || anns.length === 0) {
+                    listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs">ยังไม่มีประกาศในขณะนี้</div>`;
+                    return;
+                }
 
-        notificationsDataCache = myValidAnns;
+                const myValidAnns = anns.filter(a => {
+                    try {
+                        return isAnnouncementForThisStudent(a);
+                    } catch (e) {
+                        return true;
+                    }
+                });
 
-        if (myValidAnns.length === 0) {
-            listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs">ยังไม่มีประกาศสำหรับคุณในขณะนี้</div>`;
-            return;
-        }
+                notificationsDataCache = myValidAnns;
 
-        let readIds = [];
-        if (currentStudentData && currentStudentData.read_announcements) {
-            readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
-        }
+                if (myValidAnns.length === 0) {
+                    listContainer.innerHTML = `<div class="px-4 py-6 text-center text-slate-400 text-xs">ยังไม่มีประกาศสำหรับคุณในขณะนี้</div>`;
+                    return;
+                }
 
-        const unread = myValidAnns.filter(a => !readIds.includes(a.id));
-        const headerCount = document.getElementById('notifHeaderCount');
-        if (headerCount) {
-            headerCount.textContent = `${unread.length} ใหม่`;
-        }
+                let readIds = [];
+                if (currentStudentData && currentStudentData.read_announcements) {
+                    readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
+                }
 
-        listContainer.innerHTML = myValidAnns.map(a => {
-            const isRead = readIds.includes(a.id);
-            const timeAgoStr = typeof getTimeAgo === 'function' ? getTimeAgo(a.created_at) : 'เร็วๆ นี้';
-            const category = a.category || 'general';
+                const unread = myValidAnns.filter(a => !readIds.includes(a.id));
+                const headerCount = document.getElementById('notifHeaderCount');
+                if (headerCount) {
+                    headerCount.textContent = `${unread.length} ใหม่`;
+                }
 
-            let catIcon = 'fa-bullhorn text-sky-500';
-            if (category === 'exam') catIcon = 'fa-file-pen text-indigo-500';
-            if (category === 'consult') catIcon = 'fa-comments text-emerald-500';
-            if (category === 'video') catIcon = 'fa-play-circle text-rose-500';
+                listContainer.innerHTML = myValidAnns.map(a => {
+                    const isRead = readIds.includes(a.id);
+                    const timeAgoStr = typeof getTimeAgo === 'function' ? getTimeAgo(a.created_at) : 'เร็วๆ นี้';
+                    const category = a.category || 'general';
 
-            return `
-                <div onclick="clickNotificationItem('${a.id}')" class="px-4 py-3 hover:bg-sky-50 dark:hover:bg-slate-800/85 cursor-pointer transition-all flex items-start gap-3 ${isRead ? 'opacity-70' : 'bg-sky-50/40 dark:bg-slate-900/40 font-bold'}">
-                    <div class="w-8 h-8 rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                        <i class="fas ${catIcon} text-xs"></i>
-                    </div>
-                    <div class="flex-1 min-w-0 space-y-0.5">
-                        <div class="flex justify-between items-center gap-1">
-                            <h5 class="text-xs text-slate-900 dark:text-white truncate">${a.title || 'ประกาศจากระบบ'}</h5>
-                            ${!isRead ? '<span class="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>' : ''}
+                    let catIcon = 'fa-bullhorn text-sky-500';
+                    if (category === 'exam') catIcon = 'fa-file-pen text-indigo-500';
+                    if (category === 'consult') catIcon = 'fa-comments text-emerald-500';
+                    if (category === 'video') catIcon = 'fa-play-circle text-rose-500';
+
+                    return `
+                        <div onclick="clickNotificationItem('${a.id}')" class="px-4 py-3 hover:bg-sky-50 dark:hover:bg-slate-800/85 cursor-pointer transition-all flex items-start gap-3 ${isRead ? 'opacity-70' : 'bg-sky-50/40 dark:bg-slate-900/40 font-bold'}">
+                            <div class="w-8 h-8 rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                                <i class="fas ${catIcon} text-xs"></i>
+                            </div>
+                            <div class="flex-1 min-w-0 space-y-0.5">
+                                <div class="flex justify-between items-center gap-1">
+                                    <h5 class="text-xs text-slate-900 dark:text-white truncate">${a.title || 'ประกาศจากระบบ'}</h5>
+                                    ${!isRead ? '<span class="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>' : ''}
+                                </div>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-light line-clamp-1">${a.content || ''}</p>
+                                <span class="text-[9px] text-slate-400 block">${timeAgoStr}</span>
+                            </div>
                         </div>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400 font-light line-clamp-1">${a.content || ''}</p>
-                        <span class="text-[9px] text-slate-400 block">${timeAgoStr}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
+                    `;
+                }).join('');
 
-    } catch (err) {
-        console.warn("Render dropdown error:", err);
-        listContainer.innerHTML = `<div class="px-4 py-6 text-center text-rose-500 text-xs">ไม่สามารถโหลดการแจ้งเตือนได้</div>`;
-    }
-}
-// 🌟 เมื่อคลิกประกาศแต่ละรายการใน Dropdown
-async function clickNotificationItem(annId) {
-    let readIds = [];
-    if (currentStudentData && currentStudentData.read_announcements) {
-        readIds = Array.isArray(currentStudentData.read_announcements) ? [...currentStudentData.read_announcements] : [];
-    }
-
-    if (!readIds.includes(annId)) {
-        readIds.push(annId);
-        if (currentStudentData) currentStudentData.read_announcements = readIds;
-
-        // อัปเดตบันทึกสถานะการอ่านลงในตาราง profiles ของ Supabase ทันที
-        if (currentStudentId) {
-            await mySupabase.from('profiles').update({ read_announcements: readIds }).eq('id', currentStudentId);
+            } catch (err) {
+                console.warn("Render dropdown error:", err);
+                listContainer.innerHTML = `<div class="px-4 py-6 text-center text-rose-500 text-xs">ไม่สามารถโหลดการแจ้งเตือนได้</div>`;
+            }
         }
-    }
 
-    const dropdownMenu = document.getElementById('notifDropdownMenu');
-    if (dropdownMenu) dropdownMenu.classList.add('hidden');
-    
-    loadStudentNotificationsCount();
-    openNotificationsModal();
-}
+        async function clickNotificationItem(annId) {
+            let readIds = [];
+            if (currentStudentData && currentStudentData.read_announcements) {
+                readIds = Array.isArray(currentStudentData.read_announcements) ? [...currentStudentData.read_announcements] : [];
+            }
 
-// 🌟 อ่านทั้งหมดแล้ว
-async function markAllNotificationsRead() {
-    if (!notificationsDataCache || notificationsDataCache.length === 0) return;
-    
-    let readIds = [];
-    if (currentStudentData && currentStudentData.read_announcements) {
-        readIds = Array.isArray(currentStudentData.read_announcements) ? [...currentStudentData.read_announcements] : [];
-    }
+            if (!readIds.includes(annId)) {
+                readIds.push(annId);
+                if (currentStudentData) currentStudentData.read_announcements = readIds;
 
-    notificationsDataCache.forEach(a => {
-        if (!readIds.includes(a.id)) readIds.push(a.id);
-    });
+                if (currentStudentId) {
+                    await mySupabase.from('profiles').update({ read_announcements: readIds }).eq('id', currentStudentId);
+                }
+            }
 
-    if (currentStudentData) currentStudentData.read_announcements = readIds;
+            const dropdownMenu = document.getElementById('notifDropdownMenu');
+            if (dropdownMenu) dropdownMenu.classList.add('hidden');
+            
+            loadStudentNotificationsCount();
+            openNotificationsModal();
+        }
 
-    if (currentStudentId) {
-        await mySupabase.from('profiles').update({ read_announcements: readIds }).eq('id', currentStudentId);
-    }
+        async function markAllNotificationsRead() {
+            if (!notificationsDataCache || notificationsDataCache.length === 0) return;
+            
+            let readIds = [];
+            if (currentStudentData && currentStudentData.read_announcements) {
+                readIds = Array.isArray(currentStudentData.read_announcements) ? [...currentStudentData.read_announcements] : [];
+            }
 
-    const badge = document.getElementById('notifBadge');
-    if (badge) badge.classList.add('hidden');
-    
-    const headerCount = document.getElementById('notifHeaderCount');
-    if (headerCount) headerCount.textContent = '0 ใหม่';
-    
-    fetchAndRenderNotificationDropdown();
-    Swal.fire({ icon: 'success', title: 'อ่านการแจ้งเตือนทั้งหมดแล้ว', timer: 1000, showConfirmButton: false });
-}
+            notificationsDataCache.forEach(a => {
+                if (!readIds.includes(a.id)) readIds.push(a.id);
+            });
 
-        // 🌟 ดึงข้อมูลและแสดงผลเฉพาะประกาศที่ยังไม่อ่านใน Dropdown (หรือแสดงรายการล่าสุดโดยแยกสถานะอ่านแล้ว/ยังไม่อ่าน)
+            if (currentStudentData) currentStudentData.read_announcements = readIds;
+
+            if (currentStudentId) {
+                await mySupabase.from('profiles').update({ read_announcements: readIds }).eq('id', currentStudentId);
+            }
+
+            const badge = document.getElementById('notifBadge');
+            if (badge) badge.classList.add('hidden');
+            
+            const headerCount = document.getElementById('notifHeaderCount');
+            if (headerCount) headerCount.textContent = '0 ใหม่';
+            
+            fetchAndRenderNotificationDropdown();
+            Swal.fire({ icon: 'success', title: 'อ่านการแจ้งเตือนทั้งหมดแล้ว', timer: 1000, showConfirmButton: false });
+        }
+
         function getTimeAgo(dateString) {
             const now = new Date();
             const past = new Date(dateString);
@@ -886,138 +871,131 @@ async function markAllNotificationsRead() {
             return past.toLocaleDateString('th-TH', { dateStyle: 'medium' });
         }
 
-// 🌟 ฟังก์ชันแสดงข้อกำหนดและเงื่อนไขฉบับเต็ม
-// 🌟 ฟังก์ชันแสดงข้อกำหนดและเงื่อนไขฉบับละเอียด (รวมกฎเทปย้อนหลังและผลสอบ)
-function getDetailedTermsHtml() {
-    return `
-        <div class="space-y-4 text-left text-xs sm:text-sm max-h-[60vh] overflow-y-auto pr-2">
-            <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-                ยินดีต้อนรับสู่ระบบ <strong>KRUDREAM LAND</strong> (ศูนย์การเรียนรู้ออนไลน์และศูนย์สอบอัจฉริยะ) การเข้าสู่ระบบ การลงทะเบียนคอร์สเรียน การรับชมเทปย้อนหลัง หรือการทำข้อสอบใดๆ บนแพลตฟอร์มนี้ ถือเป็นการแสดงเจตนาตกลงและยอมรับผูกพันตามข้อกำหนดและเงื่อนไขการใช้งานฉบับนี้โดยสมบูรณ์
-            </p>
-
-            <div class="space-y-3">
-                <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
-                    <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
-                        <i class="fas fa-user-shield"></i> 1. บัญชีผู้ใช้งานและความปลอดภัย (Account Security)
-                    </h4>
+        function getDetailedTermsHtml() {
+            return `
+                <div class="space-y-4 text-left text-xs sm:text-sm max-h-[60vh] overflow-y-auto pr-2">
                     <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-                        - ผู้ใช้งานต้องใช้ข้อมูลจริงในการลงทะเบียนและตั้งค่าบัญชีส่วนตัว<br>
-                        - บัญชีผู้ใช้ 1 บัญชี สงวนสิทธิ์การใช้งานสำหรับนักเรียนเจ้าของบัญชีเท่านั้น <strong>ห้ามมิให้มีการแชร์ชื่อผู้ใช้ รหัสผ่าน หรือให้ผู้อื่นเข้าใช้งานร่วมกันเด็ดขาด</strong><br>
-                        - ระบบมีระบบรักษาความปลอดภัย (Single Session) หากตรวจพบการล็อกอินซ้อน ระบบอาจทำการตัดการเชื่อมต่อเพื่อความปลอดภัยของข้อมูล
+                        ยินดีต้อนรับสู่ระบบ <strong>KRUDREAM LAND</strong> (ศูนย์การเรียนรู้ออนไลน์และศูนย์สอบอัจฉริยะ) การเข้าสู่ระบบ การลงทะเบียนคอร์สเรียน การรับชมเทปย้อนหลัง หรือการทำข้อสอบใดๆ บนแพลตฟอร์มนี้ ถือเป็นการแสดงเจตนาตกลงและยอมรับผูกพันตามข้อกำหนดและเงื่อนไขการใช้งานฉบับนี้โดยสมบูรณ์
                     </p>
+
+                    <div class="space-y-3">
+                        <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
+                            <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
+                                <i class="fas fa-user-shield"></i> 1. บัญชีผู้ใช้งานและความปลอดภัย (Account Security)
+                            </h4>
+                            <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+                                - ผู้ใช้งานต้องใช้ข้อมูลจริงในการลงทะเบียนและตั้งค่าบัญชีส่วนตัว<br>
+                                - บัญชีผู้ใช้ 1 บัญชี สงวนสิทธิ์การใช้งานสำหรับนักเรียนเจ้าของบัญชีเท่านั้น <strong>ห้ามมิให้มีการแชร์ชื่อผู้ใช้ รหัสผ่าน หรือให้ผู้อื่นเข้าใช้งานร่วมกันเด็ดขาด</strong><br>
+                                - ระบบมีระบบรักษาความปลอดภัย (Single Session) หากตรวจพบการล็อกอินซ้อน ระบบอาจทำการตัดการเชื่อมต่อเพื่อความปลอดภัยของข้อมูล
+                            </p>
+                        </div>
+
+                        <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
+                            <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
+                                <i class="fas fa-file-signature"></i> 2. กฎระเบียบการทำข้อสอบ ผลลัพธ์ และสถิติการเรียนรู้ (Exam Rules & Analytics)
+                            </h4>
+                            <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+                                - การทำข้อสอบทุกชุดต้องอยู่ภายใต้กรอบเวลา ระยะเวลา และจำนวนครั้งที่ผู้ดูแลระบบกำหนด ห้ามทำการทุจริต คัดลอกข้อสอบ หรือบันทึกภาพหน้าจอข้อสอบ<br>
+                                - ผลคะแนน กราฟวิเคราะห์จุดแข็ง-จุดอ่อน และสถิติการสอบที่แสดงในระบบ มีไว้เพื่อให้ผู้เรียนใช้ประเมินพัฒนาการของตนเองเท่านั้น และผลคะแนนถือเป็นที่สิ้นสุด<br>
+                                - ข้อมูลประวัติการทำข้อสอบและคำตอบจะถูกจัดเก็บไว้ในฐานข้อมูลเพื่อประโยชน์ในการประมวลผลสถิติทางการศึกษาภายในระบบ
+                            </p>
+                        </div>
+
+                        <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
+                            <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
+                                <i class="fas fa-play-circle"></i> 3. เงื่อนไขการรับชมเทปเรียนย้อนหลัง (Video Replays & Copyright)
+                            </h4>
+                            <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+                                - วิดีโอและเทปเรียนย้อนหลังทั้งหมดภายในระบบ ถือเป็นทรัพย์สินทางปัญญาของผู้สอนและแพลตฟอร์ม<br>
+                                - <strong>ไม่อนุญาตให้ทำการบันทึกหน้าจอ (Screen Recording) ดาวน์โหลด คัดลอก หรือนำไปเผยแพร่ต่อสาธารณะ</strong> ในทุกกรณี<br>
+                                - สิทธิ์ในการรับชมเป็นของนักเรียนเจ้าของบัญชีผู้ลงทะเบียนคอร์ส และมีกำหนดระยะเวลาสิ้นสุดตามอายุของคอร์สเรียนนั้นๆ
+                            </p>
+                        </div>
+
+                        <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
+                            <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
+                                <i class="fas fa-coins"></i> 4. ระบบสะสม Token และของรางวัล (Reward System)
+                            </h4>
+                            <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+                                - Token หรือคะแนนสะสมที่ได้รับจากการทำกิจกรรมหรือทำข้อสอบ มีไว้สำหรับใช้แลกสิทธิประโยชน์ในคลังของรางวัลของระบบเท่านั้น
+                            </p>
+                        </div>
+
+                        <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
+                            <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
+                                <i class="fas fa-gavel"></i> 5. การระงับการให้บริการ (Service Termination)
+                            </h4>
+                            <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+                                หากผู้ใช้งานฝ่าฝืนข้อกำหนด ละเมิดสิทธิ์ (รวมถึงการบันทึกหน้าจอเทปเรียนหรือแชร์บัญชี) ผู้ดูแลระบบมีสิทธิ์ในการระงับ บล็อก หรือลบบัญชีผู้ใช้นั้นๆ โดยทันทีโดยไม่ต้องแจ้งให้ทราบล่วงหน้า
+                            </p>
+                        </div>
+                    </div>
                 </div>
-
-                <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
-                    <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
-                        <i class="fas fa-file-signature"></i> 2. กฎระเบียบการทำข้อสอบ ผลลัพธ์ และสถิติการเรียนรู้ (Exam Rules & Analytics)
-                    </h4>
-                    <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-                        - การทำข้อสอบทุกชุดต้องอยู่ภายใต้กรอบเวลา ระยะเวลา และจำนวนครั้งที่ผู้ดูแลระบบกำหนด ห้ามทำการทุจริต คัดลอกข้อสอบ หรือบันทึกภาพหน้าจอข้อสอบ<br>
-                        - ผลคะแนน กราฟวิเคราะห์จุดแข็ง-จุดอ่อน และสถิติการสอบที่แสดงในระบบ มีไว้เพื่อให้ผู้เรียนใช้ประเมินพัฒนาการของตนเองเท่านั้น และผลคะแนนถือเป็นที่สิ้นสุด<br>
-                        - ข้อมูลประวัติการทำข้อสอบและคำตอบจะถูกจัดเก็บไว้ในฐานข้อมูลเพื่อประโยชน์ในการประมวลผลสถิติทางการศึกษาภายในระบบ
-                    </p>
-                </div>
-
-                <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
-                    <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
-                        <i class="fas fa-play-circle"></i> 3. เงื่อนไขการรับชมเทปเรียนย้อนหลัง (Video Replays & Copyright)
-                    </h4>
-                    <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-                        - วิดีโอและเทปเรียนย้อนหลังทั้งหมดภายในระบบ ถือเป็นทรัพย์สินทางปัญญาของผู้สอนและแพลตฟอร์ม<br>
-                        - <strong>ไม่อนุญาตให้ทำการบันทึกหน้าจอ (Screen Recording) ดาวน์โหลด คัดลอก หรือนำไปเผยแพร่ต่อสาธารณะ</strong> ในทุกกรณี<br>
-                        - สิทธิ์ในการรับชมเป็นของนักเรียนเจ้าของบัญชีผู้ลงทะเบียนคอร์ส และมีกำหนดระยะเวลาสิ้นสุดตามอายุของคอร์สเรียนนั้นๆ
-                    </p>
-                </div>
-
-                <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
-                    <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
-                        <i class="fas fa-coins"></i> 4. ระบบสะสม Token และของรางวัล (Reward System)
-                    </h4>
-                    <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-                        - Token หรือคะแนนสะสมที่ได้รับจากการทำกิจกรรมหรือทำข้อสอบ มีไว้สำหรับใช้แลกสิทธิประโยชน์ในคลังของรางวัลของระบบเท่านั้น
-                    </p>
-                </div>
-
-                <div class="p-3.5 bg-sky-50 dark:bg-darkinput rounded-xl border border-sky-500/20 space-y-1.5">
-                    <h4 class="font-extrabold text-sky-600 dark:text-sky-400 text-xs sm:text-sm flex items-center gap-1.5">
-                        <i class="fas fa-gavel"></i> 5. การระงับการให้บริการ (Service Termination)
-                    </h4>
-                    <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-                        หากผู้ใช้งานฝ่าฝืนข้อกำหนด ละเมิดสิทธิ์ (รวมถึงการบันทึกหน้าจอเทปเรียนหรือแชร์บัญชี) ผู้ดูแลระบบมีสิทธิ์ในการระงับ บล็อก หรือลบบัญชีผู้ใช้นั้นๆ โดยทันทีโดยไม่ต้องแจ้งให้ทราบล่วงหน้า
-                    </p>
-                </div>
-            </div>
-        </div>
-    `;
-}
-function openTermsModal() {
-    const isDark = document.documentElement.classList.contains('dark');
-    Swal.fire({
-        title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งาน</span>`,
-        html: getDetailedTermsHtml(),
-        confirmButtonText: 'รับทราบ',
-        confirmButtonColor: '#0284c7',
-        width: '650px',
-        background: isDark ? '#090d16' : '#ffffff',
-        color: isDark ? '#f1f5f9' : '#1e293b',
-        customClass: { popup: 'rounded-3xl shadow-2xl' }
-    });
-}
-
-// 🌟 ฟังก์ชันตรวจสอบและบันทึกการยอมรับเงื่อนไขผ่าน Supabase (จำถาวร ไม่เด้งซ้ำ)
-async function checkFirstTimeTerms() {
-    // 1. เช็คจากข้อมูลโปรไฟล์ในฐานข้อมูลก่อน
-    if (currentStudentData && currentStudentData.accepted_terms === true) {
-        localStorage.setItem('student_accepted_terms', 'true');
-        return;
-    }
-
-    // 2. เช็คจาก localStorage สำรอง
-    const hasAcceptedLocal = localStorage.getItem('student_accepted_terms');
-    if (hasAcceptedLocal === 'true') {
-        return;
-    }
-
-    // ถ้ายังไม่เคยยอมรับ ให้แสดง Pop-up บังคับอ่าน
-    const isDark = document.documentElement.classList.contains('dark');
-    const { isConfirmed } = await Swal.fire({
-        title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งานระบบ</span>`,
-        html: getDetailedTermsHtml(),
-        confirmButtonText: 'ยอมรับเงื่อนไขและเริ่มต้นใช้งาน',
-        confirmButtonColor: '#0284c7',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        width: '650px',
-        background: isDark ? '#090d16' : '#ffffff',
-        color: isDark ? '#f1f5f9' : '#1e293b',
-        customClass: { popup: 'rounded-3xl shadow-2xl' }
-    });
-
-    if (isConfirmed) {
-        // บันทึกลง localStorage
-        localStorage.setItem('student_accepted_terms', 'true');
-        
-        // บันทึกลง Supabase ฐานข้อมูลจริง เพื่อให้จำข้ามเครื่องและข้ามเซสชันได้ถาวร
-        if (currentStudentId) {
-            try {
-                await mySupabase.from('profiles').update({ accepted_terms: true }).eq('id', currentStudentId);
-                if (currentStudentData) {
-                    currentStudentData.accepted_terms = true;
-                }
-            } catch (err) {
-                console.warn("ไม่สามารถบันทึกสถานะการยอมรับลงฐานข้อมูลได้:", err);
-            }
+            `;
         }
 
-        Swal.fire({
-            icon: 'success',
-            title: 'ยินดีต้อนรับสู่ KRUDREAM LAND!',
-            text: 'คุณได้ยอมรับเงื่อนไขการใช้งานเรียบร้อยแล้ว',
-            timer: 1500,
-            showConfirmButton: false
-        });
-    }
-}
+        function openTermsModal() {
+            const isDark = document.documentElement.classList.contains('dark');
+            Swal.fire({
+                title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งาน</span>`,
+                html: getDetailedTermsHtml(),
+                confirmButtonText: 'รับทราบ',
+                confirmButtonColor: '#0284c7',
+                width: '650px',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                customClass: { popup: 'rounded-3xl shadow-2xl' }
+            });
+        }
+
+        async function checkFirstTimeTerms() {
+            if (currentStudentData && currentStudentData.accepted_terms === true) {
+                localStorage.setItem('student_accepted_terms', 'true');
+                return;
+            }
+
+            const hasAcceptedLocal = localStorage.getItem('student_accepted_terms');
+            if (hasAcceptedLocal === 'true') {
+                return;
+            }
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const { isConfirmed } = await Swal.fire({
+                title: `<span class="text-base sm:text-lg font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-file-contract"></i> ข้อกำหนดและเงื่อนไขการใช้งานระบบ</span>`,
+                html: getDetailedTermsHtml(),
+                confirmButtonText: 'ยอมรับเงื่อนไขและเริ่มต้นใช้งาน',
+                confirmButtonColor: '#0284c7',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                width: '650px',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                customClass: { popup: 'rounded-3xl shadow-2xl' }
+            });
+
+            if (isConfirmed) {
+                localStorage.setItem('student_accepted_terms', 'true');
+                
+                if (currentStudentId) {
+                    try {
+                        await mySupabase.from('profiles').update({ accepted_terms: true }).eq('id', currentStudentId);
+                        if (currentStudentData) {
+                            currentStudentData.accepted_terms = true;
+                        }
+                    } catch (err) {
+                        console.warn("ไม่สามารถบันทึกสถานะการยอมรับลงฐานข้อมูลได้:", err);
+                    }
+                }
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'ยินดีต้อนรับสู่ KRUDREAM LAND!',
+                    text: 'คุณได้ยอมรับเงื่อนไขการใช้งานเรียบร้อยแล้ว',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }
+        }
 
         function openPrivacyPolicyModal() {
             const isDark = document.documentElement.classList.contains('dark');
@@ -1109,7 +1087,7 @@ async function checkFirstTimeTerms() {
             });
         }
 
-async function openNotificationsModal() {
+        async function openNotificationsModal() {
             const isDark = document.documentElement.classList.contains('dark');
             Swal.fire({ title: 'กำลังโหลดประกาศและการแจ้งเตือน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -1124,7 +1102,6 @@ async function openNotificationsModal() {
                 </div>
             `;
 
-            // 🌟 กรองประกาศตามเงื่อนไขสิทธิ์ของนักเรียน เช่นเดียวกับ Notification Dropdown
             let filteredAnns = [];
             if (anns && Array.isArray(anns)) {
                 filteredAnns = anns.filter(a => {
@@ -1381,7 +1358,6 @@ async function openNotificationsModal() {
             const isAuthValid = await authenticateStudent();
             if (!isAuthValid) return;
 
-            // 🌟 ตรวจสอบและแสดงเงื่อนไขการใช้งานรอบแรก
             await checkFirstTimeTerms();
 
             const { data: coursesData } = await mySupabase.from('courses').select('*');
@@ -1462,17 +1438,13 @@ async function openNotificationsModal() {
             }
             renderExamCheckboxes();
 
-            // 🌟 เปิดระบบ Realtime Listener คอยฟังการเปลี่ยนแปลงคลังข้อสอบจากแอดมิน
             initStudentRealtime();
         }
 
-        // 🌟 ฟังก์ชันเปิดระบบ Realtime คอยฟังการเปลี่ยนแปลงตาราง exams
         function initStudentRealtime() {
             mySupabase
                 .channel('student-live-exams')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, async (payload) => {
-                    console.log('ตรวจพบการเปลี่ยนแปลงชุดข้อสอบจากแอดมิน:', payload);
-                    
                     const { data: exams } = await mySupabase.from('exams').select('*').order('created_at', { ascending: false });
                     if (exams) allExams = exams;
 
@@ -1493,7 +1465,7 @@ async function openNotificationsModal() {
                 .subscribe();
         }
 
-function updateCountdownsLive() {
+        function updateCountdownsLive() {
             const now = Date.now();
 
             document.querySelectorAll('.exam-countdown-timer').forEach(el => {
@@ -1509,7 +1481,6 @@ function updateCountdownsLive() {
                 el.textContent = `⏳ เปิดใน: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             });
 
-            // 🌟 อัปเดตตัวนับเวลา Due Date ของข้อสอบแต่ละชุดแบบเรียลไทม์
             document.querySelectorAll('.exam-duedate-timer').forEach(el => {
                 const dueTime = parseInt(el.getAttribute('data-due-time'));
                 const diff = dueTime - now;
@@ -1567,6 +1538,7 @@ function updateCountdownsLive() {
             });
         }
 
+        // 🌟 แก้ไขส่วนนี้: ตรวจสอบ activeEnrolledCourseIds ถ้าไม่มีคอร์สในระบบ ให้บล็อกข้อสอบทั้งหมดทันที
         function renderExamCatalog() {
             const container = document.getElementById('examCategoriesGroupContainer');
             const quickPendingContainer = document.getElementById('quickPendingContainer');
@@ -1574,16 +1546,33 @@ function updateCountdownsLive() {
             const keyword = document.getElementById('searchExamInput').value.toLowerCase();
             const now = new Date();
 
+            // 🛑 เช็คว่าหากไม่มีคอร์สที่ใช้งานได้ ให้แสดงกล่องข้อความแจ้งเตือนและตัดออกทันที
+            if (!activeEnrolledCourseIds || activeEnrolledCourseIds.length === 0) {
+                container.innerHTML = `
+                    <div class="hitech-card p-8 rounded-3xl text-center space-y-3 border-amber-500/40 bg-amber-500/5">
+                        <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center text-2xl shadow-inner">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <h4 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">ยังไม่มีคอร์สเรียนที่ใช้งานได้ในระบบ</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-light max-w-md mx-auto">
+                            คุณยังไม่ได้ลงทะเบียนคอร์สเรียน หรือคอร์สเรียนของคุณหมดอายุแล้ว จึงไม่สามารถมองเห็นชุดข้อสอบหรือทำข้อสอบได้ในขณะนี้
+                        </p>
+                    </div>
+                `;
+                document.getElementById('examCountBadge').textContent = `0 ชุด`;
+                quickPendingSection.classList.add('hidden');
+                document.getElementById('overallProgressText').textContent = `0/0 ชุด (0%)`;
+                document.getElementById('overallProgressBar').style.width = `0%`;
+                return;
+            }
+
             const availableExams = allExams.filter(exam => {
                 if (exam.status === 'draft') return false;
                 
-                // 🌟 หากเลย Due Date แล้ว จะไม่ซ่อนจากหน้าจอ แต่จะเปลี่ยนสถานะเป็น "เลยกำหนด" (เพื่อให้เด็กเห็นประวัติหรือรู้ว่าหมดสิทธิ์)
-                // แต่ถ้านักเรียนต้องการให้ซ่อนเลย สามารถเปิดบรรทัดด้านล่างนี้ได้
-                // if (exam.due_date && new Date(exam.due_date) < now) return false;
-
                 const examCourseId = String(exam.course_id || exam.courseid || '');
                 
-                if (activeEnrolledCourseIds.length > 0 && examCourseId && !activeEnrolledCourseIds.includes(examCourseId)) return false;
+                // ตรวจสอบสิทธิ์คอร์สเรียนอย่างเข้มงวด
+                if (examCourseId && !activeEnrolledCourseIds.includes(examCourseId)) return false;
                 if (selectedGlobalCourseId !== 'all' && examCourseId !== String(selectedGlobalCourseId)) return false;
                 if (!exam.title.toLowerCase().includes(keyword) && (!exam.description || !exam.description.toLowerCase().includes(keyword))) return false;
 
@@ -1614,7 +1603,7 @@ function updateCountdownsLive() {
 
             const pendingExamsList = activeExams.filter(exam => {
                 const isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < now.getTime() : false;
-                if (isOverdue) return false; // ไม่เอาอันที่หมดเขตแล้วมาแสดงใน Quick Pending
+                if (isOverdue) return false;
 
                 const myAttemptsForExam = userAttempts.filter(a => a.exam_id === exam.id);
                 const completedCount = myAttemptsForExam.filter(a => a.status === 'completed' || a.submitted_at || a.submission_time).length;
@@ -1634,10 +1623,8 @@ function updateCountdownsLive() {
                     const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
                     const isStarred = starredExams.includes(exam.id);
                     
-                    // แสดง Due Date ใน Quick Pending (ถ้ามี)
                     let dueDateHtml = '';
                     if (exam.due_date) {
-                        const dueMs = new Date(exam.due_date).getTime();
                         const formattedDue = new Date(exam.due_date).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
                         dueDateHtml = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1"><i class="fas fa-hourglass-end"></i> กำหนดส่ง: ${formattedDue}</div>`;
                     }
@@ -1723,7 +1710,6 @@ function updateCountdownsLive() {
                 let isCountdown = exam.start_time ? new Date(exam.start_time).getTime() > nowMs : (exam.status === 'countdown');
                 let startTimeMs = exam.start_time ? new Date(exam.start_time).getTime() : 0;
 
-                // 🌟 ตรวจสอบว่าเลย Due Date หรือยัง
                 let isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < nowMs : false;
                 let dueTimeMs = exam.due_date ? new Date(exam.due_date).getTime() : 0;
                 let formattedDueDate = exam.due_date ? new Date(exam.due_date).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : 'ไม่จำกัดเวลา';
@@ -1795,7 +1781,6 @@ function updateCountdownsLive() {
             const exam = allExams.find(e => e.id === examId);
             if (!exam) return;
 
-            // 🌟 เช็คว่าถ้าเลย Due Date แล้ว ห้ามเข้าทำข้อสอบ และเด้งเตือนทันที
             const nowMs = Date.now();
             if (exam.due_date && new Date(exam.due_date).getTime() < nowMs) {
                 await Swal.fire({
