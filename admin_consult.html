@@ -207,7 +207,7 @@
             <div id="calendarGrid" class="grid grid-cols-7 gap-1.5"></div>
         </div>
 
-        <!-- รายละเอียด Slot / คิวในวันที่เลือก -->
+        <!-- รายละเอียด Slot / คิวในวันที่เลือก (แยกช่องจองแล้วกับยังไม่จองชัดเจน) -->
         <div class="hitech-card p-5 rounded-2xl space-y-3">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div class="flex items-center gap-2">
@@ -217,7 +217,6 @@
                     <span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-[10px] font-bold" id="slotCountBadge">0 ช่วงเวลา</span>
                 </div>
                 
-                <!-- 🎛️ ปุ่มเลือกและจัดการแบบกลุ่มกระชับเข้าใจง่าย -->
                 <div class="flex flex-wrap items-center gap-2">
                     <button onclick="toggleSelectAllDailySlots()" class="px-2.5 py-1.5 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 hover:bg-sky-500 hover:text-white rounded-xl text-[11px] font-bold transition-all border border-slate-200 dark:border-slate-700" title="เลือก/ไม่เลือกทั้งหมดในวันนี้">
                         <i class="fas fa-check-square mr-1"></i> เลือกทั้งหมด
@@ -234,23 +233,55 @@
                 </div>
             </div>
             
-            <div id="dailySlotsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
-                <div class="col-span-full text-center py-6 text-slate-400 text-xs"><i class="far fa-calendar-alt text-xl mb-1 block text-sky-500"></i> กรุณาเลือกวันที่ต้องการจากปฏิทินด้านบน</div>
+            <!-- แยกโซนชัดเจน: จองแล้ว vs ว่าง -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- โซนที่ 1: ถูกจองแล้ว -->
+                <div class="space-y-2 p-3 bg-emerald-50/40 dark:bg-emerald-950/10 rounded-2xl border border-emerald-500/30">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                            <i class="fas fa-user-check"></i> ช่องที่จองแล้ว (<span id="dailyBookedCount">0</span>)
+                        </span>
+                    </div>
+                    <div id="dailyBookedSlotsContainer" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        <div class="text-center py-6 text-slate-400 text-xs">ไม่มีคิวจองในวันนี้</div>
+                    </div>
+                </div>
+
+                <!-- โซนที่ 2: ยังไม่ได้จอง (Slot ว่าง) -->
+                <div class="space-y-2 p-3 bg-sky-50/40 dark:bg-sky-950/10 rounded-2xl border border-sky-500/30">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
+                            <i class="fas fa-clock"></i> ช่องที่ยังไม่ได้จอง (ว่าง) (<span id="dailyAvailableCount">0</span>)
+                        </span>
+                    </div>
+                    <div id="dailyAvailableSlotsContainer" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        <div class="text-center py-6 text-slate-400 text-xs">ไม่มี Slot ว่างในวันนี้</div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- ตารางรายชื่อนักเรียนจอง Consult ทั้งหมด -->
+        <!-- 🔍 ตารางรายชื่อนักเรียนจอง Consult ทั้งหมด + ระบบค้นหา -->
         <div class="hitech-card p-5 rounded-2xl space-y-3">
-            <div class="flex justify-between items-center pb-2">
-                <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2"><i class="fas fa-users text-indigo-500"></i> รายชื่อนักเรียนที่จอง Consult ทั้งหมด</h3>
-                <div class="flex gap-2">
-                    <button onclick="exportAllBookingsExcel()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5">
-                        <i class="fas fa-file-excel"></i> Export ทั้งหมด
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <i class="fas fa-users text-indigo-500"></i> รายชื่อนักเรียนที่จอง Consult ทั้งหมด
+                </h3>
+                
+                <!-- 🔎 ช่องค้นหารายชื่อนักเรียนที่จะมา Consult -->
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="relative flex-1 sm:w-64">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fas fa-search text-xs"></i></span>
+                        <input type="text" id="studentSearchInput" oninput="filterBookedStudentsList()" placeholder="ค้นหาชื่อ, รหัส, อีเมลนักเรียน..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                    </div>
+                    <button onclick="exportAllBookingsExcel()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 shrink-0">
+                        <i class="fas fa-file-excel"></i> Export
                     </button>
-                    <button onclick="loadBookedStudents()" class="px-2.5 py-1 bg-slate-100 dark:bg-darkinput hover:bg-sky-500 hover:text-white text-slate-600 dark:text-slate-300 rounded-lg text-[11px] font-bold transition-all border border-slate-200 dark:border-slate-700"><i class="fas fa-sync-alt"></i></button>
+                    <button onclick="loadBookedStudents()" class="px-2.5 py-1.5 bg-slate-100 dark:bg-darkinput hover:bg-sky-500 hover:text-white text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-200 dark:border-slate-700 shrink-0"><i class="fas fa-sync-alt"></i></button>
                 </div>
             </div>
-            <div id="bookedStudentsList" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+            
+            <div id="bookedStudentsList" class="space-y-2 max-h-72 overflow-y-auto pr-1">
                 <div class="text-center py-6 text-slate-400 text-xs">กำลังโหลดรายชื่อ...</div>
             </div>
         </div>
@@ -322,6 +353,7 @@
         let currentSetting = null;
         let allSlots = [];
         let allCoursesList = [];
+        let allBookedStudentsCache = []; // เก็บแคชรายชื่อนักเรียนจองไว้สำหรับค้นหา
         let displayedYear = new Date().getFullYear();
         let displayedMonth = new Date().getMonth();
         let selectedDateStr = new Date().toISOString().split('T')[0];
@@ -597,7 +629,7 @@
             const nowIso = new Date().toISOString();
             const { data } = await mySupabase
                 .from('consult_slots')
-                .select('*, profiles(full_name)')
+                .select('*, profiles(full_name, username, email, school, grade_level)')
                 .gt('end_time', nowIso)
                 .order('start_time', { ascending: true });
 
@@ -687,50 +719,82 @@
         }
 
         function renderSlotsForSelectedDate() {
-            const container = document.getElementById('dailySlotsContainer');
             const dateFormatted = new Date(selectedDateStr).toLocaleDateString('th-TH', { dateStyle: 'long' });
             document.getElementById('selectedDateText').textContent = dateFormatted;
 
             const filtered = allSlots.filter(s => s.start_time.startsWith(selectedDateStr));
             document.getElementById('slotCountBadge').textContent = `${filtered.length} ช่วงเวลา`;
 
-            if (filtered.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-6 text-slate-400 text-xs">ไม่มี Slot หรือคิว Consult ในวันที่เลือก</div>`;
-                return;
-            }
+            const bookedSlots = filtered.filter(s => s.status === 'booked');
+            const availableSlots = filtered.filter(s => s.status === 'available');
 
-            container.innerHTML = filtered.map(s => {
-                const startStr = new Date(s.start_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
-                const endStr = new Date(s.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
-                const isBooked = s.status === 'booked';
+            document.getElementById('dailyBookedCount').textContent = bookedSlots.length;
+            document.getElementById('dailyAvailableCount').textContent = availableSlots.length;
 
-                return `
-                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-darkinput border ${isBooked ? 'border-emerald-500/30 bg-emerald-50/10' : 'border-slate-200 dark:border-slate-700'} flex justify-between items-center text-xs">
-                        <div class="flex items-center gap-2.5">
-                            <!-- 🔲 เพิ่ม Checkbox สำหรับเลือกรายการ -->
-                            <input type="checkbox" name="dailySlotCheckbox" value="${s.id}" class="w-4 h-4 accent-sky-500 rounded shrink-0 cursor-pointer">
-                            <div>
-                                <span class="font-extrabold text-slate-900 dark:text-white"><i class="far fa-clock mr-1 text-sky-500"></i> ${startStr} - ${endStr} น.</span>
-                                <div class="text-[10px] text-slate-400 mt-0.5">สถานะ: ${isBooked ? `<span class="text-emerald-500 font-bold">จองโดย: ${s.profiles?.full_name || 'นักเรียน'}</span>` : '<span class="text-sky-500 font-semibold">ว่าง</span>'}</div>
+            const bookedContainer = document.getElementById('dailyBookedSlotsContainer');
+            const availableContainer = document.getElementById('dailyAvailableSlotsContainer');
+
+            // 1. เรนเดอร์ช่องที่จองแล้ว (แยกโซนสีเขียวชัดเจน)
+            if (bookedSlots.length === 0) {
+                bookedContainer.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs">ไม่มีคิวจองในวันนี้</div>`;
+            } else {
+                bookedContainer.innerHTML = bookedSlots.map(s => {
+                    const startStr = new Date(s.start_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
+                    const endStr = new Date(s.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
+                    const studentName = s.profiles?.full_name || 'นักเรียน';
+                    const studentId = s.student_id;
+                    return `
+                        <div class="p-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-500/40 flex justify-between items-center text-xs shadow-sm">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" name="dailySlotCheckbox" value="${s.id}" class="w-4 h-4 accent-emerald-500 rounded shrink-0 cursor-pointer">
+                                <div>
+                                    <span class="font-extrabold text-slate-900 dark:text-white"><i class="far fa-clock mr-1 text-emerald-500"></i> ${startStr} - ${endStr} น.</span>
+                                    <div class="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold mt-0.5 flex items-center gap-1.5">
+                                        <span>จองโดย: ${studentName}</span>
+                                        ${studentId ? `<button onclick="openStudentProfileModal('${studentId}')" class="text-[10px] px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-semibold transition-all"><i class="fas fa-search"></i> โปรไฟล์</button>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-1.5">
+                                <button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${studentName}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>
+                                <button onclick="deleteSlot('${s.id}')" class="px-2.5 py-1 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ลบ</button>
                             </div>
                         </div>
-                        <div class="flex gap-1.5">
-                            ${isBooked ? `<button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${s.profiles?.full_name}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>` : ''}
-                            <button onclick="deleteSlot('${s.id}')" class="px-2.5 py-1 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ลบ</button>
+                    `;
+                }).join('');
+            }
+
+            // 2. เรนเดอร์ช่องที่ยังว่าง (แยกโซนสีฟ้าชัดเจน)
+            if (availableSlots.length === 0) {
+                availableContainer.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs">ไม่มี Slot ว่างในวันนี้</div>`;
+            } else {
+                availableContainer.innerHTML = availableSlots.map(s => {
+                    const startStr = new Date(s.start_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
+                    const endStr = new Date(s.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
+                    return `
+                        <div class="p-2.5 rounded-xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-500/40 flex justify-between items-center text-xs shadow-sm">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" name="dailySlotCheckbox" value="${s.id}" class="w-4 h-4 accent-sky-500 rounded shrink-0 cursor-pointer">
+                                <div>
+                                    <span class="font-extrabold text-slate-900 dark:text-white"><i class="far fa-clock mr-1 text-sky-500"></i> ${startStr} - ${endStr} น.</span>
+                                    <div class="text-[10px] text-sky-600 dark:text-sky-400 font-semibold mt-0.5">สถานะ: ว่าง (รอจอง)</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-1.5">
+                                <button onclick="deleteSlot('${s.id}')" class="px-2.5 py-1 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ลบ</button>
+                            </div>
                         </div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
+            }
         }
 
-        // ✅ ฟังก์ชันเลือก / ยกเลิกเลือก Checkbox ทั้งหมดในวันนั้น
         function toggleSelectAllDailySlots() {
             const checkboxes = document.querySelectorAll('input[name="dailySlotCheckbox"]');
             const allChecked = Array.from(checkboxes).every(cb => cb.checked);
             checkboxes.forEach(cb => cb.checked = !allChecked);
         }
 
-        // 🗑️ ฟังก์ชันลบ Slot ที่ติ๊กเลือกไว้
         async function deleteSelectedSlots() {
             const checkedBoxes = document.querySelectorAll('input[name="dailySlotCheckbox"]:checked');
             if (checkedBoxes.length === 0) {
@@ -739,8 +803,6 @@
             }
 
             const slotIds = Array.from(checkedBoxes).map(cb => cb.value);
-            
-            // ตรวจสอบว่าในบรรดาที่เลือกมีอันไหนถูกจองไปแล้วหรือยัง
             const bookedSelected = allSlots.filter(s => slotIds.includes(s.id) && s.status === 'booked');
             if (bookedSelected.length > 0) {
                 Swal.fire('ไม่สามารถลบได้', `มีรายการที่ถูกนักเรียนจองคิวไปแล้ว ${bookedSelected.length} รายการ กรุณาย้ายหรือยกเลิกการจองของนักเรียนออกก่อน`, 'warning');
@@ -966,32 +1028,104 @@
             }
         }
 
+        // 📋 โหลดรายชื่อนักเรียนจองทั้งหมด พร้อมเก็บใส่แคช
         async function loadBookedStudents() {
             const nowIso = new Date().toISOString();
-            const { data: bookedSlots } = await mySupabase.from('consult_slots').select('*, profiles(full_name)').eq('status', 'booked').gt('end_time', nowIso).order('start_time', { ascending: true });
+            const { data: bookedSlots } = await mySupabase.from('consult_slots').select('*, profiles(id, full_name, username, email, school, grade_level, phone)').eq('status', 'booked').gt('end_time', nowIso).order('start_time', { ascending: true });
+            
+            allBookedStudentsCache = bookedSlots || [];
+            renderBookedStudentsList(allBookedStudentsCache);
+        }
+
+        // 🔍 กรองรายชื่อนักเรียนตามช่องค้นหา
+        function filterBookedStudentsList() {
+            const keyword = document.getElementById('studentSearchInput').value.toLowerCase().trim();
+            if (!keyword) {
+                renderBookedStudentsList(allBookedStudentsCache);
+                return;
+            }
+
+            const filtered = allBookedStudentsCache.filter(s => {
+                const name = (s.profiles?.full_name || '').toLowerCase();
+                const username = (s.profiles?.username || '').toLowerCase();
+                const email = (s.profiles?.email || '').toLowerCase();
+                const school = (s.profiles?.school || '').toLowerCase();
+                return name.includes(keyword) || username.includes(keyword) || email.includes(keyword) || school.includes(keyword);
+            });
+
+            renderBookedStudentsList(filtered);
+        }
+
+        function renderBookedStudentsList(bookedSlots) {
             const list = document.getElementById('bookedStudentsList');
 
             if (!bookedSlots || bookedSlots.length === 0) {
-                list.innerHTML = `<div class="text-center py-5 text-slate-400 text-xs">ยังไม่มีนักเรียนจองคิว Consult ในขณะนี้</div>`;
+                list.innerHTML = `<div class="text-center py-5 text-slate-400 text-xs">ไม่พบรายชื่อนักเรียนที่ตรงกับการค้นหา</div>`;
                 return;
             }
 
             list.innerHTML = bookedSlots.map(s => {
                 const startStr = new Date(s.start_time).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
                 const endStr = new Date(s.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
+                const studentName = s.profiles?.full_name || 'นักเรียน';
+                const studentId = s.student_id;
+
                 return `
                     <div class="p-3 rounded-xl bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
                         <div>
-                            <span class="font-extrabold text-slate-900 dark:text-white"><i class="fas fa-user-graduate mr-1 text-indigo-500"></i> ${s.profiles?.full_name || 'นักเรียน'}</span>
+                            <span class="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                                <i class="fas fa-user-graduate text-indigo-500"></i> ${studentName}
+                                ${studentId ? `<button onclick="openStudentProfileModal('${studentId}')" class="text-[10px] px-2 py-0.5 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 dark:text-indigo-400 rounded-lg font-bold transition-all"><i class="fas fa-search"></i> ดูโปรไฟล์</button>` : ''}
+                            </span>
                             <div class="text-[10px] text-slate-400 mt-0.5">⏰ ${startStr} - ${endStr} น.</div>
                         </div>
                         <div class="flex gap-1.5">
-                            <button onclick="openRescheduleModal('${s.id}', '${s.student_id}', '${s.profiles?.full_name || 'นักเรียน'}')" class="px-2.5 py-1 bg-sky-500/10 text-sky-500 hover:bg-sky-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ย้าย</button>
-                            <button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${s.profiles?.full_name}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>
+                            <button onclick="openRescheduleModal('${s.id}', '${s.student_id}', '${studentName}')" class="px-2.5 py-1 bg-sky-500/10 text-sky-500 hover:bg-sky-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ย้าย</button>
+                            <button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${studentName}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        // 👤 ฟังก์ชันเปิดดูโปรไฟล์นักเรียน
+        async function openStudentProfileModal(studentId) {
+            Swal.fire({ title: 'กำลังโหลดโปรไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const { data: profile, error } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
+            
+            if (error || !profile) {
+                Swal.fire('ไม่พบข้อมูล', 'ไม่สามารถดึงข้อมูลโปรไฟล์นักเรียนได้', 'error');
+                return;
+            }
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const fullName = profile.full_name || profile.name || 'ไม่ระบุชื่อ';
+            const username = profile.username || '-';
+            const email = profile.email || '-';
+            const phone = profile.phone || profile.tel || '-';
+            const school = profile.school || '-';
+            const gradeLevel = profile.grade_level || profile.grade || '-';
+
+            Swal.fire({
+                title: '👤 ข้อมูลโปรไฟล์นักเรียน',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <div class="p-3 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                            <div class="flex justify-between"><span class="text-slate-400">ชื่อ-นามสกุล:</span><span class="font-bold text-slate-900 dark:text-white">${fullName}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Username:</span><span class="font-mono text-indigo-500 font-bold">${username}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">อีเมล:</span><span class="text-slate-800 dark:text-slate-200">${email}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">เบอร์โทรศัพท์:</span><span class="text-slate-800 dark:text-slate-200">${phone}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">โรงเรียน:</span><span class="text-slate-800 dark:text-slate-200">${school}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">ระดับชั้น:</span><span class="text-slate-800 dark:text-slate-200">${gradeLevel}</span></div>
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'ปิด',
+                confirmButtonColor: '#0284c7',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b'
+            });
         }
 
         async function openRescheduleModal(oldSlotId, studentId, studentName) {
