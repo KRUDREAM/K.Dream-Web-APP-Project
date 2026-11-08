@@ -4,7 +4,7 @@
     <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KRUDREAM LAND | จัดการรายละเอียดและราคาคอร์สเรียน</title>
+    <title>KRUDREAM LAND | จัดการราคา แท็ก และโปรโมชั่นคอร์สเรียน</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -38,6 +38,8 @@
         .dark .glass-nav { background: rgba(9, 13, 22, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(30, 41, 59, 0.8); }
         .modern-card { background: #ffffff; border: 1px solid rgba(226, 232, 240, 1); box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.08); }
         .dark .modern-card { background: #0f172a; border: 1px solid rgba(30, 41, 59, 1); }
+        .badge-option { transition: all 0.2s ease; cursor: pointer; }
+        .badge-option.selected { ring: 2px solid #0284c7; background-color: rgba(2, 132, 199, 0.1); border-color: #0284c7; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
@@ -53,9 +55,9 @@
                     <div>
                         <h1 class="font-extrabold text-xl text-slate-900 dark:text-white flex items-center gap-2">
                             <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-tags"></i></span>
-                            จัดการรายละเอียดและราคาคอร์สเรียน
+                            จัดการราคา แท็ก และโปรโมชั่นคอร์สเรียน
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดราคา ภาพปก และคำอธิบายเชิงลึกสำหรับหน้าขายคอร์ส</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดป้ายแท็ก โปรโมชั่นพิเศษ และราคาขายสำหรับหน้า Landing Page</p>
                     </div>
                 </div>
                 <div>
@@ -72,13 +74,13 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             <!-- ฟอร์มแก้ไขรายละเอียดคอร์ส (ซ้าย) -->
-            <div class="lg:col-span-5 modern-card p-8 rounded-3xl sticky top-28">
-                <div class="flex items-center gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div class="lg:col-span-5 modern-card p-8 rounded-3xl sticky top-28 space-y-5">
+                <div class="flex items-center gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div class="w-12 h-12 bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-sky-500/30">
-                        <i class="fas fa-pen-to-square"></i>
+                        <i class="fas fa-sliders"></i>
                     </div>
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900 dark:text-white" id="formTitle">แก้ไขรายละเอียดคอร์ส</h2>
+                        <h2 class="text-lg font-bold text-slate-900 dark:text-white" id="formTitle">ตั้งค่าราคาและโปรโมชั่น</h2>
                         <p class="text-xs text-slate-500 dark:text-slate-400">เลือกคอร์สจากรายการด้านขวาเพื่อแก้ไข</p>
                     </div>
                 </div>
@@ -93,13 +95,36 @@
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">รหัสคอร์ส (Course Code)</label>
-                            <input type="text" id="courseCode" placeholder="เช่น MATH101" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-sm outline-none focus:border-sky-500">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">รหัสคอร์ส</label>
+                            <input type="text" id="courseCode" placeholder="เช่น MATH101" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500 font-bold">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">ราคา (บาท) <span class="text-red-500">*</span></label>
-                            <input type="number" id="coursePrice" min="0" step="any" placeholder="0.00" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-sm outline-none focus:border-sky-500 font-bold">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">ป้ายแท็กพิเศษ (Badge)</label>
+                            <select id="courseBadge" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500 font-bold">
+                                <option value="">-- ไม่แสดงป้ายแท็ก --</option>
+                                <option value="🔥 โปรโมชั่นพิเศษ">🔥 โปรโมชั่นพิเศษ</option>
+                                <option value="🏷️ ลดราคาแรง">🏷️ ลดราคาแรง</option>
+                                <option value="⭐ ยอดฮิตสุด">⭐ ยอดฮิตสุด</option>
+                                <option value="🚀 เปิดใหม่">🚀 เปิดใหม่</option>
+                                <option value="💎 คอร์สแนะนำ">💎 คอร์สแนะนำ</option>
+                            </select>
                         </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">ราคาปกติ (บาท)</label>
+                            <input type="number" id="courseOriginalPrice" min="0" step="any" placeholder="เช่น 1500" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">ราคาขายจริง (บาท) <span class="text-red-500">*</span></label>
+                            <input type="number" id="coursePrice" min="0" step="any" placeholder="เช่น 990" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-sm outline-none focus:border-sky-500 font-bold text-sky-600 dark:text-sky-400">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">เงื่อนไขโปรโมชั่น / รายละเอียดส่วนลด</label>
+                        <input type="text" id="coursePromoDetails" placeholder="เช่น ลด 30% เฉพาะ 50 ท่านแรก หรือ ถึงสิ้นเดือนนี้เท่านั้น" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
                     </div>
 
                     <div>
@@ -109,7 +134,7 @@
 
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">คำอธิบายรายละเอียดคอร์ส</label>
-                        <textarea id="courseDescription" rows="5" placeholder="ระบุเนื้อหา สิ่งที่จะได้เรียนรู้ หรือรายละเอียดคอร์ส..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500 resize-none"></textarea>
+                        <textarea id="courseDescription" rows="4" placeholder="ระบุเนื้อหา สิ่งที่จะได้เรียนรู้..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500 resize-none"></textarea>
                     </div>
 
                     <div class="flex gap-3 pt-2">
@@ -123,7 +148,7 @@
                 </form>
             </div>
 
-            <!-- รายการคอร์สทั้งหมดที่มีในระบบ (ชา) -->
+            <!-- รายการคอร์สทั้งหมดที่มีในระบบ (ขวา) -->
             <div class="lg:col-span-7 space-y-5">
                 <div class="modern-card p-6 rounded-3xl flex justify-between items-center">
                     <h3 class="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-3">
@@ -208,8 +233,10 @@
             container.innerHTML = filtered.map(c => {
                 const title = c.title || c.name || 'คอร์สเรียนไม่มีชื่อ';
                 const code = c.course_code ? `รหัส: ${c.course_code}` : 'ไม่มีรหัสคอร์ส';
-                const price = c.price !== null && c.price !== undefined ? `฿${Number(c.price).toLocaleString()}` : 'ยังไม่ระบุราคา';
-                const desc = c.description || c.detail || 'ยังไม่มีคำอธิบายรายละเอียดคอร์ส...';
+                const price = c.price !== null && c.price !== undefined ? `฿${Number(c.price).toLocaleString()}` : 'ฟรี';
+                const origPrice = c.original_price ? `฿${Number(c.original_price).toLocaleString()}` : '';
+                const badge = c.badge_tag ? `<span class="px-2 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">${c.badge_tag}</span>` : '';
+                const promo = c.promo_details ? `<p class="text-[11px] text-amber-500 font-medium"><i class="fas fa-bolt mr-1"></i>${c.promo_details}</p>` : '';
                 const coverImg = c.cover_image || c.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60';
 
                 return `
@@ -219,14 +246,18 @@
                             <div class="min-w-0 space-y-1">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-[10px] font-bold">${code}</span>
-                                    <span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-[10px] font-bold">${price}</span>
+                                    ${badge}
                                 </div>
                                 <h4 class="font-bold text-base text-slate-900 dark:text-white truncate">${title}</h4>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">${desc}</p>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-extrabold text-sky-600 dark:text-sky-400">${price}</span>
+                                    ${origPrice ? `<span class="text-xs text-slate-400 line-through">${origPrice}</span>` : ''}
+                                </div>
+                                ${promo}
                             </div>
                         </div>
                         <button onclick="selectCourseToEdit('${c.id}')" class="w-full sm:w-auto px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-sky-500/20 shrink-0">
-                            <i class="fas fa-pen-to-square mr-1"></i> จัดการราคาและรายละเอียด
+                            <i class="fas fa-pen-to-square mr-1"></i> ตั้งค่าราคาและโปรโมชั่น
                         </button>
                     </div>
                 `;
@@ -240,11 +271,14 @@
             document.getElementById('editCourseId').value = course.id;
             document.getElementById('courseTitle').value = course.title || course.name || '';
             document.getElementById('courseCode').value = course.course_code || '';
+            document.getElementById('courseBadge').value = course.badge_tag || '';
+            document.getElementById('courseOriginalPrice').value = course.original_price !== null && course.original_price !== undefined ? course.original_price : '';
             document.getElementById('coursePrice').value = course.price !== null && course.price !== undefined ? course.price : '';
+            document.getElementById('coursePromoDetails').value = course.promo_details || '';
             document.getElementById('courseCoverImage').value = course.cover_image || course.image_url || '';
             document.getElementById('courseDescription').value = course.description || course.detail || '';
             
-            document.getElementById('formTitle').textContent = `กำลังแก้ไข: ${course.title || course.name || 'คอร์ส'}`;
+            document.getElementById('formTitle').textContent = `กำลังตั้งค่า: ${course.title || course.name || 'คอร์ส'}`;
             
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = false;
@@ -259,16 +293,22 @@
             if (!courseId) return;
 
             const courseCode = document.getElementById('courseCode').value.trim();
+            const badgeTag = document.getElementById('courseBadge').value;
+            const originalPrice = document.getElementById('courseOriginalPrice').value ? parseFloat(document.getElementById('courseOriginalPrice').value) : null;
             const price = parseFloat(document.getElementById('coursePrice').value) || 0;
+            const promoDetails = document.getElementById('coursePromoDetails').value.trim();
             const coverImage = document.getElementById('courseCoverImage').value.trim();
             const description = document.getElementById('courseDescription').value.trim();
 
             Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            // อัปเดตข้อมูลลงตาราง courses (รองรับชื่อฟิลด์ทั้งแบบมาตรฐานและแบบสำรอง)
+            // Payload อัปเดตข้อมูลลง Supabase ตาราง courses
             const payload = {
                 course_code: courseCode,
+                badge_tag: badgeTag,
+                original_price: originalPrice,
                 price: price,
+                promo_details: promoDetails,
                 cover_image: coverImage,
                 description: description
             };
@@ -283,7 +323,7 @@
             Swal.fire({
                 icon: 'success',
                 title: 'บันทึกสำเร็จ!',
-                text: 'อัปเดตราคาและรายละเอียดคอร์สเรียบร้อยแล้ว',
+                text: 'อัปเดตราคา แท็ก และโปรโมชั่นเรียบร้อยแล้ว',
                 timer: 1500,
                 showConfirmButton: false
             });
@@ -296,7 +336,7 @@
             document.getElementById('courseDetailForm').reset();
             document.getElementById('editCourseId').value = '';
             document.getElementById('courseTitle').value = '';
-            document.getElementById('formTitle').textContent = 'แก้ไขรายละเอียดคอร์ส';
+            document.getElementById('formTitle').textContent = 'ตั้งค่าราคาและโปรโมชั่น';
             
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = true;
