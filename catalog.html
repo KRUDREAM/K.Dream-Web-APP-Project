@@ -37,9 +37,9 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-20 items-center">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-sky-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-sky-500/30">
-                        <i class="fas fa-graduation-cap"></i>
-                    </div>
+                    <button onclick="window.location.href='index.html'" class="w-10 h-10 rounded-2xl bg-sky-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-sky-500/30">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
                     <div>
                         <h1 class="font-extrabold text-lg text-slate-900 dark:text-white">KRUDREAM LAND</h1>
                         <p class="text-[10px] text-slate-500 dark:text-slate-400">คอร์สเรียนและแพ็กเกจคุณภาพ</p>
@@ -142,7 +142,6 @@
         }
 
         async function fetchCatalogData() {
-            // โหลดแพ็กเกจคอร์ส และโปรโมชั่นพร้อมกัน
             const [pkgRes, promoRes] = await Promise.all([
                 mySupabase.from('course_packages').select('*').order('created_at', { ascending: false }),
                 mySupabase.from('promotions').select('*').eq('is_active', true)
@@ -233,7 +232,6 @@
             }).join('');
         }
 
-        // เปิด Modal รายละเอียดคอร์สเมื่อคลิกการ์ด
         window.openCourseDetail = function(id) {
             const pkg = allPackages.find(x => x.id === id);
             if (!pkg) return;
@@ -270,7 +268,6 @@
                     <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed whitespace-pre-line">${pkg.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
                 </div>
 
-                <!-- ช่องกรอกโค้ดส่วนลด -->
                 <div class="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
                     <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">🎟️ มีโค้ดส่วนลด?</label>
                     <div class="flex gap-2">
@@ -294,7 +291,6 @@
             document.getElementById('courseModal').classList.add('hidden');
         }
 
-        // ระบบตรวจสอบและคำนวณส่วนลดจากโค้ด
         window.applyCoupon = function(originalPrice, courseId) {
             const code = document.getElementById('couponInput').value.trim().toUpperCase();
             const msg = document.getElementById('couponMsg');
@@ -309,14 +305,12 @@
                 return;
             }
 
-            // ตรวจสอบเงื่อนไขยอดขั้นต่ำ
             if (originalPrice < (promo.min_spend || 0)) {
                 msg.textContent = `❌ ยอดซื้อไม่ถึงขั้นต่ำ (ต้องมียอดซื้ออย่างน้อย ฿${Number(promo.min_spend).toLocaleString()})`;
                 msg.className = 'text-[11px] text-rose-500 font-bold';
                 return;
             }
 
-            // ตรวจสอบว่าโค้ดนี้จำกัดเฉพาะสินค้าชิ้นนี้ไหม
             if (Array.isArray(promo.applicable_course_ids) && promo.applicable_course_ids.length > 0) {
                 if (!promo.applicable_course_ids.includes(courseId)) {
                     msg.textContent = '❌ โค้ดส่วนลดนี้ไม่สามารถใช้ร่วมกับคอร์สนี้ได้';
@@ -325,7 +319,6 @@
                 }
             }
 
-            // คำนวณส่วนลด
             let discount = 0;
             if (promo.discount_type === 'percent') {
                 discount = (originalPrice * promo.discount_value) / 100;
