@@ -68,7 +68,7 @@
         </div>
     </nav>
 
-    <!-- Hero Section -->
+    <!-- Hero Section พร้อมระบบค้นหาและระบบเรียงลำดับ (ระบบที่ 3) -->
     <header class="pt-32 pb-10 px-4 text-center max-w-4xl mx-auto space-y-3">
         <span class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-full text-xs font-bold">📚 คอร์สเรียนทั้งหมด</span>
         <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">เลือกคอร์สที่ใช่ เพื่ออนาคตที่ดีกว่า</h2>
@@ -79,6 +79,7 @@
                 <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                 <input type="text" id="searchInput" oninput="renderCatalog()" placeholder="ค้นหาชื่อคอร์ส, วิชา, หรือรหัสแพ็กเกจ..." class="w-full pl-11 pr-4 py-3 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm">
             </div>
+            <!-- ระบบเรียงลำดับ (ระบบที่ 3) -->
             <select id="sortSelect" onchange="renderCatalog()" class="px-4 py-3 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer">
                 <option value="newest">มาใหม่ล่าสุด</option>
                 <option value="price-asc">ราคา: ต่ำไปสูง</option>
@@ -207,7 +208,7 @@
                 return matchKeyword && matchTag;
             });
 
-            // จัดเรียงข้อมูล
+            // จัดเรียงข้อมูล (ระบบที่ 3)
             if (sortBy === 'price-asc') {
                 filtered.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
             } else if (sortBy === 'price-desc') {
@@ -227,7 +228,7 @@
                 const price = `฿${priceNum.toLocaleString()}`;
                 const origPrice = origPriceNum > priceNum ? `฿${origPriceNum.toLocaleString()}` : '';
                 
-                // คำนวณ % ส่วนลดอัตโนมัติ
+                // คำนวณ % ส่วนลดอัตโนมัติ (ระบบที่ 2)
                 let discountBadge = '';
                 if (origPriceNum > priceNum && priceNum > 0) {
                     const discountPct = Math.round(((origPriceNum - priceNum) / origPriceNum) * 100);
@@ -239,7 +240,7 @@
                 const freebies = p.freebies ? `<p class="text-[11px] text-emerald-600 font-medium"><i class="fas fa-gift mr-1"></i>${p.freebies}</p>` : '';
                 const desc = p.description || 'ไม่มีรายละเอียดเพิ่มเติม';
 
-                // ดึง Tags ออกมาแสดงเป็นการ์ดชิปบนการ์ด
+                // ดึง Tags ออกมาแสดงเป็นการ์ดชิปบนการ์ด (ระบบที่ 1)
                 let tagsArray = [];
                 if (Array.isArray(p.tags)) tagsArray = p.tags;
                 else if (typeof p.tags === 'string' && p.tags.trim() !== '') tagsArray = p.tags.split(',');
