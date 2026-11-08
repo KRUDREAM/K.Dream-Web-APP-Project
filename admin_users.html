@@ -78,7 +78,7 @@
                 <h2 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                     <i class="fas fa-address-book text-sky-500"></i> รายชื่อบัญชีนักเรียนในระบบ
                 </h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">จัดการสร้างบัญชีผู้ใช้ใหม่, แก้ไขข้อมูลส่วนตัว, เลือกคอร์สเรียน และรีเซ็ตรหัสผ่านนักเรียน</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">จัดการสร้างบัญชีผู้ใช้ใหม่, แก้ไขข้อมูลส่วนตัว, เลือกคอร์สเรียน และรีเซ็ตรหัสผ่านนักเรียน (แยกบัญชีภายนอก/ภายใน)</p>
             </div>
             
             <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
@@ -105,8 +105,9 @@
                         <tr class="bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
                             <th class="p-3">ลำดับ</th>
                             <th class="p-3 sortable-th" onclick="setSort('username')">
-                                Username / รหัสนักเรียน <i id="sortIcon-username" class="fas fa-sort ml-1 text-slate-400"></i>
+                                Username / อีเมล <i id="sortIcon-username" class="fas fa-sort ml-1 text-slate-400"></i>
                             </th>
+                            <th class="p-3">ประเภทบัญชี</th>
                             <th class="p-3 sortable-th" onclick="setSort('full_name')">
                                 ชื่อ - นามสกุล <i id="sortIcon-full_name" class="fas fa-sort ml-1 text-slate-400"></i>
                             </th>
@@ -125,7 +126,7 @@
                         </tr>
                     </thead>
                     <tbody id="studentsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
-                        <tr><td colspan="9" class="text-center py-8 text-slate-400">กำลังโหลดข้อมูลบัญชีผู้ใช้...</td></tr>
+                        <tr><td colspan="10" class="text-center py-8 text-slate-400">กำลังโหลดข้อมูลบัญชีผู้ใช้...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -245,7 +246,7 @@
 
             let filtered = studentsList.filter(s => {
                 if (!keyword) return true;
-                const username = (s.username || '').toLowerCase();
+                const username = (s.username || s.email || '').toLowerCase();
                 const fullName = (s.full_name || s.first_name || '').toLowerCase();
                 const nickname = (s.nickname || '').toLowerCase();
                 const studentId = String(s.student_id || '').toLowerCase();
@@ -287,19 +288,25 @@
             document.getElementById('studentCountLabel').textContent = `แสดง ${filtered.length} รายการ (จากทั้งหมด ${studentsList.length} คน)`;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400">ไม่พบรายชื่อนักเรียนที่ค้นหา</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-400">ไม่พบรายชื่อนักเรียนที่ค้นหา</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = filtered.map((s, idx) => {
                 const sId = String(s.id);
-                const username = s.username || s.student_id || '-';
+                const username = s.username || s.email || s.student_id || '-';
                 const fullName = s.full_name || (s.first_name ? `${s.first_name} ${s.last_name || ''}` : '-');
                 const nickname = s.nickname || '-';
                 const gradeLevel = s.grade_level || s.grade || '-';
                 const school = s.school || '-';
                 const lineId = s.line_id || '-';
                 
+                // แยกประเภทบัญชี
+                const accountType = s.account_type || 'internal_admin';
+                const accountBadge = accountType === 'external_student'
+                    ? '<span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 rounded-lg text-[10px] font-bold border border-emerald-500/20">🌐 สมัครเอง (ภายนอก)</span>'
+                    : '<span class="px-2.5 py-1 bg-sky-500/10 text-sky-600 rounded-lg text-[10px] font-bold border border-sky-500/20">🛡️ สร้างจากหลังบ้าน</span>';
+
                 const rawDate = s.created_at;
                 const createdAtStr = rawDate ? new Date(rawDate).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-';
 
@@ -319,6 +326,7 @@
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-3 font-mono font-bold">${idx + 1}</td>
                         <td class="p-3 font-mono font-bold text-sky-600 dark:text-sky-400">${username}</td>
+                        <td class="p-3">${accountBadge}</td>
                         <td class="p-3 font-bold text-slate-900 dark:text-white">${fullName}</td>
                         <td class="p-3 font-semibold text-slate-600 dark:text-slate-300">${nickname}</td>
                         <td class="p-3">
@@ -343,141 +351,122 @@
             }).join('');
         }
 
-        // 🌟 ฟังก์ชันจัดการคอร์สเรียนแบบ Smart Fallback & Type Casting ป้องกัน Error 400
-async function openManageCoursesModal(studentId) {
-    const student = studentsList.find(s => String(s.id) === String(studentId));
-    if (!student) return;
+        async function openManageCoursesModal(studentId) {
+            const student = studentsList.find(s => String(s.id) === String(studentId));
+            if (!student) return;
 
-    const isDark = document.documentElement.classList.contains('dark');
-    const studentName = student.full_name || student.username || 'นักเรียน';
-    const currentEnrolled = studentEnrollmentsMap[String(studentId)] || [];
-    const allCoursesArray = Object.values(coursesMap);
+            const isDark = document.documentElement.classList.contains('dark');
+            const studentName = student.full_name || student.username || 'นักเรียน';
+            const currentEnrolled = studentEnrollmentsMap[String(studentId)] || [];
+            const allCoursesArray = Object.values(coursesMap);
 
-    let coursesCheckboxHtml = '';
-    if (allCoursesArray.length === 0) {
-        coursesCheckboxHtml = `<div class="text-center py-6 text-slate-400 text-xs">ยังไม่มีคอร์สเรียนในระบบ กรุณาเพิ่มคอร์สก่อน</div>`;
-    } else {
-        coursesCheckboxHtml = `<div class="space-y-2 max-h-[50vh] overflow-y-auto pr-2 text-left">`;
-        allCoursesArray.forEach(c => {
-            const cIdStr = String(c.id);
-            const isChecked = currentEnrolled.includes(cIdStr) ? 'checked' : '';
-            const codeStr = c.course_code ? `[${c.course_code}] ` : '';
-            coursesCheckboxHtml += `
-                <label class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-sky-500 transition-all">
-                    <input type="checkbox" name="swalCourseCheckbox" value="${c.id}" ${isChecked} class="w-4 h-4 text-sky-600 rounded focus:ring-sky-500">
-                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200">${codeStr}${c.title}</div>
-                </label>
-            `;
-        });
-        coursesCheckboxHtml += `</div>`;
-    }
-
-    const result = await Swal.fire({
-        title: `<span class="text-base font-extrabold text-sky-700 dark:text-sky-400">📖 จัดการคอร์สเรียน: ${studentName}</span>`,
-        html: `
-            <p class="text-xs text-slate-500 mb-3 text-left">ติ๊กเลือกคอร์สที่ต้องการให้นักเรียนคนนี้มีสิทธิ์เข้าถึง จากนั้นกดบันทึก</p>
-            ${coursesCheckboxHtml}
-        `,
-        showCancelButton: true,
-        confirmButtonText: 'บันทึกคอร์สเรียน',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#0284c7',
-        background: isDark ? '#090d16' : '#ffffff',
-        color: isDark ? '#f1f5f9' : '#1e293b',
-        preConfirm: () => {
-            const selectedCheckboxes = document.querySelectorAll('input[name="swalCourseCheckbox"]:checked');
-            return Array.from(selectedCheckboxes).map(cb => cb.value);
-        }
-    });
-
-    if (result.isConfirmed) {
-        const rawSelectedIds = result.value || [];
-        Swal.fire({ title: 'กำลังบันทึกคอร์สเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-        try {
-            // แปลง course_id อัตโนมัติ (รองรับทั้ง Integer และ UUID)
-            const formattedCourseIds = rawSelectedIds.map(cId => {
-                return /^\d+$/.test(cId) ? parseInt(cId, 10) : cId;
-            });
-
-            // 1. ลบข้อมูลเดิมออกจากตารางแบบปลอดภัย
-            try { await mySupabase.from('course_enrollments').delete().eq('student_id', studentId); } catch(e) {}
-            try { await mySupabase.from('course_enrollments').delete().eq('user_id', studentId); } catch(e) {}
-            try { await mySupabase.from('enrollments').delete().eq('student_id', studentId); } catch(e) {}
-            try { await mySupabase.from('enrollments').delete().eq('user_id', studentId); } catch(e) {}
-
-            // 2. ถ้ามีการเลือกคอร์ส ให้บันทึก
-            if (formattedCourseIds.length > 0) {
-                let savedOk = false;
-
-                const possiblePayloads = [
-                    formattedCourseIds.map(cId => ({ course_id: cId, student_id: studentId })),
-                    formattedCourseIds.map(cId => ({ course_id: cId, user_id: studentId })),
-                    formattedCourseIds.map(cId => ({ course_id: cId, student_id: studentId, created_at: new Date().toISOString() })),
-                    formattedCourseIds.map(cId => ({ course_id: cId, user_id: studentId, created_at: new Date().toISOString() }))
-                ];
-
-                for (let p of possiblePayloads) {
-                    const { error } = await mySupabase.from('course_enrollments').insert(p);
-                    if (!error) {
-                        savedOk = true;
-                        break;
-                    }
-                }
-
-                for (let p of possiblePayloads) {
-                    const { error } = await mySupabase.from('enrollments').insert(p);
-                    if (!error) {
-                        savedOk = true;
-                        break;
-                    }
-                }
-
-                if (!savedOk) {
-                    throw new Error("ไม่สามารถบันทึกข้อมูลลงตารางได้ ตรวจสอบชื่อคอลัมน์ในฐานข้อมูล");
-                }
+            let coursesCheckboxHtml = '';
+            if (allCoursesArray.length === 0) {
+                coursesCheckboxHtml = `<div class="text-center py-6 text-slate-400 text-xs">ยังไม่มีคอร์สเรียนในระบบ กรุณาเพิ่มคอร์สก่อน</div>`;
+            } else {
+                coursesCheckboxHtml = `<div class="space-y-2 max-h-[50vh] overflow-y-auto pr-2 text-left">`;
+                allCoursesArray.forEach(c => {
+                    const cIdStr = String(c.id);
+                    const isChecked = currentEnrolled.includes(cIdStr) ? 'checked' : '';
+                    const codeStr = c.course_code ? `[${c.course_code}] ` : '';
+                    coursesCheckboxHtml += `
+                        <label class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-sky-500 transition-all">
+                            <input type="checkbox" name="swalCourseCheckbox" value="${c.id}" ${isChecked} class="w-4 h-4 text-sky-600 rounded focus:ring-sky-500">
+                            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">${codeStr}${c.title}</div>
+                        </label>
+                    `;
+                });
+                coursesCheckboxHtml += `</div>`;
             }
 
-            Swal.fire({ icon: 'success', title: 'อัปเดตคอร์สเรียนสำเร็จ!', timer: 1200, showConfirmButton: false });
-            initPage();
-
-        } catch (err) {
-            console.error("Save Courses Error Detail:", err);
-            Swal.fire({
-                icon: 'error',
-                title: 'บันทึกไม่สำเร็จ',
-                html: `เกิดข้อผิดพลาดจากฐานข้อมูล:<br>
-                <code class="text-xs text-rose-500 font-mono mt-2 block break-all text-left bg-slate-900 p-3 rounded-xl">
-                    <b>Message:</b> ${err.message || 'Unknown'}
-                </code>`,
-                confirmButtonColor: '#0284c7'
+            const result = await Swal.fire({
+                title: `<span class="text-base font-extrabold text-sky-700 dark:text-sky-400">📖 จัดการคอร์สเรียน: ${studentName}</span>`,
+                html: `
+                    <p class="text-xs text-slate-500 mb-3 text-left">ติ๊กเลือกคอร์สที่ต้องการให้นักเรียนคนนี้มีสิทธิ์เข้าถึง จากนั้นกดบันทึก</p>
+                    ${coursesCheckboxHtml}
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกคอร์สเรียน',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#0284c7',
+                background: isDark ? '#090d16' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                preConfirm: () => {
+                    const selectedCheckboxes = document.querySelectorAll('input[name="swalCourseCheckbox"]:checked');
+                    return Array.from(selectedCheckboxes).map(cb => cb.value);
+                }
             });
+
+            if (result.isConfirmed) {
+                const rawSelectedIds = result.value || [];
+                Swal.fire({ title: 'กำลังบันทึกคอร์สเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                try {
+                    const formattedCourseIds = rawSelectedIds.map(cId => {
+                        return /^\d+$/.test(cId) ? parseInt(cId, 10) : cId;
+                    });
+
+                    try { await mySupabase.from('course_enrollments').delete().eq('student_id', studentId); } catch(e) {}
+                    try { await mySupabase.from('course_enrollments').delete().eq('user_id', studentId); } catch(e) {}
+                    try { await mySupabase.from('enrollments').delete().eq('student_id', studentId); } catch(e) {}
+                    try { await mySupabase.from('enrollments').delete().eq('user_id', studentId); } catch(e) {}
+
+                    if (formattedCourseIds.length > 0) {
+                        let savedOk = false;
+                        const possiblePayloads = [
+                            formattedCourseIds.map(cId => ({ course_id: cId, student_id: studentId })),
+                            formattedCourseIds.map(cId => ({ course_id: cId, user_id: studentId })),
+                            formattedCourseIds.map(cId => ({ course_id: cId, student_id: studentId, created_at: new Date().toISOString() })),
+                            formattedCourseIds.map(cId => ({ course_id: cId, user_id: studentId, created_at: new Date().toISOString() }))
+                        ];
+
+                        for (let p of possiblePayloads) {
+                            const { error } = await mySupabase.from('course_enrollments').insert(p);
+                            if (!error) { savedOk = true; break; }
+                        }
+
+                        for (let p of possiblePayloads) {
+                            const { error } = await mySupabase.from('enrollments').insert(p);
+                            if (!error) { savedOk = true; break; }
+                        }
+
+                        if (!savedOk) {
+                            throw new Error("ไม่สามารถบันทึกข้อมูลลงตารางได้ ตรวจสอบชื่อคอลัมน์ในฐานข้อมูล");
+                        }
+                    }
+
+                    Swal.fire({ icon: 'success', title: 'อัปเดตคอร์สเรียนสำเร็จ!', timer: 1200, showConfirmButton: false });
+                    initPage();
+
+                } catch (err) {
+                    console.error("Save Courses Error Detail:", err);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'บันทึกไม่สำเร็จ',
+                        html: `เกิดข้อผิดพลาดจากฐานข้อมูล:<br><code class="text-xs text-rose-500 font-mono mt-2 block break-all text-left bg-slate-900 p-3 rounded-xl"><b>Message:</b> ${err.message || 'Unknown'}</code>`,
+                        confirmButtonColor: '#0284c7'
+                    });
+                }
+            }
         }
-    }
-}
+
         function generateRandomPassword() {
             let password = '';
-            for (let i = 0; i < 6; i++) {
-                password += Math.floor(Math.random() * 10);
-            }
+            for (let i = 0; i < 6; i++) { password += Math.floor(Math.random() * 10); }
             const pwdInput = document.getElementById('swalPassword');
             if (pwdInput) pwdInput.value = password;
         }
 
         function generateResetPassword() {
             let password = '';
-            for (let i = 0; i < 6; i++) {
-                password += Math.floor(Math.random() * 10);
-            }
+            for (let i = 0; i < 6; i++) { password += Math.floor(Math.random() * 10); }
             const pwdInput = document.getElementById('swalResetPwd');
             if (pwdInput) pwdInput.value = password;
         }
 
         async function triggerResetPassword(studentId, username) {
             let newPwd = '';
-            for (let i = 0; i < 6; i++) {
-                newPwd += Math.floor(Math.random() * 10);
-            }
+            for (let i = 0; i < 6; i++) { newPwd += Math.floor(Math.random() * 10); }
 
             const { value: confirmedPwd } = await Swal.fire({
                 title: '🔑 รีเซ็ตรหัสผ่านใหม่',
@@ -519,14 +508,14 @@ async function openManageCoursesModal(studentId) {
                     Swal.fire({
                         icon: 'success',
                         title: 'รีเซ็ตรหัสผ่านสำเร็จ!',
-                        html: `รหัสผ่านใหม่ของ <b>${username}</b> คือ:<br><div class="p-3 bg-sky-500/10 border border-sky-500/30 rounded-2xl text-xl font-mono font-bold text-sky-600 my-2">${confirmedPwd}</div><span class="text-xs text-slate-400">กรุณาจดรหัสนี้เพื่อแจ้งให้นักเรียนทราบ</span>`,
+                        html: `รหัสผ่านใหม่ของ <b>${username}</b> คือ:<br><div class="p-3 bg-sky-500/10 border border-sky-500/30 rounded-2xl text-xl font-mono font-bold text-sky-600 my-2">${confirmedPwd}</div>`,
                         confirmButtonColor: '#0284c7'
                     });
                 } else {
                     Swal.fire({
                         icon: 'error',
                         title: 'รีเซ็ตไม่สำเร็จ',
-                        html: `เกิดข้อผิดพลาด: ${error.message}<br><br><span class="text-[11px] text-amber-500">💡 หมายเหตุ: ต้องรันคำสั่ง SQL สร้างฟังก์ชัน <b>admin_update_user_password</b> ใน Supabase Dashboard ก่อนใช้งานฟังก์ชันนี้ครั้งแรก</span>`,
+                        html: `เกิดข้อผิดพลาด: ${error.message}`,
                         confirmButtonColor: '#0284c7'
                     });
                 }
@@ -535,10 +524,9 @@ async function openManageCoursesModal(studentId) {
 
         async function triggerDeleteStudent(studentId, username) {
             const isDark = document.documentElement.classList.contains('dark');
-
             const { isConfirmed } = await Swal.fire({
                 title: '🗑️ ยืนยันการลบบัญชี?',
-                html: `คุณต้องการลบบัญชีของ <b class="text-rose-500">${username}</b> ออกจากระบบใช่หรือไม่?<br><span class="text-xs text-slate-400">ข้อมูลจะถูกลบออกจากระบบทันที</span>`,
+                html: `คุณต้องการลบบัญชีของ <b class="text-rose-500">${username}</b> ออกจากระบบใช่หรือไม่?`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonText: 'ใช่, ลบเลย',
@@ -550,17 +538,10 @@ async function openManageCoursesModal(studentId) {
 
             if (isConfirmed) {
                 Swal.fire({ title: 'กำลังลบบัญชี...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
                 const { error } = await mySupabase.from('profiles').delete().eq('id', studentId);
-
                 if (!error) {
                     Swal.close();
-                    await Swal.fire({ 
-                        icon: 'success', 
-                        title: 'ลบบัญชีสำเร็จ!', 
-                        html: `ลบรายชื่อของ <b>${username}</b> เรียบร้อยแล้วครับ`,
-                        confirmButtonColor: '#0284c7' 
-                    });
+                    await Swal.fire({ icon: 'success', title: 'ลบบัญชีสำเร็จ!', confirmButtonColor: '#0284c7' });
                     initPage();
                 } else {
                     Swal.close();
@@ -573,46 +554,56 @@ async function openManageCoursesModal(studentId) {
             const isDark = document.documentElement.classList.contains('dark');
 
             const { value: formValues } = await Swal.fire({
-                title: '➕ สร้างบัญชีนักเรียนใหม่',
+                title: '➕ สร้างบัญชีนักเรียนใหม่ (ภายใน)',
                 width: '550px',
                 html: `
-                    <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/20 border border-rose-500 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-bold text-center"></div>
+                    <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold text-center"></div>
                     <div class="space-y-3 text-left text-xs">
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block font-bold mb-1">Username (สำหรับ Login) <span class="text-red-500">*</span></label>
-                                <input id="swalUsername" value="${savedData.username || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" placeholder="เช่น DREAM หรือ 69001">
+                                <label class="block font-bold mb-1">Username / อีเมลเข้าสู่ระบบ <span class="text-red-500">*</span></label>
+                                <input id="swalUsername" value="${savedData.username || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" placeholder="เช่น student01 หรืออีเมล">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">รหัสผ่าน (6 หลัก) <span class="text-red-500">*</span></label>
                                 <div class="flex gap-1.5">
                                     <input id="swalPassword" value="" maxlength="6" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" placeholder="6 หลัก">
-                                    <button type="button" onclick="generateRandomPassword()" class="px-3 py-2 bg-sky-500/15 hover:bg-sky-500 hover:text-white text-sky-600 font-bold rounded-xl transition-all text-nowrap" title="สุ่มรหัส 6 หลัก"><i class="fas fa-dice"></i> สุ่ม</button>
+                                    <button type="button" onclick="generateRandomPassword()" class="px-3 py-2 bg-sky-500/15 hover:bg-sky-500 hover:text-white text-sky-600 font-bold rounded-xl transition-all text-nowrap"><i class="fas fa-dice"></i> สุ่ม</button>
                                 </div>
                             </div>
                         </div>
-                        <div>
-                            <label class="block font-bold mb-1">ชื่อ - นามสกุล <span class="text-red-500">*</span></label>
-                            <input id="swalFullName" value="${savedData.full_name || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น นายสมชาย ใจดี">
-                        </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
+                                <label class="block font-bold mb-1">ชื่อจริง <span class="text-red-500">*</span></label>
+                                <input id="swalFirstName" value="${savedData.first_name || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ชื่อจริง">
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1">นามสกุล <span class="text-red-500">*</span></label>
+                                <input id="swalLastName" value="${savedData.last_name || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="นามสกุล">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
                                 <label class="block font-bold mb-1">ชื่อเล่น <span class="text-red-500">*</span></label>
-                                <input id="swalNickname" value="${savedData.nickname || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น ดรีม">
+                                <input id="swalNickname" value="${savedData.nickname || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ชื่อเล่น">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">ระดับชั้น <span class="text-red-500">*</span></label>
-                                <input id="swalGradeLevel" value="" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น ม.3/1">
+                                <input id="swalGradeLevel" value="${savedData.grade_level || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ม.3/1">
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1">เบอร์โทรศัพท์ <span class="text-red-500">*</span></label>
+                                <input id="swalPhone" value="${savedData.phone || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="089xxxxxxx">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block font-bold mb-1">โรงเรียน <span class="text-red-500">*</span></label>
-                                <input id="swalSchool" value="" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น สวนกุหลาบวิทยาลัย">
+                                <input id="swalSchool" value="${savedData.school || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="สวนกุหลาบ">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">LINE ID <span class="text-red-500">*</span></label>
-                                <input id="swalLineId" value="${savedData.line_id || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="เช่น @line_id">
+                                <input id="swalLineId" value="${savedData.line_id || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="@line">
                             </div>
                         </div>
                     </div>
@@ -626,37 +617,42 @@ async function openManageCoursesModal(studentId) {
                 preConfirm: () => {
                     const usernameVal = document.getElementById('swalUsername').value.trim();
                     const passwordVal = document.getElementById('swalPassword').value.trim();
-                    const fullName = document.getElementById('swalFullName').value.trim();
+                    const firstName = document.getElementById('swalFirstName').value.trim();
+                    const lastName = document.getElementById('swalLastName').value.trim();
                     const nickname = document.getElementById('swalNickname').value.trim();
                     const gradeLevel = document.getElementById('swalGradeLevel').value.trim();
+                    const phone = document.getElementById('swalPhone').value.trim();
                     const school = document.getElementById('swalSchool').value.trim();
                     const lineId = document.getElementById('swalLineId').value.trim();
-
                     const errorBox = document.getElementById('swalErrorMsg');
 
-                    if (!usernameVal || !passwordVal || !fullName || !nickname || !gradeLevel || !school || !lineId) {
+                    if (!usernameVal || !passwordVal || !firstName || !lastName || !nickname || !gradeLevel || !phone || !school || !lineId) {
                         errorBox.textContent = '⚠️ กรุณากรอกข้อมูลให้ครบทุกช่อง';
                         errorBox.classList.remove('hidden');
                         return false;
                     }
-
                     if (passwordVal.length !== 6) {
                         errorBox.textContent = '⚠️ รหัสผ่านต้องมีความยาว 6 หลัก';
                         errorBox.classList.remove('hidden');
                         return false;
                     }
 
+                    const email = usernameVal.includes('@') ? usernameVal : `${usernameVal.toLowerCase()}@lms-system.com`;
+
                     return {
                         username: usernameVal,
-                        student_id: usernameVal,
+                        email: email,
                         password: passwordVal,
-                        full_name: fullName,
+                        first_name: firstName,
+                        last_name: lastName,
+                        full_name: `${firstName} ${lastName}`,
                         nickname: nickname,
                         grade_level: gradeLevel,
+                        phone: phone,
                         school: school,
                         line_id: lineId,
-                        email: `${usernameVal.toLowerCase()}@lms-system.com`,
-                        role: 'student'
+                        role: 'student',
+                        account_type: 'internal_admin' // บัญชีภายในสร้างจากหลังบ้าน
                     };
                 }
             });
@@ -667,60 +663,38 @@ async function openManageCoursesModal(studentId) {
                 const { data: authData, error: authError } = await mySupabase.auth.signUp({
                     email: formValues.email,
                     password: formValues.password,
-                    options: {
-                        data: {
-                            username: formValues.username,
-                            full_name: formValues.full_name
-                        }
-                    }
+                    options: { data: { username: formValues.username, full_name: formValues.full_name } }
                 });
 
                 if (authError) {
-                    Swal.fire({
-                        title: 'สร้างบัญชีไม่สำเร็จ',
-                        html: `Auth Error: ${authError.message}`,
-                        icon: 'error',
-                        confirmButtonText: 'ตกลง'
-                    }).then(() => {
-                        openCreateStudentModal(formValues);
-                    });
+                    Swal.fire({ title: 'สร้างบัญชีไม่สำเร็จ', html: `Auth Error: ${authError.message}`, icon: 'error' }).then(() => openCreateStudentModal(formValues));
                     return;
                 }
 
                 const userId = authData.user ? authData.user.id : null;
-
                 const profilePayload = {
                     ...(userId ? { id: userId } : {}),
                     username: formValues.username,
-                    student_id: formValues.student_id,
+                    email: formValues.email,
+                    first_name: formValues.first_name,
+                    last_name: formValues.last_name,
                     full_name: formValues.full_name,
                     nickname: formValues.nickname,
                     grade_level: formValues.grade_level,
+                    phone: formValues.phone,
                     school: formValues.school,
                     line_id: formValues.line_id,
-                    email: formValues.email,
-                    role: 'student'
+                    role: 'student',
+                    account_type: 'internal_admin'
                 };
 
                 const { error: profileError } = await mySupabase.from('profiles').upsert([profilePayload]);
 
                 if (!profileError) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'สร้างบัญชีสำเร็จ!',
-                        html: `นักเรียนสามารถใช้ Username: <b>${formValues.username}</b> และรหัสผ่านเข้าสู่ระบบได้ทันที`,
-                        confirmButtonColor: '#0284c7'
-                    });
+                    Swal.fire({ icon: 'success', title: 'สร้างบัญชีสำเร็จ!', confirmButtonColor: '#0284c7' });
                     initPage();
                 } else {
-                    Swal.fire({
-                        title: 'คำเตือน',
-                        html: `สร้าง Auth แล้วแต่บันทึก Profiles ไม่สำเร็จ: ${profileError.message}`,
-                        icon: 'warning',
-                        confirmButtonText: 'ตกลง'
-                    }).then(() => {
-                        openCreateStudentModal(formValues);
-                    });
+                    Swal.fire({ title: 'คำเตือน', html: `สร้าง Auth แล้วแต่บันทึก Profiles ไม่สำเร็จ: ${profileError.message}`, icon: 'warning' });
                     initPage();
                 }
             }
@@ -731,15 +705,14 @@ async function openManageCoursesModal(studentId) {
             if (!student) return;
 
             const isDark = document.documentElement.classList.contains('dark');
-            const usernameValStr = student.username || student.student_id || '';
+            const usernameValStr = student.username || student.email || '';
 
             const { value: formValues } = await Swal.fire({
                 title: '✏️ แก้ไขข้อมูลบัญชีนักเรียน',
                 width: '550px',
                 html: `
-                    <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/20 border border-rose-500 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-bold text-center"></div>
+                    <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold text-center"></div>
                     <div class="space-y-3 text-left text-xs">
-                        
                         <div class="grid grid-cols-2 gap-2 bg-sky-50 dark:bg-darkinput p-3 rounded-2xl border border-sky-500/20">
                             <div>
                                 <span class="text-[10px] text-slate-400 block font-bold mb-1">จัดการรหัสผ่าน</span>
@@ -756,31 +729,41 @@ async function openManageCoursesModal(studentId) {
                         </div>
 
                         <div>
-                            <label class="block font-bold mb-1">Username / รหัสนักเรียน <span class="text-red-500">*</span></label>
-                            <input id="swalUsername" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" value="${usernameValStr}" placeholder="เช่น DREAM หรือ 69001">
-                        </div>
-                        <div>
-                            <label class="block font-bold mb-1">ชื่อ - นามสกุล <span class="text-red-500">*</span></label>
-                            <input id="swalFullName" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.full_name || (student.first_name ? `${student.first_name}${student.last_name || ''}` : '')}" placeholder="เช่น นายสมชาย ใจดี">
+                            <label class="block font-bold mb-1">Username / อีเมล <span class="text-red-500">*</span></label>
+                            <input id="swalUsername" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" value="${usernameValStr}">
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
+                                <label class="block font-bold mb-1">ชื่อจริง <span class="text-red-500">*</span></label>
+                                <input id="swalFirstName" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.first_name || ''}">
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1">นามสกุล <span class="text-red-500">*</span></label>
+                                <input id="swalLastName" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.last_name || ''}">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
                                 <label class="block font-bold mb-1">ชื่อเล่น <span class="text-red-500">*</span></label>
-                                <input id="swalNickname" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.nickname || ''}" placeholder="ชื่อเล่น">
+                                <input id="swalNickname" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.nickname || ''}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">ระดับชั้น <span class="text-red-500">*</span></label>
-                                <input id="swalGradeLevel" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.grade_level || student.grade || ''}" placeholder="เช่น ม.3/1">
+                                <input id="swalGradeLevel" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.grade_level || student.grade || ''}">
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1">เบอร์โทรศัพท์ <span class="text-red-500">*</span></label>
+                                <input id="swalPhone" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.phone || ''}">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block font-bold mb-1">โรงเรียน <span class="text-red-500">*</span></label>
-                                <input id="swalSchool" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.school || ''}" placeholder="เช่น สวนกุหลาบวิทยาลัย">
+                                <input id="swalSchool" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.school || ''}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">LINE ID <span class="text-red-500">*</span></label>
-                                <input id="swalLineId" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.line_id || ''}" placeholder="เช่น @line_id">
+                                <input id="swalLineId" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.line_id || ''}">
                             </div>
                         </div>
                     </div>
@@ -793,15 +776,16 @@ async function openManageCoursesModal(studentId) {
                 color: isDark ? '#f1f5f9' : '#1e293b',
                 preConfirm: () => {
                     const usernameVal = document.getElementById('swalUsername').value.trim();
-                    const fullName = document.getElementById('swalFullName').value.trim();
+                    const firstName = document.getElementById('swalFirstName').value.trim();
+                    const lastName = document.getElementById('swalLastName').value.trim();
                     const nickname = document.getElementById('swalNickname').value.trim();
                     const gradeLevel = document.getElementById('swalGradeLevel').value.trim();
+                    const phone = document.getElementById('swalPhone').value.trim();
                     const school = document.getElementById('swalSchool').value.trim();
                     const lineId = document.getElementById('swalLineId').value.trim();
-
                     const errorBox = document.getElementById('swalErrorMsg');
 
-                    if (!usernameVal || !fullName || !nickname || !gradeLevel || !school || !lineId) {
+                    if (!usernameVal || !firstName || !lastName || !nickname || !gradeLevel || !phone || !school || !lineId) {
                         errorBox.textContent = '⚠️ กรุณากรอกข้อมูลให้ครบทุกช่อง';
                         errorBox.classList.remove('hidden');
                         return false;
@@ -809,10 +793,13 @@ async function openManageCoursesModal(studentId) {
 
                     return {
                         username: usernameVal,
-                        student_id: usernameVal,
-                        full_name: fullName,
+                        email: usernameVal.includes('@') ? usernameVal : student.email,
+                        first_name: firstName,
+                        last_name: lastName,
+                        full_name: `${firstName} ${lastName}`,
                         nickname: nickname,
                         grade_level: gradeLevel,
+                        phone: phone,
                         school: school,
                         line_id: lineId
                     };
@@ -821,14 +808,13 @@ async function openManageCoursesModal(studentId) {
 
             if (formValues) {
                 Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                
                 const { error } = await mySupabase.from('profiles').update(formValues).eq('id', student.id);
 
                 if (!error) {
                     Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลสำเร็จ!', timer: 1200, showConfirmButton: false });
                     initPage();
                 } else {
-                    Swal.fire('บันทึกล้มเหลว', `เกิดข้อผิดพลาดจากฐานข้อมูล:<br><code class="text-xs text-red-400 font-mono mt-2 block">${error.message}</code>`, 'error');
+                    Swal.fire('บันทึกล้มเหลว', `เกิดข้อผิดพลาด: ${error.message}`, 'error');
                 }
             }
         }
