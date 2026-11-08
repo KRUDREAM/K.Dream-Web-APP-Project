@@ -4,7 +4,7 @@
     <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KRUDREAM LAND | จัดการแพ็กเกจคอร์สเรียน (Course Pricing & Catalog)</title>
+    <title>KRUDREAM LAND | จัดการแพ็กเกจคอร์สเรียนและประกาศหน้าเว็บ</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -50,18 +50,14 @@
                     <div>
                         <h1 class="font-extrabold text-xl text-slate-900 dark:text-white flex items-center gap-2">
                             <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-boxes-stacked"></i></span>
-                            จัดการ Catalog และราคาคอร์สเรียน
+                            จัดการ Catalog และประกาศหน้าเว็บ
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมแพ็กเกจคอร์ส รูปภาพ และราคาสำหรับให้นักเรียนเลือกซื้อ</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมแพ็กเกจคอร์สเรียนและข้อความประกาศหน้าแค็ตตาล็อกนักเรียน</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <!-- ปุ่มลิงก์ไปหน้าจัดการโปรโมชั่น & โค้ดส่วนลด (admin_promos.html) -->
                     <button onclick="window.location.href='admin_promos.html'" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2">
-                        <i class="fas fa-tags"></i> จัดการโปรโมชั่น & โค้ดส่วนลด
-                    </button>
-                    <button onclick="openPackageModal()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 flex items-center gap-2">
-                        <i class="fas fa-plus"></i> เพิ่มแพ็กเกจใหม่
+                        <i class="fas fa-tags"></i> โค้ดส่วนลด
                     </button>
                     <button id="themeToggle" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                         <i class="fas fa-moon text-lg" id="themeIcon"></i>
@@ -72,34 +68,133 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 space-y-6">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 space-y-10">
         
-        <!-- Filter Bar ตาม Tag -->
-        <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="tagFilterContainer">
-            <button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>
-        </div>
+        <!-- SECTION 1: จัดการประกาศหน้าเว็บ (Manual Announcements) -->
+        <section class="space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-amber-500/10 dark:bg-amber-950/30 p-6 rounded-3xl border border-amber-500/20">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-lg shadow-md">
+                        <i class="fas fa-bullhorn"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                            ระบบจัดการประกาศหน้าเว็บ (Manual Announcements)
+                            <span id="announcementCount" class="px-2.5 py-0.5 bg-amber-500 text-white rounded-full text-xs font-bold">0</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">สร้างข้อความประกาศด่วน แจ้งเตือน หรือข่าวสาร เพื่อไปแสดงที่ Sidebar ซ้ายของหน้า `catalog.html` ฝั่งนักเรียน</p>
+                    </div>
+                </div>
+                <button onclick="openAnnouncementModal()" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2 shrink-0">
+                    <i class="fas fa-plus"></i> สร้างประกาศใหม่
+                </button>
+            </div>
 
-        <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-2">
-                <h3 class="font-bold text-lg text-slate-900 dark:text-white">รายการแพ็กเกจทั้งหมด</h3>
-                <span id="packageCount" class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-full text-xs font-bold">0 รายการ</span>
+            <!-- Grid แสดงรายการประกาศ -->
+            <div id="announcementsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div class="modern-card p-8 rounded-3xl text-center text-slate-400 col-span-full">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2 text-amber-500"></i>
+                    <p class="text-xs font-medium">กำลังโหลดประกาศ...</p>
+                </div>
             </div>
-            <div class="relative w-full sm:w-80">
-                <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                <input type="text" id="searchInput" oninput="renderPackagesGrid()" placeholder="ค้นหาชื่อแพ็กเกจ หรือรหัส..." class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm">
-            </div>
-        </div>
+        </section>
 
-        <!-- Grid แสดงรายการแพ็กเกจ -->
-        <div id="packagesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">
-                <i class="fas fa-spinner fa-spin text-3xl mb-3 text-sky-600"></i>
-                <p class="text-sm font-medium">กำลังโหลดแพ็กเกจ...</p>
+        <hr class="border-slate-200 dark:border-slate-800">
+
+        <!-- SECTION 2: จัดการแพ็กเกจคอร์สเรียน (Course Pricing & Catalog) -->
+        <section class="space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center text-lg shadow-md">
+                        <i class="fas fa-boxes-stacked"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                            รายการแพ็กเกจคอร์สเรียนทั้งหมด
+                            <span id="packageCount" class="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-full text-xs font-bold">0 รายการ</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมแพ็กเกจ ราคา และรูปภาพสำหรับให้นักเรียนเลือกซื้อ</p>
+                    </div>
+                </div>
+                <button onclick="openPackageModal()" class="px-5 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-sky-500/20 flex items-center gap-2 shrink-0">
+                    <i class="fas fa-plus"></i> เพิ่มแพ็กเกจใหม่
+                </button>
             </div>
-        </div>
+
+            <!-- Filter Bar ตาม Tag และช่องค้นหา -->
+            <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none w-full sm:w-auto" id="tagFilterContainer">
+                    <button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>
+                </div>
+                <div class="relative w-full sm:w-80">
+                    <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="searchInput" oninput="renderPackagesGrid()" placeholder="ค้นหาชื่อแพ็กเกจ หรือรหัส..." class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm">
+                </div>
+            </div>
+
+            <!-- Grid แสดงรายการแพ็กเกจ -->
+            <div id="packagesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">
+                    <i class="fas fa-spinner fa-spin text-3xl mb-3 text-sky-600"></i>
+                    <p class="text-sm font-medium">กำลังโหลดแพ็กเกจ...</p>
+                </div>
+            </div>
+        </section>
     </main>
 
-    <!-- Modal สำหรับเพิ่ม / แก้ไขแพ็กเกจ -->
+    <!-- Modal สำหรับเพิ่ม / แก้ไขประกาศ (Manual Announcement Modal) -->
+    <div id="announcementModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="modern-card w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-4">
+            <button onclick="closeAnnouncementModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition">
+                <i class="fas fa-xmark"></i>
+            </button>
+
+            <div class="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm shadow-md">
+                    <i class="fas fa-bullhorn"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white" id="annModalTitle">สร้างประกาศใหม่</h3>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">พิมพ์ข้อความแจ้งเตือนไปโชว์ที่ Sidebar หน้าแค็ตตาล็อกนักเรียน</p>
+                </div>
+            </div>
+
+            <form id="announcementForm" onsubmit="handleAnnouncementSubmit(event)" class="space-y-4">
+                <input type="hidden" id="editAnnouncementId">
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">หัวข้อประกาศ <span class="text-red-500">*</span></label>
+                    <input type="text" id="annTitle" required placeholder="เช่น แจ้งตารางเรียนพิเศษเสาร์นี้" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 font-bold">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ป้ายแท็กหัวข้อ (Badge)</label>
+                    <input type="text" id="annBadge" placeholder="เช่น 🔥 ข่าวประกาศด่วน" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">เนื้อหาประกาศ <span class="text-red-500">*</span></label>
+                    <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 resize-none"></textarea>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="annActive" checked class="w-4 h-4 text-amber-500 rounded focus:ring-amber-500">
+                    <label for="annActive" class="text-xs font-bold text-slate-700 dark:text-slate-300">เปิดแสดงผลประกาศนี้ทันทีบนหน้าเว็บนักเรียน</label>
+                </div>
+
+                <div class="flex gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold text-xs transition shadow-md shadow-amber-500/20">
+                        <i class="fas fa-floppy-disk mr-1"></i> บันทึกประกาศ
+                    </button>
+                    <button type="button" onclick="closeAnnouncementModal()" class="px-5 py-3 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs hover:bg-slate-200 transition">
+                        ยกเลิก
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal สำหรับเพิ่ม / แก้ไขแพ็กเกจคอร์ส -->
     <div id="packageModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="modern-card w-full max-w-4xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-6">
             <button onclick="closePackageModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
@@ -175,12 +270,10 @@
                         <input type="text" id="pkgPromo" oninput="updateLivePreview()" placeholder="ลด 40% เฉพาะ 30 ท่านแรกเท่านั้น" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
                     </div>
 
-                    <!-- อัปโหลดและจัดเรียงรูปภาพ -->
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">อัปโหลดรูปภาพ (16:9 Frame) & จัดลำดับ</label>
                         <input type="file" id="pkgImagesInput" multiple accept="image/*" class="w-full px-3 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer">
                         <p class="text-[10px] text-slate-400 mt-1">รูปแรกซ้ายสุดจะถูกใช้เป็นรูปปกหลักของสินค้า</p>
-                        
                         <div id="imagePreviewContainer" class="flex flex-wrap gap-2 mt-2.5"></div>
                     </div>
 
@@ -209,14 +302,10 @@
                         </span>
                         <span class="text-[10px] text-slate-400">16:9 Frame</span>
                     </div>
-
-                    <!-- ตัวอย่างการ์ดสินค้าจริง -->
                     <div class="modern-card rounded-2xl overflow-hidden shadow-md bg-white dark:bg-darkbox">
                         <div class="relative aspect-video overflow-hidden bg-slate-200 dark:bg-slate-800">
                             <img id="previewImg" src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60" class="w-full h-full object-cover">
-                            <div id="previewCodeBadge" class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-lg">
-                                BUNDLE-M3
-                            </div>
+                            <div id="previewCodeBadge" class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-lg">BUNDLE-M3</div>
                             <div id="previewTagBadge" class="absolute top-2 right-2"></div>
                         </div>
                         <div class="p-4 space-y-2">
@@ -253,6 +342,7 @@
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let allPackages = [];
+        let allAnnouncements = [];
         let activeTag = 'all';
         let currentImageUrls = [];
 
@@ -270,9 +360,100 @@
         });
 
         async function initPage() {
+            await fetchAnnouncements();
             await fetchPackages();
         }
 
+        // --- ระบบประกาศ (Announcements) ---
+        async function fetchAnnouncements() {
+            const { data, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
+            if (!error && data) {
+                allAnnouncements = data;
+                renderAnnouncementsGrid();
+            }
+        }
+
+        function renderAnnouncementsGrid() {
+            const grid = document.getElementById('announcementsGrid');
+            const count = document.getElementById('announcementCount');
+            count.textContent = allAnnouncements.length;
+
+            if (allAnnouncements.length === 0) {
+                grid.innerHTML = `<div class="modern-card p-8 rounded-3xl text-center text-slate-400 col-span-full text-xs">ยังไม่มีประกาศในระบบ กดปุ่มสร้างประกาศใหม่ด้านบนได้เลย</div>`;
+                return;
+            }
+
+            grid.innerHTML = allAnnouncements.map(a => {
+                const badge = a.badge_tag ? `<span class="px-2.5 py-1 bg-amber-500 text-white font-bold text-[10px] rounded-lg shadow">${a.badge_tag}</span>` : `<span class="px-2.5 py-1 bg-sky-500 text-white font-bold text-[10px] rounded-lg shadow">ทั่วไป</span>`;
+                const status = a.is_active ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold">แสดงผลอยู่</span>' : '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">ซ่อนอยู่</span>';
+
+                return `
+                    <div class="modern-card p-5 rounded-3xl flex flex-col justify-between space-y-3">
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">${badge}${status}</div>
+                            <h4 class="font-bold text-sm text-slate-900 dark:text-white">${a.title}</h4>
+                            <p class="text-xs text-slate-600 dark:text-slate-300 font-light leading-relaxed whitespace-pre-line line-clamp-3">${a.content}</p>
+                        </div>
+                        <div class="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <button onclick="editAnnouncement('${a.id}')" class="flex-1 py-2 bg-sky-50 dark:bg-sky-950/50 text-sky-600 rounded-xl text-xs font-bold transition">แก้ไข</button>
+                            <button onclick="deleteAnnouncement('${a.id}')" class="px-3 py-2 bg-rose-50 dark:bg-rose-950/50 text-rose-600 rounded-xl text-xs font-bold transition"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.openAnnouncementModal = function(id = null) {
+            document.getElementById('announcementForm').reset();
+            document.getElementById('editAnnouncementId').value = '';
+            document.getElementById('annModalTitle').textContent = 'สร้างประกาศใหม่';
+            document.getElementById('annActive').checked = true;
+
+            if (id) {
+                const a = allAnnouncements.find(x => x.id === id);
+                if (a) {
+                    document.getElementById('editAnnouncementId').value = a.id;
+                    document.getElementById('annTitle').value = a.title || '';
+                    document.getElementById('annBadge').value = a.badge_tag || '';
+                    document.getElementById('annContent').value = a.content || '';
+                    document.getElementById('annActive').checked = a.is_active;
+                    document.getElementById('annModalTitle').textContent = 'แก้ไขประกาศ';
+                }
+            }
+            document.getElementById('announcementModal').classList.remove('hidden');
+        }
+
+        window.closeAnnouncementModal = function() { document.getElementById('announcementModal').classList.add('hidden'); }
+        window.editAnnouncement = function(id) { openAnnouncementModal(id); }
+
+        window.handleAnnouncementSubmit = async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('editAnnouncementId').value;
+            const payload = {
+                title: document.getElementById('annTitle').value.trim(),
+                badge_tag: document.getElementById('annBadge').value.trim(),
+                content: document.getElementById('annContent').value.trim(),
+                is_active: document.getElementById('annActive').checked
+            };
+
+            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            let error = id ? (await mySupabase.from('announcements').update(payload).eq('id', id)).error : (await mySupabase.from('announcements').insert([payload])).error;
+
+            if (error) { Swal.fire('เกิดข้อผิดพลาด', error.message, 'error'); return; }
+            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1200, showConfirmButton: false });
+            closeAnnouncementModal();
+            fetchAnnouncements();
+        }
+
+        window.deleteAnnouncement = async function(id) {
+            const confirm = await Swal.fire({ title: 'ลบประกาศนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48' });
+            if (confirm.isConfirmed) {
+                const { error } = await mySupabase.from('announcements').delete().eq('id', id);
+                if (!error) fetchAnnouncements();
+            }
+        }
+
+        // --- ระบบแพ็กเกจคอร์สเรียน (Course Pricing) ---
         async function fetchPackages() {
             const { data, error } = await mySupabase.from('course_packages').select('*').order('created_at', { ascending: false });
             if (!error && data) {
@@ -338,7 +519,7 @@
                 const code = p.code ? `รหัส: ${p.code}` : 'BUNDLE';
                 const price = `฿${Number(p.price || 0).toLocaleString()}`;
                 const origPrice = p.original_price ? `฿${Number(p.original_price).toLocaleString()}` : '';
-                const badge = p.badge_tag ? `<span class="px-2 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">${p.badge_tag}</span>` : '';
+                const badge = p.badge_tag ? `<span class="px-2.5 py-1 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">${p.badge_tag}</span>` : '';
                 const promo = p.promo_details ? `<p class="text-[11px] text-amber-500 font-medium"><i class="fas fa-bolt mr-1"></i>${p.promo_details}</p>` : '';
                 const freebies = p.freebies ? `<p class="text-[11px] text-emerald-600 font-medium"><i class="fas fa-gift mr-1"></i>${p.freebies}</p>` : '';
                 const desc = p.description || 'ไม่มีรายละเอียดเพิ่มเติม';
