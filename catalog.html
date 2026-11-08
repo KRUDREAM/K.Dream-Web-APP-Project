@@ -69,14 +69,21 @@
     </nav>
 
     <!-- Hero Section -->
-    <header class="pt-32 pb-12 px-4 text-center max-w-4xl mx-auto space-y-3">
+    <header class="pt-32 pb-10 px-4 text-center max-w-4xl mx-auto space-y-3">
         <span class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-full text-xs font-bold">📚 คอร์สเรียนทั้งหมด</span>
         <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">เลือกคอร์สที่ใช่ เพื่ออนาคตที่ดีกว่า</h2>
         <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">รวบรวมคอร์สเรียนและแพ็กเกจคุณภาพ ออกแบบมาเพื่อการสอบเข้าและความเข้าใจที่แท้จริง</p>
         
-        <div class="pt-4 max-w-xl mx-auto relative">
-            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-            <input type="text" id="searchInput" oninput="renderCatalog()" placeholder="ค้นหาชื่อคอร์ส, วิชา, หรือรหัสแพ็กเกจ..." class="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm">
+        <div class="pt-4 max-w-xl mx-auto relative flex gap-2">
+            <div class="relative flex-1">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <input type="text" id="searchInput" oninput="renderCatalog()" placeholder="ค้นหาชื่อคอร์ส, วิชา, หรือรหัสแพ็กเกจ..." class="w-full pl-11 pr-4 py-3 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm">
+            </div>
+            <select id="sortSelect" onchange="renderCatalog()" class="px-4 py-3 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer">
+                <option value="newest">มาใหม่ล่าสุด</option>
+                <option value="price-asc">ราคา: ต่ำไปสูง</option>
+                <option value="price-desc">ราคา: สูงไปต่ำ</option>
+            </select>
         </div>
     </header>
 
@@ -189,8 +196,9 @@
         function renderCatalog() {
             const grid = document.getElementById('catalogGrid');
             const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+            const sortBy = document.getElementById('sortSelect').value;
 
-            const filtered = allPackages.filter(p => {
+            let filtered = allPackages.filter(p => {
                 const title = (p.title || '').toLowerCase();
                 const code = (p.code || '').toLowerCase();
                 const tagsStr = Array.isArray(p.tags) ? p.tags.join(',').toLowerCase() : (p.tags || '').toLowerCase();
@@ -198,6 +206,13 @@
                 const matchTag = activeTag === 'all' || tagsStr.includes(activeTag.toLowerCase());
                 return matchKeyword && matchTag;
             });
+
+            // จัดเรียงข้อมูล
+            if (sortBy === 'price-asc') {
+                filtered.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+            } else if (sortBy === 'price-desc') {
+                filtered.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+            }
 
             if (filtered.length === 0) {
                 grid.innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full"><h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ไม่พบคอร์สเรียนที่ค้นหา</h4></div>`;
@@ -207,12 +222,33 @@
             grid.innerHTML = filtered.map(p => {
                 const title = p.title || 'แพ็กเกจคอร์ส';
                 const code = p.code ? `รหัส: ${p.code}` : 'BUNDLE';
-                const price = `฿${Number(p.price || 0).toLocaleString()}`;
-                const origPrice = p.original_price ? `฿${Number(p.original_price).toLocaleString()}` : '';
+                const priceNum = Number(p.price || 0);
+                const origPriceNum = Number(p.original_price || 0);
+                const price = `฿${priceNum.toLocaleString()}`;
+                const origPrice = origPriceNum > priceNum ? `฿${origPriceNum.toLocaleString()}` : '';
+                
+                // คำนวณ % ส่วนลดอัตโนมัติ
+                let discountBadge = '';
+                if (origPriceNum > priceNum && priceNum > 0) {
+                    const discountPct = Math.round(((origPriceNum - priceNum) / origPriceNum) * 100);
+                    discountBadge = `<span class="px-2 py-0.5 bg-emerald-500 text-white rounded-lg text-[9px] font-black shadow">ลด ${discountPct}%</span>`;
+                }
+
                 const badge = p.badge_tag ? `<span class="px-2.5 py-1 bg-rose-500 text-white rounded-xl text-[10px] font-bold shadow">${p.badge_tag}</span>` : '';
                 const promo = p.promo_details ? `<p class="text-[11px] text-amber-500 font-medium"><i class="fas fa-bolt mr-1"></i>${p.promo_details}</p>` : '';
                 const freebies = p.freebies ? `<p class="text-[11px] text-emerald-600 font-medium"><i class="fas fa-gift mr-1"></i>${p.freebies}</p>` : '';
                 const desc = p.description || 'ไม่มีรายละเอียดเพิ่มเติม';
+
+                // ดึง Tags ออกมาแสดงเป็นการ์ดชิปบนการ์ด
+                let tagsArray = [];
+                if (Array.isArray(p.tags)) tagsArray = p.tags;
+                else if (typeof p.tags === 'string' && p.tags.trim() !== '') tagsArray = p.tags.split(',');
+                
+                const tagsHtml = tagsArray.length > 0 ? `
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        ${tagsArray.map(t => `<span class="px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-md text-[9px] font-bold">#${t.trim()}</span>`).join('')}
+                    </div>
+                ` : '';
                 
                 let imgList = Array.isArray(p.images) && p.images.length > 0 ? p.images : [p.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60'];
                 const mainImg = imgList[0];
@@ -224,10 +260,11 @@
                             <div class="relative aspect-video overflow-hidden bg-slate-900/5 dark:bg-slate-800/50 flex items-center justify-center p-2">
                                 <img src="${mainImg}" class="w-full h-full object-contain rounded-xl group-hover:scale-105 transition-transform duration-500">
                                 <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-xl">${code}</div>
-                                <div class="absolute top-3 right-3">${badge}</div>
+                                <div class="absolute top-3 right-3 flex items-center gap-1">${discountBadge}${badge}</div>
                                 ${moreBtn}
                             </div>
                             <div class="p-6 space-y-2.5">
+                                ${tagsHtml}
                                 <h4 class="font-bold text-base text-slate-900 dark:text-white line-clamp-1">${title}</h4>
                                 <div class="flex items-center gap-2">
                                     <span class="text-lg font-extrabold text-sky-600 dark:text-sky-400">${price}</span>
