@@ -4,10 +4,16 @@
     <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KRUDREAM LAND | ศูนย์รวมคอร์สทดลองเรียนฟรี</title>
+    <title>KRUDREAM LAND | คอร์สทดลองเรียน & รับชมวิดีโอตัวอย่าง</title>
     
+    <!-- 🌟 โลโก้ไอคอนสำหรับเว็บแอป (Favicon & Mobile App Icon) -->
     <link rel="icon" type="image/jpeg" sizes="512x512" href="logo.jpg">
     <link rel="apple-touch-icon" href="logo.jpg">
+    <meta name="theme-color" content="#10b981">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KRUDREAM LAND TRIAL">
 
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -21,106 +27,63 @@
             theme: {
                 extend: {
                     fontFamily: { sans: ['Prompt', 'sans-serif'] },
-                    colors: { primary: '#0284c7', darkbg: '#060913', darkbox: '#0f172a', darkinput: '#1e293b' }
+                    colors: { primary: '#10b981', darkbg: '#020617', darkbox: '#090d16', darkinput: '#0f172a' }
                 }
             }
         }
     </script>
     <style>
-        body { font-family: 'Prompt', sans-serif; overflow-x: hidden; }
-        .glass-nav { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 10px 30px 0 rgba(31, 38, 135, 0.04); }
-        .dark .glass-nav { background: rgba(9, 13, 22, 0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.06); box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.3); }
+        body { font-family: 'Prompt', sans-serif; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+        .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(16, 185, 129, 0.3); }
+        .dark .glass-nav { background: rgba(2, 6, 23, 0.88); border-bottom: 1px solid rgba(6, 78, 59, 0.4); }
+        .hitech-card { 
+            background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(16, 185, 129, 0.3); 
+            box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.08); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        .dark .hitech-card { 
+            background: rgba(9, 13, 22, 0.95); border: 1px solid rgba(6, 78, 59, 0.5); 
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); 
+        }
+        div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
+        .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
         
-        .glass-card { 
-            background: rgba(255, 255, 255, 0.82);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border: 1px solid rgba(255, 255, 255, 0.7);
-            box-shadow: 0 20px 40px -15px rgba(31, 38, 135, 0.07);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .dark .glass-card { 
-            background: rgba(15, 23, 42, 0.78);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.4);
-        }
-        .glass-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 30px 60px -12px rgba(16, 185, 129, 0.2);
-            border-color: rgba(16, 185, 129, 0.4);
+        .watermark-layer {
+            position: absolute; bottom: 20px; right: 20px; z-index: 45; pointer-events: none;
+            color: rgba(255, 255, 255, 0.35); font-size: 11px; font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9); white-space: nowrap; user-select: none;
         }
 
-        .glass-input {
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(226, 232, 240, 0.8);
+        .hide-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .hide-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.4); border-radius: 9999px; }
+        
+        .player-container {
+            width: 100%; transition: all 0.3s ease; background-color: #000; border-radius: 1rem; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;
         }
-        .dark .glass-input {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(51, 65, 85, 0.8);
-        }
-
-        .glow-btn-emerald {
-            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.45);
-            transition: all 0.3s ease;
-        }
-        .glow-btn-emerald:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 35px -5px rgba(16, 185, 129, 0.6);
-        }
-
-        .bg-glow-blob {
-            position: absolute;
-            width: 550px;
-            height: 550px;
-            background: linear-gradient(180deg, rgba(16, 185, 129, 0.15) 0%, rgba(56, 189, 248, 0.15) 100%);
-            filter: blur(90px);
-            border-radius: 50%;
-            z-index: -1;
-        }
+        .player-container.landscape { aspect-ratio: 16 / 9; max-height: 75vh; }
+        .player-container.portrait { aspect-ratio: 9 / 16; max-height: 80vh; margin-left: auto; margin-right: auto; max-width: 420px; }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-24 relative">
-
-    <div class="bg-glow-blob top-10 left-[-5%]"></div>
-    <div class="bg-glow-blob bottom-20 right-[-5%]"></div>
+<body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-16 sm:pb-12" oncontextmenu="return false;">
 
     <!-- Navbar -->
     <nav class="glass-nav fixed w-full top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-20 items-center">
-                <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-2xl overflow-hidden shadow-lg border border-emerald-500/30">
-                        <img src="logo.jpg" alt="Logo" class="w-full h-full object-cover">
-                    </div>
-                    <div>
-                        <h1 class="font-black text-base sm:text-lg text-slate-900 dark:text-white tracking-tight">KRUDREAM LAND</h1>
-                        <p class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">ศูนย์รวมคอร์สทดลองเรียนฟรี</p>
-                    </div>
-                </div>
-
-                <!-- Tab เมนูด้านบน -->
-                <div class="hidden md:flex items-center gap-1.5 glass-input p-1.5 rounded-2xl">
-                    <a href="index.html" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 transition">
-                        <i class="fas fa-home mr-1.5"></i> หน้าแรก
-                    </a>
-                    <a href="catalog.html" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 transition">
-                        <i class="fas fa-book-open mr-1.5"></i> แคตตาล็อกคอร์ส
-                    </a>
-                    <a href="trial_courses.html" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-md shadow-emerald-500/25">
-                        <i class="fas fa-play-circle mr-1.5"></i> ทดลองเรียนฟรี
-                    </a>
-                </div>
-
-                <div class="flex items-center gap-2.5">
-                    <button onclick="goToStudentPortal()" class="px-4 py-2.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl text-xs font-bold transition hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center gap-1.5 shadow-sm backdrop-blur-md">
-                        <i class="fas fa-user-circle"></i> <span>ระบบนักเรียน</span>
+        <div class="max-w-7xl mx-auto px-2.5 sm:px-6">
+            <div class="flex justify-between h-16 items-center gap-2">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <button onclick="goBackHome()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-emerald-600 hover:text-white transition-all shadow-sm shrink-0">
+                        <i class="fas fa-arrow-left text-sm"></i>
                     </button>
-                    <button id="themeToggle" class="w-11 h-11 flex items-center justify-center rounded-2xl glass-input text-slate-700 dark:text-slate-200 shadow-sm transition hover:border-emerald-500">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center text-base sm:text-lg shadow-lg shadow-emerald-500/30 shrink-0">
+                        <i class="fas fa-rocket"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="font-extrabold text-xs sm:text-base text-slate-900 dark:text-white leading-tight truncate">Trial Courses Hub</h1>
+                        <span class="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-bold tracking-wider uppercase truncate block">คอร์สทดลองเรียนฟรี & วิดีโอตัวอย่าง</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
+                    <button id="themeToggle" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-emerald-500">
                         <i class="fas fa-moon text-sm" id="themeIcon"></i>
                     </button>
                 </div>
@@ -128,60 +91,106 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 space-y-6">
+    <!-- Main Layout -->
+    <main class="max-w-7xl mx-auto px-2.5 sm:px-6 pt-20 sm:pt-24 space-y-4 sm:space-y-6">
         
-        <!-- Header Banner -->
-        <div class="glass-card p-8 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-emerald-500/30 bg-gradient-to-r from-emerald-500/[0.05] via-transparent to-sky-500/[0.05]">
-            <div class="space-y-2">
-                <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-extrabold border border-emerald-500/20">
-                    <i class="fas fa-rocket"></i> ฟรีไม่มีค่าใช้จ่าย
-                </span>
-                <h2 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">คอร์สทดลองเรียนคุณภาพสูง</h2>
-                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-light max-w-2xl leading-relaxed">
-                    สัมผัสบรรยากาศการเรียนและเนื้อหาตัวอย่างจากหลักสูตรจริงของเรา ทดลองเรียนได้ทันทีโดยไม่ต้องลงทะเบียนซับซ้อน
-                </p>
+        <!-- Course Switcher Hub -->
+        <div class="hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 sm:gap-4 border-2 border-emerald-500/60 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent shadow-lg shadow-emerald-500/10">
+            <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center text-lg sm:text-xl shadow-md shadow-emerald-500/30 animate-pulse shrink-0">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <div class="min-w-0">
+                    <span class="text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold text-emerald-600 dark:text-emerald-400">Trial Course Switcher</span>
+                    <h2 class="text-xs sm:text-lg font-extrabold text-slate-900 dark:text-white truncate">เลือกคอร์สทดลองเรียนเพื่อรับชม</h2>
+                </div>
             </div>
-            <div class="w-full md:w-auto">
-                <div class="glass-input px-5 py-3 rounded-2xl flex items-center gap-3">
-                    <i class="fas fa-video text-emerald-500 text-lg"></i>
-                    <div>
-                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">บทเรียนทดลองทั้งหมด</div>
-                        <div class="text-base font-black text-slate-800 dark:text-white" id="trialCount">- คอร์ส</div>
-                    </div>
+            <div class="w-full md:w-80">
+                <div class="relative">
+                    <select id="courseSelector" onchange="onCourseChanged()" class="w-full pl-4 pr-9 py-2.5 sm:py-3 bg-white dark:bg-darkinput border-2 border-emerald-400 dark:border-emerald-600 rounded-2xl text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer shadow-md appearance-none">
+                        <option value="">-- กำลังโหลดคอร์สทดลองเรียน --</option>
+                    </select>
                 </div>
             </div>
         </div>
 
-        <!-- Trial Courses Grid (ดึงเฉพาะคอร์สที่เป็น trial จากฐานข้อมูลตาราง courses) -->
-        <div id="trialGridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="glass-card p-12 rounded-3xl text-center text-slate-400 text-xs col-span-full">
-                <i class="fas fa-spinner fa-spin text-2xl text-emerald-500 mb-2"></i>
-                <p class="font-medium">กำลังโหลดคอร์สทดลองเรียน...</p>
+        <div class="flex flex-col lg:flex-row gap-4 sm:gap-5 items-start">
+            <!-- Sidebar -->
+            <div id="sidebarPanel" class="w-full lg:w-80 hitech-card p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl space-y-3 flex flex-col h-[420px] lg:h-[calc(100vh-250px)] lg:sticky lg:top-24 shrink-0 overflow-hidden">
+                <div class="space-y-2 pb-2.5 border-b border-slate-200 dark:border-slate-800">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                            <i class="fas fa-list text-emerald-500"></i> บทเรียนทดลอง (<span id="videoCountDisplay">0</span>)
+                        </h3>
+                        <button onclick="toggleSidebar()" class="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 hover:bg-emerald-100 font-bold text-[11px] rounded-xl transition-all flex items-center gap-1">
+                            <i class="fas fa-columns"></i> <span id="sidebarToggleText">ซ่อนรายการ</span>
+                        </button>
+                    </div>
+                    <input type="text" id="videoSearchInput" oninput="handleLiveSearch()" class="w-full px-3 py-1.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-emerald-500 shadow-sm" placeholder="ค้นหาบทเรียนทดลอง...">
+                </div>
+
+                <div id="videoListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 hide-scrollbar">
+                    <div class="text-center py-8 text-slate-400 text-xs"><i class="fas fa-spinner fa-spin text-lg mb-2"></i> กำลังโหลดบทเรียน...</div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2 shrink-0">
+                    <h4 class="font-extrabold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <i class="fas fa-folder-open text-teal-500"></i> เอกสารตัวอย่าง (<span id="fileCountDisplay">0</span>)
+                    </h4>
+                    <div id="fileListContainer" class="max-h-28 overflow-y-auto space-y-1.5 pr-1 hide-scrollbar">
+                        <div class="text-center py-3 text-slate-400 text-[11px]">ไม่มีไฟล์เอกสารในคอร์สนี้</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Player Panel -->
+            <div id="mainPlayerPanel" class="flex-1 w-full hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-3 sm:space-y-4 flex flex-col">
+                <div id="showSidebarTrigger" class="hidden">
+                    <button onclick="toggleSidebar()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2">
+                        <i class="fas fa-columns"></i> 📂 แสดงรายการบทเรียน & เอกสาร
+                    </button>
+                </div>
+
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-2.5 border-b border-slate-200 dark:border-slate-800 gap-2.5">
+                    <h3 id="currentPlayingTitle" class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 truncate pr-2 w-full sm:w-auto">
+                        <i class="fas fa-play-circle text-emerald-500 shrink-0"></i> <span class="truncate">กรุณาเลือกบทเรียนทดลองจากรายการด้านซ้าย</span>
+                    </h3>
+                    <div class="flex items-center gap-1 bg-slate-100 dark:bg-darkinput p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] shrink-0">
+                        <button onclick="setVideoOrientation('landscape')" id="btnLandscape" class="px-2.5 py-1 rounded-lg font-bold transition-all bg-emerald-600 text-white shadow-sm"><i class="fas fa-desktop"></i> แนวนอน</button>
+                        <button onclick="setVideoOrientation('portrait')" id="btnPortrait" class="px-2.5 py-1 rounded-lg font-bold transition-all text-slate-600 dark:text-slate-300 hover:text-emerald-500 flex items-center gap-1"><i class="fas fa-mobile-screen"></i> แนวตั้ง</button>
+                    </div>
+                </div>
+
+                <div id="playerWrapperContainer" class="player-container landscape shadow-inner">
+                    <div id="bunnyPlayerWrapper" class="w-full h-full relative flex items-center justify-center text-slate-500 text-xs bg-slate-900">
+                        <div class="text-center space-y-2 p-4">
+                            <i class="fas fa-film text-3xl text-slate-600 animate-pulse"></i>
+                            <p>ยังไม่ได้เลือกวิดีโอตัวอย่าง</p>
+                        </div>
+                    </div>
+                    
+                    <div id="watermarkElement" class="watermark-layer">KRUDREAM LAND TRIAL • ผู้เยี่ยมชม</div>
+                </div>
+
+                <div class="flex justify-between items-center pt-1 text-[11px] text-slate-400">
+                    <span><i class="fas fa-shield-alt text-emerald-500 mr-1"></i>• ระบบทดลองเรียนฟรี 100%</span>
+                    <span id="videoPublishDate">--</span>
+                </div>
             </div>
         </div>
-
     </main>
-
-    <!-- Modal เล่นวิดีโอ หรือดูรายละเอียดคอร์สทดลองเรียน -->
-    <div id="trialModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md hidden flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-2xl p-6 sm:p-8 rounded-[2.5rem] shadow-2xl relative max-h-[90vh] overflow-y-auto border border-white/20 space-y-4">
-            <button onclick="closeTrialModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-2xl glass-input text-slate-500 hover:text-red-500 transition shadow-md z-20">
-                <i class="fas fa-xmark text-sm font-bold"></i>
-            </button>
-            <div id="trialModalContent" class="space-y-4">
-                <!-- เนื้อหาและวิดีโอตัวอย่างจะถูกเรนเดอร์ตรงนี้ -->
-            </div>
-        </div>
-    </div>
 
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let trialCoursesList = [];
-        let currentStudentId = localStorage.getItem('student_id') || localStorage.getItem('id');
+        let trialCourses = [];
+        let allLessons = [];
+        let currentCourseId = null;
+        let searchQuery = '';
+        let activeVideoId = null;
+        let isSidebarOpen = true;
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -196,185 +205,187 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        function goToStudentPortal() {
-            window.location.href = currentStudentId ? `student_portal.html?student_id=${currentStudentId}` : 'student_portal.html';
+        function goBackHome() {
+            window.location.href = 'index.html';
         }
 
-        async function fetchTrialCourses() {
-            const container = document.getElementById('trialGridContainer');
+        function toggleSidebar() {
+            isSidebarOpen = !isSidebarOpen;
+            const sidebar = document.getElementById('sidebarPanel');
+            const toggleText = document.getElementById('sidebarToggleText');
+            const showTrigger = document.getElementById('showSidebarTrigger');
+
+            if (isSidebarOpen) {
+                sidebar.classList.remove('hidden'); 
+                sidebar.classList.add('flex');
+                if(toggleText) toggleText.textContent = 'ซ่อนรายการ';
+                if(showTrigger) showTrigger.classList.add('hidden');
+            } else {
+                sidebar.classList.remove('flex'); 
+                sidebar.classList.add('hidden');
+                if(toggleText) toggleText.textContent = 'แสดงรายการ';
+                if(showTrigger) showTrigger.classList.remove('hidden');
+            }
+        }
+
+        function setVideoOrientation(mode) {
+            const container = document.getElementById('playerWrapperContainer');
+            const btnLandscape = document.getElementById('btnLandscape');
+            const btnPortrait = document.getElementById('btnPortrait');
+            if (mode === 'portrait') {
+                container.classList.remove('landscape'); container.classList.add('portrait');
+                btnPortrait.className = 'px-2.5 py-1 rounded-lg font-bold transition-all bg-emerald-600 text-white shadow-sm flex items-center gap-1';
+                btnLandscape.className = 'px-2.5 py-1 rounded-lg font-bold transition-all text-slate-600 dark:text-slate-300 hover:text-emerald-500 flex items-center gap-1';
+            } else {
+                container.classList.remove('portrait'); container.classList.add('landscape');
+                btnLandscape.className = 'px-2.5 py-1 rounded-lg font-bold transition-all bg-emerald-600 text-white shadow-sm flex items-center gap-1';
+                btnPortrait.className = 'px-2.5 py-1 rounded-lg font-bold transition-all text-slate-600 dark:text-slate-300 hover:text-emerald-500 flex items-center gap-1';
+            }
+        }
+
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        async function initTrialVault() {
             try {
-                // ดึงข้อมูลจากตาราง courses และกรองเฉพาะ course_type === 'trial'
-                const { data: courses, error } = await mySupabase
+                // 1. ดึงข้อมูลคอร์สเฉพาะที่เป็นประเภท trial หรือคอร์สทดลองเรียนฟรี
+                const { data: coursesData, error: courseError } = await mySupabase
                     .from('courses')
                     .select('*')
                     .eq('course_type', 'trial')
-                    .order('created_at', { ascending: false });
+                    .order('title');
 
-                if (error) throw error;
+                if (courseError) throw courseError;
+                trialCourses = coursesData || [];
 
-                trialCoursesList = courses || [];
-                document.getElementById('trialCount').textContent = `${trialCoursesList.length} คอร์ส`;
+                // 2. ดึงบทเรียนทั้งหมดจากตาราง course_lessons
+                const { data: fetchedLessons, error: lessonError } = await mySupabase.from('course_lessons').select('*');
+                if (lessonError) throw lessonError;
 
-                if (trialCoursesList.length === 0) {
-                    container.innerHTML = `
-                        <div class="glass-card p-12 rounded-[2rem] text-center text-slate-400 text-xs col-span-full space-y-3">
-                            <i class="fas fa-film text-4xl text-emerald-500/50"></i>
-                            <div class="font-bold text-sm text-slate-700 dark:text-slate-200">ยังไม่มีคอร์สทดลองเรียนในขณะนี้</div>
-                            <p class="text-xs text-slate-400">โปรดติดตามอัปเดตคอร์สทดลองเรียนใหม่ๆ เร็วๆ นี้</p>
-                        </div>
-                    `;
-                    return;
-                }
+                allLessons = (fetchedLessons || []).map(l => ({
+                    id: l.id,
+                    title: l.title || 'ไม่มีชื่อหัวข้อ',
+                    course_id: String(l.course_id || ''),
+                    bunny_video_id: l.bunny_video_id || l.video_url || '',
+                    pdf_url: l.pdf_url || l.file_url || '',
+                    created_at: l.created_at || new Date().toISOString()
+                }));
 
-                container.innerHTML = trialCoursesList.map(c => {
-                    const coverImg = c.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80';
-                    const title = c.title || 'คอร์สทดลองเรียน';
-                    const desc = c.description || 'เนื้อหาตัวอย่างเข้มข้น ทดลองเรียนได้ฟรี';
-                    const code = c.course_code || 'TRIAL';
+                populateCourseDropdown();
+            } catch (err) {
+                console.error("Error loading trial vault:", err);
+            }
+        }
 
+        function populateCourseDropdown() {
+            const selector = document.getElementById('courseSelector');
+            if (!selector) return;
+
+            if (trialCourses.length === 0) {
+                selector.innerHTML = '<option value="">⚠️ ยังไม่มีคอร์สทดลองเรียนในระบบขณะนี้</option>';
+                return;
+            }
+
+            selector.innerHTML = trialCourses.map(c => `
+                <option value="${c.id}">🚀 [${c.course_code || 'TRIAL'}] ${c.title}</option>
+            `).join('');
+
+            currentCourseId = trialCourses[0].id;
+            selector.value = currentCourseId;
+            renderCourseContent();
+        }
+
+        function onCourseChanged() {
+            currentCourseId = document.getElementById('courseSelector').value;
+            renderCourseContent();
+        }
+
+        function handleLiveSearch() {
+            searchQuery = document.getElementById('videoSearchInput').value.trim().toLowerCase();
+            renderCourseContent();
+        }
+
+        function renderCourseContent() {
+            if (!currentCourseId) return;
+            const courseItems = allLessons.filter(l => l.course_id === String(currentCourseId));
+
+            let videos = courseItems.filter(l => l.bunny_video_id);
+            let files = courseItems.filter(l => l.pdf_url);
+
+            if (searchQuery) {
+                videos = videos.filter(v => v.title.toLowerCase().includes(searchQuery));
+            }
+
+            // เรียงลำดับเทปเรียนจากเก่าไปใหม่
+            videos.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+            document.getElementById('videoCountDisplay').textContent = videos.length;
+            const videoContainer = document.getElementById('videoListContainer');
+
+            if (videos.length === 0) {
+                videoContainer.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">ยังไม่มีวิดีโอทดลองเรียนในคอร์สนี้</div>`;
+                resetPlayerToEmpty();
+            } else {
+                videoContainer.innerHTML = videos.map(v => {
+                    const isActive = activeVideoId === v.id;
                     return `
-                        <div class="glass-card rounded-[2rem] overflow-hidden flex flex-col justify-between group">
-                            <div>
-                                <div class="aspect-video w-full relative overflow-hidden bg-slate-900/5 dark:bg-slate-800/50 flex items-center justify-center p-2">
-                                    <img src="${coverImg}" alt="${title}" class="w-full h-full object-cover rounded-2xl group-hover:scale-105 transition-transform duration-500">
-                                    <div class="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-white font-mono font-bold text-[10px] px-3 py-1 rounded-xl">
-                                        ${code}
-                                    </div>
-                                    <div class="absolute top-3 right-3 bg-emerald-500 text-white font-bold text-[10px] px-2.5 py-1 rounded-xl shadow">
-                                        <i class="fas fa-play mr-1"></i> ฟรี
-                                    </div>
+                        <div onclick="playBunnyVideo('${v.id}', '${encodeURIComponent(v.title)}', '${v.created_at}', '${v.bunny_video_id}')" class="p-3 rounded-2xl cursor-pointer transition-all border ${isActive ? 'bg-emerald-500/10 border-emerald-500 shadow-sm' : 'bg-white dark:bg-darkinput border-slate-200 dark:border-slate-800'} flex items-center justify-between gap-2.5">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="w-8 h-8 rounded-xl ${isActive ? 'bg-emerald-600 text-white' : 'bg-emerald-500/10 text-emerald-500'} flex items-center justify-center font-bold text-xs shrink-0">
+                                    <i class="fas ${isActive ? 'fa-play' : 'fa-video'} text-[10px]"></i>
                                 </div>
-                                <div class="p-6 space-y-2.5">
-                                    <h3 class="font-extrabold text-base text-slate-900 dark:text-white line-clamp-1">${title}</h3>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">${desc}</p>
+                                <div class="min-w-0">
+                                    <h4 class="font-bold text-xs text-slate-900 dark:text-white truncate">${v.title}</h4>
+                                    <p class="text-[10px] text-slate-400">${new Date(v.created_at).toLocaleDateString('th-TH')}</p>
                                 </div>
-                            </div>
-                            <div class="p-6 pt-0 border-t border-slate-100/50 dark:border-slate-800/50 mt-4">
-                                <button onclick="openTrialDetail('${c.id}')" class="w-full py-3 glow-btn-emerald text-white rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md">
-                                    <i class="fas fa-play-circle"></i> เริ่มต้นทดลองเรียน
-                                </button>
                             </div>
                         </div>
                     `;
                 }).join('');
 
-            } catch (err) {
-                console.error("Fetch Trial Courses Error:", err);
-                container.innerHTML = `
-                    <div class="glass-card p-12 rounded-[2rem] text-center text-rose-500 text-xs col-span-full">
-                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
-                        <p>เกิดข้อผิดพลาดในการโหลดคอร์สทดลองเรียน กรุณาลองใหม่อีกครั้ง</p>
-                    </div>
-                `;
+                if (!videos.some(v => v.id === activeVideoId)) {
+                    playBunnyVideo(videos[0].id, encodeURIComponent(videos[0].title), videos[0].created_at, videos[0].bunny_video_id);
+                }
+            }
+
+            document.getElementById('fileCountDisplay').textContent = files.length;
+            const fileContainer = document.getElementById('fileListContainer');
+            if (files.length === 0) {
+                fileContainer.innerHTML = `<div class="text-center py-3 text-slate-400 text-[11px]">ไม่มีไฟล์เอกสารตัวอย่าง</div>`;
+            } else {
+                fileContainer.innerHTML = files.map(f => `
+                    <a href="${f.pdf_url}" target="_blank" class="p-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between gap-2 block">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <i class="fas fa-file-lines text-teal-500"></i>
+                            <span class="font-bold text-[11px] truncate">${f.title}</span>
+                        </div>
+                        <i class="fas fa-download text-[10px] text-teal-500"></i>
+                    </a>
+                `).join('');
             }
         }
 
-        async function openTrialDetail(courseId) {
-            const course = trialCoursesList.find(c => String(c.id) === String(courseId));
-            if (!course) return;
+        function playBunnyVideo(id, encodedTitle, createdAt, bunnyVideoId) {
+            activeVideoId = id;
+            document.getElementById('currentPlayingTitle').innerHTML = `<i class="fas fa-play-circle text-emerald-500 shrink-0"></i> <span class="truncate">${decodeURIComponent(encodedTitle)}</span>`;
+            document.getElementById('videoPublishDate').textContent = `เผยแพร่เมื่อ: ${new Date(createdAt).toLocaleString('th-TH')}`;
 
-            // ดึงข้อมูลวิดีโอหรือเนื้อหาตัวอย่างจากตารางบทเรียนหรือเนื้อหาในคอร์ส (อ้างอิงจากระบบ admin_course_detail)
-            Swal.fire({ title: 'กำลังโหลดบทเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            
-            let lessons = [];
-            try {
-                const { data: lessonData } = await mySupabase
-                    .from('lessons')
-                    .select('*')
-                    .eq('course_id', courseId)
-                    .order('created_at', { ascending: true });
-                lessons = lessonData || [];
-            } catch (e) {
-                console.warn("Could not load lessons:", e);
-            }
+            const currentCourse = trialCourses.find(c => String(c.id) === String(currentCourseId));
+            const libraryId = (currentCourse && (currentCourse.bunny_library_id || currentCourse.library_id)) ? (currentCourse.bunny_library_id || currentCourse.library_id) : '785115';
 
-            Swal.close();
+            const wrapper = document.getElementById('bunnyPlayerWrapper');
+            const embedUrl = bunnyVideoId.startsWith('http') ? bunnyVideoId : `https://iframe.mediadelivery.net/embed/${libraryId}/${bunnyVideoId}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
 
-            let lessonsHtml = lessons.length === 0 ? `
-                <div class="text-center py-8 text-slate-400 text-xs">
-                    <i class="fas fa-info-circle text-2xl mb-2 text-emerald-500"></i>
-                    <p>คอร์สนี้กำลังอยู่ในระหว่างการอัปเดตวิดีโอตัวอย่าง</p>
-                </div>
-            ` : lessons.map((l, index) => `
-                <div class="p-4 glass-input rounded-2xl flex items-center justify-between gap-3 hover:border-emerald-500 transition">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
-                            ${index + 1}
-                        </div>
-                        <div>
-                            <div class="font-bold text-xs text-slate-800 dark:text-white">${l.title || 'บทเรียนที่ ' + (index + 1)}</div>
-                            <div class="text-[10px] text-slate-400">${l.duration || 'วิดีโอตัวอย่าง'}</div>
-                        </div>
-                    </div>
-                    <button onclick="playLessonVideo('${l.video_url || ''}', '${l.title || ''}')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[11px] font-bold transition shadow-sm flex items-center gap-1.5">
-                        <i class="fas fa-play"></i> ดูวิดีโอ
-                    </button>
-                </div>
-            `).join('');
-
-            document.getElementById('trialModalContent').innerHTML = `
-                <div class="space-y-4">
-                    <div class="aspect-video w-full rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center relative border border-white/10">
-                        <img src="${course.image_url || ''}" class="w-full h-full object-cover opacity-60">
-                        <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center space-y-2 bg-black/40 backdrop-blur-xs">
-                            <span class="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl shadow-xl animate-pulse cursor-pointer" onclick="playFirstAvailableLesson()">
-                                <i class="fas fa-play ml-1"></i>
-                            </span>
-                            <h4 class="font-extrabold text-sm text-white">${course.title}</h4>
-                            <p class="text-[11px] text-slate-200">คลิกเพื่อเริ่มรับชมบทเรียนตัวอย่างฟรี</p>
-                        </div>
-                    </div>
-                    <div class="space-y-2">
-                        <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-[10px] font-bold">รหัส: ${course.course_code || 'TRIAL'}</span>
-                        <h3 class="text-xl font-black text-slate-900 dark:text-white">${course.title}</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">${course.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
-                    </div>
-
-                    <div class="pt-4 border-t border-slate-200/60 dark:border-slate-800 space-y-3">
-                        <h4 class="font-extrabold text-xs text-slate-800 dark:text-white flex items-center gap-2">
-                            <i class="fas fa-list-ul text-emerald-500"></i> รายการบทเรียนทดลอง (${lessons.length})
-                        </h4>
-                        <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
-                            ${lessonsHtml}
-                        </div>
-                    </div>
-                </div>
+            wrapper.innerHTML = `
+                <iframe src="${embedUrl}" loading="lazy" style="border:none;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
             `;
-            document.getElementById('trialModal').classList.remove('hidden');
         }
 
-        function closeTrialModal() {
-            document.getElementById('trialModal').classList.add('hidden');
+        function resetPlayerToEmpty() {
+            activeVideoId = null;
+            document.getElementById('bunnyPlayerWrapper').innerHTML = `<div class="text-center p-4 text-xs text-slate-500"><p>ไม่มีวิดีโอในคอร์สนี้</p></div>`;
         }
 
-        function playLessonVideo(videoUrl, title) {
-            if (!videoUrl) {
-                Swal.fire('ขออภัย', 'ยังไม่มีลิงก์วิดีโอสำหรับบทเรียนนี้', 'info');
-                return;
-            }
-            // แปลงลิงก์ YouTube ให้เป็นแบบ Embed ถ้าจำเป็น
-            let embedUrl = videoUrl;
-            if (videoUrl.includes('watch?v=')) {
-                embedUrl = videoUrl.replace('watch?v=', 'embed/');
-            } else if (videoUrl.includes('youtu.be/')) {
-                embedUrl = videoUrl.replace('youtu.be/', 'www.youtube.com/embed/');
-            }
-
-            Swal.fire({
-                title: title || 'วิดีโอทดลองเรียน',
-                html: `
-                    <div class="aspect-video w-full rounded-2xl overflow-hidden bg-black shadow-lg">
-                        <iframe src="${embedUrl}" class="w-full h-full" frameborder="0" allowfullscreen></iframe>
-                    </div>
-                `,
-                width: '800px',
-                showCloseButton: true,
-                showConfirmButton: false,
-                background: document.documentElement.classList.contains('dark') ? '#090d16' : '#ffffff'
-            });
-        }
-
-        fetchTrialCourses();
+        initTrialVault();
     </script>
 </body>
 </html>
