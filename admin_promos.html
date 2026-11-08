@@ -52,7 +52,7 @@
                             <span class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-tags"></i></span>
                             ศูนย์จัดการโปรโมชั่น & โค้ดส่วนลด (Promo Hub)
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">จัดการโค้ดส่วนลด และโปรโมชั่นจำกัดสิทธิ์พิเศษ (ไม่ต้องใช้โค้ด)</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดเวลาเปิด-ปิดการใช้งานโปรโมชั่นและจำกัดสิทธิ์</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -95,7 +95,7 @@
                 </div>
                 <div>
                     <h3 class="text-base font-bold text-slate-900 dark:text-white" id="modalTitle">สร้างโปรโมชั่นใหม่</h3>
-                    <p class="text-[11px] text-slate-500 dark:text-slate-400">เลือกประเภทโปรโมชั่นและกำหนดจำนวนสิทธิ์</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">กำหนดเวลาเปิด-ปิด และเงื่อนไขสิทธิ์</p>
                 </div>
             </div>
 
@@ -153,14 +153,20 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">วันและเวลาหมดเขตโปรโมชั่น</label>
-                    <input type="datetime-local" id="promoEndDate" class="w-full px-3.5 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">⏰ วันและเวลาเริ่มใช้</label>
+                        <input type="datetime-local" id="promoStartDate" class="w-full px-3.5 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-[11px] outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">⏳ วันและเวลาหมดเขต</label>
+                        <input type="datetime-local" id="promoEndDate" class="w-full px-3.5 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-[11px] outline-none focus:border-amber-500">
+                    </div>
                 </div>
 
                 <div class="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="promoActive" checked class="w-4 h-4 text-amber-500 rounded focus:ring-amber-500">
-                    <label for="promoActive" class="text-xs font-bold text-slate-700 dark:text-slate-300">เปิดใช้งานโปรโมชั่นนี้ทันที</label>
+                    <label for="promoActive" class="text-xs font-bold text-slate-700 dark:text-slate-300">เปิดสวิตช์สถานะการใช้งาน</label>
                 </div>
 
                 <div class="flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -246,7 +252,9 @@
                 const minSpend = p.min_spend > 0 ? `ขั้นต่ำ ฿${Number(p.min_spend).toLocaleString()}` : 'ไม่มีขั้นต่ำ';
                 const used = p.used_count || 0;
                 const limit = p.usage_limit ? `สิทธิ์: ${used} / ${p.usage_limit} ท่าน` : `ใช้ไปแล้ว ${used} ท่าน (ไม่จำกัดสิทธิ์)`;
-                const status = p.is_active ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold">กำลังเปิดใช้งาน</span>' : '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">ปิดใช้งาน</span>';
+                const status = p.is_active ? '<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold">เปิดใช้งาน</span>' : '<span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">ปิดใช้งาน</span>';
+                
+                const startDate = p.start_date ? `เริ่ม: ${new Date(p.start_date).toLocaleString('th-TH')}` : 'เริ่มทันที';
                 const endDate = p.end_date ? `หมดเขต: ${new Date(p.end_date).toLocaleString('th-TH')}` : 'ไม่มีวันหมดเขต';
                 const tagBadge = p.badge_tag ? `<p class="text-[11px] text-rose-500 font-bold"><i class="fas fa-tag mr-1"></i>${p.badge_tag}</p>` : '';
 
@@ -263,7 +271,8 @@
                             <div class="space-y-1 text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
                                 <p><i class="fas fa-wallet mr-1.5"></i> ${minSpend}</p>
                                 <p><i class="fas fa-users mr-1.5 text-sky-500"></i> <strong class="text-sky-600 dark:text-sky-400">${limit}</strong></p>
-                                <p><i class="fas fa-clock mr-1.5"></i> ${endDate}</p>
+                                <p><i class="fas fa-hourglass-start mr-1.5 text-emerald-500"></i> ${startDate}</p>
+                                <p><i class="fas fa-hourglass-end mr-1.5 text-rose-500"></i> ${endDate}</p>
                             </div>
                         </div>
                         <div class="flex gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -301,6 +310,7 @@
                     document.getElementById('promoValue').value = p.discount_value || '';
                     document.getElementById('promoMinSpend').value = p.min_spend || '';
                     document.getElementById('promoLimit').value = p.usage_limit || '';
+                    if (p.start_date) document.getElementById('promoStartDate').value = p.start_date.substring(0, 16);
                     if (p.end_date) document.getElementById('promoEndDate').value = p.end_date.substring(0, 16);
                     document.getElementById('promoActive').checked = p.is_active;
                     document.getElementById('modalTitle').textContent = 'แก้ไขโปรโมชั่น';
@@ -326,6 +336,7 @@
                 discount_value: parseFloat(document.getElementById('promoValue').value) || 0,
                 min_spend: parseFloat(document.getElementById('promoMinSpend').value) || 0,
                 usage_limit: document.getElementById('promoLimit').value ? parseInt(document.getElementById('promoLimit').value) : null,
+                start_date: document.getElementById('promoStartDate').value ? new Date(document.getElementById('promoStartDate').value).toISOString() : null,
                 end_date: document.getElementById('promoEndDate').value ? new Date(document.getElementById('promoEndDate').value).toISOString() : null,
                 is_active: document.getElementById('promoActive').checked
             };
