@@ -322,9 +322,34 @@
             }
         }
 
-        function goToStudentPortal() {
-            window.location.href = currentStudentId ? `student_portal.html?student_id=${currentStudentId}` : 'student_portal.html';
-        }
+function goToStudentPortal() {
+    // ตรวจสอบว่ามีข้อมูล ID ของนักเรียนหรือ Session ใน LocalStorage หรือไม่
+    const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
+    
+    if (!studentId) {
+        // ถ้ายังไม่ได้เข้าสู่ระบบ ให้แจ้งเตือนและเปิด Auth Modal (หรือเด้งไปหน้า Login)
+        Swal.fire({
+            icon: 'warning',
+            title: 'ยังไม่ได้เข้าสู่ระบบ',
+            text: 'กรุณาเข้าสู่ระบบก่อนเข้าใช้งานระบบนักเรียนครับ',
+            confirmButtonText: 'เข้าสู่ระบบ / สมัครสมาชิก',
+            confirmButtonColor: '#3b82f6'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // หากอยู่ในหน้าแรกที่มี Auth Modal ให้เปิด Modal ขึ้นมา
+                if (typeof openAuthModal === 'function') {
+                    openAuthModal('login');
+                } else {
+                    // หากอยู่หน้าอื่น (เช่น catalog.html) ให้พาไปหน้าแรกหรือหน้า Login
+                    window.location.href = 'index.html';
+                }
+            }
+        });
+    } else {
+        // ถ้าเข้าสู่ระบบแล้ว ให้ไปหน้า student.html ตามปกติ
+        window.location.href = `student.html?student_id=${studentId}`;
+    }
+}
 
         async function fetchCatalogData() {
             if (currentStudentId) {
