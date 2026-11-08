@@ -128,7 +128,7 @@
 
     <!-- Auth Modal (เข้าสู่ระบบ / สมัครสมาชิก) -->
     <div id="authModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-md p-8 rounded-3xl shadow-2xl relative">
+        <div class="glass-card w-full max-w-md p-8 rounded-3xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onclick="closeAuthModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkbox text-slate-500 hover:text-red-500 transition">
                 <i class="fas fa-xmark"></i>
             </button>
@@ -141,8 +141,8 @@
             <!-- Login Form -->
             <form id="loginForm" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">ชื่อผู้ใช้ (Username / Email)</label>
-                    <input type="text" id="loginUser" required placeholder="กรอกชื่อผู้ใช้ของคุณ" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white outline-none focus:border-sky-500">
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">อีเมล (Email)</label>
+                    <input type="email" id="loginEmail" required placeholder="yourname@gmail.com" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white outline-none focus:border-sky-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">รหัสผ่าน (Password)</label>
@@ -151,17 +151,40 @@
                 <button type="submit" class="w-full bg-sky-600 hover:bg-sky-700 text-white py-3.5 rounded-xl font-bold text-xs transition shadow-lg shadow-sky-500/20">เข้าสู่ระบบ</button>
             </form>
 
-            <!-- Register Form -->
-            <form id="regForm" class="space-y-4 hidden">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">ตั้งชื่อผู้ใช้ (Username)</label>
-                    <input type="text" id="regUser" required placeholder="ตั้ง username สำหรับเข้าเรียน" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white outline-none focus:border-sky-500">
+            <!-- Register Form (เก็บข้อมูลครบเหมือนหน้า admin_users และแยกประเภทบัญชีภายนอก) -->
+            <form id="regForm" class="space-y-3.5 hidden">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">ชื่อจริง</label>
+                        <input type="text" id="regFirstName" required placeholder="ชื่อจริง" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">นามสกุล</label>
+                        <input type="text" id="regLastName" required placeholder="นามสกุล" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:border-sky-500">
+                    </div>
                 </div>
+
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">ตั้งรหัสผ่าน (Password)</label>
-                    <input type="password" id="regPass" required placeholder="••••••••" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:border-sky-500">
+                    <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Gmail / อีเมลจริง</label>
+                    <input type="email" id="regEmail" required placeholder="yourname@gmail.com" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:border-sky-500">
                 </div>
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold text-xs transition shadow-lg shadow-emerald-500/20">สมัครสมาชิกใหม่</button>
+
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">เบอร์โทรศัพท์</label>
+                    <input type="tel" id="regPhone" required placeholder="0891234567" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:border-sky-500">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">ตั้งรหัสผ่าน</label>
+                    <input type="password" id="regPass" required placeholder="••••••••" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:border-sky-500">
+                </div>
+
+                <!-- ซ่อนประเภทบัญชีไว้เป็น External Student อัตโนมัติ -->
+                <input type="hidden" id="regUserType" value="external_student">
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold text-xs transition shadow-lg shadow-emerald-500/25 mt-2">
+                    สมัครสมาชิก (บัญชีภายนอก)
+                </button>
             </form>
         </div>
     </div>
@@ -238,7 +261,6 @@
             }
         }
 
-        // Modal Auth Handler
         function openAuthModal(mode = 'login') {
             document.getElementById('authModal').classList.remove('hidden');
             switchAuthTab(mode);
@@ -267,32 +289,57 @@
         // Login Submit
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const userInput = document.getElementById('loginUser').value.trim();
+            const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPass').value;
             Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const loginEmail = userInput.includes('@') ? userInput : `${userInput.toLowerCase()}@krudream.internal`;
-            const { data, error } = await mySupabase.auth.signInWithPassword({ email: loginEmail, password });
+            
+            const { data, error } = await mySupabase.auth.signInWithPassword({ email, password });
             if (error || !data.user) {
-                Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+                Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
                 return;
             }
             window.location.replace('student.html');
         });
 
-        // Register Submit (ให้นักเรียนสมัครสมาชิกเองได้เลย)
+        // Register Submit (เก็บข้อมูลละเอียดเหมือนหน้า admin_users และกำหนดเป็นบัญชีภายนอก)
         document.getElementById('regForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const userInput = document.getElementById('regUser').value.trim();
+            const firstName = document.getElementById('regFirstName').value.trim();
+            const lastName = document.getElementById('regLastName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
             const password = document.getElementById('regPass').value;
-            Swal.fire({ title: 'กำลังสร้างบัญชี...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const regEmail = `${userInput.toLowerCase()}@krudream.internal`;
+            const userType = document.getElementById('regUserType').value; // 'external_student'
             
-            const { data, error } = await mySupabase.auth.signUp({ email: regEmail, password: password });
+            Swal.fire({ title: 'กำลังสร้างบัญชี...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            
+            // 1. สมัครสมาชิกผ่าน Supabase Auth
+            const { data, error } = await mySupabase.auth.signUp({ email, password });
             if (error) {
                 Swal.fire({ icon: 'error', title: 'สมัครสมาชิกไม่สำเร็จ', text: error.message });
                 return;
             }
-            Swal.fire({ icon: 'success', title: 'สมัครสมาชิกสำเร็จ!', text: 'ยินดีต้อนรับสู่ KRUDREAM LAND', timer: 1500, showConfirmButton: false }).then(() => {
+
+            // 2. บันทึกข้อมูลส่วนตัวเพิ่มเติมลงตารางโปรไฟล์ผู้ใช้ (เชื่อมกับหน้า admin_users)
+            if (data.user) {
+                await mySupabase.from('profiles').insert([{
+                    id: data.user.id,
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: email,
+                    phone: phone,
+                    role: 'student',
+                    account_type: userType // แยกประเภทบัญชีนอก/ในชัดเจน
+                }]);
+            }
+
+            Swal.fire({ 
+                icon: 'success', 
+                title: 'สมัครสมาชิกสำเร็จ!', 
+                text: 'ยินดีต้อนรับสู่ KRUDREAM LAND', 
+                timer: 1500, 
+                showConfirmButton: false 
+            }).then(() => {
                 window.location.replace('catalog.html');
             });
         });
