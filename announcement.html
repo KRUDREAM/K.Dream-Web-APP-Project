@@ -226,7 +226,7 @@
             localStorage.setItem('theme', htmlElement.classList.contains('dark') ? 'dark' : 'light');
         });
 
-async function initPage() {
+        async function initPage() {
             const urlParams = new URLSearchParams(window.location.search);
             currentStudentId = urlParams.get('student_id') || urlParams.get('id') || localStorage.getItem('student_id') || localStorage.getItem('id');
             userRole = localStorage.getItem('role') || (currentStudentId ? 'student' : 'admin');
@@ -271,17 +271,17 @@ async function initPage() {
             loadStudentNotificationsCount();
         }
 
-        // 🌟 ตรวจสอบสิทธิ์แบบเข้มงวด (ถ้าเลือกเฉพาะคอร์ส ต้องตรงกับที่ลงทะเบียนจริงๆ เท่านั้น)
+        // 🌟 ตรวจสอบสิทธิ์แบบแม่นยำ (รองรับทั้ง ID, Course Code และชื่อคอร์ส)
         function isAnnouncementForThisStudent(announcement) {
             if (!announcement) return false;
             const targetType = announcement.target_type || 'all';
 
-            // 1. ถ้าเป็นประกาศทั่วไปสำหรับทุกคน แสดงผลปกติ
+            // 1. ประกาศทั่วไปสำหรับทุกคน
             if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
                 return true;
             }
 
-            // 2. ถ้าเป็นแบบเจาะจงรายบุคคล (Specific ID)
+            // 2. เจาะจงรายบุคคล (Specific ID)
             if (targetType === 'specific') {
                 const studentId = String(currentStudentData?.id || currentStudentData?.student_id || currentStudentId || '').trim();
                 const targetValue = String(announcement.target_value || '').trim();
@@ -289,32 +289,32 @@ async function initPage() {
                 return targetValue.includes(studentId);
             }
 
-            // 3. ถ้าเป็นแบบระบุคอร์สเรียน (Course)
+            // 3. ระบุตามคอร์สเรียน (Course)
             if (targetType === 'course') {
-                // ถ้าเป็น Admin ให้เห็นทั้งหมดเสมอ
-                if (userRole !== 'student') return true;
-
-                // ถ้าเป็นนักเรียน แต่ไม่มีข้อมูลคอร์สที่ลงทะเบียนเลย -> ไม่ให้แสดง
-                if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) {
-                    return false;
-                }
+                if (userRole !== 'student') return true; // แอดมินเห็นหมด
+                if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) return false;
 
                 const targetValue = String(announcement.target_value || '').trim();
                 if (!targetValue) return false;
 
-                // ดึง ID คอร์สที่ประกาศระบุไว้ (อาจคั่นด้วย comma หลายคอร์ส)
+                // รายการ ID คอร์สที่ถูกเลือกตอนโพสต์ประกาศ
                 const announcementCourseIds = targetValue.split(',').map(id => id.trim().toLowerCase());
 
-                // รวบรวม ID คอร์สทั้งหมดที่นักเรียนคนนี้ลงทะเบียนไว้
-                let studentCourseIds = [];
+                // รวบรวมข้อมูลคอร์สที่นักเรียนคนนี้ลงทะเบียนไว้ทุกมิติ (course_id, courseid, id, course_code, etc.)
+                let studentIdentifiers = [];
                 enrolledCoursesList.forEach(e => {
-                    if (e.course_id) studentCourseIds.push(String(e.course_id).trim().toLowerCase());
-                    if (e.courseid) studentCourseIds.push(String(e.courseid).trim().toLowerCase());
-                    if (e.id && e.id !== currentStudentId) studentCourseIds.push(String(e.id).trim().toLowerCase());
+                    if (e.course_id) studentIdentifiers.push(String(e.course_id).trim().toLowerCase());
+                    if (e.courseid) studentIdentifiers.push(String(e.courseid).trim().toLowerCase());
+                    if (e.course_code) studentIdentifiers.push(String(e.course_code).trim().toLowerCase());
+                    if (e.title) studentIdentifiers.push(String(e.title).trim().toLowerCase());
+                    if (e.name) studentIdentifiers.push(String(e.name).trim().toLowerCase());
+                    if (e.id && e.id !== currentStudentId) studentIdentifiers.push(String(e.id).trim().toLowerCase());
                 });
 
-                // ตรวจสอบว่ามีคอร์สใดคอร์สหนึ่งตรงกันหรือไม่
-                return announcementCourseIds.some(acId => studentCourseIds.includes(acId));
+                // ตรวจสอบว่ามีคอร์สใดตรงกันบ้าง
+                return announcementCourseIds.some(acId => 
+                    studentIdentifiers.some(si => si === acId || si.includes(acId) || acId.includes(si))
+                );
             }
 
             return false;
@@ -325,15 +325,15 @@ async function initPage() {
             const searchInput = document.getElementById('annSearchInput');
             const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-            // กรองเฉพาะประกาศที่ตรงกับสิทธิ์ของนักเรียนคนนี้ก่อนเสมอ (ไม่ให้หลุดมาแสดงหากไม่ได้เลือกคอร์ส)
+            // กรองประกาศเฉพาะที่นักเรียนคนนี้มีสิทธิ์มองเห็นตาม target_type
             let displayList = allAnnouncementsData.filter(a => isAnnouncementForThisStudent(a));
 
-            // ถ้าเลือกโหมด "เฉพาะคอร์สฉัน" เพิ่มเติม
+            // ถ้านักเรียนกดเลือกปุ่มกรอง "เฉพาะคอร์สฉัน" เพิ่มเติม
             if (currentFilterMode === 'course' && userRole === 'student') {
                 displayList = displayList.filter(a => (a.target_type || 'all') === 'course');
             }
 
-            // กรองตามคำค้นหา
+            // กรองตามคำค้นหา (Search)
             if (keyword) {
                 displayList = displayList.filter(a => 
                     (a.title && a.title.toLowerCase().includes(keyword)) || 
@@ -346,7 +346,7 @@ async function initPage() {
                     <div class="modern-card p-12 rounded-3xl text-center text-slate-400">
                         <i class="fas fa-bullhorn text-3xl mb-3 text-sky-500"></i>
                         <h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ไม่พบประกาศในขณะนี้</h4>
-                        <p class="text-xs text-slate-400">ยังไม่มีประกาศที่ตรงกับคอร์สที่คุณลงทะเบียนไว้</p>
+                        <p class="text-xs text-slate-400">ยังไม่มีประกาศที่ตรงกับสิทธิ์และคอร์สที่คุณลงทะเบียนไว้</p>
                     </div>
                 `;
                 return;
@@ -562,7 +562,7 @@ async function initPage() {
         async function handleFormSubmit(e) {
             e.preventDefault();
             const title = document.getElementById('annTitle').value;
-            const content = document.getElementById('annContent').value;
+            const content = document.getElementById('annContent'].value;
             const category = document.getElementById('annCategory').value;
             const targetType = document.getElementById('targetType').value;
             let targetValue = '';
