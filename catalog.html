@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KRUDREAM LAND | เลือกดูคอร์สเรียนและแพ็กเกจทั้งหมด</title>
     
-    <!-- 🌟 โลโก้ไอคอนสำหรับเว็บแอป (Favicon & Mobile App Icon) -->
+    <!-- Favicon & Mobile App Icon -->
     <link rel="icon" type="image/jpeg" sizes="512x512" href="logo.jpg">
     <link rel="apple-touch-icon" href="logo.jpg">
     <meta name="theme-color" content="#3b82f6">
@@ -35,7 +35,7 @@
     <style>
         body { font-family: 'Prompt', sans-serif; overflow-x: hidden; }
         
-        /* Glassmorphism Navy Theme Navbar (เหมือนทุกหน้าเป๊ะๆ) */
+        /* Glassmorphism Navy Theme Navbar */
         .glass-nav { 
             background: rgba(255, 255, 255, 0.8); 
             backdrop-filter: blur(25px); 
@@ -83,7 +83,7 @@
             border: 1px solid rgba(30, 58, 138, 0.6);
         }
 
-        /* ปุ่มสีน้ำเงินเข้มประกายทอง/ฟ้าเงางาม */
+        /* ปุ่มสีน้ำเงินเข้มประกายฟ้าเงางาม */
         .glow-btn {
             background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
             box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.5);
@@ -119,7 +119,7 @@
     <div class="bg-glow-blob top-10 left-[-5%]"></div>
     <div class="bg-glow-blob bottom-20 right-[-5%]" style="animation-delay: 4s;"></div>
 
-    <!-- Navigation Bar มาตรฐานเดียวกันทุกหน้า -->
+    <!-- Navigation Bar -->
     <nav class="glass-nav fixed w-full top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div class="flex justify-between h-20 items-center">
@@ -134,7 +134,7 @@
                 
                 <!-- Tab เมนูกึ่งกลาง (Centered Navigation) -->
                 <div class="hidden md:flex items-center gap-1.5 glass-input p-1.5 rounded-2xl absolute left-1/2 transform -translate-x-1/2 shadow-inner border border-blue-500/15">
-                    <a href="index2.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
+                    <a href="index.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
                         <i class="fas fa-home mr-1.5"></i> หน้าแรก
                     </a>
                     <a href="catalog.html" class="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-lg shadow-blue-500/30">
@@ -146,15 +146,14 @@
                 </div>
 
                 <!-- ปุ่มด้านขวา (ระบบนักเรียน & สลับธีม) -->
-<!-- ปุ่มด้านขวา (ระบบนักเรียน & สลับธีม) -->
-<div class="flex items-center gap-2.5 z-10">
-    <a href="student.html" class="px-4 py-2.5 bg-blue-500/10 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl text-xs font-bold transition hover:bg-blue-500/20 border border-blue-500/30 flex items-center gap-1.5 shadow-sm backdrop-blur-md">
-        <i class="fas fa-user-circle"></i> <span>ระบบนักเรียน</span>
-    </a>
-    <button id="themeToggle" class="w-11 h-11 flex items-center justify-center rounded-2xl glass-input text-slate-700 dark:text-slate-200 shadow-sm transition hover:border-blue-500">
-        <i class="fas fa-moon text-sm" id="themeIcon"></i>
-    </button>
-</div>
+                <div class="flex items-center gap-2.5 z-10">
+                    <button onclick="goToStudentPortal()" class="px-4 py-2.5 bg-blue-500/10 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl text-xs font-bold transition hover:bg-blue-500/20 border border-blue-500/30 flex items-center gap-1.5 shadow-sm backdrop-blur-md">
+                        <i class="fas fa-user-circle"></i> <span>ระบบนักเรียน</span>
+                    </button>
+                    <button id="themeToggle" class="w-11 h-11 flex items-center justify-center rounded-2xl glass-input text-slate-700 dark:text-slate-200 shadow-sm transition hover:border-blue-500">
+                        <i class="fas fa-moon text-sm" id="themeIcon"></i>
+                    </button>
+                </div>
 
             </div>
         </div>
@@ -322,34 +321,31 @@
             }
         }
 
-function goToStudentPortal() {
-    // ตรวจสอบว่ามีข้อมูล ID ของนักเรียนหรือ Session ใน LocalStorage หรือไม่
-    const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
-    
-    if (!studentId) {
-        // ถ้ายังไม่ได้เข้าสู่ระบบ ให้แจ้งเตือนและเปิด Auth Modal (หรือเด้งไปหน้า Login)
-        Swal.fire({
-            icon: 'warning',
-            title: 'ยังไม่ได้เข้าสู่ระบบ',
-            text: 'กรุณาเข้าสู่ระบบก่อนเข้าใช้งานระบบนักเรียนครับ',
-            confirmButtonText: 'เข้าสู่ระบบ / สมัครสมาชิก',
-            confirmButtonColor: '#3b82f6'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // หากอยู่ในหน้าแรกที่มี Auth Modal ให้เปิด Modal ขึ้นมา
-                if (typeof openAuthModal === 'function') {
-                    openAuthModal('login');
-                } else {
-                    // หากอยู่หน้าอื่น (เช่น catalog.html) ให้พาไปหน้าแรกหรือหน้า Login
-                    window.location.href = 'index.html';
-                }
+        // เช็กสถานะการเข้าสู่ระบบก่อนไปหน้า student.html
+        async function goToStudentPortal() {
+            const { data: { session } } = await mySupabase.auth.getSession();
+            const localStudentId = localStorage.getItem('student_id') || localStorage.getItem('id');
+
+            if (!session && !localStudentId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ยังไม่ได้เข้าสู่ระบบ',
+                    text: 'กรุณาเข้าสู่ระบบก่อนเข้าใช้งานระบบนักเรียนครับ',
+                    confirmButtonText: 'ไปหน้าแรกเพื่อเข้าสู่ระบบ',
+                    confirmButtonColor: '#3b82f6',
+                    background: document.documentElement.classList.contains('dark') ? '#090d1a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#1e293b'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = 'index.html';
+                    }
+                });
+                return;
             }
-        });
-    } else {
-        // ถ้าเข้าสู่ระบบแล้ว ให้ไปหน้า student.html ตามปกติ
-        window.location.href = `student.html?student_id=${studentId}`;
-    }
-}
+
+            const userId = session ? session.user.id : localStudentId;
+            window.location.href = `student.html?student_id=${userId}`;
+        }
 
         async function fetchCatalogData() {
             if (currentStudentId) {
