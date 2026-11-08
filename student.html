@@ -651,71 +651,74 @@
             window.location.replace('index.html');
         }
 
-// ฟังก์ชันกรองประกาศตามสิทธิ์ของนักเรียนคนนี้โดยเฉพาะ
+// 🌟 ฟังก์ชันตรวจสอบว่าประกาศนี้ตรงกับสิทธิ์ของนักเรียนคนนี้หรือไม่
 function isAnnouncementForThisStudent(announcement) {
     if (!announcement) return false;
 
-    // 1. ถ้าไม่ได้ระบุ target_type หรือตั้งเป็น all/everyone ให้ทุกคนเห็นได้
     const targetType = announcement.target_type || 'all';
+
+    // 1. ถ้าเป็นประกาศทั่วไป (ทุกคนเห็นได้)
     if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
         return true;
     }
 
-    // 2. กรณีแยกตามห้องเรียน (Room)
-    if (targetType === 'room') {
-        const studentRoom = currentStudentData?.room || currentStudentData?.class_room || currentStudentData?.class;
-        const targetRoom = announcement.target_value || announcement.target_room; // รองรับทั้ง target_value และ target_room
-        
-        if (!studentRoom || !targetRoom) return false;
-        
-        // เผื่อห้องเรียนใน target_value มีหลายห้องคั่นด้วยคอมมา
-        const allowedRooms = String(targetRoom).split(',').map(r => r.trim());
-        return allowedRooms.includes(String(studentRoom).trim());
+    // 2. ถ้าแบ่งตามระดับชั้น (level) เช่น ม.1, ม.2
+    if (targetType === 'level') {
+        const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
+        const targetLevel = announcement.target_value || '';
+        if (!studentGrade || !targetLevel) return false;
+
+        // รองรับกรณีระบุหลายระดับชั้นคั่นด้วยคอมมา
+        const allowedLevels = String(targetLevel).split(',').map(l => l.trim().toLowerCase());
+        return allowedLevels.includes(String(studentGrade).trim().toLowerCase());
     }
 
-    // 3. กรณีแยกตามคอร์ส (Course) ที่เก็บค่าคั่นด้วยคอมมาใน target_value
-    if (targetType === 'course' || targetType === 'courses') {
-        // รายการคอร์สที่นักเรียนลงทะเบียน (สมมติว่าเป็น Array เช่น ["course_cpp_01", "course_math_101"])
+    // 3. ถ้าแบ่งตามคอร์สเรียน (course) ที่แอดมินเลือกจาก Checkbox
+    if (targetType === 'course') {
+        // ดึงรายการคอร์สที่นักเรียนลงทะเบียนเรียนอยู่ (สมมติเก็บไว้ใน enrolled_courses หรือ courses เป็น Array หรือ String)
         const studentCourses = currentStudentData?.enrolled_courses || currentStudentData?.courses || [];
+        const targetValue = announcement.target_value || '';
         
-        // ดึงค่าจาก target_value หรือฟิลด์คอร์สอื่นๆ
-        const targetValue = announcement.target_value || announcement.course_id || announcement.target_course_id;
-        
-        // ถ้าประกาศไม่ได้ระบุคอร์สเจาะจง ให้ผ่าน
-        if (!targetValue) return true;
+        if (!targetValue) return false;
 
-        // ตัด comma (,) ออกแล้วแปลงเป็นอาเรย์ของรหัสคอร์ส
-        const allowedCourses = String(targetValue).split(',').map(c => c.trim());
+        // แยกคอร์สในประกาศที่คั่นด้วยคอมมา (เช่น "C++ Programming, Python 101")
+        const announcementCourses = String(targetValue).split(',').map(c => c.trim());
 
-        // ตรวจสอบว่ามีคอร์สใดคอร์สหนึ่งในประกาศที่ตรงกับคอร์สที่นักเรียนเรียนอยู่หรือไม่
+        // ตรวจสอบว่าคอร์สของนักเรียนตรงกับคอร์สในประกาศหรือไม่
         if (Array.isArray(studentCourses)) {
-            return studentCourses.map(String).some(course => allowedCourses.includes(course));
+            // เช็กว่ามีคอร์สใดคอร์สหนึ่งในอาเรย์ของนักเรียนตรงกับประกาศ
+            return studentCourses.some(sc => announcementCourses.includes(String(sc).trim()));
         } else if (typeof studentCourses === 'string') {
-            // เผื่อฝั่งนักเรียนเก็บเป็น string คั่นด้วยคอมมาเช่นกัน
             const studentCourseList = studentCourses.split(',').map(c => c.trim());
-            return studentCourseList.some(course => allowedCourses.includes(course));
+            return studentCourseList.some(sc => announcementCourses.includes(sc));
         }
 
         return false;
     }
 
+    // 4. ถ้าเป็นการส่งแบบรายบุคคล (specific) บันทึก ID นักเรียนไว้
+    if (targetType === 'specific') {
+        const studentId = currentStudentData?.id || currentStudentData?.student_id || '';
+        const targetValue = announcement.target_value || '';
+        if (!studentId || !targetValue) return false;
+
+        const allowedStudentIds = String(targetValue).split(',').map(id => id.trim());
+        return allowedStudentIds.includes(String(studentId).trim());
+    }
+
     return true;
 }
 
-async function loadStudentNotificationsCount() {
-    try {
-        const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(50);
-        
-        // ถ้า Supabase ตอบ Error 400 มา จะแสดงข้อความบอกใน F12 Console ทันที
-        if (error) {
-            console.error("Supabase Error 400 Details:", error.message, error.details, error.hint);
-            return;
-        }
-        
-        // โค้ดส่วนจัดการข้อมูลต่อ...
-    } catch (err) {
-        console.error("Catch error:", err);
-    }
+async function loadStudentNotifications() {
+    const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
+    
+    if (error || !anns) return;
+
+    // กรองเฉพาะประกาศที่นักเรียนคนนี้มีสิทธิ์เห็นจริงๆ เท่านั้น
+    const myValidAnns = anns.filter(a => isAnnouncementForThisStudent(a));
+
+    // นำ myValidAnns ไปแสดงผลหรือนับจำนวนแจ้งเตือนต่อได้เลยครับ
+    console.log("ประกาศสำหรับนักเรียนคนนี้:", myValidAnns);
 }
 
 // 🌟 เรนเดอร์รายการใน Dropdown (ปลอดภัยจาก Error)
