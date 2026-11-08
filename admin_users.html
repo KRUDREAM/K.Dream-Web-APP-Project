@@ -103,15 +103,15 @@
                 <table class="w-full text-left text-xs border-collapse">
                     <thead>
                         <tr class="bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
-                            <th class="p-3">ลำดับ</th>
+                            <th class="p-3 w-12">ลำดับ</th>
                             <th class="p-3 sortable-th" onclick="setSort('username')">
                                 Username / อีเมล <i id="sortIcon-username" class="fas fa-sort ml-1 text-slate-400"></i>
                             </th>
-                            <th class="p-3">ประเภทบัญชี</th>
+                            <th class="p-3 text-center w-28">ประเภท</th>
                             <th class="p-3 sortable-th" onclick="setSort('full_name')">
                                 ชื่อ - นามสกุล <i id="sortIcon-full_name" class="fas fa-sort ml-1 text-slate-400"></i>
                             </th>
-                            <th class="p-3 sortable-th" onclick="setSort('gender')">
+                            <th class="p-3 sortable-th w-20 text-center" onclick="setSort('gender')">
                                 เพศ <i id="sortIcon-gender" class="fas fa-sort ml-1 text-slate-400"></i>
                             </th>
                             <th class="p-3 sortable-th" onclick="setSort('nickname')">
@@ -305,7 +305,6 @@
                 const sId = String(s.id);
                 const username = s.username || s.email || s.student_id || '-';
                 
-                // ระบบดึงชื่อ-นามสกุลอัจฉริยะ (รองรับทั้ง full_name และแยก first_name / last_name)
                 let fullName = s.full_name || '';
                 if (!fullName && (s.first_name || s.last_name)) {
                     fullName = `${s.first_name || ''} ${s.last_name || ''}`.trim();
@@ -320,8 +319,8 @@
                 
                 const accountType = s.account_type || 'internal_admin';
                 const accountBadge = accountType === 'external_student'
-                    ? '<span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 rounded-lg text-[10px] font-bold border border-emerald-500/20">🌐 สมัครเอง (ภายนอก)</span>'
-                    : '<span class="px-2.5 py-1 bg-sky-500/10 text-sky-600 rounded-lg text-[10px] font-bold border border-sky-500/20">🛡️ สร้างจากหลังบ้าน</span>';
+                    ? '<span class="inline-block px-2 py-1 bg-emerald-500/10 text-emerald-600 rounded-lg text-[10px] font-bold border border-emerald-500/25 text-center leading-tight">🌐 ภายนอก</span>'
+                    : '<span class="inline-block px-2 py-1 bg-sky-500/10 text-sky-600 rounded-lg text-[10px] font-bold border border-sky-500/25 text-center leading-tight">🛡️ หลังบ้าน</span>';
 
                 const rawDate = s.created_at;
                 const createdAtStr = rawDate ? new Date(rawDate).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-';
@@ -342,9 +341,9 @@
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-3 font-mono font-bold">${idx + 1}</td>
                         <td class="p-3 font-mono font-bold text-sky-600 dark:text-sky-400">${username}</td>
-                        <td class="p-3">${accountBadge}</td>
+                        <td class="p-3 text-center">${accountBadge}</td>
                         <td class="p-3 font-bold text-slate-900 dark:text-white">${fullName}</td>
-                        <td class="p-3 text-slate-600 dark:text-slate-300 font-medium">${gender}</td>
+                        <td class="p-3 text-center text-slate-600 dark:text-slate-300 font-medium">${gender}</td>
                         <td class="p-3 font-semibold text-slate-600 dark:text-slate-300">${nickname}</td>
                         <td class="p-3">
                             <div class="font-bold text-indigo-600 dark:text-indigo-400">${gradeLevel}</div>
@@ -572,37 +571,37 @@
 
             const { value: formValues } = await Swal.fire({
                 title: '➕ สร้างบัญชีนักเรียนใหม่ (ภายใน)',
-                width: '580px',
+                width: '600px',
                 html: `
                     <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold text-center"></div>
                     <div class="space-y-3 text-left text-xs">
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">Username / อีเมลเข้าสู่ระบบ <span class="text-red-500">*</span></label>
-                                <input id="swalUsername" value="${savedData.username || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" placeholder="เช่น student01 หรืออีเมล">
+                                <input id="swalUsername" value="${savedData.username || ''}" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" placeholder="เช่น student01 หรืออีเมล">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">รหัสผ่าน (6 หลัก) <span class="text-red-500">*</span></label>
                                 <div class="flex gap-1.5">
-                                    <input id="swalPassword" value="" maxlength="6" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" placeholder="6 หลัก">
-                                    <button type="button" onclick="generateRandomPassword()" class="px-3 py-2 bg-sky-500/15 hover:bg-sky-500 hover:text-white text-sky-600 font-bold rounded-xl transition-all text-nowrap"><i class="fas fa-dice"></i> สุ่ม</button>
+                                    <input id="swalPassword" value="" maxlength="6" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" placeholder="6 หลัก">
+                                    <button type="button" onclick="generateRandomPassword()" class="px-3.5 py-2.5 bg-sky-500/15 hover:bg-sky-500 hover:text-white text-sky-600 font-bold rounded-xl transition-all text-nowrap"><i class="fas fa-dice"></i> สุ่ม</button>
                                 </div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">ชื่อจริง <span class="text-red-500">*</span></label>
-                                <input id="swalFirstName" value="${savedData.first_name || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ชื่อจริง">
+                                <input id="swalFirstName" value="${savedData.first_name || ''}" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ชื่อจริง">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">นามสกุล <span class="text-red-500">*</span></label>
-                                <input id="swalLastName" value="${savedData.last_name || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="นามสกุล">
+                                <input id="swalLastName" value="${savedData.last_name || ''}" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="นามสกุล">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">เพศ <span class="text-red-500">*</span></label>
-                                <select id="swalGender" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                                <select id="swalGender" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
                                     <option value="" ${!savedData.gender ? 'selected' : ''}>-- เลือกเพศ --</option>
                                     <option value="ชาย" ${savedData.gender === 'ชาย' ? 'selected' : ''}>ชาย</option>
                                     <option value="หญิง" ${savedData.gender === 'หญิง' ? 'selected' : ''}>หญิง</option>
@@ -611,27 +610,27 @@
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">ชื่อเล่น <span class="text-red-500">*</span></label>
-                                <input id="swalNickname" value="${savedData.nickname || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ชื่อเล่น">
+                                <input id="swalNickname" value="${savedData.nickname || ''}" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ชื่อเล่น">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">ระดับชั้น <span class="text-red-500">*</span></label>
-                                <input id="swalGradeLevel" value="${savedData.grade_level || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ม.3/1">
+                                <input id="swalGradeLevel" value="${savedData.grade_level || ''}" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ม.3/1">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">เบอร์โทรศัพท์ <span class="text-red-500">*</span></label>
-                                <input id="swalPhone" value="${savedData.phone || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="089xxxxxxx">
+                                <input id="swalPhone" value="${savedData.phone || ''}" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="089xxxxxxx">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">โรงเรียน <span class="text-red-500">*</span></label>
-                                <input id="swalSchool" value="${savedData.school || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="สวนกุหลาบ">
+                                <input id="swalSchool" value="${savedData.school || ''}" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="สวนกุหลาบ">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">LINE ID <span class="text-red-500">*</span></label>
-                                <input id="swalLineId" value="${savedData.line_id || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="@line">
+                                <input id="swalLineId" value="${savedData.line_id || ''}" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="@line">
                             </div>
                         </div>
                     </div>
@@ -738,7 +737,6 @@
             const isDark = document.documentElement.classList.contains('dark');
             const usernameValStr = student.username || student.email || '';
 
-            // ดึงค่าชื่อจริง-นามสกุลแยกออกมาให้ชัวร์ (กรณีฐานข้อมูลเก็บใน full_name หรือแยกคอลัมน์)
             let fName = student.first_name || '';
             let lName = student.last_name || '';
             if ((!fName || !lName) && student.full_name) {
@@ -749,11 +747,11 @@
 
             const { value: formValues } = await Swal.fire({
                 title: '✏️ แก้ไขข้อมูลบัญชีนักเรียน',
-                width: '580px',
+                width: '600px',
                 html: `
                     <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold text-center"></div>
                     <div class="space-y-3 text-left text-xs">
-                        <div class="grid grid-cols-2 gap-2 bg-sky-50 dark:bg-darkinput p-3 rounded-2xl border border-sky-500/20">
+                        <div class="grid grid-cols-2 gap-3 bg-sky-50 dark:bg-darkinput p-3 rounded-2xl border border-sky-500/20">
                             <div>
                                 <span class="text-[10px] text-slate-400 block font-bold mb-1">จัดการรหัสผ่าน</span>
                                 <button type="button" onclick="triggerResetPassword('${student.id}', '${usernameValStr}')" class="w-full px-3 py-2 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-xl text-xs shadow transition-all flex items-center justify-center gap-1.5">
@@ -770,22 +768,22 @@
 
                         <div>
                             <label class="block font-bold mb-1">Username / อีเมล <span class="text-red-500">*</span></label>
-                            <input id="swalUsername" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" value="${usernameValStr}">
+                            <input id="swalUsername" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-mono font-bold" value="${usernameValStr}">
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">ชื่อจริง <span class="text-red-500">*</span></label>
-                                <input id="swalFirstName" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${fName}">
+                                <input id="swalFirstName" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${fName}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">นามสกุล <span class="text-red-500">*</span></label>
-                                <input id="swalLastName" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${lName}">
+                                <input id="swalLastName" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${lName}">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">เพศ <span class="text-red-500">*</span></label>
-                                <select id="swalGender" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                                <select id="swalGender" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
                                     <option value="" ${!student.gender ? 'selected' : ''}>-- เลือกเพศ --</option>
                                     <option value="ชาย" ${student.gender === 'ชาย' ? 'selected' : ''}>ชาย</option>
                                     <option value="หญิง" ${student.gender === 'หญิง' ? 'selected' : ''}>หญิง</option>
@@ -794,27 +792,27 @@
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">ชื่อเล่น <span class="text-red-500">*</span></label>
-                                <input id="swalNickname" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.nickname || ''}">
+                                <input id="swalNickname" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.nickname || ''}">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">ระดับชั้น <span class="text-red-500">*</span></label>
-                                <input id="swalGradeLevel" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.grade_level || student.grade || ''}">
+                                <input id="swalGradeLevel" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.grade_level || student.grade || ''}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">เบอร์โทรศัพท์ <span class="text-red-500">*</span></label>
-                                <input id="swalPhone" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.phone || ''}">
+                                <input id="swalPhone" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.phone || ''}">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold mb-1">โรงเรียน <span class="text-red-500">*</span></label>
-                                <input id="swalSchool" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.school || ''}">
+                                <input id="swalSchool" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.school || ''}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">LINE ID <span class="text-red-500">*</span></label>
-                                <input id="swalLineId" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.line_id || ''}">
+                                <input id="swalLineId" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.line_id || ''}">
                             </div>
                         </div>
                     </div>
