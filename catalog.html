@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KRUDREAM LAND | เลือกดูคอร์สเรียนและแพ็กเกจทั้งหมด</title>
+    
+    <!-- โลโก้ที่จะไปขึ้นบน Tab ของ Chrome (สามารถเปลี่ยนลิงก์รูปภาพตรง href ได้ตามต้องการ) -->
+    <link rel="icon" type="image/png" href="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=64&auto=format&fit=crop&q=60">
+
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -152,24 +156,29 @@
             <i class="fas fa-bullhorn animate-bounce"></i> เปิดดูประกาศ (<span id="floatingAnnCount">0</span>)
         </button>
 
-        <!-- Content ขวา: ค้นหา ตัวกรอง และรายการคอร์ส -->
+        <!-- Content ขวา: ค้นหา ช่วงราคา และรายการคอร์ส -->
         <section id="mainContentSection" class="lg:col-span-9 transition-sidebar space-y-6">
             
             <div class="glass-card p-4 rounded-3xl flex flex-col sm:flex-row gap-3 items-center justify-between">
-                <div class="relative w-full sm:w-80">
+                <div class="relative w-full sm:w-72">
                     <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                     <input type="text" id="searchInput" oninput="renderCatalog()" placeholder="ค้นหาชื่อคอร์ส, รหัส, หรือเนื้อหา..." class="w-full pl-11 pr-4 py-2.5 glass-input rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 transition font-medium">
                 </div>
 
-                <div class="flex items-center gap-2 w-full sm:w-auto">
-                    <select id="priceFilter" onchange="renderCatalog()" class="px-3.5 py-2.5 glass-input rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer flex-1 sm:flex-none transition hover:border-sky-500">
-                        <option value="all">ทุกช่วงราคา</option>
-                        <option value="free">ฟรี</option>
-                        <option value="under1000">ต่ำกว่า 1,000 บาท</option>
-                        <option value="over1000">1,000 บาทขึ้นไป</option>
-                    </select>
+                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <!-- ช่องกำหนดช่วงราคาเอง (Custom Price Range) -->
+                    <div class="flex items-center gap-1 glass-input px-2.5 py-1.5 rounded-2xl">
+                        <i class="fas fa-filter text-slate-400 text-[10px]"></i>
+                        <span class="text-[11px] font-bold text-slate-600 dark:text-slate-300">ราคา:</span>
+                        <input type="number" id="minPriceInput" oninput="renderCatalog()" placeholder="ต่ำสุด" min="0" class="w-16 px-2 py-1 glass-input rounded-xl text-[11px] text-slate-800 dark:text-white outline-none focus:border-sky-500 text-center">
+                        <span class="text-slate-400 text-xs">-</span>
+                        <input type="number" id="maxPriceInput" oninput="renderCatalog()" placeholder="สูงสุด" min="0" class="w-16 px-2 py-1 glass-input rounded-xl text-[11px] text-slate-800 dark:text-white outline-none focus:border-sky-500 text-center">
+                        <button onclick="resetPriceFilter()" class="w-6 h-6 rounded-lg hover:bg-slate-200/50 dark:hover:bg-darkinput text-slate-400 hover:text-rose-500 transition flex items-center justify-center text-[10px]" title="ล้างราคา">
+                            <i class="fas fa-xmark"></i>
+                        </button>
+                    </div>
 
-                    <select id="sortSelect" onchange="renderCatalog()" class="px-3.5 py-2.5 glass-input rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer flex-1 sm:flex-none transition hover:border-sky-500">
+                    <select id="sortSelect" onchange="renderCatalog()" class="px-3.5 py-2.5 glass-input rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer transition hover:border-sky-500">
                         <option value="newest">มาใหม่ล่าสุด</option>
                         <option value="price-asc">ราคา: ต่ำไปสูง</option>
                         <option value="price-desc">ราคา: สูงไปต่ำ</option>
@@ -203,7 +212,7 @@
         </div>
     </div>
 
-    <!-- Modal รายละเอียดคอร์ส (ไร้ระบบรีวิว) -->
+    <!-- Modal รายละเอียดคอร์ส -->
     <div id="courseModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md hidden flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-4 border border-white/20">
             <button onclick="closeCourseModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl glass-input text-slate-500 hover:text-red-500 transition z-10">
@@ -408,11 +417,21 @@
             renderCatalog();
         }
 
+        window.resetPriceFilter = function() {
+            document.getElementById('minPriceInput').value = '';
+            document.getElementById('maxPriceInput').value = '';
+            renderCatalog();
+        };
+
         function renderCatalog() {
             const grid = document.getElementById('catalogGrid');
             const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
-            const priceFilter = document.getElementById('priceFilter').value;
             const sortBy = document.getElementById('sortSelect').value;
+            
+            const minPriceVal = document.getElementById('minPriceInput').value;
+            const maxPriceVal = document.getElementById('maxPriceInput').value;
+            const minPrice = minPriceVal !== '' ? Number(minPriceVal) : null;
+            const maxPrice = maxPriceVal !== '' ? Number(maxPriceVal) : null;
 
             let filtered = allPackages.filter(p => {
                 const title = (p.title || '').toLowerCase();
@@ -423,9 +442,8 @@
 
                 const price = Number(p.price || 0);
                 let matchPrice = true;
-                if (priceFilter === 'free') matchPrice = price === 0;
-                else if (priceFilter === 'under1000') matchPrice = price > 0 && price < 1000;
-                else if (priceFilter === 'over1000') matchPrice = price >= 1000;
+                if (minPrice !== null && price < minPrice) matchPrice = false;
+                if (maxPrice !== null && price > maxPrice) matchPrice = false;
 
                 return matchKeyword && matchTag && matchPrice;
             });
@@ -437,7 +455,7 @@
             }
 
             if (filtered.length === 0) {
-                grid.innerHTML = `<div class="glass-card p-12 rounded-3xl text-center text-slate-400 col-span-full"><h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ไม่พบคอร์สเรียนที่ค้นหา</h4><p class="text-xs text-slate-400">ลองเปลี่ยนคำค้นหาหรือตัวกรองดูใหม่อีกครั้ง</p></div>`;
+                grid.innerHTML = `<div class="glass-card p-12 rounded-3xl text-center text-slate-400 col-span-full"><h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ไม่พบคอร์สเรียนที่ค้นหา</h4><p class="text-xs text-slate-400">ลองเปลี่ยนคำค้นหาหรือช่วงราคาดูใหม่อีกครั้ง</p></div>`;
                 return;
             }
 
