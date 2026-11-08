@@ -222,7 +222,7 @@
         let userRole = 'admin';
         let currentStudentData = null;
         let studentEnrolledCourses = [];
-        let studentEnrolledCourseIds = []; // เก็บ UUID ของคอร์สที่นักเรียนลงทะเบียน
+        let studentEnrolledCourseIds = [];
         let allCoursesList = [];
         let allStudentsList = [];
         let coursesMap = {};
@@ -241,7 +241,7 @@
         });
 
         async function initPage() {
-            // โหลดข้อมูลคอร์สเก็บไว้แปลงชื่อ
+            // โหลดข้อมูลคอร์ส
             const { data: courses } = await mySupabase.from('courses').select('id, title, course_code');
             if (courses) {
                 allCoursesList = courses;
@@ -322,52 +322,46 @@
             return false;
         }
 
-        // 🌟 ฟังก์ชันตรวจสอบสิทธิ์ประกาศ (กรองเฉพาะคอร์สที่นักเรียนลงทะเบียนจริง ๆ เท่านั้น)
+        // 🌟 ฟังก์ชันกรองประกาศ (แสดงเฉพาะคอร์สที่ลงทะเบียน หรือประกาศทั่วไป)
         function isAnnouncementForThisStudent(a) {
             if (userRole !== 'student') return true;
-            if (typeof window.isAnnouncementForThisStudent === 'function' && window.isAnnouncementForThisStudent !== isAnnouncementForThisStudent) {
-                return window.isAnnouncementForThisStudent(a);
-            }
 
             const tType = a.target_type || 'all';
             const tVal = a.target_value || '';
-            const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
 
-            // ถ้าเป็นประกาศทั่วไป (all) หรือไม่ระบุเป้าหมาย ให้แสดง
-            if (tType === 'all' || !tType) return true;
+            // ถ้าเป็นประกาศทั่วไป (all) หรือไม่กำหนด target_type ให้แสดงทันที
+            if (tType === 'all' || !tType || tVal === '') return true;
 
-            // 1. เช็คตามระดับชั้น
+            // 1. เช็คตามคอร์สเรียน (target_type === 'course')
+            if (tType === 'course') {
+                if (!tVal) return false;
+                const targetItems = tVal.split(',').map(item => item.trim().toLowerCase());
+                
+                // ตรวจสอบว่าตรงกับคอร์สที่นักเรียนลงทะเบียนไว้หรือไม่
+                return targetItems.some(target => {
+                    return studentEnrolledCourses.some(enrolled => enrolled === target || enrolled.includes(target) || target.includes(enrolled)) ||
+                           studentEnrolledCourseIds.some(id => target === id.toLowerCase());
+                });
+            }
+
+            // 2. เช็คตามระดับชั้น (target_type === 'level')
             if (tType === 'level') {
                 const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
                 if (!studentGrade) return false;
                 return tVal.toLowerCase().includes(studentGrade.toLowerCase());
             }
 
-            // 2. เช็คตามคอร์สเรียน (ต้องตรงกับคอร์สที่นักเรียนลงทะเบียนไว้จริง ๆ เท่านั้น)
-            if (tType === 'course') {
-                if (!tVal) return false;
-                if (studentEnrolledCourses.length === 0 && studentEnrolledCourseIds.length === 0) return false;
-                
-                const targetItems = tVal.split(',').map(item => item.trim().toLowerCase());
-                
-                let isMatch = targetItems.some(target => {
-                    return studentEnrolledCourses.some(enrolled => enrolled === target || enrolled.includes(target) || target.includes(enrolled)) ||
-                           studentEnrolledCourseIds.some(id => target === id.toLowerCase());
-                });
-                return isMatch;
-            }
-
-            // 3. เช็คตามรายบุคคล
+            // 3. เช็คตามรายบุคคล (target_type === 'specific')
             if (tType === 'specific') {
                 if (!tVal) return false;
                 const targetStudents = tVal.split(',').map(s => s.trim());
-                const uuidMatch = currentStudentData?.id && targetStudents.includes(String(currentStudentData.id));
-                const idMatch = targetStudents.includes(String(studentId));
-                const usernameMatch = currentStudentData?.username && targetStudents.includes(String(currentStudentData.username));
-                return uuidMatch || idMatch || usernameMatch;
+                const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
+                return (currentStudentData?.id && targetStudents.includes(String(currentStudentData.id))) ||
+                       targetStudents.includes(String(studentId)) ||
+                       (currentStudentData?.username && targetStudents.includes(String(currentStudentData.username)));
             }
 
-            return false;
+            return true;
         }
 
         function renderStudentCheckboxes(students) {
@@ -453,14 +447,8 @@
                 return;
             }
 
-            // 🌟 กรองประกาศโดยใช้ฟังก์ชัน isAnnouncementForThisStudent
-            let filteredAnns = anns.filter(a => {
-                try {
-                    return isAnnouncementForThisStudent(a);
-                } catch (e) {
-                    return true;
-                }
-            });
+            // กรองประกาศสำหรับนักเรียน หรือแสดงทั้งหมดสำหรับแอดมิน
+            let filteredAnns = anns.filter(a => isAnnouncementForThisStudent(a));
 
             document.getElementById('annCount').textContent = `${filteredAnns.length} รายการ`;
             const isStaff = userRole !== 'student';
