@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="th" class="light">
 <head>
+    <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KRUDREAM LAND | เข้าสู่ระบบระบบการเรียนการสอน - ครูดรีม</title>
@@ -16,7 +17,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="LMS ครูครีม">
+    <meta name="apple-mobile-web-app-title" content="LMS ครูดรีม">
 
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -71,7 +72,7 @@
 
             <div class="text-center mb-8">
                 <div class="w-20 h-20 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/30 border-2 border-blue-500/30 flex items-center justify-center bg-white">
-                    <img src="logo.jpg" alt="Logo ครูครีม" class="w-full h-full object-cover">
+                    <img src="logo.jpg" alt="Logo ครูดรีม" class="w-full h-full object-cover">
                 </div>
                 <h1 class="text-2xl font-bold text-gray-800 dark:text-white">KRUDREAM Online Platform</h1>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">เข้าสู่ระบบด้วย Username ของคุณ</p>
@@ -121,7 +122,7 @@
 
     <!-- ปุ่มลอยสำหรับติดตั้งเว็บแอป (Install Web App) และเปลี่ยนธีม -->
     <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
-        <button id="installAppBtn" class="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg border border-blue-400 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer" title="ติดตั้งเว็บแอป">
+        <button id="installAppBtn" class="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg border border-blue-400 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer hidden" title="ติดตั้งเว็บแอป">
             <i class="fas fa-download text-lg"></i>
         </button>
         
@@ -151,6 +152,15 @@
             const isDark = htmlElement.classList.contains('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
+        });
+
+        // เติม Username ที่จดจำไว้ (ถ้ามี)
+        window.addEventListener('DOMContentLoaded', () => {
+            const rememberedUser = localStorage.getItem('remembered_username');
+            if (rememberedUser) {
+                document.getElementById('username').value = rememberedUser;
+                document.getElementById('rememberMe').checked = true;
+            }
         });
 
         function openPrivacyPolicyModal() {
@@ -193,7 +203,6 @@
         const bannerInstallBtn = document.getElementById('bannerInstallBtn');
         const closeBannerBtn = document.getElementById('closeBannerBtn');
 
-        // ตรวจสอบการแสดงผลแบนเนอร์ด้านบน
         window.addEventListener('DOMContentLoaded', () => {
             installBtn.classList.remove('hidden');
             if (!localStorage.getItem('closed_pwa_banner')) {
@@ -206,18 +215,15 @@
             localStorage.setItem('closed_pwa_banner', 'true');
         });
 
-        // ดักจับ Event ติดตั้งแอปจากเบราว์เซอร์
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
         });
 
-        // ฟังก์ชันตรวจสอบว่าเป็น iOS / Safari หรือไม่
         function isIOS() {
             return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         }
 
-        // ฟังก์ชันกลางสำหรับกดติดตั้ง (ใช้ร่วมกันทั้งปุ่มลอยและแบนเนอร์ด้านบน)
         async function triggerInstall() {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
