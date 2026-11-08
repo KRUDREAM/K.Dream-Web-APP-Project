@@ -50,12 +50,15 @@
                     <div>
                         <h1 class="font-extrabold text-xl text-slate-900 dark:text-white flex items-center gap-2">
                             <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-boxes-stacked"></i></span>
-                            จัดการ Catalog สินค้าและแพ็กเกจคอร์สเรียน (Admin Pro)
+                            จัดการ Catalog สินค้าและแพ็กเกจคอร์สเรียน
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมกรอบรูป 16:9, จัดลำดับภาพ, โปรโมชั่นหมดเวลา, และโค้ดส่วนลด</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมกรอบรูป 16:9, จัดลำดับภาพ, และกำหนดราคาแพ็กเกจ</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
+                    <button onclick="window.location.href='admin_promos.html'" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2">
+                        <i class="fas fa-ticket"></i> จัดการโค้ดส่วนลด
+                    </button>
                     <button onclick="openPackageModal()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 flex items-center gap-2">
                         <i class="fas fa-plus"></i> เพิ่มแพ็กเกจใหม่
                     </button>
@@ -101,7 +104,7 @@
 
     <!-- Modal สำหรับเพิ่ม / แก้ไขแพ็กเกจ -->
     <div id="packageModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="modern-card w-full max-w-3xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div class="modern-card w-full max-w-4xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-6">
             <button onclick="closePackageModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
                 <i class="fas fa-xmark"></i>
             </button>
@@ -114,7 +117,7 @@
                     </div>
                     <div>
                         <h3 class="text-base font-bold text-slate-900 dark:text-white" id="modalTitle">เพิ่มแพ็กเกจคอร์สใหม่</h3>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400">กำหนดราคา โปรโมชั่น และเรียงลำดับรูปภาพ</p>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">กำหนดราคา รายละเอียด และจัดการรูปภาพ</p>
                     </div>
                 </div>
 
@@ -170,17 +173,6 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">🎟️ โค้ดส่วนลด (Promo Code)</label>
-                            <input type="text" id="pkgPromoCode" placeholder="เช่น DREAM300" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500 font-mono">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">⏰ โปรโมชั่นหมดเขต</label>
-                            <input type="datetime-local" id="pkgPromoEndTime" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-[11px] outline-none focus:border-sky-500">
-                        </div>
-                    </div>
-
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">เงื่อนไขโปรโมชั่น / ส่วนลดเพิ่มเติม</label>
                         <input type="text" id="pkgPromo" oninput="updateLivePreview()" placeholder="ลด 40% เฉพาะ 30 ท่านแรกเท่านั้น" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
@@ -188,9 +180,9 @@
 
                     <!-- อัปโหลดและจัดเรียงรูปภาพ -->
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">อัปโหลดรูปภาพ (16:9) & จัดลำดับ</label>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">อัปโหลดรูปภาพ (16:9 Frame) & จัดลำดับ</label>
                         <input type="file" id="pkgImagesInput" multiple accept="image/*" class="w-full px-3 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer">
-                        <p class="text-[10px] text-slate-400 mt-1">รูปแรกซ้ายสุดจะถูกใช้เป็นรูปปกหลัก</p>
+                        <p class="text-[10px] text-slate-400 mt-1">รูปแรกซ้ายสุดจะถูกใช้เป็นรูปปกหลักของสินค้า</p>
                         
                         <div id="imagePreviewContainer" class="flex flex-wrap gap-2 mt-2.5"></div>
                     </div>
@@ -218,7 +210,7 @@
                         <span class="text-[10px] uppercase font-black tracking-wider text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2.5 py-1 rounded-lg">
                             <i class="fas fa-eye mr-1"></i> พรีวิวหน้าเว็บนักเรียน
                         </span>
-                        <span class="text-[10px] text-slate-400">1920x1080 Frame</span>
+                        <span class="text-[10px] text-slate-400">16:9 Frame</span>
                     </div>
 
                     <!-- ตัวอย่างการ์ดสินค้าจริง -->
@@ -242,7 +234,7 @@
                         </div>
                     </div>
                 </div>
-                <p class="text-[10px] text-slate-400 text-center mt-4">รูปภาพและข้อมูลจะปรับเปลี่ยนตามที่คุณกรอกฟอร์มแบบเรียลไทม์</p>
+                <p class="text-[10px] text-slate-400 text-center mt-4">รูปภาพและข้อมูลจะปรับเปลี่ยนตามที่คุณกรอกแบบเรียลไทม์</p>
             </div>
         </div>
     </div>
@@ -385,8 +377,6 @@
                     document.getElementById('pkgPrice').value = pkg.price || '';
                     document.getElementById('pkgFreebies').value = pkg.freebies || '';
                     document.getElementById('pkgMaxSlots').value = pkg.max_slots || '';
-                    document.getElementById('pkgPromoCode').value = pkg.promo_code || '';
-                    if (pkg.promo_end_time) document.getElementById('pkgPromoEndTime').value = pkg.promo_end_time.substring(0, 16);
                     document.getElementById('pkgPromo').value = pkg.promo_details || '';
                     document.getElementById('pkgDesc').value = pkg.description || '';
                     
@@ -483,8 +473,6 @@
                 price: parseFloat(document.getElementById('pkgPrice').value) || 0,
                 freebies: document.getElementById('pkgFreebies').value.trim(),
                 max_slots: document.getElementById('pkgMaxSlots').value ? parseInt(document.getElementById('pkgMaxSlots').value) : null,
-                promo_code: document.getElementById('pkgPromoCode').value.trim(),
-                promo_end_time: document.getElementById('pkgPromoEndTime').value ? new Date(document.getElementById('pkgPromoEndTime').value).toISOString() : null,
                 promo_details: document.getElementById('pkgPromo').value.trim(),
                 images: currentImageUrls,
                 image_url: currentImageUrls.length > 0 ? currentImageUrls[0] : null,
