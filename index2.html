@@ -372,12 +372,18 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
+// ฟังก์ชันเช็คว่าตอนนี้หน้าเว็บเป็น Dark Mode อยู่หรือไม่
+        function isDarkMode() {
+            return document.documentElement.classList.contains('dark');
+        }
+
         // ฟังก์ชันแสดง Popup ข้อกำหนดและเงื่อนไข
         function openTermsModal() {
+            const dark = isDarkMode();
             Swal.fire({
-                title: '<span class="text-lg font-black text-blue-600">ข้อกำหนดและเงื่อนไขการใช้งาน (Terms & Conditions)</span>',
+                title: '<span class="text-lg font-black text-blue-500">ข้อกำหนดและเงื่อนไขการใช้งาน (Terms & Conditions)</span>',
                 html: `
-                    <div class="text-left text-xs space-y-3 max-h-[60vh] overflow-y-auto pr-2 text-slate-600 dark:text-slate-300">
+                    <div class="text-left text-xs space-y-3 max-h-[60vh] overflow-y-auto pr-2 ${dark ? 'text-slate-300' : 'text-slate-600'}">
                         <p><strong>1. การยอมรับเงื่อนไข:</strong> การเข้าใช้งานเว็บไซต์ KRUDREAM LAND และการสมัครสมาชิกถือว่าท่านได้อ่านและยอมรับข้อกำหนดเงื่อนไขทั้งหมดนี้แล้ว</p>
                         <p><strong>2. บัญชีผู้ใช้งาน:</strong> สิทธิ์การใช้งานบัญชีเป็นของท่านแต่เพียงผู้เดียว ไม่อนุญาตให้แชร์รหัสผ่านหรือบัญชีผู้ใช้ให้ผู้อื่นใช้งานร่วมกัน</p>
                         <p><strong>3. ทรัพย์สินทางปัญญา:</strong> วิดีโอ เอกสารประกอบการเรียน และข้อสอบทั้งหมดในระบบถือเป็นลิขสิทธิ์ของ KRUDREAM LAND ห้ามมิให้มีการบันทึกหน้าจอ คัดลอก หรือเผยแพร่ต่อสาธารณะโดยไม่ได้รับอนุญาต</p>
@@ -386,16 +392,19 @@
                 `,
                 confirmButtonText: 'ปิด',
                 confirmButtonColor: '#3b82f6',
-                width: '600px'
+                width: '600px',
+                background: dark ? '#090d1a' : '#ffffff',
+                color: dark ? '#f1f5f9' : '#1e293b'
             });
         }
 
         // ฟังก์ชันแสดง Popup นโยบายความเป็นส่วนตัว
         function openPrivacyModal() {
+            const dark = isDarkMode();
             Swal.fire({
-                title: '<span class="text-lg font-black text-blue-600">นโยบายความเป็นส่วนตัว (Privacy Policy)</span>',
+                title: '<span class="text-lg font-black text-blue-500">นโยบายความเป็นส่วนตัว (Privacy Policy)</span>',
                 html: `
-                    <div class="text-left text-xs space-y-3 max-h-[60vh] overflow-y-auto pr-2 text-slate-600 dark:text-slate-300">
+                    <div class="text-left text-xs space-y-3 max-h-[60vh] overflow-y-auto pr-2 ${dark ? 'text-slate-300' : 'text-slate-600'}">
                         <p><strong>1. การเก็บรวบรวมข้อมูล:</strong> เราเก็บรวบรวมข้อมูลส่วนบุคคลของท่าน เช่น ชื่อ นามสกุล อีเมล เบอร์โทรศัพท์ และโรงเรียน เพื่อใช้ในการจัดการเรียนการสอนและบริการของสถาบัน</p>
                         <p><strong>2. การใช้ประโยชน์จากข้อมูล:</strong> ข้อมูลของท่านจะถูกใช้เพื่อยืนยันตัวตน ติดต่อสื่อสาร จัดส่งสื่อการเรียน และพัฒนาประสิทธิภาพการให้บริการ</p>
                         <p><strong>3. ความปลอดภัยของข้อมูล:</strong> เรามีมาตรการรักษาความปลอดภัยที่รัดกุม เพื่อป้องกันการเข้าถึงหรือเปิดเผยข้อมูลส่วนบุคคลโดยไม่ได้รับอนุญาต</p>
@@ -404,7 +413,9 @@
                 `,
                 confirmButtonText: 'ปิด',
                 confirmButtonColor: '#3b82f6',
-                width: '600px'
+                width: '600px',
+                background: dark ? '#090d1a' : '#ffffff',
+                color: dark ? '#f1f5f9' : '#1e293b'
             });
         }
 
