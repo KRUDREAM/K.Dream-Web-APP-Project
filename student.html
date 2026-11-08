@@ -754,20 +754,6 @@ async function loadStudentNotificationsCount() {
             window.location.replace('index.html');
         }
 
-// 🌟 ฟังก์ชันตรวจสอบว่าประกาศนี้ตรงกับสิทธิ์ของนักเรียนคนนี้หรือไม่
-
-async function loadStudentNotifications() {
-    const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
-    
-    if (error || !anns) return;
-
-    // กรองเฉพาะประกาศที่นักเรียนคนนี้มีสิทธิ์เห็นจริงๆ เท่านั้น
-    const myValidAnns = anns.filter(a => isAnnouncementForThisStudent(a));
-
-    // นำ myValidAnns ไปแสดงผลหรือนับจำนวนแจ้งเตือนต่อได้เลยครับ
-    console.log("ประกาศสำหรับนักเรียนคนนี้:", myValidAnns);
-}
-
 // 🌟 เรนเดอร์รายการใน Dropdown (ปลอดภัยจาก Error)
 async function fetchAndRenderNotificationDropdown() {
     const listContainer = document.getElementById('notifDropdownList');
