@@ -323,6 +323,7 @@
         }
 
         // 🌟 ฟังก์ชันตรวจสอบสิทธิ์ประกาศของนักเรียน (กรองคอร์ส/ระดับชั้นอย่างแม่นยำ)
+// 🌟 ฟังก์ชันตรวจสอบสิทธิ์ประกาศของนักเรียน (แบบยืดหยุ่น ป้องกันประกาศหาย)
         function isAnnouncementForThisStudent(a) {
             if (userRole !== 'student') return true;
             if (typeof window.isAnnouncementForThisStudent === 'function' && window.isAnnouncementForThisStudent !== isAnnouncementForThisStudent) {
@@ -333,23 +334,26 @@
             const tVal = a.target_value || '';
             const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
 
-            if (tType === 'all' || !tType) return true;
-            if (a.category === 'exam' && (!tVal || tType === 'all')) return true;
+            // ถ้าเป็นประกาศทั่วไป หรือไม่ได้ระบุประเภทเป้าหมาย ให้แสดงทั้งหมด
+            if (tType === 'all' || !tType || tVal === '') return true;
+            if (a.category === 'exam') return true; // ให้เห็นประกาศข้อสอบได้ทั้งหมดเพื่อความสะดวก
 
             // 1. เช็คตามระดับชั้น
             if (tType === 'level') {
                 const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
-                if (!studentGrade) return true;
-                return tVal.toLowerCase().includes(studentGrade.toLowerCase());
+                if (!studentGrade) return true; // ถ้าไม่มีข้อมูลระดับชั้นในโปรไฟล์ ให้แสดงไว้ก่อน
+                return tVal.toLowerCase().includes(studentGrade.toLowerCase()) || studentGrade.toLowerCase().includes(tVal.toLowerCase());
             }
 
-            // 2. เช็คตามคอร์สเรียน (ตรวจสอบรหัส/ชื่อ/ID คอร์สให้ตรงกันจริง ๆ)
+            // 2. เช็คตามคอร์สเรียน
             if (tType === 'course') {
-                if (!tVal) return false;
-                const targetItems = tVal.split(',').map(item => item.trim().toLowerCase());
+                if (!tVal) return true;
+                // ถ้านักเรียนยังไม่ได้โหลดคอร์ส หรือข้อมูลคอร์สว่าง ให้แสดงไว้ก่อนกันประกาศหาย
+                if (studentEnrolledCourses.length === 0 && studentEnrolledCourseIds.length === 0) return true;
                 
+                const targetItems = tVal.split(',').map(item => item.trim().toLowerCase());
                 let isMatch = targetItems.some(target => {
-                    return studentEnrolledCourses.some(enrolled => enrolled === target || enrolled.includes(target) || target.includes(enrolled)) ||
+                    return studentEnrolledCourses.some(enrolled => enrolled.includes(target) || target.includes(enrolled)) ||
                            studentEnrolledCourseIds.some(id => target === id.toLowerCase());
                 });
                 return isMatch;
@@ -357,7 +361,7 @@
 
             // 3. เช็คตามรายบุคคล
             if (tType === 'specific') {
-                if (!tVal) return false;
+                if (!tVal) return true;
                 const targetStudents = tVal.split(',').map(s => s.trim());
                 const uuidMatch = currentStudentData?.id && targetStudents.includes(String(currentStudentData.id));
                 const idMatch = targetStudents.includes(String(studentId));
@@ -367,7 +371,7 @@
 
             return true;
         }
-
+        
         function renderStudentCheckboxes(students) {
             const container = document.getElementById('studentCheckboxes');
             if (!container) return;
