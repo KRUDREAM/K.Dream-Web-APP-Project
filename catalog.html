@@ -28,6 +28,7 @@
         .dark .glass-nav { background: rgba(9, 13, 22, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(30, 41, 59, 0.8); }
         .modern-card { background: #ffffff; border: 1px solid rgba(226, 232, 240, 1); box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.08); }
         .dark .modern-card { background: #0f172a; border: 1px solid rgba(30, 41, 59, 1); }
+        .transition-sidebar { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
@@ -74,17 +75,22 @@
         <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">รวบรวมคอร์สเรียนและแพ็กเกจคุณภาพ ออกแบบมาเพื่อการสอบเข้าและความเข้าใจที่แท้จริง</p>
     </header>
 
-    <!-- Main Layout with Left Announcement Sidebar -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <!-- Main Layout with Collapsible Left Announcement Sidebar -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
         
-        <!-- Sidebar ซ้าย: ระบบประกาศ (ดึงข้อมูลจากตาราง site_announcements) -->
-        <aside class="lg:col-span-1 space-y-4">
-            <div class="modern-card p-5 rounded-3xl sticky top-28 space-y-4 shadow-sm">
-                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <!-- Sidebar ซ้าย: ระบบประกาศ (ยุบ/ขยายได้) -->
+        <aside id="announcementSidebar" class="lg:col-span-3 transition-sidebar space-y-4">
+            <div class="modern-card p-5 rounded-3xl sticky top-28 space-y-4 shadow-xl border-amber-500/30 dark:border-amber-500/20 bg-gradient-to-b from-amber-500/[0.03] to-transparent">
+                <div class="flex items-center justify-between border-b border-amber-500/20 pb-3">
                     <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                        <i class="fas fa-bullhorn text-amber-500 animate-bounce"></i> ประกาศสำคัญ
+                        <span class="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs shadow-md"><i class="fas fa-bullhorn"></i></span>
+                        ประกาศสำคัญ
+                        <span class="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold shadow-sm" id="announcementCount">0</span>
                     </h3>
-                    <span class="text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-bold" id="announcementCount">0</span>
+                    <!-- ปุ่มหุบ/ซ่อน Sidebar -->
+                    <button onclick="toggleAnnouncementSidebar()" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-amber-500 flex items-center justify-center transition shadow-sm" title="หุบช่องประกาศ">
+                        <i class="fas fa-chevron-left text-xs" id="collapseIcon"></i>
+                    </button>
                 </div>
                 
                 <div id="announcementSidebarList" class="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
@@ -95,10 +101,15 @@
             </div>
         </aside>
 
+        <!-- ปุ่มเปิด Sidebar กลับมา กรณีที่ถูกหุบไปแล้ว -->
+        <button id="openSidebarBtn" onclick="toggleAnnouncementSidebar()" class="hidden fixed left-4 top-28 z-40 bg-amber-500 hover:bg-amber-600 text-white p-3 rounded-2xl shadow-xl transition items-center gap-2 font-bold text-xs">
+            <i class="fas fa-bullhorn animate-bounce"></i> เปิดดูประกาศ (<span id="floatingAnnCount">0</span>)
+        </button>
+
         <!-- Content ขวา: ค้นหา ตัวกรองราคา และรายการคอร์ส -->
-        <section class="lg:col-span-3 space-y-6">
+        <section id="mainContentSection" class="lg:col-span-9 transition-sidebar space-y-6">
             
-            <div class="modern-card p-4 rounded-3xl flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div class="modern-card p-4 rounded-3xl flex flex-col sm:flex-row gap-3 items-center justify-between shadow-sm">
                 <div class="relative w-full sm:w-72">
                     <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                     <input type="text" id="searchInput" oninput="renderCatalog()" placeholder="ค้นหาชื่อคอร์ส หรือรหัส..." class="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-sky-500">
@@ -180,6 +191,7 @@
         let activeTag = 'all';
         let currentStudentId = localStorage.getItem('student_id') || localStorage.getItem('id');
         let currentStudentName = 'นักเรียน';
+        let isSidebarCollapsed = false;
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -193,6 +205,25 @@
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
+
+        function toggleAnnouncementSidebar() {
+            isSidebarCollapsed = !isSidebarCollapsed;
+            const sidebar = document.getElementById('announcementSidebar');
+            const mainSection = document.getElementById('mainContentSection');
+            const openBtn = document.getElementById('openSidebarBtn');
+
+            if (isSidebarCollapsed) {
+                sidebar.classList.add('hidden');
+                mainSection.className = 'lg:col-span-12 transition-sidebar space-y-6';
+                openBtn.classList.remove('hidden');
+                openBtn.classList.add('flex');
+            } else {
+                sidebar.classList.remove('hidden');
+                mainSection.className = 'lg:col-span-9 transition-sidebar space-y-6';
+                openBtn.classList.remove('flex');
+                openBtn.classList.add('hidden');
+            }
+        }
 
         function goToStudentPortal() {
             window.location.href = currentStudentId ? `student_portal.html?student_id=${currentStudentId}` : 'student_portal.html';
@@ -227,6 +258,7 @@
         function renderAnnouncementsSidebar() {
             const container = document.getElementById('announcementSidebarList');
             document.getElementById('announcementCount').textContent = siteAnnouncements.length;
+            document.getElementById('floatingAnnCount').textContent = siteAnnouncements.length;
 
             if (siteAnnouncements.length === 0) {
                 container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีประกาศในขณะนี้</p>`;
@@ -236,17 +268,20 @@
             container.innerHTML = siteAnnouncements.map(item => {
                 const title = item.title || 'ประกาศสำคัญ';
                 const content = item.content || '';
-                const badge = item.badge_tag ? `<span class="px-2 py-0.5 bg-amber-500 text-white rounded-md text-[9px] font-bold shadow">${item.badge_tag}</span>` : '';
-                const imgHtml = item.image_url ? `<div class="aspect-video w-full rounded-xl overflow-hidden bg-slate-900/5 dark:bg-slate-800/50 flex items-center justify-center p-1 mt-2"><img src="${item.image_url}" class="w-full h-full object-contain rounded-lg"></div>` : '';
+                const badge = item.badge_tag ? `<span class="px-2 py-0.5 bg-amber-500 text-white rounded-md text-[9px] font-bold shadow-sm">${item.badge_tag}</span>` : '<span class="px-2 py-0.5 bg-sky-500 text-white rounded-md text-[9px] font-bold shadow-sm">📢 ข่าวสาร</span>';
+                const imgHtml = item.image_url ? `<div class="aspect-video w-full rounded-xl overflow-hidden bg-slate-900/5 dark:bg-slate-800/50 flex items-center justify-center p-1 mt-2 border border-amber-500/10"><img src="${item.image_url}" class="w-full h-full object-contain rounded-lg"></div>` : '';
                 
                 return `
-                    <div onclick="openAnnouncementDetail('${item.id}')" class="p-3.5 bg-amber-50/50 dark:bg-darkinput rounded-2xl border border-amber-100 dark:border-slate-800 space-y-2 cursor-pointer hover:border-amber-500 transition shadow-sm">
-                        <div class="flex items-center justify-between">
-                            <span class="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5"><i class="fas fa-bullhorn text-amber-500"></i> ${title}</span>
+                    <div onclick="openAnnouncementDetail('${item.id}')" class="p-4 bg-white dark:bg-darkinput rounded-2xl border-2 border-amber-500/30 hover:border-amber-500 hover:shadow-lg transition-all cursor-pointer space-y-2 group">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-extrabold text-xs text-slate-900 dark:text-white group-hover:text-amber-500 transition line-clamp-1">${title}</span>
                             ${badge}
                         </div>
                         <p class="text-[11px] text-slate-600 dark:text-slate-300 font-light leading-relaxed whitespace-pre-line line-clamp-3">${content}</p>
                         ${imgHtml}
+                        <div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 pt-1">
+                            <span>คลิกเพื่ออ่านฉบับเต็ม</span> <i class="fas fa-arrow-right text-[9px]"></i>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -256,20 +291,20 @@
             const item = siteAnnouncements.find(x => x.id === id);
             if (!item) return;
 
-            const badge = item.badge_tag ? `<span class="px-2.5 py-1 bg-amber-500 text-white rounded-xl text-xs font-bold shadow">${item.badge_tag}</span>` : '';
+            const badge = item.badge_tag ? `<span class="px-3 py-1 bg-amber-500 text-white rounded-xl text-xs font-bold shadow">${item.badge_tag}</span>` : '';
             const imgHtml = item.image_url ? `
-                <div class="relative aspect-video rounded-2xl overflow-hidden bg-slate-900/5 dark:bg-slate-800/50 flex items-center justify-center p-2 shadow-inner">
+                <div class="relative aspect-video rounded-2xl overflow-hidden bg-slate-900/5 dark:bg-slate-800/50 flex items-center justify-center p-2 shadow-inner border border-slate-200 dark:border-slate-800">
                     <img src="${item.image_url}" class="w-full h-full object-contain rounded-xl">
                 </div>
             ` : '';
 
             document.getElementById('announcementModalContent').innerHTML = `
-                <div class="space-y-3">
+                <div class="space-y-4">
                     <div class="flex items-center justify-between">
                         ${badge}
-                        <span class="text-[10px] text-slate-400"><i class="far fa-clock mr-1"></i>${new Date(item.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                        <span class="text-[11px] text-slate-400 font-medium"><i class="far fa-clock mr-1"></i>${new Date(item.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
                     </div>
-                    <h3 class="text-xl font-bold text-slate-900 dark:text-white">${item.title}</h3>
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-white leading-snug">${item.title}</h3>
                     ${imgHtml}
                     <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">${item.content}</p>
                 </div>
