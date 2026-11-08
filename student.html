@@ -651,7 +651,6 @@
             window.location.replace('index.html');
         }
 
-// 🌟 โหลดและนับจำนวนการแจ้งเตือนที่ยังไม่อ่าน
 // 🌟 โหลดและนับจำนวนการแจ้งเตือนที่ยังไม่อ่าน (กรองเฉพาะประกาศที่ตรงกับสิทธิ์ของนักเรียนคนนี้)
 async function loadStudentNotificationsCount() {
     try {
@@ -659,12 +658,12 @@ async function loadStudentNotificationsCount() {
         const badge = document.getElementById('notifBadge');
         
         if (error || !anns || anns.length === 0) {
-            badge.classList.add('hidden');
+            if (badge) badge.classList.add('hidden');
             return;
         }
 
-        // กรองประกาศให้เหลือเฉพาะที่นักเรียนคนนี้มีสิทธิ์เห็น
-        const myValidAnns = anns.filter(a => isAnnouncementForThisStudent(a));
+        // กรองประกาศให้เหลือเฉพาะที่นักเรียนคนนี้มีสิทธิ์เห็น (เรียกใช้ฟังก์ชัน isAnnouncementForThisStudent ถ้ามี หรือกรองตามเงื่อนไขที่ต้องการ)
+        const myValidAnns = anns.filter(a => typeof isAnnouncementForThisStudent === 'function' ? isAnnouncementForThisStudent(a) : true);
         notificationsDataCache = myValidAnns; // เก็บใส่ Cache เฉพาะตัวที่ถูกต้อง
 
         // ดึงรายการ ID ที่อ่านแล้วจาก currentStudentData
@@ -680,11 +679,13 @@ async function loadStudentNotificationsCount() {
             headerCount.textContent = `${unread.length} ใหม่`;
         }
 
-        if (unread.length > 0) {
-            badge.textContent = unread.length > 9 ? '9+' : unread.length;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
+        if (badge) {
+            if (unread.length > 0) {
+                badge.textContent = unread.length > 9 ? '9+' : unread.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
         }
     } catch (err) {
         console.warn("Notification count warning:", err);
@@ -707,7 +708,7 @@ async function fetchAndRenderNotificationDropdown() {
         }
 
         // กรองประกาศเฉพาะของนักเรียนคนนี้
-        const myValidAnns = anns.filter(a => isAnnouncementForThisStudent(a));
+        const myValidAnns = anns.filter(a => typeof isAnnouncementForThisStudent === 'function' ? isAnnouncementForThisStudent(a) : true);
         notificationsDataCache = myValidAnns;
 
         if (myValidAnns.length === 0) {
@@ -776,7 +777,9 @@ async function clickNotificationItem(annId) {
         }
     }
 
-    document.getElementById('notifDropdownMenu').classList.add('hidden');
+    const dropdownMenu = document.getElementById('notifDropdownMenu');
+    if (dropdownMenu) dropdownMenu.classList.add('hidden');
+    
     loadStudentNotificationsCount();
     openNotificationsModal();
 }
@@ -800,7 +803,9 @@ async function markAllNotificationsRead() {
         await mySupabase.from('profiles').update({ read_announcements: readIds }).eq('id', currentStudentId);
     }
 
-    document.getElementById('notifBadge').classList.add('hidden');
+    const badge = document.getElementById('notifBadge');
+    if (badge) badge.classList.add('hidden');
+    
     const headerCount = document.getElementById('notifHeaderCount');
     if (headerCount) headerCount.textContent = '0 ใหม่';
     
