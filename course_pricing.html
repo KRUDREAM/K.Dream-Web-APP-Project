@@ -70,7 +70,7 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 space-y-10">
         
-        <!-- SECTION 1: จัดการประกาศหน้าเว็บ (ตาราง announcements แยกอิสระ พร้อมอัปโหลดรูป & Tag Dropdown) -->
+        <!-- SECTION 1: จัดการประกาศหน้าเว็บ (ตาราง site_announcements) -->
         <section class="space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-amber-500/10 dark:bg-amber-950/30 p-6 rounded-3xl border border-amber-500/20">
                 <div class="flex items-center gap-3">
@@ -79,10 +79,10 @@
                     </div>
                     <div>
                         <h2 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-                            ระบบจัดการประกาศหน้าเว็บ (Announcements Hub)
+                            ระบบจัดการประกาศหน้าเว็บ (Site Announcements Hub)
                             <span id="announcementCount" class="px-2.5 py-0.5 bg-amber-500 text-white rounded-full text-xs font-bold">0</span>
                         </h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">สร้างประกาศ พร้อมแนบรูปภาพและเลือก/พิมพ์แท็กใหม่ เพื่อไปแสดงที่ Sidebar ซ้ายของหน้า `catalog.html`</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">สร้างประกาศ พร้อมแนบรูปภาพและเลือก/พิมพ์แท็กใหม่ สำหรับหน้า `catalog.html`</p>
                     </div>
                 </div>
                 <button onclick="openAnnouncementModal()" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2 shrink-0">
@@ -101,7 +101,7 @@
 
         <hr class="border-slate-200 dark:border-slate-800">
 
-        <!-- SECTION 2: จัดการแพ็กเกจคอร์สเรียน (Course Pricing & Catalog) -->
+        <!-- SECTION 2: จัดการแพ็กเกจคอร์สเรียน -->
         <section class="space-y-6">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div class="flex items-center gap-3">
@@ -121,7 +121,6 @@
                 </button>
             </div>
 
-            <!-- Filter Bar ตาม Tag และช่องค้นหา -->
             <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
                 <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none w-full sm:w-auto" id="tagFilterContainer">
                     <button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>
@@ -132,7 +131,6 @@
                 </div>
             </div>
 
-            <!-- Grid แสดงรายการแพ็กเกจ -->
             <div id="packagesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">
                     <i class="fas fa-spinner fa-spin text-3xl mb-3 text-sky-600"></i>
@@ -142,7 +140,7 @@
         </section>
     </main>
 
-    <!-- Modal จัดการประกาศ (Announcements Modal) พร้อมอัปโหลดรูป & Tag Dropdown + Custom Input -->
+    <!-- Modal จัดการประกาศ -->
     <div id="announcementModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="modern-card w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
             <button onclick="closeAnnouncementModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition">
@@ -167,7 +165,6 @@
                     <input type="text" id="annTitle" required placeholder="เช่น แจ้งตารางเรียนพิเศษเสาร์นี้" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 font-bold">
                 </div>
 
-                <!-- Tag แบบ Dropdown เลือกหรือพิมพ์เพิ่มใหม่ -->
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ป้ายแท็กหัวข้อ (Badge Tag)</label>
                     <div class="space-y-2">
@@ -187,7 +184,6 @@
                     <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-amber-500 resize-none"></textarea>
                 </div>
 
-                <!-- อัปโหลดรูปภาพประกาศ -->
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">แนบรูปภาพประกอบประกาศ</label>
                     <input type="file" id="annImageInput" accept="image/*" class="w-full px-3 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-white hover:file:bg-amber-600 cursor-pointer">
@@ -211,14 +207,13 @@
         </div>
     </div>
 
-    <!-- Modal สำหรับเพิ่ม / แก้ไขแพ็กเกจคอร์ส -->
+    <!-- Modal จัดการแพ็กเกจคอร์ส -->
     <div id="packageModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="modern-card w-full max-w-4xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-6">
             <button onclick="closePackageModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
                 <i class="fas fa-xmark"></i>
             </button>
 
-            <!-- ฟอร์มกรอกข้อมูล (ซ้าย) -->
             <div class="md:col-span-7 space-y-4">
                 <div class="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md">
@@ -310,7 +305,6 @@
                 </form>
             </div>
 
-            <!-- Live User Preview (ขวา) -->
             <div class="md:col-span-5 bg-slate-100/80 dark:bg-darkinput/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
                 <div>
                     <div class="flex items-center justify-between mb-3">
@@ -382,9 +376,9 @@
             await fetchPackages();
         }
 
-        // --- ระบบประกาศ (Announcements) ---
+        // --- ระบบประกาศ (ใช้ตาราง site_announcements) ---
         async function fetchAnnouncements() {
-            const { data, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
+            const { data, error } = await mySupabase.from('site_announcements').select('*').order('created_at', { ascending: false });
             if (!error && data) {
                 allAnnouncements = data;
                 renderAnnouncementsGrid();
@@ -455,7 +449,6 @@
                     const customInput = document.getElementById('annBadgeCustom');
                     const badgeVal = a.badge_tag || '';
 
-                    // เช็คว่ามีใน dropdown หรือไม่ ถ้าไม่มีให้เลือกพิมพ์ใหม่
                     let found = false;
                     for (let opt of selectElem.options) {
                         if (opt.value === badgeVal) {
@@ -493,7 +486,7 @@
             const file = e.target.files[0];
             if (!file) return;
             Swal.fire({ title: 'กำลังอัปโหลดรูปภาพ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const fileName = `announcement_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${file.name.split('.').pop()}`;
+            const fileName = `site_announcement_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${file.name.split('.').pop()}`;
             const { data, error } = await mySupabase.storage.from('course_images').upload(fileName, file);
             Swal.close();
             if (error) {
@@ -540,7 +533,7 @@
             };
 
             Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            let error = id ? (await mySupabase.from('announcements').update(payload).eq('id', id)).error : (await mySupabase.from('announcements').insert([payload])).error;
+            let error = id ? (await mySupabase.from('site_announcements').update(payload).eq('id', id)).error : (await mySupabase.from('site_announcements').insert([payload])).error;
 
             if (error) { Swal.fire('เกิดข้อผิดพลาด', error.message, 'error'); return; }
             Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1200, showConfirmButton: false });
@@ -551,12 +544,12 @@
         window.deleteAnnouncement = async function(id) {
             const confirm = await Swal.fire({ title: 'ลบประกาศนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48' });
             if (confirm.isConfirmed) {
-                const { error } = await mySupabase.from('announcements').delete().eq('id', id);
+                const { error } = await mySupabase.from('site_announcements').delete().eq('id', id);
                 if (!error) fetchAnnouncements();
             }
         }
 
-        // --- ระบบแพ็กเกจคอร์สเรียน (Course Pricing) ---
+        // --- ระบบแพ็กเกจคอร์สเรียน ---
         async function fetchPackages() {
             const { data, error } = await mySupabase.from('course_packages').select('*').order('created_at', { ascending: false });
             if (!error && data) {
