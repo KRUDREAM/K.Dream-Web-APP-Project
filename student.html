@@ -593,76 +593,6 @@
 
 function isAnnouncementForThisStudent(announcement) {
     if (!announcement) return false;
-
-    console.log("Announcement Target:", announcement.target_type, announcement.target_value);
-    console.log("Current Student Data:", currentStudentData);
-    console.log("Enrolled Courses List:", enrolledCoursesList);
-    
-    const targetType = announcement.target_type || 'all';
-
-    // 1. ถ้าเป็นการประกาศสำหรับทุกคน
-    if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
-        return true;
-    }
-
-    // 2. ถ้าเจาะจงตามระดับชั้น
-    if (targetType === 'level') {
-        const studentGrade = String(currentStudentData?.grade_level || currentStudentData?.grade || '').trim().toLowerCase();
-        const targetLevel = String(announcement.target_value || '').trim().toLowerCase();
-        if (!studentGrade || !targetLevel) return true;
-        return targetLevel.includes(studentGrade) || studentGrade.includes(targetLevel);
-    }
-
-    // 3. ถ้าเจาะจงตามคอร์สเรียน (รองรับทั้ง Course ID, ชื่อคอร์ส และรหัสคอร์ส)
-    if (targetType === 'course') {
-        const targetValue = String(announcement.target_value || '').trim().toLowerCase();
-        if (!targetValue) return true;
-
-        const announcementCourses = targetValue.split(',').map(c => c.trim()).filter(c => c !== '');
-        
-        // รวบรวมข้อมูลคอร์สที่นักเรียนคนนี้ลงทะเบียนไว้ทั้งหมด (ทั้ง ID, Title และ Course Code)
-        let studentIdentifiers = [];
-
-        // กรองจากตาราง enrolledCoursesList ที่ดึงมาจากระบบคอร์ส
-        if (Array.isArray(enrolledCoursesList)) {
-            enrolledCoursesList.forEach(c => {
-                if (c.id) studentIdentifiers.push(String(c.id).trim().toLowerCase());
-                if (c.title) studentIdentifiers.push(String(c.title).trim().toLowerCase());
-                if (c.name) studentIdentifiers.push(String(c.name).trim().toLowerCase());
-                if (c.course_code) studentIdentifiers.push(String(c.course_code).trim().toLowerCase());
-            });
-        }
-
-        // เผื่อกรณีข้อมูลในฟิลด์ direct ของ student profile
-        const rawStudentCourses = currentStudentData?.enrolled_courses || currentStudentData?.courses || currentStudentData?.course_ids;
-        if (Array.isArray(rawStudentCourses)) {
-            rawStudentCourses.forEach(sc => studentIdentifiers.push(String(sc).trim().toLowerCase()));
-        } else if (typeof rawStudentCourses === 'string') {
-            rawStudentCourses.split(',').forEach(sc => studentIdentifiers.push(sc.trim().toLowerCase()));
-        }
-
-        // ถ้าไม่มีข้อมูลคอร์สในระบบ ให้ผ่านไปก่อน (หรือจะซ่อนก็ได้ตามต้องการ)
-        if (studentIdentifiers.length === 0) return true;
-
-        // ตรวจสอบว่ามีค่าใดตรงกันหรือไม่
-        return announcementCourses.some(ac => 
-            studentIdentifiers.some(si => si === ac || si.includes(ac) || ac.includes(si))
-        );
-    }
-
-    // 4. ถ้าเจาะจงรายบุคคล (Specific Student ID)
-    if (targetType === 'specific') {
-        const studentId = String(currentStudentData?.id || currentStudentData?.student_id || '').trim();
-        const targetValue = String(announcement.target_value || '').trim();
-        if (!studentId) return true;
-        return targetValue.includes(studentId);
-    }
-
-    return true;
-}
-// 🌟 ฟังก์ชันรองรับการนับจำนวนการแจ้งเตือน (ป้องกัน Error: loadStudentNotificationsCount is not defined)
-function isAnnouncementForThisStudent(announcement) {
-    if (!announcement) return false;
     const targetType = announcement.target_type || 'all';
 
     // 1. ถ้าเป็นประกาศสำหรับทุกคน ให้ผ่านได้เลย
@@ -704,6 +634,53 @@ function isAnnouncementForThisStudent(announcement) {
     }
 
     return true;
+}
+// 🌟 ฟังก์ชันรองรับการนับจำนวนการแจ้งเตือน (ป้องกัน Error: loadStudentNotificationsCount is not defined)
+async function loadStudentNotificationsCount() {
+    try {
+        // ตรวจสอบว่ามีตาราง announcements หรือไม่ แล้วดึงเฉพาะประกาศที่ตรงกับคอร์สของนักเรียน
+        if (typeof mySupabase === 'undefined') return;
+
+        const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(50);
+        const badge = document.getElementById('notifBadge');
+        
+        if (error || !anns || !Array.isArray(anns)) {
+            if (badge) badge.classList.add('hidden');
+            return;
+        }
+
+        // กรองประกาศตามสิทธิ์ของนักเรียน
+        const myValidAnns = anns.filter(a => {
+            if (typeof isAnnouncementForThisStudent === 'function') {
+                return isAnnouncementForThisStudent(a);
+            }
+            return true;
+        });
+
+        // ดึงรายการที่อ่านแล้ว
+        let readIds = [];
+        if (typeof currentStudentData !== 'undefined' && currentStudentData && currentStudentData.read_announcements) {
+            readIds = Array.isArray(currentStudentData.read_announcements) ? currentStudentData.read_announcements : [];
+        }
+
+        const unread = myValidAnns.filter(a => !readIds.includes(a.id));
+        
+        const headerCount = document.getElementById('notifHeaderCount');
+        if (headerCount) {
+            headerCount.textContent = `${unread.length} ใหม่`;
+        }
+
+        if (badge) {
+            if (unread.length > 0) {
+                badge.textContent = unread.length > 9 ? '9+' : unread.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+    } catch (err) {
+        console.warn("Notification count warning:", err);
+    }
 }
         
         async function authenticateStudent() {
