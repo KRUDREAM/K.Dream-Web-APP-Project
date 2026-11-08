@@ -4,7 +4,7 @@
     <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KRUDREAM LAND | Admin Catalog & Promo Management</title>
+    <title>KRUDREAM LAND | จัดการแพ็กเกจคอร์สเรียน (Course Pricing & Catalog)</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -24,7 +24,7 @@
             theme: { 
                 extend: { 
                     fontFamily: { sans: ['Prompt', 'sans-serif'] }, 
-                    colors: { primary: '#0284c7', darkbg: '#090d16', darkbox: '#0f172a', darkinput: '#1e293b', darkcard: '#0f172a' } 
+                    colors: { primary: '#0284c7', darkbg: '#090d16', darkbox: '#0f172a', darkinput: '#1e293b' } 
                 } 
             }
         }
@@ -50,14 +50,15 @@
                     <div>
                         <h1 class="font-extrabold text-xl text-slate-900 dark:text-white flex items-center gap-2">
                             <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-boxes-stacked"></i></span>
-                            จัดการ Catalog และโค้ดส่วนลด (Promotions)
+                            จัดการ Catalog และราคาคอร์สเรียน
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมแพ็กเกจคอร์ส และสร้างโค้ดส่วนลดสำหรับให้นักเรียนกรอก</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมแพ็กเกจคอร์ส รูปภาพ และราคาสำหรับให้นักเรียนเลือกซื้อ</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button onclick="openPromoModal()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2">
-                        <i class="fas fa-ticket"></i> สร้างโค้ดส่วนลด
+                    <!-- ปุ่มลิงก์ไปหน้าจัดการโปรโมชั่น & โค้ดส่วนลด (admin_promos.html) -->
+                    <button onclick="window.location.href='admin_promos.html'" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2">
+                        <i class="fas fa-tags"></i> จัดการโปรโมชั่น & โค้ดส่วนลด
                     </button>
                     <button onclick="openPackageModal()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 flex items-center gap-2">
                         <i class="fas fa-plus"></i> เพิ่มแพ็กเกจใหม่
@@ -71,30 +72,11 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 space-y-8">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 space-y-6">
         
-        <!-- ส่วนแสดงและจัดการโค้ดส่วนลด (Promo Codes Section) -->
-        <div class="modern-card p-6 rounded-3xl space-y-4">
-            <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <i class="fas fa-ticket text-amber-500"></i> โค้ดส่วนลดและโปรโมชันที่ใช้งานอยู่
-                </h3>
-                <button onclick="openPromoModal()" class="px-3.5 py-1.5 bg-amber-500/10 text-amber-600 rounded-xl text-xs font-bold hover:bg-amber-500/20 transition">
-                    <i class="fas fa-plus mr-1"></i> เพิ่มโค้ดส่วนลด
-                </button>
-            </div>
-            <div id="promosGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div class="text-xs text-slate-400 text-center py-4 col-span-full"><i class="fas fa-spinner fa-spin mr-1"></i> กำลังโหลดโค้ดส่วนลด...</div>
-            </div>
-        </div>
-
         <!-- Filter Bar ตาม Tag -->
-        <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+        <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="tagFilterContainer">
             <button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>
-            <button onclick="filterByTag('สอบเข้าม1')" id="tag-สอบเข้าม1" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#สอบเข้าม1</button>
-            <button onclick="filterByTag('ภาษาไทย')" id="tag-ภาษาไทย" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#ภาษาไทย</button>
-            <button onclick="filterByTag('สังคมศึกษา')" id="tag-สังคมศึกษา" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#สังคมศึกษา</button>
-            <button onclick="filterByTag('โปรโมชั่น')" id="tag-โปรโมชั่น" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">#โปรโมชั่นพิเศษ</button>
         </div>
 
         <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -116,48 +98,6 @@
             </div>
         </div>
     </main>
-
-    <!-- Modal สร้าง / แก้ไขโค้ดส่วนลด (Promo Code Modal) -->
-    <div id="promoModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="modern-card w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-4">
-            <button onclick="closePromoModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
-                <i class="fas fa-xmark"></i>
-            </button>
-            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2" id="promoModalTitle">สร้างโค้ดส่วนลดใหม่</h3>
-            <form id="promoForm" onsubmit="handlePromoSubmit(event)" class="space-y-3">
-                <input type="hidden" id="editPromoId">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">รหัสโค้ดส่วนลด (Coupon Code):</label>
-                    <input type="text" id="promoCode" required placeholder="เช่น NEWYEAR2026" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border rounded-xl text-xs uppercase outline-none focus:border-amber-500 font-bold">
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1">ประเภทส่วนลด:</label>
-                        <select id="promoType" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border rounded-xl text-xs outline-none focus:border-amber-500 font-bold">
-                            <option value="percent">เปอร์เซ็นต์ (%)</option>
-                            <option value="fixed">บาท (THB)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1">มูลค่าส่วนลด:</label>
-                        <input type="number" id="promoValue" required min="1" placeholder="เช่น 20 หรือ 500" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border rounded-xl text-xs outline-none focus:border-amber-500 font-bold">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">รายละเอียดโปรโมชัน:</label>
-                    <input type="text" id="promoDesc" placeholder="เช่น ส่วนลดพิเศษต้อนรับปีใหม่" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border rounded-xl text-xs outline-none focus:border-amber-500">
-                </div>
-                <div class="flex items-center gap-2 pt-1">
-                    <input type="checkbox" id="promoActive" checked class="w-4 h-4 accent-amber-500 rounded">
-                    <label for="promoActive" class="text-xs font-bold text-slate-700 dark:text-slate-300">เปิดใช้งานโค้ดนี้ทันที</label>
-                </div>
-                <div class="flex gap-2 pt-3">
-                    <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-bold text-xs transition shadow-md">บันทึกโค้ดส่วนลด</button>
-                    <button type="button" onclick="closePromoModal()" class="px-4 py-2.5 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs">ยกเลิก</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- Modal สำหรับเพิ่ม / แก้ไขแพ็กเกจ -->
     <div id="packageModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
@@ -313,7 +253,6 @@
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let allPackages = [];
-        let allPromos = [];
         let activeTag = 'all';
         let currentImageUrls = [];
 
@@ -331,96 +270,36 @@
         });
 
         async function initPage() {
-            await Promise.all([fetchPackages(), fetchPromos()]);
+            await fetchPackages();
         }
 
         async function fetchPackages() {
             const { data, error } = await mySupabase.from('course_packages').select('*').order('created_at', { ascending: false });
             if (!error && data) {
                 allPackages = data;
+                generateDynamicTags();
                 renderPackagesGrid();
             }
         }
 
-        async function fetchPromos() {
-            const { data, error } = await mySupabase.from('promotions').select('*').order('created_at', { ascending: false });
-            const container = document.getElementById('promosGrid');
-            if (error || !data || data.length === 0) {
-                container.innerHTML = `<div class="text-xs text-slate-400 text-center py-4 col-span-full">ยังไม่มีโค้ดส่วนลดในระบบ</div>`;
-                return;
-            }
-            allPromos = data;
-            container.innerHTML = data.map(p => `
-                <div class="p-4 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2">
-                            <span class="px-2.5 py-1 bg-amber-500 text-white rounded-lg font-mono font-bold text-xs">${p.code || p.title || 'PROMO'}</span>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${p.is_active ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}">${p.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}</span>
-                        </div>
-                        <p class="text-xs text-slate-600 dark:text-slate-300 font-medium">${p.description || p.promo_details || ''}</p>
-                        <p class="text-[11px] text-sky-600 font-bold">ส่วนลด: ${p.discount_value || p.value || 0} ${p.discount_type === 'percent' || p.type === 'percent' ? '%' : 'บาท'}</p>
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <button onclick="editPromo('${p.id}')" class="px-2.5 py-1 bg-sky-50 text-sky-600 rounded-lg text-xs font-bold"><i class="fas fa-pen"></i></button>
-                        <button onclick="deletePromo('${p.id}')" class="px-2.5 py-1 bg-rose-50 text-rose-600 rounded-lg text-xs font-bold"><i class="fas fa-trash"></i></button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        window.openPromoModal = function(id = null) {
-            document.getElementById('promoForm').reset();
-            document.getElementById('editPromoId').value = '';
-            document.getElementById('promoModalTitle').textContent = 'สร้างโค้ดส่วนลดใหม่';
-            if (id) {
-                const promo = allPromos.find(p => String(p.id) === String(id));
-                if (promo) {
-                    document.getElementById('editPromoId').value = promo.id;
-                    document.getElementById('promoCode').value = promo.code || promo.title || '';
-                    document.getElementById('promoType').value = promo.discount_type || promo.type || 'percent';
-                    document.getElementById('promoValue').value = promo.discount_value || promo.value || 0;
-                    document.getElementById('promoDesc').value = promo.description || promo.promo_details || '';
-                    document.getElementById('promoActive').checked = promo.is_active !== false;
-                    document.getElementById('promoModalTitle').textContent = 'แก้ไขโค้ดส่วนลด';
+        function generateDynamicTags() {
+            const tagSet = new Set();
+            allPackages.forEach(p => {
+                if (Array.isArray(p.tags)) {
+                    p.tags.forEach(t => tagSet.add(t.trim()));
+                } else if (typeof p.tags === 'string' && p.tags.trim() !== '') {
+                    p.tags.split(',').forEach(t => tagSet.add(t.trim()));
                 }
-            }
-            document.getElementById('promoModal').classList.remove('hidden');
-        }
+            });
 
-        window.closePromoModal = function() { document.getElementById('promoModal').classList.add('hidden'); }
-        window.editPromo = function(id) { openPromoModal(id); }
+            const container = document.getElementById('tagFilterContainer');
+            let html = `<button onclick="filterByTag('all')" id="tag-all" class="tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md">✨ ทั้งหมด</button>`;
+            
+            tagSet.forEach(tag => {
+                html += `<button onclick="filterByTag('${tag}')" id="tag-${tag}" class="tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50">${tag}</button>`;
+            });
 
-        window.handlePromoSubmit = async function(e) {
-            e.preventDefault();
-            const id = document.getElementById('editPromoId').value;
-            const codeVal = document.getElementById('promoCode').value.trim().toUpperCase();
-            const payload = {
-                code: codeVal,
-                title: codeVal,
-                discount_type: document.getElementById('promoType').value,
-                type: document.getElementById('promoType').value,
-                discount_value: parseFloat(document.getElementById('promoValue').value) || 0,
-                value: parseFloat(document.getElementById('promoValue').value) || 0,
-                description: document.getElementById('promoDesc').value.trim(),
-                promo_details: document.getElementById('promoDesc').value.trim(),
-                is_active: document.getElementById('promoActive').checked
-            };
-
-            Swal.fire({ title: 'กำลังบันทึกโค้ดส่วนลด...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const error = id ? (await mySupabase.from('promotions').update(payload).eq('id', id)).error : (await mySupabase.from('promotions').insert([payload])).error;
-
-            if (error) { Swal.fire('เกิดข้อผิดพลาด', error.message, 'error'); return; }
-            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1200, showConfirmButton: false });
-            closePromoModal();
-            fetchPromos();
-        }
-
-        window.deletePromo = async function(id) {
-            const confirm = await Swal.fire({ title: 'ลบโค้ดส่วนลดนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ลบเลย' });
-            if (confirm.isConfirmed) {
-                const { error } = await mySupabase.from('promotions').delete().eq('id', id);
-                if (!error) fetchPromos();
-            }
+            container.innerHTML = html;
         }
 
         window.filterByTag = function(tag) {
@@ -638,7 +517,7 @@
         window.openGalleryModal = function(imgList, title) {
             document.getElementById('galleryTitle').textContent = `รูปภาพทั้งหมด: ${title}`;
             document.getElementById('galleryImagesGrid').innerHTML = imgList.map(img => `<div class="rounded-2xl overflow-hidden aspect-video bg-slate-100"><img src="${img}" class="w-full h-full object-cover"></div>`).join('');
-            document.getElementById('galleryModal').classList.add('hidden');
+            document.getElementById('galleryModal').classList.remove('hidden');
         }
         window.closeGalleryModal = function() { document.getElementById('galleryModal').classList.add('hidden'); }
 
