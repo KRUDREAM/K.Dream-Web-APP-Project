@@ -46,7 +46,7 @@
             theme: { 
                 extend: { 
                     fontFamily: { sans: ['Prompt', 'sans-serif'] }, 
-                    colors: { primary: '#0284c7', darkbg: '#090d16', darkbox: '#0f172a', darkinput: '#1e293b' } 
+                    colors: { primary: '#0284c7', darkbg: '#020617', darkbox: '#090d16', darkinput: '#0f172a' } 
                 } 
             }
         }
@@ -54,10 +54,10 @@
     <style>
         body { font-family: 'Prompt', sans-serif; }
         .glass-nav { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(226, 232, 240, 0.8); }
-        .dark .glass-nav { background: rgba(9, 13, 22, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(30, 41, 59, 0.8); }
+        .dark .glass-nav { background: rgba(2, 6, 23, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(30, 41, 59, 0.8); }
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .modern-card { background: #ffffff; border: 1px solid rgba(226, 232, 240, 1); box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.08); }
-        .dark .modern-card { background: #0f172a; border: 1px solid rgba(30, 41, 59, 1); }
+        .dark .modern-card { background: #090d16; border: 1px solid rgba(30, 58, 138, 0.6); }
         .btn-glow { transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(2, 132, 199, 0.25); }
         .btn-glow:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(2, 132, 199, 0.4); }
         .action-btn-edit { background-color: rgba(2, 132, 199, 0.1); color: #0284c7; border: 1px solid rgba(2, 132, 199, 0.2); }
@@ -220,9 +220,10 @@
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let userRole = 'admin';
+        let currentStudentId = null;
         let currentStudentData = null;
         let studentEnrolledCourses = [];
-        let studentEnrolledCourseIds = [];
+        let enrolledCoursesList = [];
         let allCoursesList = [];
         let allStudentsList = [];
         let coursesMap = {};
@@ -241,23 +242,27 @@
         });
 
         async function initPage() {
-            // โหลดข้อมูลคอร์ส
-            const { data: courses } = await mySupabase.from('courses').select('id, title, course_code');
+            const urlParams = new URLSearchParams(window.location.search);
+            currentStudentId = urlParams.get('student_id') || urlParams.get('id') || localStorage.getItem('student_id') || localStorage.getItem('id');
+            userRole = localStorage.getItem('role') || localStorage.getItem('user_role') || (currentStudentId ? 'student' : 'admin');
+
+            // โหลดข้อมูลคอร์สเรียนทั้งหมด
+            const { data: courses } = await mySupabase.from('courses').select('id, title, course_code, name');
             if (courses) {
                 allCoursesList = courses;
                 coursesMap = {};
                 courses.forEach(c => {
-                    coursesMap[c.id] = c.title;
-                    coursesMap[c.course_code] = c.title;
+                    coursesMap[c.id] = c.title || c.name;
+                    if (c.course_code) coursesMap[c.course_code] = c.title || c.name;
                 });
 
                 const container = document.getElementById('courseCheckboxes');
                 if (container) {
                     container.innerHTML = courses.map(c => {
-                        const cTitle = c.title || c.course_code || 'คอร์สเรียน';
+                        const cTitle = c.title || c.name || c.course_code || 'คอร์สเรียน';
                         return `
                             <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded">
-                                <input type="checkbox" name="courseCheckbox" value="${cTitle}" class="rounded text-sky-600 focus:ring-sky-500">
+                                <input type="checkbox" name="courseCheckbox" value="${c.id}" class="rounded text-sky-600 focus:ring-sky-500">
                                 <span class="dark:text-slate-200">${cTitle}</span>
                             </label>
                         `;
@@ -265,100 +270,95 @@
                 }
             }
 
+            // โหลดรายชื่อนักเรียนสำหรับกรณีเลือกรายบุคคล
             const { data: students } = await mySupabase.from('profiles').select('*');
             if (students) {
-                allStudentsList = students.filter(s => !isUserAdmin(s));
+                allStudentsList = students;
                 renderStudentCheckboxes(allStudentsList);
             }
 
-            userRole = localStorage.getItem('role') || localStorage.getItem('user_role') || 'admin';
-            const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
-
-            if (userRole === 'student' || studentId) {
+            // ถ้าเข้ามาด้วยสิทธิ์นักเรียน ให้ซ่อนฟอร์มสร้างประกาศฝั่งซ้ายทันที
+            if (userRole === 'student' || currentStudentId) {
                 userRole = 'student';
                 const creator = document.getElementById('creatorSection');
                 if (creator) creator.style.display = 'none';
                 const feed = document.getElementById('feedSection');
                 if (feed) feed.className = 'lg:col-span-12 space-y-5';
 
-                if (studentId) {
-                    let { data: sData } = await mySupabase.from('profiles').select('*').eq('id', studentId).maybeSingle();
+                if (currentStudentId) {
+                    let { data: sData } = await mySupabase.from('profiles').select('*').eq('id', currentStudentId).maybeSingle();
                     if (!sData) {
-                        const { data: sData2 } = await mySupabase.from('profiles').select('*').eq('student_id', studentId).maybeSingle();
+                        const { data: sData2 } = await mySupabase.from('profiles').select('*').eq('student_id', currentStudentId).maybeSingle();
                         sData = sData2;
                     }
                     currentStudentData = sData;
 
-                    const realUuid = sData?.id || studentId;
-                    const { data: en1 } = await mySupabase.from('course_enrollments').select('course_id').eq('student_id', realUuid);
-                    let enrollments = en1;
-                    if (!enrollments || enrollments.length === 0) {
-                        const { data: en2 } = await mySupabase.from('course_enrollments').select('course_id').eq('student_id', studentId);
-                        enrollments = en2;
-                    }
+                    // ดึงคอร์สที่นักเรียนลงทะเบียน เช่นเดียวกับ student.html
+                    let enrollments = [];
+                    const { data: en1 } = await mySupabase.from('course_enrollments').select('*').eq('student_id', currentStudentId);
+                    if (en1) enrollments = enrollments.concat(en1);
+                    const { data: en2 } = await mySupabase.from('course_enrollments').select('*').eq('user_id', currentStudentId);
+                    if (en2) enrollments = enrollments.concat(en2);
+                    const { data: en3 } = await mySupabase.from('enrollments').select('*').eq('student_id', currentStudentId);
+                    if (en3) enrollments = enrollments.concat(en3);
 
-                    if (enrollments && enrollments.length > 0) {
-                        for (let e of enrollments) {
-                            studentEnrolledCourseIds.push(String(e.course_id));
-                            const { data: cData } = await mySupabase.from('courses').select('id, title, course_code').eq('id', e.course_id).maybeSingle();
-                            if (cData) {
-                                if (cData.title) studentEnrolledCourses.push(cData.title.trim().toLowerCase());
-                                if (cData.course_code) studentEnrolledCourses.push(cData.course_code.trim().toLowerCase());
-                            }
-                        }
-                    }
+                    const enrolledCourseIds = [...new Set(enrollments.map(e => String(e.course_id || e.courseid || '')))].filter(id => id !== '');
+                    enrolledCoursesList = allCoursesList.filter(c => enrolledCourseIds.includes(String(c.id)));
+                    studentEnrolledCourses = enrolledCoursesList.map(c => String(c.id));
                 }
             }
 
             loadAnnouncements();
         }
 
-        function isUserAdmin(profileObj) {
-            if (!profileObj) return false;
-            const role = String(profileObj.role || profileObj.user_role || '').toLowerCase();
-            const email = String(profileObj.email || '').toLowerCase();
-            if (role === 'admin' || role === 'teacher' || role === 'instructor') return true;
-            if (email.includes('admin') || email.includes('teacher')) return true;
-            return false;
-        }
-
-        // 🌟 ฟังก์ชันกรองประกาศ (แสดงเฉพาะคอร์สที่ลงทะเบียน หรือประกาศทั่วไป)
-        function isAnnouncementForThisStudent(a) {
+        // 🌟 ฟังก์ชันตรวจสอบสิทธิ์ประกาศสำหรับนักเรียน (อ้างอิงฟังก์ชันที่เสถียรจาก student.html)
+        function isAnnouncementForThisStudent(announcement) {
             if (userRole !== 'student') return true;
+            if (!announcement) return false;
 
-            const tType = a.target_type || 'all';
-            const tVal = a.target_value || '';
+            const targetType = announcement.target_type || 'all';
 
-            // ถ้าเป็นประกาศทั่วไป (all) หรือไม่กำหนด target_type ให้แสดงทันที
-            if (tType === 'all' || !tType || tVal === '') return true;
+            // 1. ประกาศทั่วไปสำหรับทุกคน
+            if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
+                return true;
+            }
 
-            // 1. เช็คตามคอร์สเรียน (target_type === 'course')
-            if (tType === 'course') {
-                if (!tVal) return false;
-                const targetItems = tVal.split(',').map(item => item.trim().toLowerCase());
-                
-                // ตรวจสอบว่าตรงกับคอร์สที่นักเรียนลงทะเบียนไว้หรือไม่
-                return targetItems.some(target => {
-                    return studentEnrolledCourses.some(enrolled => enrolled === target || enrolled.includes(target) || target.includes(enrolled)) ||
-                           studentEnrolledCourseIds.some(id => target === id.toLowerCase());
+            // 2. ประกาศเจาะจงรายบุคคล
+            if (targetType === 'specific') {
+                const studentId = String(currentStudentData?.id || currentStudentData?.student_id || currentStudentId || '').trim();
+                const targetValue = String(announcement.target_value || '').trim();
+                if (!targetValue) return true;
+                return targetValue.includes(studentId);
+            }
+
+            // 3. ประกาศตามระดับชั้น (Grade Level)
+            if (targetType === 'level') {
+                const studentGrade = String(currentStudentData?.grade_level || currentStudentData?.grade || '').trim().toLowerCase();
+                const targetVal = String(announcement.target_value || '').trim().toLowerCase();
+                if (!studentGrade || !targetVal) return true;
+                return targetVal.includes(studentGrade) || studentGrade.includes(targetVal);
+            }
+
+            // 4. ประกาศตามคอร์สเรียน (Course)
+            if (targetType === 'course') {
+                if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) {
+                    return true; // ยอมให้แสดงไว้ก่อนถ้ากำลังโหลดข้อมูลคอร์ส
+                }
+
+                const targetValue = String(announcement.target_value || '').trim().toLowerCase();
+                const announcementCourses = targetValue.split(',').map(c => c.trim());
+
+                let studentIdentifiers = [];
+                enrolledCoursesList.forEach(c => {
+                    if (c.id) studentIdentifiers.push(String(c.id).trim().toLowerCase());
+                    if (c.title) studentIdentifiers.push(String(c.title).trim().toLowerCase());
+                    if (c.name) studentIdentifiers.push(String(c.name).trim().toLowerCase());
+                    if (c.course_code) studentIdentifiers.push(String(c.course_code).trim().toLowerCase());
                 });
-            }
 
-            // 2. เช็คตามระดับชั้น (target_type === 'level')
-            if (tType === 'level') {
-                const studentGrade = currentStudentData?.grade_level || currentStudentData?.grade || '';
-                if (!studentGrade) return false;
-                return tVal.toLowerCase().includes(studentGrade.toLowerCase());
-            }
-
-            // 3. เช็คตามรายบุคคล (target_type === 'specific')
-            if (tType === 'specific') {
-                if (!tVal) return false;
-                const targetStudents = tVal.split(',').map(s => s.trim());
-                const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
-                return (currentStudentData?.id && targetStudents.includes(String(currentStudentData.id))) ||
-                       targetStudents.includes(String(studentId)) ||
-                       (currentStudentData?.username && targetStudents.includes(String(currentStudentData.username)));
+                return announcementCourses.some(ac => 
+                    studentIdentifiers.some(si => si === ac || si.includes(ac) || ac.includes(si))
+                );
             }
 
             return true;
@@ -421,9 +421,8 @@
         }
 
         function goBack() {
-            const studentId = localStorage.getItem('student_id') || localStorage.getItem('id');
-            if (userRole === 'student' || studentId) {
-                window.location.href = studentId ? `student.html?student_id=${studentId}` : 'student.html';
+            if (userRole === 'student' || currentStudentId) {
+                window.location.href = currentStudentId ? `student.html?student_id=${currentStudentId}` : 'student.html';
             } else {
                 window.location.href = 'admin.html';
             }
@@ -447,7 +446,7 @@
                 return;
             }
 
-            // กรองประกาศสำหรับนักเรียน หรือแสดงทั้งหมดสำหรับแอดมิน
+            // กรองประกาศตามสิทธิ์ของนักเรียน
             let filteredAnns = anns.filter(a => isAnnouncementForThisStudent(a));
 
             document.getElementById('annCount').textContent = `${filteredAnns.length} รายการ`;
