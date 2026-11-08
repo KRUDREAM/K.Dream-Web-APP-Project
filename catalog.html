@@ -77,14 +77,14 @@
     <!-- Main Layout with Left Announcement Sidebar -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 grid grid-cols-1 lg:grid-cols-4 gap-6">
         
-        <!-- Sidebar ซ้าย: ระบบประกาศโปรโมชัน (คล้าย admin_announcements.html) -->
+        <!-- Sidebar ซ้าย: ระบบประกาศโปรโมชัน (ดึงข้อมูลจากหน้า admin_promos ที่ Admin พิมพ์ไว้) -->
         <aside class="lg:col-span-1 space-y-4">
             <div class="modern-card p-5 rounded-3xl sticky top-28 space-y-4 shadow-sm">
                 <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                        <i class="fas fa-bullhorn text-sky-500 animate-bounce"></i> ประกาศ & โปรโมชัน
+                        <i class="fas fa-bullhorn text-amber-500 animate-bounce"></i> ประกาศ & โปรโมชัน
                     </h3>
-                    <span class="text-[10px] bg-sky-500/10 text-sky-600 px-2 py-0.5 rounded-full font-bold" id="announcementCount">0</span>
+                    <span class="text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-bold" id="announcementCount">0</span>
                 </div>
                 
                 <div id="announcementSidebarList" class="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
@@ -95,10 +95,9 @@
             </div>
         </aside>
 
-        <!-- Content ขวา: ค้นหา ตัวกรอง และรายการคอร์ส -->
+        <!-- Content ขวา: ค้นหา ตัวกรองราคา และรายการคอร์ส -->
         <section class="lg:col-span-3 space-y-6">
             
-            <!-- แถบค้นหา, เรียงลำดับ และ กรองราคา -->
             <div class="modern-card p-4 rounded-3xl flex flex-col sm:flex-row gap-3 items-center justify-between">
                 <div class="relative w-full sm:w-72">
                     <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
@@ -106,7 +105,7 @@
                 </div>
 
                 <div class="flex items-center gap-2 w-full sm:w-auto">
-                    <!-- ระบบกรองราคา (ราคาที่ 4) -->
+                    <!-- ระบบกรองช่วงราคา -->
                     <select id="priceFilter" onchange="renderCatalog()" class="px-3 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer flex-1 sm:flex-none">
                         <option value="all">ทุกช่วงราคา</option>
                         <option value="free">ฟรี</option>
@@ -114,7 +113,6 @@
                         <option value="over1000">1,000 บาทขึ้นไป</option>
                     </select>
 
-                    <!-- ระบบเรียงลำดับ -->
                     <select id="sortSelect" onchange="renderCatalog()" class="px-3 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer flex-1 sm:flex-none">
                         <option value="newest">มาใหม่ล่าสุด</option>
                         <option value="price-asc">ราคา: ต่ำไปสูง</option>
@@ -139,7 +137,7 @@
         </section>
     </main>
 
-    <!-- Modal รายละเอียดคอร์ส & รีวิว -->
+    <!-- Modal รายละเอียดคอร์ส -->
     <div id="courseModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="modern-card w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-4">
             <button onclick="closeCourseModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
@@ -167,7 +165,7 @@
 
         let allPackages = [];
         let allReviews = [];
-        let allAnnouncements = [];
+        let allPromotions = [];
         let enrolledCourseIds = [];
         let wishlistIds = JSON.parse(localStorage.getItem('wishlist_courses') || '[]');
         let activeTag = 'all';
@@ -196,7 +194,6 @@
                 const { data: profile } = await mySupabase.from('profiles').select('full_name, username').eq('id', currentStudentId).maybeSingle();
                 if (profile) currentStudentName = profile.full_name || profile.username || 'นักเรียน';
 
-                // โหลดคอร์สที่ลงทะเบียนแล้ว (ระบบที่ 2)
                 const { data: enData } = await mySupabase.from('course_enrollments').select('*').eq('student_id', currentStudentId);
                 if (enData) {
                     enrolledCourseIds = enData.map(e => String(e.course_id || e.package_id || ''));
@@ -211,7 +208,7 @@
 
             allPackages = pkgRes.data || [];
             allReviews = reviewRes.data || [];
-            allAnnouncements = promoRes.data || [];
+            allPromotions = promoRes.data || [];
 
             renderAnnouncementsSidebar();
             generateDynamicTags();
@@ -220,21 +217,26 @@
 
         function renderAnnouncementsSidebar() {
             const container = document.getElementById('announcementSidebarList');
-            document.getElementById('announcementCount').textContent = allAnnouncements.length;
+            document.getElementById('announcementCount').textContent = allPromotions.length;
 
-            if (allAnnouncements.length === 0) {
+            if (allPromotions.length === 0) {
                 container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีประกาศหรือโปรโมชันในขณะนี้</p>`;
                 return;
             }
 
-            container.innerHTML = allAnnouncements.map(item => `
-                <div class="p-3 bg-sky-50/50 dark:bg-darkinput rounded-2xl border border-sky-100 dark:border-slate-800 space-y-1">
-                    <div class="flex items-center gap-1.5 text-sky-600 dark:text-sky-400 font-bold text-xs">
-                        <i class="fas fa-bullhorn"></i> <span>${item.title || 'ประกาศสำคัญ'}</span>
+            container.innerHTML = allPromotions.map(item => {
+                const title = item.title || item.code || 'ประกาศสำคัญ';
+                const desc = item.description || item.promo_details || (item.discount_value ? `ส่วนลด ${item.discount_value}${item.discount_type === 'percent' ? '%' : ' บาท'}` : '');
+                
+                return `
+                    <div class="p-3 bg-amber-50/50 dark:bg-darkinput rounded-2xl border border-amber-100 dark:border-slate-800 space-y-1">
+                        <div class="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-xs">
+                            <i class="fas fa-bullhorn"></i> <span>${title}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-600 dark:text-slate-300 font-light leading-relaxed">${desc}</p>
                     </div>
-                    <p class="text-[11px] text-slate-600 dark:text-slate-300 font-light leading-relaxed">${item.description || item.promo_details || ''}</p>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function generateDynamicTags() {
@@ -292,7 +294,6 @@
                 const matchKeyword = title.includes(keyword) || code.includes(keyword) || tagsStr.includes(keyword);
                 const matchTag = activeTag === 'all' || tagsStr.includes(activeTag.toLowerCase());
 
-                // ระบบกรองราคา (ระบบที่ 4)
                 const price = Number(p.price || 0);
                 let matchPrice = true;
                 if (priceFilter === 'free') matchPrice = price === 0;
@@ -352,7 +353,6 @@
                 const mainImg = imgList[0];
                 const moreBtn = imgList.length > 1 ? `<button onclick="event.stopPropagation(); openGalleryModal(${JSON.stringify(imgList).replace(/"/g, '&quot;')}, '${title}')" class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-xl"><i class="fas fa-images mr-1"></i> ${imgList.length} รูป</button>` : '';
 
-                // เช็คสถานะลงทะเบียน & Wishlist (ระบบที่ 2 และ 3)
                 const isEnrolled = enrolledCourseIds.includes(String(p.id));
                 const isWishlist = wishlistIds.includes(String(p.id));
                 const actionBtn = isEnrolled 
@@ -366,7 +366,6 @@
                                 <img src="${mainImg}" class="w-full h-full object-contain rounded-xl group-hover:scale-105 transition-transform duration-500">
                                 <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-xl">${code}</div>
                                 <div class="absolute top-3 right-3 flex items-center gap-1">${discountBadge}${badge}</div>
-                                <!-- ปุ่ม Wishlist หัวใจ (ระบบที่ 3) -->
                                 <button onclick="toggleWishlist(event, '${p.id}')" class="absolute bottom-3 left-3 w-8 h-8 rounded-xl bg-white/80 dark:bg-darkbox/80 backdrop-blur-md flex items-center justify-center text-xs shadow transition hover:scale-110 ${isWishlist ? 'text-rose-500' : 'text-slate-400'}">
                                     <i class="${isWishlist ? 'fas' : 'far'} fa-heart"></i>
                                 </button>
