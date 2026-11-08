@@ -655,31 +655,48 @@
 function isAnnouncementForThisStudent(announcement) {
     if (!announcement) return false;
 
-    // ถ้าประกาศตั้งค่าเป็นทุกคนเห็นได้ (all, everyone, หรือไม่ระบุ) ให้ผ่าน
+    // 1. ถ้าไม่ได้ระบุ target_type หรือตั้งเป็น all/everyone ให้ทุกคนเห็นได้
     const targetType = announcement.target_type || 'all';
     if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
         return true;
     }
 
-    // ถ้าประกาศระบุเจาะจงเฉพาะคอร์ส
-    if (targetType === 'course') {
-        // ดึงรายการคอร์สที่นักเรียนลงทะเบียน (ปรับชื่อฟิลด์ตามโครงสร้างจริงของคุณ เช่น enrolled_courses หรือ courses)
-        const enrolledCourses = currentStudentData?.enrolled_courses || currentStudentData?.courses || [];
+    // 2. กรณีแยกตามห้องเรียน (Room)
+    if (targetType === 'room') {
+        const studentRoom = currentStudentData?.room || currentStudentData?.class_room || currentStudentData?.class;
+        const targetRoom = announcement.target_value || announcement.target_room; // รองรับทั้ง target_value และ target_room
         
-        // ดึงรหัสคอร์สของประกาศนี้ (ปรับตามฟิลด์ในตาราง announcements เช่น course_id หรือ target_course_id)
-        const annCourseId = announcement.course_id || announcement.target_course_id;
+        if (!studentRoom || !targetRoom) return false;
+        
+        // เผื่อห้องเรียนใน target_value มีหลายห้องคั่นด้วยคอมมา
+        const allowedRooms = String(targetRoom).split(',').map(r => r.trim());
+        return allowedRooms.includes(String(studentRoom).trim());
+    }
 
-        // ถ้าประกาศไม่ได้ผูกกับคอร์สไหนเลย ให้ผ่าน
-        if (!annCourseId) return true;
+    // 3. กรณีแยกตามคอร์ส (Course) ที่เก็บค่าคั่นด้วยคอมมาใน target_value
+    if (targetType === 'course' || targetType === 'courses') {
+        // รายการคอร์สที่นักเรียนลงทะเบียน (สมมติว่าเป็น Array เช่น ["course_cpp_01", "course_math_101"])
+        const studentCourses = currentStudentData?.enrolled_courses || currentStudentData?.courses || [];
+        
+        // ดึงค่าจาก target_value หรือฟิลด์คอร์สอื่นๆ
+        const targetValue = announcement.target_value || announcement.course_id || announcement.target_course_id;
+        
+        // ถ้าประกาศไม่ได้ระบุคอร์สเจาะจง ให้ผ่าน
+        if (!targetValue) return true;
 
-        // เช็กว่านักเรียนลงทะเบียนคอร์สนี้หรือไม่
-        if (Array.isArray(enrolledCourses)) {
-            // แปลงเป็น String ทั้งหมดเพื่อป้องกันเคสเทียบชนิดข้อมูล (เช่น int กับ string)
-            return enrolledCourses.map(String).includes(String(annCourseId));
-        } else if (typeof enrolledCourses === 'string') {
-            return enrolledCourses.includes(String(annCourseId));
+        // ตัด comma (,) ออกแล้วแปลงเป็นอาเรย์ของรหัสคอร์ส
+        const allowedCourses = String(targetValue).split(',').map(c => c.trim());
+
+        // ตรวจสอบว่ามีคอร์สใดคอร์สหนึ่งในประกาศที่ตรงกับคอร์สที่นักเรียนเรียนอยู่หรือไม่
+        if (Array.isArray(studentCourses)) {
+            return studentCourses.map(String).some(course => allowedCourses.includes(course));
+        } else if (typeof studentCourses === 'string') {
+            // เผื่อฝั่งนักเรียนเก็บเป็น string คั่นด้วยคอมมาเช่นกัน
+            const studentCourseList = studentCourses.split(',').map(c => c.trim());
+            return studentCourseList.some(course => allowedCourses.includes(course));
         }
-        return false; // ถ้าไม่ได้ลงคอร์สนี้ จะไม่แสดง
+
+        return false;
     }
 
     return true;
