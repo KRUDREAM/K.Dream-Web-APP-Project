@@ -281,7 +281,7 @@
             if (themeIcon) themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        async function initPage() {
+async function initPage() {
             const urlParams = new URLSearchParams(window.location.search);
             currentStudentId = urlParams.get('student_id') || urlParams.get('id') || localStorage.getItem('student_id') || localStorage.getItem('id');
             userRole = localStorage.getItem('role') || localStorage.getItem('user_role') || (currentStudentId ? 'student' : 'admin');
@@ -300,7 +300,7 @@
 
             await fetchCoursesAndStudents();
 
-            // ดึงข้อมูลคอร์สลงทะเบียนแบบปลอดภัย ไม่ทำให้เกิด Error 400/404
+            // ดึงข้อมูลคอร์สลงทะเบียนแบบปลอดภัย แยกตารางและฟิลด์เพื่อป้องกัน Error 400
             if (currentStudentId) {
                 let enrollments = [];
                 
@@ -340,15 +340,16 @@
             return false;
         }
 
-        async function fetchCoursesAndStudents() {
-            const { data: courses } = await mySupabase.from('courses').select('id, title, course_code, name');
+           async function fetchCoursesAndStudents() {
+            // ดึงแบบเซฟตี้ ไม่ระบุคอลัมน์เจาะจง ป้องกันกรณีคอลัมน์บางตัวไม่มีจริง
+            const { data: courses } = await mySupabase.from('courses').select('*');
             if (courses) {
                 allCoursesList = courses;
                 coursesMap = {};
                 courses.forEach(c => {
-                    const cTitle = c.title || c.name || c.course_code;
+                    const cTitle = c.title || c.name || c.course_code || 'คอร์สเรียน';
                     coursesMap[c.id] = cTitle;
-                    coursesMap[c.course_code] = cTitle;
+                    if (c.course_code) coursesMap[c.course_code] = cTitle;
                 });
 
                 const container = document.getElementById('courseCheckboxes');
