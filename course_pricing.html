@@ -4,7 +4,7 @@
     <script src="lms_core.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KRUDREAM LAND | จัดการ Catalog สินค้าและแพ็กเกจคอร์สเรียนระดับโปร</title>
+    <title>KRUDREAM LAND | Admin Catalog & Package Management</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -49,10 +49,10 @@
                     </button>
                     <div>
                         <h1 class="font-extrabold text-xl text-slate-900 dark:text-white flex items-center gap-2">
-                            <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-store"></i></span>
-                            Catalog สินค้า & แพ็กเกจคอร์สเรียน (Pro Version)
+                            <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-boxes-stacked"></i></span>
+                            จัดการ Catalog สินค้าและแพ็กเกจคอร์สเรียน (Admin Pro)
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">ระบบจัดการสินค้าครบวงจร แท็ก คูปอง รีวิว และ Flash Sale</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">ควบคุมกรอบรูป 16:9, จัดลำดับภาพ, โปรโมชั่นหมดเวลา, และโค้ดส่วนลด</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -101,112 +101,159 @@
 
     <!-- Modal สำหรับเพิ่ม / แก้ไขแพ็กเกจ -->
     <div id="packageModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="modern-card w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button onclick="closePackageModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition">
+        <div class="modern-card w-full max-w-3xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-6">
+            <button onclick="closePackageModal()" class="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
                 <i class="fas fa-xmark"></i>
             </button>
 
-            <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-                <div class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md">
-                    <i class="fas fa-box-archive"></i>
+            <!-- ฟอร์มกรอกข้อมูล (ซ้าย) -->
+            <div class="md:col-span-7 space-y-4">
+                <div class="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md">
+                        <i class="fas fa-pen-to-square"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white" id="modalTitle">เพิ่มแพ็กเกจคอร์สใหม่</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">กำหนดราคา โปรโมชั่น และเรียงลำดับรูปภาพ</p>
+                    </div>
                 </div>
-                <div>
-                    <h3 class="text-lg font-bold text-slate-900 dark:text-white" id="modalTitle">เพิ่มแพ็กเกจคอร์สใหม่</h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดข้อมูลสินค้า ของแถม และ Flash Sale</p>
-                </div>
+
+                <form id="packageForm" onsubmit="handlePackageSubmit(event)" class="space-y-4">
+                    <input type="hidden" id="editPackageId">
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ชื่อแพ็กเกจ / คอร์ส <span class="text-red-500">*</span></label>
+                        <input type="text" id="pkgTitle" required oninput="updateLivePreview()" placeholder="เช่น Bundle เหมาเรียน ม.3 ทั้งเทอม" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500 font-bold">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">รหัสสินค้า</label>
+                            <input type="text" id="pkgCode" oninput="updateLivePreview()" placeholder="BUNDLE-M3" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ป้ายแท็กพิเศษ</label>
+                            <select id="pkgBadge" onchange="updateLivePreview()" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500 font-bold">
+                                <option value="">-- ไม่แสดงป้ายแท็ก --</option>
+                                <option value="🔥 โปรโมชั่นพิเศษ">🔥 โปรโมชั่นพิเศษ</option>
+                                <option value="🏷️ ลดราคาแรง">🏷️ ลดราคาแรง</option>
+                                <option value="⭐ ยอดฮิตสุด">⭐ ยอดฮิตสุด</option>
+                                <option value="🚀 เปิดใหม่">🚀 เปิดใหม่</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">แท็กหมวดหมู่ (คั่นด้วยจุลภาค)</label>
+                        <input type="text" id="pkgTags" placeholder="ไทย, สอบเข้าม1" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ราคาปกติ (บาท)</label>
+                            <input type="number" id="pkgOriginalPrice" oninput="updateLivePreview()" min="0" step="any" placeholder="2500" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">ราคาขายจริง <span class="text-red-500">*</span></label>
+                            <input type="number" id="pkgPrice" required oninput="updateLivePreview()" min="0" step="any" placeholder="1500" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500 font-bold text-sky-600">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">🎁 ของแถมพิเศษ</label>
+                            <input type="text" id="pkgFreebies" oninput="updateLivePreview()" placeholder="แถมสรุปชีวะ 1 เล่ม" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">⏳ สิทธิ์จำกัด (ท่าน)</label>
+                            <input type="number" id="pkgMaxSlots" placeholder="เช่น 50" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">🎟️ โค้ดส่วนลด (Promo Code)</label>
+                            <input type="text" id="pkgPromoCode" placeholder="เช่น DREAM300" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500 font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">⏰ โปรโมชั่นหมดเขต</label>
+                            <input type="datetime-local" id="pkgPromoEndTime" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-[11px] outline-none focus:border-sky-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">เงื่อนไขโปรโมชั่น / ส่วนลดเพิ่มเติม</label>
+                        <input type="text" id="pkgPromo" oninput="updateLivePreview()" placeholder="ลด 40% เฉพาะ 30 ท่านแรกเท่านั้น" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500">
+                    </div>
+
+                    <!-- อัปโหลดและจัดเรียงรูปภาพ -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">อัปโหลดรูปภาพ (16:9) & จัดลำดับ</label>
+                        <input type="file" id="pkgImagesInput" multiple accept="image/*" class="w-full px-3 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer">
+                        <p class="text-[10px] text-slate-400 mt-1">รูปแรกซ้ายสุดจะถูกใช้เป็นรูปปกหลัก</p>
+                        
+                        <div id="imagePreviewContainer" class="flex flex-wrap gap-2 mt-2.5"></div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">รายละเอียดคอร์ส</label>
+                        <textarea id="pkgDesc" rows="3" oninput="updateLivePreview()" placeholder="อธิบายสิ่งที่นักเรียนจะได้รับ..." class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none focus:border-sky-500 resize-none"></textarea>
+                    </div>
+
+                    <div class="flex gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <button type="submit" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-xl font-bold text-xs transition shadow-md shadow-sky-500/20">
+                            <i class="fas fa-floppy-disk mr-1"></i> บันทึกแพ็กเกจ
+                        </button>
+                        <button type="button" onclick="closePackageModal()" class="px-5 py-3 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs hover:bg-slate-200 transition">
+                            ยกเลิก
+                        </button>
+                    </div>
+                </form>
             </div>
 
-            <form id="packageForm" onsubmit="handlePackageSubmit(event)" class="space-y-4">
-                <input type="hidden" id="editPackageId">
-
+            <!-- Live User Preview (ขวา) -->
+            <div class="md:col-span-5 bg-slate-100/80 dark:bg-darkinput/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">ชื่อแพ็กเกจ / คอร์ส <span class="text-red-500">*</span></label>
-                    <input type="text" id="pkgTitle" required placeholder="เช่น Bundle เหมาเรียน ม.3 ทั้งเทอม" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500 font-bold">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">รหัสสินค้า (Code)</label>
-                        <input type="text" id="pkgCode" placeholder="เช่น BUNDLE-M3" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[10px] uppercase font-black tracking-wider text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2.5 py-1 rounded-lg">
+                            <i class="fas fa-eye mr-1"></i> พรีวิวหน้าเว็บนักเรียน
+                        </span>
+                        <span class="text-[10px] text-slate-400">1920x1080 Frame</span>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">ป้ายแท็กพิเศษ (Badge)</label>
-                        <select id="pkgBadge" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500 font-bold">
-                            <option value="">-- ไม่แสดงป้ายแท็ก --</option>
-                            <option value="🔥 โปรโมชั่นพิเศษ">🔥 โปรโมชั่นพิเศษ</option>
-                            <option value="🏷️ ลดราคาแรง">🏷️ ลดราคาแรง</option>
-                            <option value="⭐ ยอดฮิตสุด">⭐ ยอดฮิตสุด</option>
-                            <option value="🚀 เปิดใหม่">🚀 เปิดใหม่</option>
-                            <option value="💎 คอร์สแนะนำ">💎 คอร์สแนะนำ</option>
-                        </select>
-                    </div>
-                </div>
 
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">แท็กหมวดหมู่ (คั่นด้วยจุลภาค เช่น ไทย, สอบเข้าม1)</label>
-                    <input type="text" id="pkgTags" placeholder="ไทย, สอบเข้าม1, ม.ต้น" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">ราคาปกติ (บาท)</label>
-                        <input type="number" id="pkgOriginalPrice" min="0" step="any" placeholder="เช่น 2500" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">ราคาขายจริง (บาท) <span class="text-red-500">*</span></label>
-                        <input type="number" id="pkgPrice" required min="0" step="any" placeholder="เช่น 1500" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-sm outline-none focus:border-sky-500 font-bold text-sky-600 dark:text-sky-400">
+                    <!-- ตัวอย่างการ์ดสินค้าจริง -->
+                    <div class="modern-card rounded-2xl overflow-hidden shadow-md bg-white dark:bg-darkbox">
+                        <div class="relative aspect-video overflow-hidden bg-slate-200 dark:bg-slate-800">
+                            <img id="previewImg" src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60" class="w-full h-full object-cover">
+                            <div id="previewCodeBadge" class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-lg">
+                                BUNDLE-M3
+                            </div>
+                            <div id="previewTagBadge" class="absolute top-2 right-2"></div>
+                        </div>
+                        <div class="p-4 space-y-2">
+                            <h4 id="previewTitle" class="font-bold text-sm text-slate-900 dark:text-white line-clamp-1">ชื่อแพ็กเกจตัวอย่าง</h4>
+                            <div class="flex items-center gap-2">
+                                <span id="previewPrice" class="text-base font-extrabold text-sky-600 dark:text-sky-400">฿1,500</span>
+                                <span id="previewOrigPrice" class="text-[11px] text-slate-400 line-through">฿2,500</span>
+                            </div>
+                            <p id="previewPromo" class="text-[10px] text-amber-500 font-medium"></p>
+                            <p id="previewFreebies" class="text-[10px] text-emerald-600 font-medium"></p>
+                            <p id="previewDesc" class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">รายละเอียดคอร์สตัวอย่าง...</p>
+                        </div>
                     </div>
                 </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">🎁 ของแถมพิเศษ (Freebies)</label>
-                        <input type="text" id="pkgFreebies" placeholder="เช่น แถมสรุปชีวะ 1 เล่ม" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">⭐ คะแนนรีวิว (1-5)</label>
-                        <input type="number" id="pkgRating" min="1" max="5" step="0.1" value="5.0" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">เงื่อนไขโปรโมชั่น / ส่วนลด</label>
-                    <input type="text" id="pkgPromo" placeholder="เช่น ลด 40% เฉพาะ 30 ท่านแรกเท่านั้น" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500">
-                </div>
-
-                <!-- ส่วนอัปโหลดรูปภาพหลายรูป -->
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">อัปโหลดรูปภาพสินค้า (เลือกได้หลายรูป)</label>
-                    <input type="file" id="pkgImagesInput" multiple accept="image/*" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer">
-                    <p class="text-[10px] text-slate-400 mt-1">รูปแรกสุดจะถูกใช้เป็นรูปปกหลักของสินค้า</p>
-                    
-                    <div id="imagePreviewContainer" class="flex flex-wrap gap-2 mt-3"></div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">รายละเอียดคอร์ส / เนื้อหาในแพ็กเกจ</label>
-                    <textarea id="pkgDesc" rows="4" placeholder="อธิบายสิ่งที่นักเรียนจะได้รับในแพ็กเกจนี้..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-xs outline-none focus:border-sky-500 resize-none"></textarea>
-                </div>
-
-                <div class="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <button type="submit" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-2xl font-bold text-xs transition shadow-lg shadow-sky-500/20">
-                        <i class="fas fa-floppy-disk mr-1"></i> บันทึกแพ็กเกจ
-                    </button>
-                    <button type="button" onclick="closePackageModal()" class="px-5 py-3 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-xs hover:bg-slate-200 transition">
-                        ยกเลิก
-                    </button>
-                </div>
-            </form>
+                <p class="text-[10px] text-slate-400 text-center mt-4">รูปภาพและข้อมูลจะปรับเปลี่ยนตามที่คุณกรอกฟอร์มแบบเรียลไทม์</p>
+            </div>
         </div>
     </div>
 
-    <!-- Modal สำหรับดู Gallery รูปภาพทั้งหมด -->
+    <!-- Gallery Modal -->
     <div id="galleryModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
         <div class="bg-white dark:bg-darkbox w-full max-w-2xl rounded-3xl p-6 relative">
             <button onclick="closeGalleryModal()" class="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-darkinput text-slate-500 hover:text-red-500 transition z-10">
                 <i class="fas fa-xmark"></i>
             </button>
-            <h4 class="font-bold text-base mb-4" id="galleryTitle">รูปภาพทั้งหมดของแพ็กเกจ</h4>
+            <h4 class="font-bold text-base mb-4" id="galleryTitle">รูปภาพทั้งหมด</h4>
             <div id="galleryImagesGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto"></div>
         </div>
     </div>
@@ -220,7 +267,6 @@
         let activeTag = 'all';
         let currentImageUrls = [];
 
-        // Theme Toggle
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
         if (localStorage.getItem('theme') === 'dark') {
@@ -248,16 +294,13 @@
             renderPackagesGrid();
         }
 
-        // 🌟 ประกาศฟังก์ชัน filterByTag ไว้ใน Global Scope ป้องกัน Error ปลอม
         window.filterByTag = function(tag) {
             activeTag = tag;
             document.querySelectorAll('.tag-btn').forEach(btn => {
                 btn.className = 'tag-btn px-4 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold shrink-0 transition hover:bg-sky-50';
             });
             const activeBtn = document.getElementById(`tag-${tag}`);
-            if (activeBtn) {
-                activeBtn.className = 'tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md';
-            }
+            if (activeBtn) activeBtn.className = 'tag-btn px-4 py-2 bg-sky-600 text-white rounded-2xl text-xs font-bold shrink-0 transition shadow-md';
             renderPackagesGrid();
         }
 
@@ -270,23 +313,13 @@
                 const title = (p.title || '').toLowerCase();
                 const code = (p.code || '').toLowerCase();
                 const tagsStr = Array.isArray(p.tags) ? p.tags.join(',').toLowerCase() : (p.tags || '').toLowerCase();
-                
-                const matchKeyword = title.includes(keyword) || code.includes(keyword) || tagsStr.includes(keyword);
-                const matchTag = activeTag === 'all' || tagsStr.includes(activeTag.toLowerCase());
-
-                return matchKeyword && matchTag;
+                return title.includes(keyword) || code.includes(keyword) || tagsStr.includes(keyword);
             });
 
             if (countBadge) countBadge.textContent = `${filtered.length} รายการ`;
 
             if (filtered.length === 0) {
-                grid.innerHTML = `
-                    <div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full">
-                        <i class="fas fa-box-open text-3xl mb-3 text-sky-500"></i>
-                        <h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ไม่พบสินค้าในหมวดหมู่นี้</h4>
-                        <p class="text-xs text-slate-400">ลองเปลี่ยนคำค้นหาหรือเลือกแท็กอื่น</p>
-                    </div>
-                `;
+                grid.innerHTML = `<div class="modern-card p-12 rounded-3xl text-center text-slate-400 col-span-full"><p class="text-xs text-slate-400">ไม่พบแพ็กเกจสินค้า</p></div>`;
                 return;
             }
 
@@ -297,60 +330,36 @@
                 const origPrice = p.original_price ? `฿${Number(p.original_price).toLocaleString()}` : '';
                 const badge = p.badge_tag ? `<span class="px-2 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-bold">${p.badge_tag}</span>` : '';
                 const promo = p.promo_details ? `<p class="text-[11px] text-amber-500 font-medium"><i class="fas fa-bolt mr-1"></i>${p.promo_details}</p>` : '';
-                const freebies = p.freebies ? `<p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium"><i class="fas fa-gift mr-1"></i>${p.freebies}</p>` : '';
-                const rating = p.rating ? `<span class="text-xs font-bold text-amber-500"><i class="fas fa-star mr-1"></i>${p.rating} (${p.review_count || 10})</span>` : '';
+                const freebies = p.freebies ? `<p class="text-[11px] text-emerald-600 font-medium"><i class="fas fa-gift mr-1"></i>${p.freebies}</p>` : '';
                 const desc = p.description || 'ไม่มีรายละเอียดเพิ่มเติม';
                 
-                let imgList = [];
-                if (Array.isArray(p.images) && p.images.length > 0) {
-                    imgList = p.images;
-                } else if (p.image_url) {
-                    imgList = [p.image_url];
-                } else {
-                    imgList = ['https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60'];
-                }
-
+                let imgList = Array.isArray(p.images) && p.images.length > 0 ? p.images : [p.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60'];
                 const mainImg = imgList[0];
-                const moreImagesBtn = imgList.length > 1 ? `
-                    <button onclick="openGalleryModal(${JSON.stringify(imgList).replace(/"/g, '&quot;')}, '${title}')" class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-xl shadow hover:bg-black transition">
-                        <i class="fas fa-images mr-1"></i> ดูอีก ${imgList.length - 1} รูป
-                    </button>
-                ` : '';
+                const moreBtn = imgList.length > 1 ? `<button onclick="openGalleryModal(${JSON.stringify(imgList).replace(/"/g, '&quot;')}, '${title}')" class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-xl"><i class="fas fa-images mr-1"></i> ${imgList.length} รูป</button>` : '';
 
                 return `
                     <div class="modern-card rounded-3xl overflow-hidden flex flex-col justify-between group">
                         <div>
-                            <div class="relative h-48 overflow-hidden bg-slate-100 dark:bg-darkinput">
+                            <div class="relative aspect-video overflow-hidden bg-slate-100 dark:bg-darkinput">
                                 <img src="${mainImg}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-                                <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-xl">
-                                    ${code}
-                                </div>
-                                <div class="absolute top-3 right-3">
-                                    ${badge}
-                                </div>
-                                ${moreImagesBtn}
+                                <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-xl">${code}</div>
+                                <div class="absolute top-3 right-3">${badge}</div>
+                                ${moreBtn}
                             </div>
-                            <div class="p-6 space-y-2.5">
-                                <div class="flex justify-between items-center">
-                                    <h4 class="font-bold text-base text-slate-900 dark:text-white line-clamp-1">${title}</h4>
-                                    ${rating}
-                                </div>
+                            <div class="p-6 space-y-2">
+                                <h4 class="font-bold text-base text-slate-900 dark:text-white line-clamp-1">${title}</h4>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-lg font-extrabold text-sky-600 dark:text-sky-400">${price}</span>
+                                    <span class="text-lg font-extrabold text-sky-600">${price}</span>
                                     ${origPrice ? `<span class="text-xs text-slate-400 line-through">${origPrice}</span>` : ''}
                                 </div>
                                 ${promo}
                                 ${freebies}
-                                <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${desc}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">${desc}</p>
                             </div>
                         </div>
                         <div class="p-6 pt-0 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 mt-4 gap-2">
-                            <button onclick="editPackage('${p.id}')" class="flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-sky-500/20">
-                                <i class="fas fa-pen-to-square mr-1"></i> แก้ไข
-                            </button>
-                            <button onclick="deletePackage('${p.id}')" class="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold transition">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <button onclick="editPackage('${p.id}')" class="flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition">แก้ไข</button>
+                            <button onclick="deletePackage('${p.id}')" class="px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold transition"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
                 `;
@@ -375,49 +384,36 @@
                     document.getElementById('pkgOriginalPrice').value = pkg.original_price || '';
                     document.getElementById('pkgPrice').value = pkg.price || '';
                     document.getElementById('pkgFreebies').value = pkg.freebies || '';
-                    document.getElementById('pkgRating').value = pkg.rating || 5.0;
+                    document.getElementById('pkgMaxSlots').value = pkg.max_slots || '';
+                    document.getElementById('pkgPromoCode').value = pkg.promo_code || '';
+                    if (pkg.promo_end_time) document.getElementById('pkgPromoEndTime').value = pkg.promo_end_time.substring(0, 16);
                     document.getElementById('pkgPromo').value = pkg.promo_details || '';
                     document.getElementById('pkgDesc').value = pkg.description || '';
                     
-                    if (Array.isArray(pkg.images) && pkg.images.length > 0) {
-                        currentImageUrls = [...pkg.images];
-                    } else if (pkg.image_url) {
-                        currentImageUrls = [pkg.image_url];
-                    }
+                    currentImageUrls = Array.isArray(pkg.images) ? [...pkg.images] : (pkg.image_url ? [pkg.image_url] : []);
                     renderImagePreviews();
                     document.getElementById('modalTitle').textContent = 'แก้ไขแพ็กเกจคอร์ส';
                 }
             }
-
+            updateLivePreview();
             document.getElementById('packageModal').classList.remove('hidden');
         }
 
-        window.closePackageModal = function() {
-            document.getElementById('packageModal').classList.add('hidden');
-        }
-
-        window.editPackage = function(id) {
-            openPackageModal(id);
-        }
+        window.closePackageModal = function() { document.getElementById('packageModal').classList.add('hidden'); }
+        window.editPackage = function(id) { openPackageModal(id); }
 
         document.getElementById('pkgImagesInput').addEventListener('change', async (e) => {
             const files = e.target.files;
             if (!files || files.length === 0) return;
-
             Swal.fire({ title: 'กำลังอัปโหลดรูปภาพ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
             for (let file of files) {
                 const fileName = `course_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${file.name.split('.').pop()}`;
                 const { data, error } = await mySupabase.storage.from('course_images').upload(fileName, file);
-
                 if (!error) {
-                    const { data: publicUrlData } = mySupabase.storage.from('course_images').getPublicUrl(fileName);
-                    if (publicUrlData?.publicUrl) {
-                        currentImageUrls.push(publicUrlData.publicUrl);
-                    }
+                    const { data: pub } = mySupabase.storage.from('course_images').getPublicUrl(fileName);
+                    if (pub?.publicUrl) currentImageUrls.push(pub.publicUrl);
                 }
             }
-
             Swal.close();
             renderImagePreviews();
         });
@@ -425,18 +421,51 @@
         function renderImagePreviews() {
             const container = document.getElementById('imagePreviewContainer');
             container.innerHTML = currentImageUrls.map((url, index) => `
-                <div class="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group">
+                <div class="relative w-20 h-12 rounded-lg overflow-hidden border border-slate-200 shadow-sm group">
                     <img src="${url}" class="w-full h-full object-cover">
-                    <button type="button" onclick="removeImage(${index})" class="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                        <i class="fas fa-trash text-xs"></i>
-                    </button>
+                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition">
+                        ${index > 0 ? `<button type="button" onclick="moveImage(${index}, -1)" class="text-white text-[10px]"><i class="fas fa-chevron-left"></i></button>` : ''}
+                        <button type="button" onclick="removeImage(${index})" class="text-rose-300 text-[10px]"><i class="fas fa-trash"></i></button>
+                        ${index < currentImageUrls.length - 1 ? `<button type="button" onclick="moveImage(${index}, 1)" class="text-white text-[10px]"><i class="fas fa-chevron-right"></i></button>` : ''}
+                    </div>
                 </div>
             `).join('');
+            updateLivePreview();
+        }
+
+        window.moveImage = function(index, direction) {
+            const target = index + direction;
+            if (target < 0 || target >= currentImageUrls.length) return;
+            const temp = currentImageUrls[index];
+            currentImageUrls[index] = currentImageUrls[target];
+            currentImageUrls[target] = temp;
+            renderImagePreviews();
         }
 
         window.removeImage = function(index) {
             currentImageUrls.splice(index, 1);
             renderImagePreviews();
+        }
+
+        function updateLivePreview() {
+            const title = document.getElementById('pkgTitle').value || 'ชื่อแพ็กเกจตัวอย่าง';
+            const code = document.getElementById('pkgCode').value || 'BUNDLE-M3';
+            const price = document.getElementById('pkgPrice').value ? `฿${Number(document.getElementById('pkgPrice').value).toLocaleString()}` : '฿1,500';
+            const origPrice = document.getElementById('pkgOriginalPrice').value ? `฿${Number(document.getElementById('pkgOriginalPrice').value).toLocaleString()}` : '';
+            const badge = document.getElementById('pkgBadge').value;
+            const promo = document.getElementById('pkgPromo').value;
+            const freebies = document.getElementById('pkgFreebies').value;
+            const desc = document.getElementById('pkgDesc').value || 'รายละเอียดคอร์สตัวอย่าง...';
+
+            document.getElementById('previewTitle').textContent = title;
+            document.getElementById('previewCodeBadge').textContent = code;
+            document.getElementById('previewPrice').textContent = price;
+            document.getElementById('previewOrigPrice').textContent = origPrice;
+            document.getElementById('previewPromo').textContent = promo ? `⚡ ${promo}` : '';
+            document.getElementById('previewFreebies').textContent = freebies ? `🎁 ${freebies}` : '';
+            document.getElementById('previewDesc').textContent = desc;
+            document.getElementById('previewTagBadge').innerHTML = badge ? `<span class="bg-rose-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg shadow">${badge}</span>` : '';
+            if (currentImageUrls.length > 0) document.getElementById('previewImg').src = currentImageUrls[0];
         }
 
         window.handlePackageSubmit = async function(e) {
@@ -453,7 +482,9 @@
                 original_price: document.getElementById('pkgOriginalPrice').value ? parseFloat(document.getElementById('pkgOriginalPrice').value) : null,
                 price: parseFloat(document.getElementById('pkgPrice').value) || 0,
                 freebies: document.getElementById('pkgFreebies').value.trim(),
-                rating: parseFloat(document.getElementById('pkgRating').value) || 5.0,
+                max_slots: document.getElementById('pkgMaxSlots').value ? parseInt(document.getElementById('pkgMaxSlots').value) : null,
+                promo_code: document.getElementById('pkgPromoCode').value.trim(),
+                promo_end_time: document.getElementById('pkgPromoEndTime').value ? new Date(document.getElementById('pkgPromoEndTime').value).toISOString() : null,
                 promo_details: document.getElementById('pkgPromo').value.trim(),
                 images: currentImageUrls,
                 image_url: currentImageUrls.length > 0 ? currentImageUrls[0] : null,
@@ -461,54 +492,28 @@
             };
 
             Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            let error = id ? (await mySupabase.from('course_packages').update(payload).eq('id', id)).error : (await mySupabase.from('course_packages').insert([payload])).error;
 
-            let error;
-            if (id) {
-                const res = await mySupabase.from('course_packages').update(payload).eq('id', id);
-                error = res.error;
-            } else {
-                const res = await mySupabase.from('course_packages').insert([payload]);
-                error = res.error;
-            }
-
-            if (error) {
-                Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
-                return;
-            }
-
+            if (error) { Swal.fire('เกิดข้อผิดพลาด', error.message, 'error'); return; }
             Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1200, showConfirmButton: false });
             closePackageModal();
             fetchPackages();
         }
 
         window.deletePackage = async function(id) {
-            const confirm = await Swal.fire({ title: 'ลบแพ็กเกจนี้?', text: 'การกระทำนี้จะไม่สามารถย้อนกลับได้', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก' });
+            const confirm = await Swal.fire({ title: 'ลบแพ็กเกจนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก' });
             if (confirm.isConfirmed) {
-                Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 const { error } = await mySupabase.from('course_packages').delete().eq('id', id);
-                if (error) {
-                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
-                } else {
-                    Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false });
-                    fetchPackages();
-                }
+                if (!error) fetchPackages();
             }
         }
 
         window.openGalleryModal = function(imgList, title) {
             document.getElementById('galleryTitle').textContent = `รูปภาพทั้งหมด: ${title}`;
-            const grid = document.getElementById('galleryImagesGrid');
-            grid.innerHTML = imgList.map(img => `
-                <div class="rounded-2xl overflow-hidden h-40 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-darkinput">
-                    <img src="${img}" class="w-full h-full object-cover">
-                </div>
-            `).join('');
+            document.getElementById('galleryImagesGrid').innerHTML = imgList.map(img => `<div class="rounded-2xl overflow-hidden aspect-video bg-slate-100"><img src="${img}" class="w-full h-full object-cover"></div>`).join('');
             document.getElementById('galleryModal').classList.remove('hidden');
         }
-
-        window.closeGalleryModal = function() {
-            document.getElementById('galleryModal').classList.add('hidden');
-        }
+        window.closeGalleryModal = function() { document.getElementById('galleryModal').classList.add('hidden'); }
 
         initPage();
     </script>
