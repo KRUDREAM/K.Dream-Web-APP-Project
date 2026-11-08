@@ -35,6 +35,7 @@
     <style>
         body { font-family: 'Prompt', sans-serif; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
         
+        /* Navbar มาตรฐานจัดกึ่งกลางและบาลานซ์เป๊ะๆ */
         .glass-nav { 
             background: rgba(255, 255, 255, 0.75); 
             backdrop-filter: blur(20px); 
@@ -91,18 +92,20 @@
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-16 sm:pb-12" oncontextmenu="return false;">
 
-    <!-- Navbar ดีไซน์มาตรฐานตรงกันทุกหน้า พร้อม Tab เมนูด้านบน -->
+    <!-- Navbar ที่จัดวางโครงสร้างใหม่ให้ตรงเป๊ะและสมดุล -->
     <nav class="glass-nav fixed w-full top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-20 items-center">
+                
+                <!-- โลโก้และชื่อเว็บด้านซ้าย -->
                 <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-2xl overflow-hidden shadow-lg border border-emerald-500/30">
+                    <div class="w-11 h-11 rounded-2xl overflow-hidden shadow-lg border border-emerald-500/30 shrink-0">
                         <img src="logo.jpg" alt="Logo" class="w-full h-full object-cover">
                     </div>
                     <span class="font-black text-lg sm:text-xl text-slate-900 dark:text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-teal-600">KRUDREAM LAND</span>
                 </div>
                 
-                <!-- Tab เมนูด้านบน (เหมือนหน้า index.html และแคตตาล็อก) -->
+                <!-- Tab เมนูกึ่งกลาง -->
                 <div class="hidden md:flex items-center gap-1.5 glass-input p-1.5 rounded-2xl">
                     <a href="index.html" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 transition">
                         <i class="fas fa-home mr-1"></i> หน้าแรก
@@ -115,11 +118,13 @@
                     </a>
                 </div>
 
+                <!-- ปุ่มสลับธีมด้านขวา -->
                 <div class="flex items-center gap-3">
                     <button id="themeToggle" class="w-11 h-11 rounded-2xl glass-input shadow-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition hover:scale-110">
                         <i class="fas fa-moon text-lg" id="themeIcon"></i>
                     </button>
                 </div>
+
             </div>
         </div>
     </nav>
@@ -127,7 +132,7 @@
     <!-- Main Layout -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 space-y-6">
         
-        <!-- 🌟 มุมมองที่ 1: หน้าแรกแสดงการ์ดคอร์สทดลองเรียนทั้งหมด (Grid View) -->
+        <!-- มุมมองที่ 1: หน้าแรกแสดงการ์ดคอร์สทดลองเรียนทั้งหมด (Grid View) -->
         <div id="courseCatalogView" class="space-y-6">
             <div class="hitech-card p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-2 border-emerald-500/60 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent shadow-lg shadow-emerald-500/10">
                 <div class="space-y-1">
@@ -135,7 +140,7 @@
                     <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">เลือกคอร์สทดลองเรียนที่คุณสนใจ</h2>
                     <p class="text-xs text-slate-500 dark:text-slate-400">คลิกที่การ์ดคอร์สใดก็ได้ เพื่อเข้าสู่หน้าดูเทปเรียนและเอกสารประกอบของคอร์สนั้น ๆ ทันที</p>
                 </div>
-                <div class="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                <div class="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-600 dark:text-emerald-400 font-bold text-xs shrink-0">
                     <i class="fas fa-book-open mr-1"></i> มีทั้งหมด <span id="totalTrialCount">0</span> คอร์ส
                 </div>
             </div>
@@ -148,9 +153,8 @@
             </div>
         </div>
 
-        <!-- 🌟 มุมมองที่ 2: หน้าห้องเรียนรายคอร์ส (Player & Lessons View - ซ่อนอยู่เริ่มต้น จะแสดงเมื่อเลือกคอร์ส) -->
+        <!-- มุมมองที่ 2: หน้าห้องเรียนรายคอร์ส (Player & Lessons View) -->
         <div id="coursePlayerView" class="hidden space-y-4 sm:space-y-6">
-            <!-- Header สำหรับกลับสู่หน้าเลือกคอร์ส -->
             <div class="hitech-card p-4 rounded-2xl flex items-center justify-between border border-emerald-500/40 bg-emerald-500/5">
                 <button onclick="backToCatalog()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2">
                     <i class="fas fa-arrow-left"></i> กลับไปหน้าเลือกคอร์สอื่น
@@ -161,7 +165,7 @@
             </div>
 
             <div class="flex flex-col lg:flex-row gap-4 sm:gap-5 items-start">
-                <!-- Sidebar รายการบทเรียนและเอกสาร -->
+                <!-- Sidebar -->
                 <div id="sidebarPanel" class="w-full lg:w-80 hitech-card p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl space-y-3 flex flex-col h-[420px] lg:h-[calc(100vh-250px)] lg:sticky lg:top-28 shrink-0 overflow-hidden">
                     <div class="space-y-2 pb-2.5 border-b border-slate-200 dark:border-slate-800">
                         <div class="flex justify-between items-center">
