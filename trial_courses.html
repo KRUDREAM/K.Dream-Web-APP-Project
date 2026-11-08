@@ -153,7 +153,7 @@
                 
                 <!-- Tab เมนูกึ่งกลาง (Centered Navigation) -->
                 <div class="hidden md:flex items-center gap-1.5 glass-input p-1.5 rounded-2xl absolute left-1/2 transform -translate-x-1/2 shadow-inner border border-blue-500/15">
-                    <a href="index2.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
+                    <a href="index.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
                         <i class="fas fa-home mr-1.5"></i> หน้าแรก
                     </a>
                     <a href="catalog.html" class="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 hover:bg-blue-500/10 transition">
@@ -479,13 +479,13 @@
                 videoContainer.innerHTML = videos.map(v => {
                     const isActive = activeVideoId === v.id;
                     return `
-                        <div onclick="playBunnyVideo('${v.id}', '${encodeURIComponent(v.title)}', '${v.created_at}', '${v.bunny_video_id}')" class="p-3.5 rounded-2xl cursor-pointer transition-all border ${isActive ? 'bg-blue-500/15 border-blue-500 shadow-md' : 'bg-white/60 dark:bg-darkinput/60 border-slate-200/80 dark:border-slate-800/80 hover:border-blue-500/40'} flex items-center justify-between gap-2.5">
+                        <div onclick="playBunnyVideo('${v.id}', '${encodeURIComponent(v.title)}', '${v.created_at}', '${v.bunny_video_id}')" class="p-3.5 rounded-2xl cursor-pointer transition-all border ${isActive ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/20 text-blue-400' : 'bg-white/60 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800/80 hover:border-blue-500/40'} flex items-center justify-between gap-2.5">
                             <div class="flex items-center gap-3 min-w-0">
                                 <div class="w-9 h-9 rounded-xl ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' : 'bg-blue-500/10 text-blue-500'} flex items-center justify-center font-bold text-xs shrink-0">
                                     <i class="fas ${isActive ? 'fa-play' : 'fa-video'} text-[11px]"></i>
                                 </div>
                                 <div class="min-w-0">
-                                    <h4 class="font-bold text-xs text-slate-900 dark:text-white truncate">${v.title}</h4>
+                                    <h4 class="font-bold text-xs ${isActive ? 'text-blue-400' : 'text-slate-900 dark:text-white'} truncate">${v.title}</h4>
                                     <p class="text-[10px] text-slate-400">${new Date(v.created_at).toLocaleDateString('th-TH')}</p>
                                 </div>
                             </div>
@@ -504,7 +504,7 @@
                 fileContainer.innerHTML = `<div class="text-center py-3 text-slate-400 text-[11px]">ไม่มีไฟล์เอกสาร</div>`;
             } else {
                 fileContainer.innerHTML = files.map(f => `
-                    <a href="${f.pdf_url}" target="_blank" class="p-3 bg-white/60 dark:bg-darkinput/60 border border-slate-200/80 dark:border-slate-800/80 rounded-xl flex items-center justify-between gap-2 block hover:border-blue-500/40 transition">
+                    <a href="${f.pdf_url}" target="_blank" class="p-3 bg-white/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/80 rounded-xl flex items-center justify-between gap-2 block hover:border-blue-500/40 transition">
                         <div class="flex items-center gap-2.5 min-w-0">
                             <div class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center text-xs shrink-0">
                                 <i class="fas fa-file-lines"></i>
@@ -531,6 +531,8 @@
             wrapper.innerHTML = `
                 <iframe src="${embedUrl}" loading="lazy" style="border:none;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
             `;
+
+            renderCourseContent(); // อัปเดตสถานะ Active ใน List ให้เปลี่ยนสีทันที
         }
 
         function resetPlayerToEmpty() {
