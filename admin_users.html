@@ -111,6 +111,9 @@
                             <th class="p-3 sortable-th" onclick="setSort('full_name')">
                                 ชื่อ - นามสกุล <i id="sortIcon-full_name" class="fas fa-sort ml-1 text-slate-400"></i>
                             </th>
+                            <th class="p-3 sortable-th" onclick="setSort('gender')">
+                                เพศ <i id="sortIcon-gender" class="fas fa-sort ml-1 text-slate-400"></i>
+                            </th>
                             <th class="p-3 sortable-th" onclick="setSort('nickname')">
                                 ชื่อเล่น <i id="sortIcon-nickname" class="fas fa-sort ml-1 text-slate-400"></i>
                             </th>
@@ -126,7 +129,7 @@
                         </tr>
                     </thead>
                     <tbody id="studentsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
-                        <tr><td colspan="10" class="text-center py-8 text-slate-400">กำลังโหลดข้อมูลบัญชีผู้ใช้...</td></tr>
+                        <tr><td colspan="11" class="text-center py-8 text-slate-400">กำลังโหลดข้อมูลบัญชีผู้ใช้...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -227,7 +230,7 @@
                 currentSortAsc = true;
             }
 
-            ['username', 'full_name', 'nickname', 'grade_level', 'created_at'].forEach(f => {
+            ['username', 'full_name', 'gender', 'nickname', 'grade_level', 'created_at'].forEach(f => {
                 const icon = document.getElementById(`sortIcon-${f}`);
                 if (!icon) return;
                 if (f === currentSortField) {
@@ -247,7 +250,8 @@
             let filtered = studentsList.filter(s => {
                 if (!keyword) return true;
                 const username = (s.username || s.email || '').toLowerCase();
-                const fullName = (s.full_name || s.first_name || '').toLowerCase();
+                const fullName = (s.full_name || (s.first_name ? `${s.first_name} ${s.last_name || ''}` : '')).toLowerCase();
+                const gender = (s.gender || '').toLowerCase();
                 const nickname = (s.nickname || '').toLowerCase();
                 const studentId = String(s.student_id || '').toLowerCase();
                 const grade = String(s.grade_level || s.grade || '').toLowerCase();
@@ -265,12 +269,17 @@
                     }
                 });
 
-                return username.includes(keyword) || fullName.includes(keyword) || nickname.includes(keyword) || studentId.includes(keyword) || grade.includes(keyword) || school.includes(keyword) || courseMatch;
+                return username.includes(keyword) || fullName.includes(keyword) || gender.includes(keyword) || nickname.includes(keyword) || studentId.includes(keyword) || grade.includes(keyword) || school.includes(keyword) || courseMatch;
             });
 
             filtered.sort((a, b) => {
                 let valA = a[currentSortField] || '';
                 let valB = b[currentSortField] || '';
+
+                if (currentSortField === 'full_name') {
+                    valA = a.full_name || (a.first_name ? `${a.first_name} ${a.last_name || ''}` : '');
+                    valB = b.full_name || (b.first_name ? `${b.first_name} ${b.last_name || ''}` : '');
+                }
 
                 if (currentSortField === 'created_at') {
                     valA = valA ? new Date(valA).getTime() : 0;
@@ -288,20 +297,27 @@
             document.getElementById('studentCountLabel').textContent = `แสดง ${filtered.length} รายการ (จากทั้งหมด ${studentsList.length} คน)`;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-400">ไม่พบรายชื่อนักเรียนที่ค้นหา</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400">ไม่พบรายชื่อนักเรียนที่ค้นหา</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = filtered.map((s, idx) => {
                 const sId = String(s.id);
                 const username = s.username || s.email || s.student_id || '-';
-                const fullName = s.full_name || (s.first_name ? `${s.first_name} ${s.last_name || ''}` : '-');
+                
+                // ระบบดึงชื่อ-นามสกุลอัจฉริยะ (รองรับทั้ง full_name และแยก first_name / last_name)
+                let fullName = s.full_name || '';
+                if (!fullName && (s.first_name || s.last_name)) {
+                    fullName = `${s.first_name || ''} ${s.last_name || ''}`.trim();
+                }
+                if (!fullName) fullName = '-';
+
+                const gender = s.gender || '-';
                 const nickname = s.nickname || '-';
                 const gradeLevel = s.grade_level || s.grade || '-';
                 const school = s.school || '-';
                 const lineId = s.line_id || '-';
                 
-                // แยกประเภทบัญชี
                 const accountType = s.account_type || 'internal_admin';
                 const accountBadge = accountType === 'external_student'
                     ? '<span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 rounded-lg text-[10px] font-bold border border-emerald-500/20">🌐 สมัครเอง (ภายนอก)</span>'
@@ -328,6 +344,7 @@
                         <td class="p-3 font-mono font-bold text-sky-600 dark:text-sky-400">${username}</td>
                         <td class="p-3">${accountBadge}</td>
                         <td class="p-3 font-bold text-slate-900 dark:text-white">${fullName}</td>
+                        <td class="p-3 text-slate-600 dark:text-slate-300 font-medium">${gender}</td>
                         <td class="p-3 font-semibold text-slate-600 dark:text-slate-300">${nickname}</td>
                         <td class="p-3">
                             <div class="font-bold text-indigo-600 dark:text-indigo-400">${gradeLevel}</div>
@@ -555,7 +572,7 @@
 
             const { value: formValues } = await Swal.fire({
                 title: '➕ สร้างบัญชีนักเรียนใหม่ (ภายใน)',
-                width: '550px',
+                width: '580px',
                 html: `
                     <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold text-center"></div>
                     <div class="space-y-3 text-left text-xs">
@@ -582,11 +599,22 @@
                                 <input id="swalLastName" value="${savedData.last_name || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="นามสกุล">
                             </div>
                         </div>
-                        <div class="grid grid-cols-3 gap-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold mb-1">เพศ <span class="text-red-500">*</span></label>
+                                <select id="swalGender" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                                    <option value="" ${!savedData.gender ? 'selected' : ''}>-- เลือกเพศ --</option>
+                                    <option value="ชาย" ${savedData.gender === 'ชาย' ? 'selected' : ''}>ชาย</option>
+                                    <option value="หญิง" ${savedData.gender === 'หญิง' ? 'selected' : ''}>หญิง</option>
+                                    <option value="อื่นๆ" ${savedData.gender === 'อื่นๆ' ? 'selected' : ''}>อื่นๆ</option>
+                                </select>
+                            </div>
                             <div>
                                 <label class="block font-bold mb-1">ชื่อเล่น <span class="text-red-500">*</span></label>
                                 <input id="swalNickname" value="${savedData.nickname || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ชื่อเล่น">
                             </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block font-bold mb-1">ระดับชั้น <span class="text-red-500">*</span></label>
                                 <input id="swalGradeLevel" value="${savedData.grade_level || ''}" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" placeholder="ม.3/1">
@@ -619,6 +647,7 @@
                     const passwordVal = document.getElementById('swalPassword').value.trim();
                     const firstName = document.getElementById('swalFirstName').value.trim();
                     const lastName = document.getElementById('swalLastName').value.trim();
+                    const gender = document.getElementById('swalGender').value;
                     const nickname = document.getElementById('swalNickname').value.trim();
                     const gradeLevel = document.getElementById('swalGradeLevel').value.trim();
                     const phone = document.getElementById('swalPhone').value.trim();
@@ -626,7 +655,7 @@
                     const lineId = document.getElementById('swalLineId').value.trim();
                     const errorBox = document.getElementById('swalErrorMsg');
 
-                    if (!usernameVal || !passwordVal || !firstName || !lastName || !nickname || !gradeLevel || !phone || !school || !lineId) {
+                    if (!usernameVal || !passwordVal || !firstName || !lastName || !gender || !nickname || !gradeLevel || !phone || !school || !lineId) {
                         errorBox.textContent = '⚠️ กรุณากรอกข้อมูลให้ครบทุกช่อง';
                         errorBox.classList.remove('hidden');
                         return false;
@@ -646,13 +675,14 @@
                         first_name: firstName,
                         last_name: lastName,
                         full_name: `${firstName} ${lastName}`,
+                        gender: gender,
                         nickname: nickname,
                         grade_level: gradeLevel,
                         phone: phone,
                         school: school,
                         line_id: lineId,
                         role: 'student',
-                        account_type: 'internal_admin' // บัญชีภายในสร้างจากหลังบ้าน
+                        account_type: 'internal_admin'
                     };
                 }
             });
@@ -679,6 +709,7 @@
                     first_name: formValues.first_name,
                     last_name: formValues.last_name,
                     full_name: formValues.full_name,
+                    gender: formValues.gender,
                     nickname: formValues.nickname,
                     grade_level: formValues.grade_level,
                     phone: formValues.phone,
@@ -707,9 +738,18 @@
             const isDark = document.documentElement.classList.contains('dark');
             const usernameValStr = student.username || student.email || '';
 
+            // ดึงค่าชื่อจริง-นามสกุลแยกออกมาให้ชัวร์ (กรณีฐานข้อมูลเก็บใน full_name หรือแยกคอลัมน์)
+            let fName = student.first_name || '';
+            let lName = student.last_name || '';
+            if ((!fName || !lName) && student.full_name) {
+                const parts = student.full_name.trim().split(' ');
+                if (!fName) fName = parts[0] || '';
+                if (!lName) lName = parts.slice(1).join(' ') || '';
+            }
+
             const { value: formValues } = await Swal.fire({
                 title: '✏️ แก้ไขข้อมูลบัญชีนักเรียน',
-                width: '550px',
+                width: '580px',
                 html: `
                     <div id="swalErrorMsg" class="hidden mb-3 p-2 bg-rose-500/25 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold text-center"></div>
                     <div class="space-y-3 text-left text-xs">
@@ -735,18 +775,29 @@
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block font-bold mb-1">ชื่อจริง <span class="text-red-500">*</span></label>
-                                <input id="swalFirstName" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.first_name || ''}">
+                                <input id="swalFirstName" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${fName}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">นามสกุล <span class="text-red-500">*</span></label>
-                                <input id="swalLastName" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.last_name || ''}">
+                                <input id="swalLastName" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${lName}">
                             </div>
                         </div>
-                        <div class="grid grid-cols-3 gap-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold mb-1">เพศ <span class="text-red-500">*</span></label>
+                                <select id="swalGender" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold">
+                                    <option value="" ${!student.gender ? 'selected' : ''}>-- เลือกเพศ --</option>
+                                    <option value="ชาย" ${student.gender === 'ชาย' ? 'selected' : ''}>ชาย</option>
+                                    <option value="หญิง" ${student.gender === 'หญิง' ? 'selected' : ''}>หญิง</option>
+                                    <option value="อื่นๆ" ${student.gender === 'อื่นๆ' ? 'selected' : ''}>อื่นๆ</option>
+                                </select>
+                            </div>
                             <div>
                                 <label class="block font-bold mb-1">ชื่อเล่น <span class="text-red-500">*</span></label>
                                 <input id="swalNickname" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.nickname || ''}">
                             </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block font-bold mb-1">ระดับชั้น <span class="text-red-500">*</span></label>
                                 <input id="swalGradeLevel" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold" value="${student.grade_level || student.grade || ''}">
@@ -778,6 +829,7 @@
                     const usernameVal = document.getElementById('swalUsername').value.trim();
                     const firstName = document.getElementById('swalFirstName').value.trim();
                     const lastName = document.getElementById('swalLastName').value.trim();
+                    const gender = document.getElementById('swalGender').value;
                     const nickname = document.getElementById('swalNickname').value.trim();
                     const gradeLevel = document.getElementById('swalGradeLevel').value.trim();
                     const phone = document.getElementById('swalPhone').value.trim();
@@ -785,7 +837,7 @@
                     const lineId = document.getElementById('swalLineId').value.trim();
                     const errorBox = document.getElementById('swalErrorMsg');
 
-                    if (!usernameVal || !firstName || !lastName || !nickname || !gradeLevel || !phone || !school || !lineId) {
+                    if (!usernameVal || !firstName || !lastName || !gender || !nickname || !gradeLevel || !phone || !school || !lineId) {
                         errorBox.textContent = '⚠️ กรุณากรอกข้อมูลให้ครบทุกช่อง';
                         errorBox.classList.remove('hidden');
                         return false;
@@ -797,6 +849,7 @@
                         first_name: firstName,
                         last_name: lastName,
                         full_name: `${firstName} ${lastName}`,
+                        gender: gender,
                         nickname: nickname,
                         grade_level: gradeLevel,
                         phone: phone,
