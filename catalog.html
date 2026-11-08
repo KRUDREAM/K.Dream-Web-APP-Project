@@ -77,12 +77,12 @@
     <!-- Main Layout with Left Announcement Sidebar -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 grid grid-cols-1 lg:grid-cols-4 gap-6">
         
-        <!-- Sidebar ซ้าย: ระบบประกาศโปรโมชัน (ดึงข้อมูลจากตาราง promotions) -->
+        <!-- Sidebar ซ้าย: ระบบประกาศ (ดึงข้อมูลจากตาราง site_announcements) -->
         <aside class="lg:col-span-1 space-y-4">
             <div class="modern-card p-5 rounded-3xl sticky top-28 space-y-4 shadow-sm">
                 <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                        <i class="fas fa-bullhorn text-amber-500 animate-bounce"></i> ประกาศ & โปรโมชัน
+                        <i class="fas fa-bullhorn text-amber-500 animate-bounce"></i> ประกาศสำคัญ
                     </h3>
                     <span class="text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-bold" id="announcementCount">0</span>
                 </div>
@@ -164,7 +164,7 @@
 
         let allPackages = [];
         let allReviews = [];
-        let allPromotions = [];
+        let siteAnnouncements = [];
         let enrolledCourseIds = [];
         let wishlistIds = JSON.parse(localStorage.getItem('wishlist_courses') || '[]');
         let activeTag = 'all';
@@ -199,15 +199,15 @@
                 }
             }
 
-            const [pkgRes, reviewRes, promoRes] = await Promise.all([
+            const [pkgRes, reviewRes, annRes] = await Promise.all([
                 mySupabase.from('course_packages').select('*').order('created_at', { ascending: false }),
                 mySupabase.from('package_reviews').select('*'),
-                mySupabase.from('promotions').select('*').eq('is_active', true)
+                mySupabase.from('site_announcements').select('*').eq('is_active', true).order('created_at', { ascending: false })
             ]);
 
             allPackages = pkgRes.data || [];
             allReviews = reviewRes.data || [];
-            allPromotions = promoRes.data || [];
+            siteAnnouncements = annRes.data || [];
 
             renderAnnouncementsSidebar();
             generateDynamicTags();
@@ -216,23 +216,27 @@
 
         function renderAnnouncementsSidebar() {
             const container = document.getElementById('announcementSidebarList');
-            document.getElementById('announcementCount').textContent = allPromotions.length;
+            document.getElementById('announcementCount').textContent = siteAnnouncements.length;
 
-            if (allPromotions.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีประกาศหรือโปรโมชันในขณะนี้</p>`;
+            if (siteAnnouncements.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีประกาศในขณะนี้</p>`;
                 return;
             }
 
-            container.innerHTML = allPromotions.map(item => {
-                const title = item.title || item.code || 'ประกาศสำคัญ';
-                const desc = item.description || item.promo_details || (item.discount_value ? `ส่วนลด ${item.discount_value}${item.discount_type === 'percent' ? '%' : ' บาท'}` : '');
+            container.innerHTML = siteAnnouncements.map(item => {
+                const title = item.title || 'ประกาศสำคัญ';
+                const content = item.content || '';
+                const badge = item.badge_tag ? `<span class="px-2 py-0.5 bg-amber-500 text-white rounded-md text-[9px] font-bold shadow">${item.badge_tag}</span>` : '';
+                const imgHtml = item.image_url ? `<div class="aspect-video w-full rounded-xl overflow-hidden bg-slate-100 mt-2"><img src="${item.image_url}" class="w-full h-full object-cover"></div>` : '';
                 
                 return `
-                    <div class="p-3 bg-amber-50/50 dark:bg-darkinput rounded-2xl border border-amber-100 dark:border-slate-800 space-y-1">
-                        <div class="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-xs">
-                            <i class="fas fa-bullhorn"></i> <span>${title}</span>
+                    <div class="p-3.5 bg-amber-50/50 dark:bg-darkinput rounded-2xl border border-amber-100 dark:border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5"><i class="fas fa-bullhorn text-amber-500"></i> ${title}</span>
+                            ${badge}
                         </div>
-                        <p class="text-[11px] text-slate-600 dark:text-slate-300 font-light leading-relaxed">${desc}</p>
+                        <p class="text-[11px] text-slate-600 dark:text-slate-300 font-light leading-relaxed whitespace-pre-line">${content}</p>
+                        ${imgHtml}
                     </div>
                 `;
             }).join('');
