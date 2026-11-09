@@ -1332,13 +1332,29 @@
 
                 let userVal = '-';
                 if (rawAns && typeof rawAns === 'object') {
-                    userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] || '-';
+                    userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] ?? '-';
                 }
 
-                const correctVal = q.correct_answer || q.answer || q.solution || '-';
-                const userAnsStr = userVal !== undefined && userVal !== null ? String(userVal).trim().toLowerCase() : '';
-                const correctAnsStr = String(correctVal).trim().toLowerCase();
-                const isCorrect = userAnsStr !== '' && userAnsStr === correctAnsStr;
+                // 🛠️ แก้ไข: แปลงค่า index (เช่น 0, 1, 2) หรือคีย์ตัวเลข ให้แสดงผลเป็นข้อความตัวเลือก (Choice text) จริงๆ ถ้ามีข้อมูลช้อยส์
+                let choicesArr = q.choices || q.options || q.choices_list || null;
+                if (typeof choicesArr === 'string') { try { choicesArr = JSON.parse(choicesArr); } catch(e){} }
+
+                let displayedUserAns = userVal;
+                let displayedCorrectAns = q.correct_answer || q.answer || q.solution || '-';
+
+                if (Array.isArray(choicesArr) && choicesArr.length > 0) {
+                    // ถ้า userVal เป็นตัวเลข index (เช่น 0, 1, 2, 3) ให้ดึงข้อความช้อยส์จริงมาแสดง
+                    if (!isNaN(userVal) && userVal !== '-' && Number(userVal) >= 0 && Number(userVal) < choicesArr.length) {
+                        displayedUserAns = choicesArr[Number(userVal)];
+                    }
+                    if (!isNaN(displayedCorrectAns) && displayedCorrectAns !== '-' && Number(displayedCorrectAns) >= 0 && Number(displayedCorrectAns) < choicesArr.length) {
+                        displayedCorrectAns = choicesArr[Number(displayedCorrectAns)];
+                    }
+                }
+
+                const userAnsStr = String(userVal).trim().toLowerCase();
+                const correctAnsStr = String(q.correct_answer || q.answer || q.solution || '').trim().toLowerCase();
+                const isCorrect = userAnsStr !== '' && (userAnsStr === correctAnsStr || (Array.isArray(choicesArr) && !isNaN(userVal) && choicesArr[Number(userVal)] === q.correct_answer));
 
                 return `
                     <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40'} space-y-1.5 text-xs text-left">
@@ -1347,7 +1363,7 @@
                             <span class="${isCorrect ? 'text-emerald-500' : 'text-rose-500'}">${isCorrect ? '✅ ถูกต้อง' : '❌ ตอบผิด'}</span>
                         </div>
                         <div class="text-[11px] text-slate-500 dark:text-slate-400">
-                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${userVal}</span> | เฉลยที่ถูกต้อง: <span class="font-bold text-emerald-600">${correctVal}</span>
+                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${displayedUserAns}</span> | เฉลยที่ถูกต้อง: <span class="font-bold text-emerald-600">${displayedCorrectAns}</span>
                         </div>
                     </div>
                 `;
@@ -1445,20 +1461,34 @@
 
                     let userVal = '-';
                     if (rawAns && typeof rawAns === 'object') {
-                        userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] || '-';
+                        userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] ?? '-';
                     }
 
-                    const correctVal = q.correct_answer || q.answer || q.solution || '-';
-                    const userAnsStr = userVal !== undefined && userVal !== null ? String(userVal).trim().toLowerCase() : '';
-                    const correctAnsStr = String(correctVal).trim().toLowerCase();
-                    const isCorrect = userAnsStr !== '' && userAnsStr === correctAnsStr;
+                    let choicesArr = q.choices || q.options || q.choices_list || null;
+                    if (typeof choicesArr === 'string') { try { choicesArr = JSON.parse(choicesArr); } catch(e){} }
+
+                    let displayedUserAns = userVal;
+                    let displayedCorrectAns = q.correct_answer || q.answer || q.solution || '-';
+
+                    if (Array.isArray(choicesArr) && choicesArr.length > 0) {
+                        if (!isNaN(userVal) && userVal !== '-' && Number(userVal) >= 0 && Number(userVal) < choicesArr.length) {
+                            displayedUserAns = choicesArr[Number(userVal)];
+                        }
+                        if (!isNaN(displayedCorrectAns) && displayedCorrectAns !== '-' && Number(displayedCorrectAns) >= 0 && Number(displayedCorrectAns) < choicesArr.length) {
+                            displayedCorrectAns = choicesArr[Number(displayedCorrectAns)];
+                        }
+                    }
+
+                    const userAnsStr = String(userVal).trim().toLowerCase();
+                    const correctAnsStr = String(q.correct_answer || q.answer || q.solution || '').trim().toLowerCase();
+                    const isCorrect = userAnsStr !== '' && (userAnsStr === correctAnsStr || (Array.isArray(choicesArr) && !isNaN(userVal) && choicesArr[Number(userVal)] === q.correct_answer));
 
                     printWindow.document.write(`
                         <tr>
                             <td>${q.question_number}</td>
                             <td>${q.question_text || q.content || '-'}</td>
-                            <td><strong>${userVal}</strong></td>
-                            <td>${correctVal}</td>
+                            <td><strong>${displayedUserAns}</strong></td>
+                            <td>${displayedCorrectAns}</td>
                             <td class="${isCorrect ? 'correct' : 'wrong'}">${isCorrect ? 'ถูกต้อง' : 'ตอบผิด'}</td>
                         </tr>
                     `);
