@@ -496,7 +496,7 @@
                 return;
             }
 
-            const allowedArr = currentSetting?.allowed_courses || [];
+            const allowedArr = (currentSetting && currentSetting.allowed_courses) ? currentSetting.allowed_courses : [];
 
             container.innerHTML = allCoursesList.map(c => {
                 const isChecked = allowedArr.includes(String(c.id)) ? 'checked' : '';
@@ -545,9 +545,9 @@
             currentSetting = data || { is_open: false, prune_hours: 24, allowed_courses: [] };
 
             if (!isInitialLoaded || document.activeElement.tagName !== 'INPUT') {
-                if (currentSetting?.open_at) document.getElementById('openAtInput').value = formatLocalDateTime(currentSetting.open_at);
-                if (currentSetting?.close_at) document.getElementById('closeAtInput').value = formatLocalDateTime(currentSetting.close_at);
-                if (currentSetting?.prune_hours !== undefined) document.getElementById('pruneHoursInput').value = currentSetting.prune_hours;
+                if (currentSetting && currentSetting.open_at) document.getElementById('openAtInput').value = formatLocalDateTime(currentSetting.open_at);
+                if (currentSetting && currentSetting.close_at) document.getElementById('closeAtInput').value = formatLocalDateTime(currentSetting.close_at);
+                if (currentSetting && currentSetting.prune_hours !== undefined) document.getElementById('pruneHoursInput').value = currentSetting.prune_hours;
                 renderAllowedCoursesCheckboxes();
                 isInitialLoaded = true;
             }
@@ -561,26 +561,26 @@
 
             const now = new Date();
             let autoOpen = false;
-            if (currentSetting?.open_at && currentSetting?.close_at) {
+            if (currentSetting && currentSetting.open_at && currentSetting.close_at) {
                 const openTime = new Date(currentSetting.open_at);
                 const closeTime = new Date(currentSetting.close_at);
                 if (now >= openTime && now < closeTime) autoOpen = true;
             }
 
-            if (autoOpen !== currentSetting.is_open) {
+            if (currentSetting && autoOpen !== currentSetting.is_open) {
                 mySupabase.from('consult_settings').update({ is_open: autoOpen }).eq('id', 1).then(() => {
-                    currentSetting.is_open = autoOpen;
+                    if (currentSetting) currentSetting.is_open = autoOpen;
                 });
             }
 
-            if (currentSetting.is_open) {
+            if (currentSetting && currentSetting.is_open) {
                 statusIndicator.className = 'w-3 h-3 rounded-full bg-emerald-500 animate-pulse inline-block';
                 statusText.textContent = 'เปิดรับจอง Consult แล้ว (ตามกำหนดเวลา)';
-                countdownInfo.textContent = currentSetting.close_at ? `⏳ จะปิดอัตโนมัติใน: ${new Date(currentSetting.close_at).toLocaleString('th-TH')}` : '';
+                countdownInfo.textContent = (currentSetting && currentSetting.close_at) ? `⏳ จะปิดอัตโนมัติใน: ${new Date(currentSetting.close_at).toLocaleString('th-TH')}` : '';
             } else {
                 statusIndicator.className = 'w-3 h-3 rounded-full bg-amber-500 inline-block';
                 statusText.textContent = 'ปิดรับจอง';
-                if (currentSetting?.open_at && new Date(currentSetting.open_at) > now) {
+                if (currentSetting && currentSetting.open_at && new Date(currentSetting.open_at) > now) {
                     countdownInfo.textContent = `🟢 เปิดอัตโนมัติใน: ${new Date(currentSetting.open_at).toLocaleString('th-TH')}`;
                 } else {
                     countdownInfo.textContent = 'ระบบปิดรับจองในขณะนี้ (นอกช่วงเวลาเปิด)';
@@ -589,9 +589,9 @@
         }
 
         async function toggleSystemStatus() {
-            const newStatus = !currentSetting.is_open;
+            const newStatus = !(currentSetting && currentSetting.is_open);
             await mySupabase.from('consult_settings').update({ is_open: newStatus }).eq('id', 1);
-            currentSetting.is_open = newStatus;
+            if (currentSetting) currentSetting.is_open = newStatus;
             await logHistory(newStatus ? 'Manual Override: เปิดระบบรับจอง' : 'Manual Override: ปิดระบบรับจอง');
             
             if (typeof logSystemAction === 'function') {
@@ -606,11 +606,11 @@
                     .gt('end_time', nowIso);
                 
                 const totalSlotsCount = slotsData ? slotsData.length : 0;
-                const closeTimeStr = currentSetting.close_at 
+                const closeTimeStr = (currentSetting && currentSetting.close_at) 
                     ? new Date(currentSetting.close_at).toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' }) 
                     : 'ไม่ได้กำหนด';
 
-                const allowedCourses = currentSetting?.allowed_courses || [];
+                const allowedCourses = (currentSetting && currentSetting.allowed_courses) ? currentSetting.allowed_courses : [];
 
                 if (allowedCourses.length > 0) {
                     for (const courseId of allowedCourses) {
@@ -658,11 +658,13 @@
             }).eq('id', 1);
 
             if (!error) {
-                currentSetting.open_at = openIso;
-                currentSetting.close_at = closeIso;
-                currentSetting.prune_hours = pruneVal;
-                currentSetting.is_open = initialOpen;
-                currentSetting.allowed_courses = checkedCourses;
+                if (currentSetting) {
+                    currentSetting.open_at = openIso;
+                    currentSetting.close_at = closeIso;
+                    currentSetting.prune_hours = pruneVal;
+                    currentSetting.is_open = initialOpen;
+                    currentSetting.allowed_courses = checkedCourses;
+                }
 
                 await logHistory('อัปเดตเวลาเปิด-ปิดอัตโนมัติ, คอร์สที่อนุญาต และการตั้งค่า');
                 
@@ -792,7 +794,7 @@
                 bookedContainer.innerHTML = bookedSlots.map(s => {
                     const startStr = new Date(s.start_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
                     const endStr = new Date(s.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
-                    const studentName = s.profiles?.full_name || 'นักเรียน';
+                    const studentName = (s.profiles && s.profiles.full_name) ? s.profiles.full_name : 'นักเรียน';
                     const studentId = s.student_id;
                     return `
                         <div class="p-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-500/40 flex justify-between items-center text-xs shadow-sm">
@@ -892,7 +894,8 @@
             filtered.forEach((s, index) => {
                 const startStr = new Date(s.start_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
                 const endStr = new Date(s.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
-                csvContent += `${index + 1},"${s.profiles?.full_name || 'นักเรียน'}",${startStr},${endStr}\n`;
+                const studentName = (s.profiles && s.profiles.full_name) ? s.profiles.full_name : 'นักเรียน';
+                csvContent += `${index + 1},"${studentName}",${startStr},${endStr}\n`;
             });
             downloadCSV(csvContent, `Consult_Bookings_${selectedDateStr}.csv`);
         }
@@ -908,7 +911,8 @@
                 const dateStr = s.start_time.split('T')[0];
                 const startStr = new Date(s.start_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
                 const endStr = new Date(s.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
-                csvContent += `${index + 1},${dateStr},"${s.profiles?.full_name || 'นักเรียน'}",${startStr},${endStr}\n`;
+                const studentName = (s.profiles && s.profiles.full_name) ? s.profiles.full_name : 'นักเรียน';
+                csvContent += `${index + 1},${dateStr},"${studentName}",${startStr},${endStr}\n`;
             });
             downloadCSV(csvContent, `Consult_Bookings_All.csv`);
         }
@@ -1094,12 +1098,12 @@
             }
 
             const filtered = allBookedStudentsCache.filter(s => {
-                const name = (s.profiles?.full_name || '').toLowerCase();
-                const username = (s.profiles?.username || '').toLowerCase();
-                const email = (s.profiles?.email || '').toLowerCase();
-                const school = (s.profiles?.school || '').toLowerCase();
-                const nickname = (s.profiles?.nickname || '').toLowerCase();
-                const lineId = (s.profiles?.line_id || '').toLowerCase();
+                const name = (s.profiles && s.profiles.full_name) ? s.profiles.full_name.toLowerCase() : '';
+                const username = (s.profiles && s.profiles.username) ? s.profiles.username.toLowerCase() : '';
+                const email = (s.profiles && s.profiles.email) ? s.profiles.email.toLowerCase() : '';
+                const school = (s.profiles && s.profiles.school) ? s.profiles.school.toLowerCase() : '';
+                const nickname = (s.profiles && s.profiles.nickname) ? s.profiles.nickname.toLowerCase() : '';
+                const lineId = (s.profiles && s.profiles.line_id) ? s.profiles.line_id.toLowerCase() : '';
                 return name.includes(keyword) || username.includes(keyword) || email.includes(keyword) || school.includes(keyword) || nickname.includes(keyword) || lineId.includes(keyword);
             });
 
@@ -1117,8 +1121,8 @@
             list.innerHTML = bookedSlots.map(s => {
                 const startStr = new Date(s.start_time).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
                 const endStr = new Date(s.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
-                const studentName = s.profiles?.full_name || 'นักเรียน';
-                const studentNickname = s.profiles?.nickname ? ` (${s.profiles.nickname})` : '';
+                const studentName = (s.profiles && s.profiles.full_name) ? s.profiles.full_name : 'นักเรียน';
+                const studentNickname = (s.profiles && s.profiles.nickname) ? ` (${s.profiles.nickname})` : '';
                 const studentId = s.student_id;
 
                 return `
@@ -1191,11 +1195,11 @@
 
             const name = getStudentName(profile, studentId);
             const nickname = getStudentNickname(profile);
-            const studentIdCode = profile?.student_id || '-';
-            const emailStr = profile?.email || '-';
-            const schoolStr = profile?.school || '-';
-            const gradeStr = profile?.grade_level || '-';
-            const phoneStr = profile?.phone || '-';
+            const studentIdCode = (profile && profile.student_id) ? profile.student_id : '-';
+            const emailStr = (profile && profile.email) ? profile.email : '-';
+            const schoolStr = (profile && profile.school) ? profile.school : '-';
+            const gradeStr = (profile && profile.grade_level) ? profile.grade_level : '-';
+            const phoneStr = (profile && profile.phone) ? profile.phone : '-';
 
             const totalScore = studentAttempts.reduce((acc, curr) => acc + getAttemptScore(curr), 0);
             const avg = studentAttempts.length > 0 ? (totalScore / studentAttempts.length).toFixed(1) : '0.0';
@@ -1206,8 +1210,8 @@
                 coursesHtml = `<div class="text-slate-400 text-xs italic py-2">ยังไม่ได้ลงทะเบียนในคอร์สใด</div>`;
             } else {
                 coursesHtml = enrolledCourses.map((en, idx) => {
-                    const cTitle = en.courses?.title || `คอร์สรหัส: ${en.course_id}`;
-                    const cCode = en.courses?.course_code || 'COURSE';
+                    const cTitle = (en.courses && en.courses.title) ? en.courses.title : `คอร์สรหัส: ${en.course_id}`;
+                    const cCode = (en.courses && en.courses.course_code) ? en.courses.course_code : 'COURSE';
                     return `
                         <div class="p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
                             <span class="font-bold text-slate-900 dark:text-white"><i class="fas fa-book-open mr-1.5 text-indigo-500"></i> [${cCode}] ${cTitle}</span>
@@ -1332,18 +1336,21 @@
 
                 let userVal = '-';
                 if (rawAns && typeof rawAns === 'object') {
-                    userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] ?? '-';
+                    let fallbackVal = rawAns[index] !== undefined ? rawAns[index] : '-';
+                    let qNumKey = rawAns[`q${q.question_number}`] !== undefined ? rawAns[`q${q.question_number}`] : fallbackVal;
+                    let numKey = rawAns[q.question_number] !== undefined ? rawAns[q.question_number] : qNumKey;
+                    let strIdKey = rawAns[String(q.id)] !== undefined ? rawAns[String(q.id)] : numKey;
+                    userVal = rawAns[q.id] !== undefined ? rawAns[q.id] : strIdKey;
                 }
 
-                // 🛠️ แก้ไข: แปลงค่า index (เช่น 0, 1, 2) หรือคีย์ตัวเลข ให้แสดงผลเป็นข้อความตัวเลือก (Choice text) จริงๆ ถ้ามีข้อมูลช้อยส์
-                let choicesArr = q.choices || q.options || q.choices_list || null;
+                // 🛠️ ปรับแก้: ใช้การเช็กเงื่อนไขแบบดั้งเดิม (หลีกเลี่ยง ?? เพื่อป้องกัน SyntaxError ในเบราว์เซอร์เก่า)
+                let choicesArr = q.choices ? q.choices : (q.options ? q.options : (q.choices_list ? q.choices_list : null));
                 if (typeof choicesArr === 'string') { try { choicesArr = JSON.parse(choicesArr); } catch(e){} }
 
                 let displayedUserAns = userVal;
-                let displayedCorrectAns = q.correct_answer || q.answer || q.solution || '-';
+                let displayedCorrectAns = q.correct_answer ? q.correct_answer : (q.answer ? q.answer : (q.solution ? q.solution : '-'));
 
                 if (Array.isArray(choicesArr) && choicesArr.length > 0) {
-                    // ถ้า userVal เป็นตัวเลข index (เช่น 0, 1, 2, 3) ให้ดึงข้อความช้อยส์จริงมาแสดง
                     if (!isNaN(userVal) && userVal !== '-' && Number(userVal) >= 0 && Number(userVal) < choicesArr.length) {
                         displayedUserAns = choicesArr[Number(userVal)];
                     }
@@ -1353,8 +1360,9 @@
                 }
 
                 const userAnsStr = String(userVal).trim().toLowerCase();
-                const correctAnsStr = String(q.correct_answer || q.answer || q.solution || '').trim().toLowerCase();
-                const isCorrect = userAnsStr !== '' && (userAnsStr === correctAnsStr || (Array.isArray(choicesArr) && !isNaN(userVal) && choicesArr[Number(userVal)] === q.correct_answer));
+                const correctAnsRaw = q.correct_answer ? q.correct_answer : (q.answer ? q.answer : (q.solution ? q.solution : ''));
+                const correctAnsStr = String(correctAnsRaw).trim().toLowerCase();
+                const isCorrect = userAnsStr !== '' && (userAnsStr === correctAnsStr || (Array.isArray(choicesArr) && !isNaN(userVal) && choicesArr[Number(userVal)] === correctAnsRaw));
 
                 return `
                     <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40'} space-y-1.5 text-xs text-left">
@@ -1415,7 +1423,7 @@
             const exam = allExamsCache.find(e => String(e.id) === String(examId));
             const profile = allProfilesMap[studentId];
             const name = getStudentName(profile, studentId);
-            const studentIdCode = profile?.student_id || '-';
+            const studentIdCode = (profile && profile.student_id) ? profile.student_id : '-';
 
             mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true }).then(({ data: questions }) => {
                 if (!questions) return;
@@ -1461,14 +1469,18 @@
 
                     let userVal = '-';
                     if (rawAns && typeof rawAns === 'object') {
-                        userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] ?? '-';
+                        let fallbackVal = rawAns[index] !== undefined ? rawAns[index] : '-';
+                        let qNumKey = rawAns[`q${q.question_number}`] !== undefined ? rawAns[`q${q.question_number}`] : fallbackVal;
+                        let numKey = rawAns[q.question_number] !== undefined ? rawAns[q.question_number] : qNumKey;
+                        let strIdKey = rawAns[String(q.id)] !== undefined ? rawAns[String(q.id)] : numKey;
+                        userVal = rawAns[q.id] !== undefined ? rawAns[q.id] : strIdKey;
                     }
 
-                    let choicesArr = q.choices || q.options || q.choices_list || null;
+                    let choicesArr = q.choices ? q.choices : (q.options ? q.options : (q.choices_list ? q.choices_list : null));
                     if (typeof choicesArr === 'string') { try { choicesArr = JSON.parse(choicesArr); } catch(e){} }
 
                     let displayedUserAns = userVal;
-                    let displayedCorrectAns = q.correct_answer || q.answer || q.solution || '-';
+                    let displayedCorrectAns = q.correct_answer ? q.correct_answer : (q.answer ? q.answer : (q.solution ? q.solution : '-'));
 
                     if (Array.isArray(choicesArr) && choicesArr.length > 0) {
                         if (!isNaN(userVal) && userVal !== '-' && Number(userVal) >= 0 && Number(userVal) < choicesArr.length) {
@@ -1480,8 +1492,9 @@
                     }
 
                     const userAnsStr = String(userVal).trim().toLowerCase();
-                    const correctAnsStr = String(q.correct_answer || q.answer || q.solution || '').trim().toLowerCase();
-                    const isCorrect = userAnsStr !== '' && (userAnsStr === correctAnsStr || (Array.isArray(choicesArr) && !isNaN(userVal) && choicesArr[Number(userVal)] === q.correct_answer));
+                    const correctAnsRaw = q.correct_answer ? q.correct_answer : (q.answer ? q.answer : (q.solution ? q.solution : ''));
+                    const correctAnsStr = String(correctAnsRaw).trim().toLowerCase();
+                    const isCorrect = userAnsStr !== '' && (userAnsStr === correctAnsStr || (Array.isArray(choicesArr) && !isNaN(userVal) && choicesArr[Number(userVal)] === correctAnsRaw));
 
                     printWindow.document.write(`
                         <tr>
@@ -1502,7 +1515,7 @@
         function printStudentSummaryReport(studentId) {
             const profile = allProfilesMap[studentId];
             const name = getStudentName(profile, studentId);
-            const studentIdCode = profile?.student_id || '-';
+            const studentIdCode = (profile && profile.student_id) ? profile.student_id : '-';
             const studentAttempts = allAttemptsCache.filter(a => String(a.student_id || a.user_id) === String(studentId));
             const totalScore = studentAttempts.reduce((acc, curr) => acc + getAttemptScore(curr), 0);
             const avg = studentAttempts.length > 0 ? (totalScore / studentAttempts.length).toFixed(1) : '0.0';
