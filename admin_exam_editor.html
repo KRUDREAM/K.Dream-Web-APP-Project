@@ -259,10 +259,10 @@
         async function logAdminAction(actionTitle, detailDesc) {
             try {
                 const adminName = localStorage.getItem('admin_username') || 
-                                  localStorage.getItem('user_name') || 
-                                  localStorage.getItem('account_name') || 
-                                  localStorage.getItem('full_name') || 
-                                  'ผู้ดูแลระบบ';
+                                localStorage.getItem('user_name') || 
+                                localStorage.getItem('account_name') || 
+                                localStorage.getItem('full_name') || 
+                                'ผู้ดูแลระบบ';
                 
                 await mySupabase.from('audit_logs').insert([{
                     exam_id: examId,
@@ -870,8 +870,9 @@
                 if (oldInput) {
                     const newInput = document.createElement('input');
                     newInput.type = isMultiple ? 'checkbox' : 'radio';
-                    newInput.name = isMultiple ? `swalCorrectCheck_${idx}` : 'swalCorrectRadio';
+                    newInput.name = 'swalCorrectChoice';
                     newInput.value = idx;
+                    newInput.checked = oldInput.checked;
                     oldInput.replaceWith(newInput);
                 }
             });
@@ -896,7 +897,7 @@
             const div = document.createElement('div');
             div.className = 'flex items-center gap-2 option-row';
             div.innerHTML = `
-                <input type="${isMultiple ? 'checkbox' : 'radio'}" name="${isMultiple ? 'swalCorrectCheck' : 'swalCorrectRadio'}" value="${currentCount}">
+                <input type="${isMultiple ? 'checkbox' : 'radio'}" name="swalCorrectChoice" value="${currentCount}">
                 <span class="font-bold w-6">${label}:</span>
                 <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(label)}">
                 <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>
@@ -985,7 +986,7 @@
                 const label = standardLabels[i] || String.fromCharCode(65+i);
                 const deleteBtn = i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>` : '';
                 return `<div class="flex items-center gap-2 option-row">
-                    <input type="${isMultiple ? 'checkbox' : 'radio'}" name="${isMultiple ? 'swalCorrectCheck' : 'swalCorrectRadio'}" value="${i}" ${isChecked ? 'checked' : ''}>
+                    <input type="${isMultiple ? 'checkbox' : 'radio'}" name="swalCorrectChoice" value="${i}" ${isChecked ? 'checked' : ''}>
                     <span class="font-bold w-6">${escapeHtml(label)}:</span>
                     <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(opt)}">
                     ${deleteBtn}
@@ -1105,14 +1106,13 @@
                     const optsParsed = Array.from(optInputs).map(inp => inp.value.trim()).filter(Boolean);
                     
                     const isMultiple = document.getElementById('isMultipleToggle')?.checked || false;
-                    let correctAnsValue = '0';
+                    let correctAnsValue = isMultiple ? [] : '0';
 
+                    const checkedElements = document.querySelectorAll('input[name="swalCorrectChoice"]:checked');
                     if (isMultiple) {
-                        const checkedBoxes = document.querySelectorAll('input[name="swalCorrectCheck"]:checked');
-                        correctAnsValue = Array.from(checkedBoxes).map(cb => cb.value);
+                        correctAnsValue = Array.from(checkedElements).map(el => el.value);
                     } else {
-                        const selectedRadio = document.querySelector('input[name="swalCorrectRadio"]:checked');
-                        correctAnsValue = selectedRadio ? selectedRadio.value : '0';
+                        correctAnsValue = checkedElements.length > 0 ? checkedElements[0].value : '0';
                     }
 
                     const kwRows = document.querySelectorAll('.keyword-row');
@@ -1424,13 +1424,11 @@
                                 const gradingMode = q.multiple_grading_mode || 'all';
 
                                 if (gradingMode === 'at_least_one') {
-                                    // ขอแค่ตอบถูกอย่างน้อย 1 ข้อที่ถูกต้อง ก็ได้เต็ม
                                     const hasAtLeastOneCorrect = userArr.some(ans => correctArr.includes(ans));
                                     if (hasAtLeastOneCorrect) {
                                         recalculatedScore += 1;
                                     }
                                 } else if (gradingMode === 'partial') {
-                                    // ให้คะแนนตามสัดส่วน
                                     let matchedCount = 0;
                                     userArr.forEach(ans => {
                                         if (correctArr.includes(ans)) matchedCount++;
@@ -1443,14 +1441,12 @@
                                     }
                                     recalculatedScore += questionScore;
                                 } else {
-                                    // All-or-Nothing: ต้องถูกทุกข้อที่เฉลย และไม่มีข้อเกิน
                                     const isExactMatch = userArr.length === correctArr.length && userArr.every(val => correctArr.includes(val));
                                     if (isExactMatch) {
                                         recalculatedScore += 1;
                                     }
                                 }
                             } else {
-                                // ข้อเดี่ยวปกติ
                                 const userStr = String(userAns).trim().toLowerCase();
                                 const correctStr = String(correctArr[0] || '').trim().toLowerCase();
                                 if (userStr === correctStr) {
