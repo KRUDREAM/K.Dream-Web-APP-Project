@@ -447,9 +447,7 @@
             return val !== null && val !== undefined ? val : '-';
         }
 
-        // 🌟 ฟังก์ชันคำนวณคะแนน รองรับ at_least_one / at_least_once และ Partial Credit อย่างแม่นยำ
-// 🌟 ฟังก์ชันคำนวณคะแนน แก้ไขกฎ at_least_one ให้ตอบถูกแค่ 1 ข้อจากเฉลยที่มีหลายข้อก็ถือว่าได้คะแนนเต็มทันที
-// 🌟 ฟังก์ชันคำนวณคะแนน: กฎ at_least_one (ตอบถูกอย่างน้อย 1 ข้อจากเฉลย และไม่มีข้อผิดปะปนมา / หรือขอแค่มีข้อที่ถูก)
+// 🌟 ฟังก์ชันคำนวณคะแนนที่ปรับปรุงใหม่ รองรับทุกรูปแบบข้อมูล (JSON, String, Array, Index)
 function getQuestionScore(q, rawUserAns) {
     if (!q) return 0;
     const qType = (q.question_type || q.type || '').toLowerCase();
@@ -473,55 +471,67 @@ function getQuestionScore(q, rawUserAns) {
         return 0;
     }
 
-    // แปลงเฉลยเป็น Array
-    let correctArr = correctRaw;
-    if (typeof correctArr === 'string') {
-        try { correctArr = JSON.parse(correctArr); } catch (e) { correctArr = correctRaw.toString().split(',').map(s => s.trim()); }
-    }
-    if (!Array.isArray(correctArr)) correctArr = [correctArr];
-    correctArr = correctArr.map(val => String(val).trim()).filter(val => val !== '');
+    // 1. ฟังก์ชันแปลงข้อมูลเฉลยให้เป็น Array ของ String ที่สะอาด
+    let parseToArray = (val) => {
+        if (val === undefined || val === null || val === '') return [];
+        if (Array.isArray(val)) return val.map(v => String(v).trim());
+        let str = String(val).trim();
+        if (str.startsWith('[') && str.endsWith(']')) {
+            try {
+                let parsed = JSON.parse(str);
+                if (Array.isArray(parsed)) return parsed.map(v => String(v).trim());
+            } catch (e) {}
+        }
+        if (str.includes(',')) {
+            return str.split(',').map(s => s.trim());
+        }
+        return [str];
+    };
 
-    // แปลงคำตอบนักเรียนเป็น Array
-    let userArr = rawUserAns;
-    if (typeof userArr === 'string') {
-        try { userArr = JSON.parse(userArr); } catch (e) { userArr = rawUserAns.toString().split(',').map(s => s.trim()); }
-    }
-    if (!Array.isArray(userArr)) userArr = [userArr];
-    userArr = userArr.map(val => String(val).trim()).filter(val => val !== '');
+    let correctArr = parseToArray(correctRaw).filter(v => v !== '');
+    let userArr = parseToArray(rawUserAns).filter(v => v !== '');
 
+    if (userArr.length === 0) return 0;
+
+    // ถ้าเป็นข้อสอบแบบหลายตัวเลือกหรือเฉลยมีหลายข้อ
     if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
         const rawRule = q.grading_rule || q.multiple_grading_rule || (currentExam && currentExam.multiple_grading_rule) || 'all';
         const gradingRule = String(rawRule).toLowerCase().trim();
 
-        const sortedCorrect = [...correctArr].sort();
-        const sortedUser = [...userArr].sort();
-
         if (gradingRule === 'all') {
-            if (sortedCorrect.length !== sortedUser.length) return 0;
-            return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser) ? fullScore : 0;
+            // ต้องตอบถูกทั้งหมดครบทุกข้อ (ไม่สนลำดับ)
+            if (correctArr.length !== userArr.length) return 0;
+            let allMatch = userArr.every(u => correctArr.some(c => String(c).trim() === String(u).trim())) &&
+                           correctArr.every(c => userArr.some(u => String(u).trim() === String(c).trim()));
+            return allMatch ? fullScore : 0;
         } 
         else if (gradingRule === 'partial') {
-            let correctMatches = userArr.filter(ans => correctArr.includes(ans)).length;
-            let wrongChoices = userArr.filter(ans => !correctArr.includes(ans)).length;
+            // ตอบถูกบางส่วน
+            let correctMatches = userArr.filter(u => correctArr.some(c => String(c).trim() === String(u).trim())).length;
+            let wrongChoices = userArr.filter(u => !correctArr.some(c => String(c).trim() === String(u).trim())).length;
             let netCorrect = Math.max(0, correctMatches - wrongChoices);
             let ratio = netCorrect / correctArr.length;
             return Number((fullScore * ratio).toFixed(2));
         }
         else if (gradingRule === 'at_least_one' || gradingRule === 'at_least_once') {
-            // 🌟 เงื่อนไขที่ถูกต้องตามที่คุณต้องการ: 
-            // 1. ทุกข้อที่นักเรียนตอบต้องอยู่ในเฉลยทั้งหมด (ไม่มีข้อผิดหลุดมา)
-            // 2. นักเรียนต้องตอบอย่างน้อย 1 ข้อขึ้นไป (เช่น เฉลย 1,2,3 -> ตอบ 1 ถูก, ตอบ 1,2 ถูก, ตอบ 1,2,3 ถูก แต่ถ้าตอบ 1,4 ผิดเพราะมี 4 หลุดมา)
-            let hasAtLeastOne = userArr.length > 0 && userArr.every(ans => correctArr.includes(ans));
-            return hasAtLeastOne ? fullScore : 0;
+            // 🌟 เงื่อนไขที่ถูกต้อง: นักเรียนตอบมา และทุกข้อที่ตอบต้องอยู่ในเฉลยอย่างน้อย 1 ข้อขึ้นไป (หรืออยู่ในเซ็ตเฉลยทั้งหมด)
+            let hasAtLeastOneValid = userArr.length > 0 && userArr.every(u => 
+                correctArr.some(c => String(c).trim() === String(u).trim())
+            );
+            return hasAtLeastOneValid ? fullScore : 0;
         }
         else {
-            if (sortedCorrect.length !== sortedUser.length) return 0;
-            return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser) ? fullScore : 0;
+            // Fallback default
+            if (correctArr.length !== userArr.length) return 0;
+            let allMatch = userArr.every(u => correctArr.some(c => String(c).trim() === String(u).trim())) &&
+                           correctArr.every(c => userArr.some(u => String(u).trim() === String(c).trim()));
+            return allMatch ? fullScore : 0;
         }
     }
 
-    const singleCorrect = correctArr[0] !== undefined ? String(correctArr[0]).trim() : '';
-    const singleUser = userArr[0] !== undefined ? String(userArr[0]).trim() : '';
+    // ข้อสอบแบบตัวเลือกเดี่ยว หรือเติมคำ
+    let singleCorrect = String(correctArr[0] || '').trim();
+    let singleUser = String(userArr[0] || '').trim();
 
     if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
         return fullScore;
