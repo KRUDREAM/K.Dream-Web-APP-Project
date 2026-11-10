@@ -316,6 +316,7 @@
         let allProfilesMap = {};
         let totalRegisteredStudents = 0;
         let examQuestionsMap = {}; 
+        let examQuestionsListMap = {}; // เก็บรายการคำถามทั้งหมดแยกตาม exam_id เพื่อใช้ในการตรวจข้อสอบแบบใหม่
 
         let chart1 = null, chart2 = null, chart3 = null, chart4 = null;
 
@@ -378,6 +379,36 @@
             if (role === 'admin' || role === 'teacher' || role === 'instructor') return true;
             if (email.includes('admin') || email.includes('teacher')) return true;
             return false;
+        }
+
+        // 🌟 ฟังก์ชันตรวจสอบความถูกต้องของคำตอบแบบใหม่ (รองรับ Single, Multiple และ Essay)
+        function checkAnswerIsCorrect(q, rawUserAns) {
+            const isEssay = q.question_type === 'essay';
+            const isMultiple = q.question_type === 'multiple';
+
+            if (isEssay) {
+                // ข้อสอบอัตนัยจะไม่คิดคะแนนอัตโนมัติในส่วนนี้ (หรือพิจารณาว่าต้องตรวจด้วยตนเอง)
+                return false;
+            }
+
+            if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '') {
+                return false;
+            }
+
+            if (isMultiple) {
+                let correctAnsArr = q.correct_answer;
+                if (typeof correctAnsArr === 'string') {
+                    try { correctAnsArr = JSON.parse(correctAnsArr); } catch(e) { correctAnsArr = [String(correctAnsArr)]; }
+                }
+                if (!Array.isArray(correctAnsArr)) correctAnsArr = [String(correctAnsArr)];
+                correctAnsArr = correctAnsArr.map(String).sort();
+
+                let studentAnsArr = Array.isArray(rawUserAns) ? rawUserAns.map(String).sort() : [String(rawUserAns)].sort();
+
+                return JSON.stringify(correctAnsArr) === JSON.stringify(studentAnsArr);
+            } else {
+                return String(rawUserAns).trim() === String(q.correct_answer).trim();
+            }
         }
 
         async function initDashboard() {
@@ -455,11 +486,13 @@
             document.getElementById('globalTotalExams').textContent = `${activeExams.length} ชุด`;
             document.getElementById('examCountBadge').textContent = `${activeExams.length} ชุดข้อสอบ`;
 
-            const { data: allQuestions } = await mySupabase.from('questions').select('id, exam_id');
+            const { data: allQuestions } = await mySupabase.from('questions').select('*');
             if (allQuestions) {
                 allQuestions.forEach(q => {
                     const eId = String(q.exam_id);
                     examQuestionsMap[eId] = (examQuestionsMap[eId] || 0) + 1;
+                    if (!examQuestionsListMap[eId]) examQuestionsListMap[eId] = [];
+                    examQuestionsListMap[eId].push(q);
                 });
             }
 
@@ -718,7 +751,6 @@
             }
         }
 
-        // 🌟 อัปเดตฟังก์ชันค้นหาให้รองรับชื่อเล่น (Nickname) อย่างสมบูรณ์แบบ
         function renderAllStudentsTable() {
             const tbody = document.getElementById('allStudentsTableBody');
             const searchKeyword = document.getElementById('globalStudentSearchInput').value.trim().toLowerCase();
@@ -886,18 +918,24 @@
             const profile = allProfilesMap[studentId];
             const name = getStudentName(profile, studentId);
 
-            const { data: questions } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
+            const questions = examQuestionsListMap[String(examId)] || [];
+            if (questions.length === 0) {
+                const { data: fetchedQs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
+                if (fetchedQs) examQuestionsListMap[String(examId)] = fetchedQs;
+            }
+            const activeQs = examQuestionsListMap[String(examId)] || [];
+
             Swal.close();
 
-            if (!questions || questions.length === 0) {
+            if (activeQs.length === 0) {
                 Swal.fire('แจ้งเตือน', 'ไม่พบรายการคำถามในชุดข้อสอบนี้', 'warning');
                 return;
             }
 
-            const totalQ = questions.length;
+            const totalQ = activeQs.length;
             const score = att ? getAttemptScore(att) : 0;
 
-            let questionsHtml = questions.map((q, index) => {
+            let questionsHtml = activeQs.map((q, index) => {
                 let rawAns = att ? (att.answer_saved || att.answers || att.user_answers || att.student_answers) : null;
                 if (typeof rawAns === 'string') { try { rawAns = JSON.parse(rawAns); } catch(e){} }
 
@@ -906,19 +944,31 @@
                     userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] || '-';
                 }
 
-                const correctVal = q.correct_answer || q.answer || q.solution || '-';
-                const userAnsStr = userVal !== undefined && userVal !== null ? String(userVal).trim().toLowerCase() : '';
-                const correctAnsStr = String(correctVal).trim().toLowerCase();
-                const isCorrect = userAnsStr !== '' && userAnsStr === correctAnsStr;
+                const isEssay = q.question_type === 'essay';
+                const isMultiple = q.question_type === 'multiple';
+                const isCorrect = checkAnswerIsCorrect(q, userVal);
+
+                let displayUserVal = userVal;
+                if (Array.isArray(userVal)) {
+                    displayUserVal = userVal.join(', ');
+                }
+
+                let displayCorrectVal = q.correct_answer;
+                if (Array.isArray(displayCorrectVal)) {
+                    displayCorrectVal = displayCorrectVal.join(', ');
+                }
 
                 return `
-                    <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40'} space-y-1.5 text-xs text-left">
+                    <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isEssay ? 'border-amber-500/40' : (isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40')} space-y-1.5 text-xs text-left">
                         <div class="flex justify-between font-extrabold">
-                            <span class="text-slate-800 dark:text-slate-100">ข้อที่ ${q.question_number}: ${q.question_text || q.content || 'โจทย์ข้อสอบ'}</span>
-                            <span class="${isCorrect ? 'text-emerald-500' : 'text-rose-500'}">${isCorrect ? '✅ ถูกต้อง' : '❌ ตอบผิด'}</span>
+                            <span class="text-slate-800 dark:text-slate-100">ข้อที่ ${q.question_number || (index + 1)}: ${q.question_text || q.content || 'โจทย์ข้อสอบ'}</span>
+                            <span class="${isEssay ? 'text-amber-500' : (isCorrect ? 'text-emerald-500' : 'text-rose-500')}">
+                                ${isEssay ? '✍️ อัตนัย' : (isCorrect ? '✅ ถูกต้อง' : '❌ ตอบผิด')}
+                            </span>
                         </div>
                         <div class="text-[11px] text-slate-500 dark:text-slate-400">
-                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${userVal}</span> | เฉลยที่ถูกต้อง: <span class="font-bold text-emerald-600">${correctVal}</span>
+                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${displayUserVal}</span> | เฉลยที่ถูกต้อง: <span class="font-bold text-emerald-600">${displayCorrectVal || '-'}</span>
+                            ${isMultiple ? '<span class="ml-2 px-1.5 py-0.5 bg-indigo-500/20 text-indigo-500 rounded font-semibold text-[10px]">หลายตัวเลือก</span>' : ''}
                         </div>
                     </div>
                 `;
@@ -972,72 +1022,76 @@
             const name = getStudentName(profile, studentId);
             const studentIdCode = profile?.student_id || '-';
 
-            mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true }).then(({ data: questions }) => {
-                if (!questions) return;
+            const questions = examQuestionsListMap[String(examId)] || [];
+            
+            const totalQ = questions.length;
+            const score = att ? getAttemptScore(att) : 0;
+            const submitTime = att ? (att.submission_time || att.submitted_at || att.created_at) : null;
+            const dateStr = submitTime ? new Date(submitTime).toLocaleDateString('th-TH') : '-';
 
-                const totalQ = questions.length;
-                const score = att ? getAttemptScore(att) : 0;
-                const submitTime = att ? (att.submission_time || att.submitted_at || att.created_at) : null;
-                const dateStr = submitTime ? new Date(submitTime).toLocaleDateString('th-TH') : '-';
+            let printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>รายงานผลการสอบรายข้อ - ${name}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+                    <style>
+                        body { font-family: 'Prompt', sans-serif; padding: 40px; color: #1e293b; }
+                        h2 { color: #0284c7; margin-bottom: 5px; }
+                        .box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+                        th { background: #f1f5f9; }
+                        .correct { color: #10b981; font-weight: bold; }
+                        .wrong { color: #ef4444; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h2>รายงานผลการตอบข้อสอบรายข้อ</h2>
+                    <p>ชุดข้อสอบ: <strong>${exam ? exam.title : '-'}</strong></p>
+                    <div class="box">
+                        <p>ชื่อ-นามสกุล: <strong>${name}</strong> (รหัส: ${studentIdCode})</p>
+                        <p>คะแนนที่ได้: <strong>${score} / ${totalQ} คะแนน</strong></p>
+                        <p>วันที่ทำข้อสอบ: ${dateStr}</p>
+                    </div>
+                    <h3>รายละเอียดคำตอบรายข้อ</h3>
+                    <table>
+                        <tr><th>ข้อที่</th><th>โจทย์คำถาม</th><th>นักเรียนตอบ</th><th>เฉลยที่ถูกต้อง</th><th>ผลลัพธ์</th></tr>
+            `);
 
-                let printWindow = window.open('', '_blank');
+            questions.forEach((q, index) => {
+                let rawAns = att ? (att.answer_saved || att.answers || att.user_answers || att.student_answers) : null;
+                if (typeof rawAns === 'string') { try { rawAns = JSON.parse(rawAns); } catch(e){} }
+
+                let userVal = '-';
+                if (rawAns && typeof rawAns === 'object') {
+                    userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] || '-';
+                }
+
+                const isEssay = q.question_type === 'essay';
+                const isCorrect = checkAnswerIsCorrect(q, userVal);
+
+                let displayUserVal = userVal;
+                if (Array.isArray(userVal)) displayUserVal = userVal.join(', ');
+
+                let displayCorrectVal = q.correct_answer;
+                if (Array.isArray(displayCorrectVal)) displayCorrectVal = displayCorrectVal.join(', ');
+
                 printWindow.document.write(`
-                    <html>
-                    <head>
-                        <title>รายงานผลการสอบรายข้อ - ${name}</title>
-                        <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
-                        <style>
-                            body { font-family: 'Prompt', sans-serif; padding: 40px; color: #1e293b; }
-                            h2 { color: #0284c7; margin-bottom: 5px; }
-                            .box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
-                            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
-                            th { background: #f1f5f9; }
-                            .correct { color: #10b981; font-weight: bold; }
-                            .wrong { color: #ef4444; font-weight: bold; }
-                        </style>
-                    </head>
-                    <body>
-                        <h2>รายงานผลการตอบข้อสอบรายข้อ</h2>
-                        <p>ชุดข้อสอบ: <strong>${exam ? exam.title : '-'}</strong></p>
-                        <div class="box">
-                            <p>ชื่อ-นามสกุล: <strong>${name}</strong> (รหัส: ${studentIdCode})</p>
-                            <p>คะแนนที่ได้: <strong>${score} / ${totalQ} คะแนน</strong></p>
-                            <p>วันที่ทำข้อสอบ: ${dateStr}</p>
-                        </div>
-                        <h3>รายละเอียดคำตอบรายข้อ</h3>
-                        <table>
-                            <tr><th>ข้อที่</th><th>โจทย์คำถาม</th><th>นักเรียนตอบ</th><th>เฉลยที่ถูกต้อง</th><th>ผลลัพธ์</th></tr>
+                    <tr>
+                        <td>${q.question_number || (index + 1)}</td>
+                        <td>${q.question_text || q.content || '-'}</td>
+                        <td><strong>${displayUserVal}</strong></td>
+                        <td>${displayCorrectVal || '-'}</td>
+                        <td class="${isEssay ? '' : (isCorrect ? 'correct' : 'wrong')}">
+                            ${isEssay ? 'อัตนัย' : (isCorrect ? 'ถูกต้อง' : 'ตอบผิด')}
+                        </td>
+                    </tr>
                 `);
-
-                questions.forEach((q, index) => {
-                    let rawAns = att ? (att.answer_saved || att.answers || att.user_answers || att.student_answers) : null;
-                    if (typeof rawAns === 'string') { try { rawAns = JSON.parse(rawAns); } catch(e){} }
-
-                    let userVal = '-';
-                    if (rawAns && typeof rawAns === 'object') {
-                        userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] || '-';
-                    }
-
-                    const correctVal = q.correct_answer || q.answer || q.solution || '-';
-                    const userAnsStr = userVal !== undefined && userVal !== null ? String(userVal).trim().toLowerCase() : '';
-                    const correctAnsStr = String(correctVal).trim().toLowerCase();
-                    const isCorrect = userAnsStr !== '' && userAnsStr === correctAnsStr;
-
-                    printWindow.document.write(`
-                        <tr>
-                            <td>${q.question_number}</td>
-                            <td>${q.question_text || q.content || '-'}</td>
-                            <td><strong>${userVal}</strong></td>
-                            <td>${correctVal}</td>
-                            <td class="${isCorrect ? 'correct' : 'wrong'}">${isCorrect ? 'ถูกต้อง' : 'ตอบผิด'}</td>
-                        </tr>
-                    `);
-                });
-
-                printWindow.document.write(`</table><script>window.print();<\/script></body></html>`);
-                printWindow.document.close();
             });
+
+            printWindow.document.write(`</table><script>window.print();<\/script></body></html>`);
+            printWindow.document.close();
         }
 
         function printStudentSummaryReport(studentId) {
