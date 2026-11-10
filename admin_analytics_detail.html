@@ -362,7 +362,7 @@
         }
 
         // 🌟 [ระบบคำนวณคะแนนและตรวจคำตอบตามเงื่อนไข Multiple Choice Grading Rule]:
-// 🌟 [ปรับปรุงใหม่] ฟังก์ชันคำนวณคะแนนรายข้อ รองรับกฎเกณฑ์ Multiple Choice อย่างแม่นยำ
+// 🌟 [ปรับปรุงใหม่] ฟังก์ชันคำนวณคะแนนรายข้อ รองรับ at_least_one อย่างถูกต้องแม่นยำ
 function getQuestionScore(q, rawUserAns) {
     if (!q) return 0;
     const qType = (q.question_type || q.type || '').toLowerCase();
@@ -411,13 +411,13 @@ function getQuestionScore(q, rawUserAns) {
         const sortedUser = [...userArr].sort();
 
         if (gradingRule === 'all') {
-            // 1. ตอบถูกทั้งหมด (ต้องเลือกถูกครบทุกข้อและไม่มีข้อผิดเกินมา)
+            // ต้องเลือกถูกครบทุกข้อและไม่มีข้อผิดเกินมา
             if (sortedCorrect.length !== sortedUser.length) return 0;
             const isAllMatch = JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser);
             return isAllMatch ? fullScore : 0;
         } 
         else if (gradingRule === 'partial') {
-            // 2. ตอบถูกบางส่วน (Partial Credit) - คิดตามสัดส่วนข้อที่ถูก หักลบข้อที่ผิด
+            // คิดตามสัดส่วนข้อที่ถูก หักลบข้อที่ผิด
             let correctMatches = userArr.filter(ans => correctArr.includes(ans)).length;
             let wrongChoices = userArr.filter(ans => !correctArr.includes(ans)).length;
             let netCorrect = Math.max(0, correctMatches - wrongChoices);
@@ -425,12 +425,11 @@ function getQuestionScore(q, rawUserAns) {
             return Number((fullScore * ratio).toFixed(2));
         }
         else if (gradingRule === 'at_least_one') {
-            // 3. ตอบถูกอย่างน้อย 1 ข้อจากทั้งหมดที่ถูกต้อง (ขอแค่มีตัวเลือกที่ถูกต้องอยู่ในคำตอบอย่างน้อย 1 ข้อ ได้เต็ม)
+            // ตอบถูกอย่างน้อย 1 ข้อ: ขอแค่ในคำตอบของนักเรียนมีตัวเลือกที่ถูกต้องอยู่ในเฉลยอย่างน้อย 1 ข้อ
             let hasAtLeastOne = userArr.some(ans => correctArr.includes(ans));
             return hasAtLeastOne ? fullScore : 0;
         }
         else {
-            // Fallback: เปรียบเทียบแบบตรงกันเป๊ะ
             if (sortedCorrect.length !== sortedUser.length) return 0;
             return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser) ? fullScore : 0;
         }
@@ -450,6 +449,7 @@ function getQuestionScore(q, rawUserAns) {
 function checkAnswerIsCorrect(q, rawUserAns) {
     return getQuestionScore(q, rawUserAns) > 0;
 }
+
         function formatAnswerText(ansValue, examObj = null) {
             if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
             
