@@ -1117,7 +1117,7 @@
             } catch (e) {}
         }
 
-        function selectAnswer(qId, cIdx, isMultiple) {
+function selectAnswer(qId, cIdx, isMultiple) {
             cIdx = String(cIdx);
             if (isMultiple) {
                 // จัดการแบบตอบได้หลายตัวเลือก (Toggle ค่าใน Array)
@@ -1130,7 +1130,7 @@
 
                 const index = currentArr.indexOf(cIdx);
                 if (index > -1) {
-                    currentArr.splice(index, 1); // เอาออกถ้าเลือกซ้ำ
+                    currentArr.splice(index, 1); // เอาออกถ้าคลิกซ้ำตัวเดิม
                 } else {
                     currentArr.push(cIdx); // เพิ่มเข้าไปถ้ายังไม่ได้เลือก
                 }
@@ -1138,11 +1138,15 @@
                 if (currentArr.length > 0) {
                     studentAnswers[qId] = currentArr;
                 } else {
-                    delete studentAnswers[qId];
+                    delete studentAnswers[qId]; // ถ้าเอาออกหมด ให้ลบค่าทิ้งให้เป็นข้อว่าง
                 }
             } else {
-                // จัดการแบบตอบข้อเดียวปกติ
-                studentAnswers[qId] = cIdx;
+                // จัดการแบบตอบข้อเดียวปกติ: ถ้าคลิกซ้ำตัวเดิม ให้ยกเลิกคำตอบ (Toggle Off)
+                if (String(studentAnswers[qId]) === cIdx) {
+                    delete studentAnswers[qId];
+                } else {
+                    studentAnswers[qId] = cIdx;
+                }
             }
             
             try {
