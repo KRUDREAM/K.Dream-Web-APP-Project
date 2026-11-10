@@ -449,6 +449,7 @@
 
         // 🌟 ฟังก์ชันคำนวณคะแนน รองรับ at_least_one / at_least_once และ Partial Credit อย่างแม่นยำ
 // 🌟 ฟังก์ชันคำนวณคะแนน แก้ไขกฎ at_least_one ให้ตอบถูกแค่ 1 ข้อจากเฉลยที่มีหลายข้อก็ถือว่าได้คะแนนเต็มทันที
+// 🌟 ฟังก์ชันคำนวณคะแนน: กฎ at_least_one (ตอบถูกอย่างน้อย 1 ข้อจากเฉลย และไม่มีข้อผิดปะปนมา / หรือขอแค่มีข้อที่ถูก)
 function getQuestionScore(q, rawUserAns) {
     if (!q) return 0;
     const qType = (q.question_type || q.type || '').toLowerCase();
@@ -507,8 +508,10 @@ function getQuestionScore(q, rawUserAns) {
             return Number((fullScore * ratio).toFixed(2));
         }
         else if (gradingRule === 'at_least_one' || gradingRule === 'at_least_once') {
-            // 🌟 แก้ไขตรงนี้: ขอแค่ในคำตอบของนักเรียน มีตัวเลือกที่อยู่ใน correctArr อย่างน้อย 1 ข้อ ก็ได้คะแนนเต็มทันที
-            let hasAtLeastOne = userArr.some(ans => correctArr.includes(ans));
+            // 🌟 เงื่อนไขที่ถูกต้องตามที่คุณต้องการ: 
+            // 1. ทุกข้อที่นักเรียนตอบต้องอยู่ในเฉลยทั้งหมด (ไม่มีข้อผิดหลุดมา)
+            // 2. นักเรียนต้องตอบอย่างน้อย 1 ข้อขึ้นไป (เช่น เฉลย 1,2,3 -> ตอบ 1 ถูก, ตอบ 1,2 ถูก, ตอบ 1,2,3 ถูก แต่ถ้าตอบ 1,4 ผิดเพราะมี 4 หลุดมา)
+            let hasAtLeastOne = userArr.length > 0 && userArr.every(ans => correctArr.includes(ans));
             return hasAtLeastOne ? fullScore : 0;
         }
         else {
@@ -526,7 +529,6 @@ function getQuestionScore(q, rawUserAns) {
 
     return 0;
 }
-
         function checkAnswerIsCorrect(q, rawUserAns) {
             return getQuestionScore(q, rawUserAns) > 0;
         }
