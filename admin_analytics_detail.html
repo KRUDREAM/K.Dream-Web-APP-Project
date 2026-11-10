@@ -56,7 +56,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6">
             <div class="flex justify-between h-16 items-center">
                 <div class="flex items-center gap-3 min-w-0">
-                    <button id="backBtn" onclick="goBack()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm shrink-0">
+                    <button id="backBtn" onclick="goBack()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all shadow-sm shrink-0 cursor-pointer">
                         <i class="fas fa-arrow-left text-sm"></i>
                     </button>
                     <h1 id="navTitle" class="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2 truncate">
@@ -361,7 +361,6 @@
             return 0;
         }
 
-        // 🌟 [ฟังก์ชันตรวจคำตอบใหม่]: รองรับ Single Choice, Multiple Answers และ Essay
         function checkAnswerIsCorrect(q, rawUserAns) {
             const isEssay = q.question_type === 'essay';
             const isMultiple = q.question_type === 'multiple';
@@ -801,13 +800,15 @@
             let counts = allQuestions.map(q => {
                 if (allAttempts.length === 0) return 0;
                 let correctCount = 0;
-                allAttempts.forEach((att, index) => {
+                let submittedAttempts = allAttempts.filter(att => att.status === 'submitted' || (att.total_score !== undefined && att.total_score !== null) || (att.score !== undefined && att.score !== null));
+                
+                submittedAttempts.forEach((att, index) => {
                     let uAns = extractStudentAnswer(att, q, index, currentExam);
                     if (checkAnswerIsCorrect(q, uAns)) {
                         correctCount++;
                     }
                 });
-                return metric === 'incorrect' ? (allAttempts.length - correctCount) : correctCount;
+                return metric === 'incorrect' ? (submittedAttempts.length - correctCount) : correctCount;
             });
 
             if (diffChartInstance) diffChartInstance.destroy();
