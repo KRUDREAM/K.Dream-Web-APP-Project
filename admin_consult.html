@@ -466,16 +466,28 @@
                 renderAllowedCoursesCheckboxes();
 
                 let enrollsData = [];
-                const eRes1 = await mySupabase.from('enrollments').select('*');
-                if (eRes1.data) enrollsData = [...enrollsData, ...eRes1.data];
-                const eRes2 = await mySupabase.from('course_enrollments').select('*');
-                if (eRes2.data) enrollsData = [...enrollsData, ...eRes2.data];
+                // ดึงข้อมูลจากตาราง enrollments และ course_enrollments อย่างครอบคลุม
+                const { data: eRes1, error: err1 } = await mySupabase.from('enrollments').select('*, courses(id, title, course_code)');
+                if (eRes1 && !err1) {
+                    enrollsData = [...enrollsData, ...eRes1];
+                } else {
+                    const fallback1 = await mySupabase.from('enrollments').select('*');
+                    if (fallback1.data) enrollsData = [...enrollsData, ...fallback1.data];
+                }
+
+                const { data: eRes2, error: err2 } = await mySupabase.from('course_enrollments').select('*, courses(id, title, course_code)');
+                if (eRes2 && !err2) {
+                    enrollsData = [...enrollsData, ...eRes2];
+                } else {
+                    const fallback2 = await mySupabase.from('course_enrollments').select('*');
+                    if (fallback2.data) enrollsData = [...enrollsData, ...fallback2.data];
+                }
 
                 studentEnrollmentsMap = {};
                 enrollsData.forEach(en => {
                     const sId = String(en.student_id || en.user_id || '');
-                    const cId = String(en.course_id || '');
-                    if (sId && cId && coursesMap[cId]) {
+                    const cId = String(en.course_id || (en.courses ? en.courses.id : ''));
+                    if (sId && cId) {
                         if (!studentEnrollmentsMap[sId]) studentEnrollmentsMap[sId] = [];
                         if (!studentEnrollmentsMap[sId].includes(cId)) {
                             studentEnrollmentsMap[sId].push(cId);
@@ -680,11 +692,10 @@
         }
 
         async function loadAllSlots() {
-            const nowIso = new Date().toISOString();
+            // เอาเงื่อนไข .gt('end_time', nowIso) ออก เพื่อไม่ให้ Slot ที่เลยเวลาแล้วถูกกรองออกหรือหายไป (ปล่อยไว้ตามเดิม)
             const { data } = await mySupabase
                 .from('consult_slots')
                 .select('*, profiles(id, full_name, username, email, school, grade_level, nickname, line_id)')
-                .gt('end_time', nowIso)
                 .order('start_time', { ascending: true });
 
             allSlots = data || [];
@@ -1143,7 +1154,6 @@
             }).join('');
         }
 
-        // 👤 ฟังก์ชันเปิดดูโปรไฟล์และผลสอบรายบุคคลแบบสมบูรณ์เหมือนหน้า admin_analytics
         function getAttemptScore(att) {
             if (att.total_score !== undefined && att.total_score !== null && !isNaN(att.total_score)) return Number(att.total_score);
             if (att.score !== undefined && att.score !== null && !isNaN(att.score)) return Number(att.score);
@@ -1204,7 +1214,6 @@
             const totalScore = studentAttempts.reduce((acc, curr) => acc + getAttemptScore(curr), 0);
             const avg = studentAttempts.length > 0 ? (totalScore / studentAttempts.length).toFixed(1) : '0.0';
 
-            // รายการคอร์สที่ลงทะเบียน
             let coursesHtml = '';
             if (enrolledCourses.length === 0) {
                 coursesHtml = `<div class="text-slate-400 text-xs italic py-2">ยังไม่ได้ลงทะเบียนในคอร์สใด</div>`;
@@ -1220,7 +1229,6 @@
                 }).join('');
             }
 
-            // ประวัติผลสอบ
             let attemptsHtml = '';
             if (studentAttempts.length === 0) {
                 attemptsHtml = `<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">ยังไม่มีประวัติการทำข้อสอบ</td></tr>`;
@@ -1252,7 +1260,6 @@
 
             let modalContent = `
                 <div class="text-left space-y-4 max-h-[75vh] overflow-y-auto pr-1 text-xs">
-                    <!-- ข้อมูลส่วนตัว -->
                     <div class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         <div class="space-y-1">
                             <div class="text-sm font-extrabold text-sky-600 dark:text-sky-400">${name}${nickname ? ' (' + nickname + ')' : ''}</div>
@@ -1269,7 +1276,6 @@
                         </button>
                     </div>
 
-                    <!-- คอร์สที่ลงทะเบียน -->
                     <div class="space-y-2">
                         <h4 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5"><i class="fas fa-book-bookmark text-indigo-500"></i> คอร์สที่ลงทะเบียนเรียน (${enrolledCourses.length})</h4>
                         <div class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
@@ -1277,7 +1283,6 @@
                         </div>
                     </div>
 
-                    <!-- ประวัติการทำข้อสอบ -->
                     <div class="space-y-2">
                         <h4 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5"><i class="fas fa-clipboard-check text-sky-500"></i> ประวัติการทำข้อสอบ (ผลสอบ)</h4>
                         <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
@@ -1311,17 +1316,13 @@
             });
         }
 
-        // 🛠️ ฟังก์ชันช่วยเหลือแปลงค่าช้อยส์เป็น 1/ก/A 
         function formatChoiceDisplay(val, choicesArr) {
             if (val === null || val === undefined || val === '-') return '-';
             let strVal = String(val).trim();
             
-            // ถ้ามีอาเรย์ช้อยส์ และค่าเป็นตัวเลข (Index)
             if (Array.isArray(choicesArr) && choicesArr.length > 0 && !isNaN(strVal)) {
                 let idx = Number(strVal);
                 if (idx >= 0 && idx < choicesArr.length) {
-                    // แปลง Index เป็น 1, 2, 3 หรือ ก, ข, ค หรือ A, B, C ตามต้องการ
-                    // ตัวอย่างนี้รองรับการแสดงผลแบบตัวเลข 1, 2, 3 หรือแปลงเป็นอักษร ก. ข. ค. / A. B. C.
                     const thaiLetters = ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ', 'ช', 'ซ'];
                     const engLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
                     
