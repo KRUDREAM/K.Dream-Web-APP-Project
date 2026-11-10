@@ -977,121 +977,145 @@
             });
         }
 
-        async function viewStudentExamDetailInModal(studentId, examId) {
-            Swal.fire({ title: 'กำลังโหลดรายละเอียดข้อสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-            const att = allAttempts.find(a => String(a.student_id || a.user_id) === String(studentId) && String(a.exam_id) === String(examId));
-            const exam = allExams.find(e => String(e.id) === String(examId));
-            const profile = allProfilesMap[studentId];
-            const name = getStudentName(profile, studentId);
-
-            const questions = examQuestionsListMap[String(examId)] || [];
-            if (questions.length === 0) {
-                const { data: fetchedQs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
-                if (fetchedQs) examQuestionsListMap[String(examId)] = fetchedQs;
-            }
-            const activeQs = examQuestionsListMap[String(examId)] || [];
-
-            Swal.close();
-
-            if (activeQs.length === 0) {
-                Swal.fire('แจ้งเตือน', 'ไม่พบรายการคำถามในชุดข้อสอบนี้', 'warning');
-                return;
-            }
-
-            const totalQ = activeQs.length;
-            const score = att ? getAttemptScore(att) : 0;
-
-            let questionsHtml = activeQs.map((q, index) => {
-                let rawAns = att ? (att.answer_saved || att.answers || att.user_answers || att.student_answers) : null;
-                if (typeof rawAns === 'string') { try { rawAns = JSON.parse(rawAns); } catch(e){} }
-
-                // 🌟 แก้ไขจุดดึงคำตอบนักเรียน: รองรับทั้งแบบ Dictionary (ระบุด้วย q.id หรือ question_number) และ Array ตาม index
-                let userVal = '-';
-                if (rawAns && typeof rawAns === 'object') {
-                    if (Array.isArray(rawAns)) {
-                        // กรณีเก็บเป็นอาร์เรย์ตรงๆ เรียงตามลำดับข้อ
-                        userVal = rawAns[index] !== undefined ? rawAns[index] : (rawAns[q.question_number - 1] !== undefined ? rawAns[q.question_number - 1] : '-');
-                    } else {
-                        // ค้นหาคีย์ที่ตรงกันจากรหัสข้อ คำถาม หรือลำดับข้อ
-                        userVal = rawAns[q.id] !== undefined ? rawAns[q.id] : 
-                                  (rawAns[String(q.id)] !== undefined ? rawAns[String(q.id)] : 
-                                  (rawAns[q.question_number] !== undefined ? rawAns[q.question_number] : 
-                                  (rawAns[`q${q.question_number}`] !== undefined ? rawAns[`q${q.question_number}`] : 
-                                  (rawAns[index] !== undefined ? rawAns[index] : '-'))));
-                    }
-                }
-
-                const isEssay = q.question_type === 'essay';
-                const isMultiple = q.question_type === 'multiple';
-                const isCorrect = checkAnswerIsCorrect(q, userVal);
-
-                let displayUserVal = userVal;
-                if (Array.isArray(userVal)) {
-                    displayUserVal = userVal.join(', ');
-                }
-
-                let displayCorrectVal = q.correct_answer;
-                if (Array.isArray(displayCorrectVal)) {
-                    displayCorrectVal = displayCorrectVal.join(', ');
-                }
-
-                return `
-                    <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isEssay ? 'border-amber-500/40' : (isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40')} space-y-1.5 text-xs text-left">
-                        <div class="flex justify-between font-extrabold">
-                            <span class="text-slate-800 dark:text-slate-100">ข้อที่ ${q.question_number || (index + 1)}: ${q.question_text || q.content || 'โจทย์ข้อสอบ'}</span>
-                            <span class="${isEssay ? 'text-amber-500' : (isCorrect ? 'text-emerald-500' : 'text-rose-500')}">
-                                ${isEssay ? '✍️ อัตนัย' : (isCorrect ? '✅ ถูกต้อง' : '❌ ตอบผิด')}
-                            </span>
-                        </div>
-                        <div class="text-[11px] text-slate-500 dark:text-slate-400">
-                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${displayUserVal}</span> | เฉลยที่ถูกต้อง: <span class="font-bold text-emerald-600">${displayCorrectVal || '-'}</span>
-                            ${isMultiple ? '<span class="ml-2 px-1.5 py-0.5 bg-indigo-500/20 text-indigo-500 rounded font-semibold text-[10px]">หลายตัวเลือก</span>' : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            const isDark = document.documentElement.classList.contains('dark');
-
-            let detailModalHtml = `
-                <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-                    <div class="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 flex justify-between items-center text-xs">
-                        <div>
-                            <div class="font-extrabold text-sky-600 dark:text-sky-400">${exam ? exam.title : 'ชุดข้อสอบ'}</div>
-                            <div class="text-slate-500">นักเรียน: <strong>${name}</strong></div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="text-right font-extrabold text-indigo-600 dark:text-indigo-400 text-sm">
-                                ${score} / ${totalQ} คะแนน
-                            </div>
-                            <button onclick="printSingleExamAttemptReport('${studentId}', '${examId}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1 shrink-0">
-                                <i class="fas fa-print"></i> ปริ้นท์ใบสรุป
-                            </button>
-                        </div>
-                    </div>
-                    <div class="space-y-2">
-                        ${questionsHtml}
-                    </div>
-                </div>
-            `;
-
-            Swal.fire({
-                title: '📋 ตรวจสอบผลการตอบรายข้อ',
-                html: detailModalHtml,
-                width: '700px',
-                showCancelButton: true,
-                confirmButtonText: 'กลับไปหน้าโปรไฟล์',
-                cancelButtonText: 'ปิดหน้าต่าง',
-                confirmButtonColor: '#0284c7',
-                background: isDark ? '#090d16' : '#ffffff',
-                color: isDark ? '#f1f5f9' : '#1e293b'
-            }).then((res) => {
-                if (res.isConfirmed) {
-                    viewIndividualStudentProfile(studentId);
-                }
-            });
+// 🌟 ฟังก์ชันแปลงค่า Index ของตัวเลือกให้กลายเป็นข้อความตัวเลือกจริง ๆ
+function formatUserAnswerDisplay(val, q) {
+    if (val === undefined || val === null || val === '-' || val === '') return '-';
+    
+    // ดึงตัวเลือก (Options/Choices) จากข้อมูลคำถาม
+    let optionsList = [];
+    try {
+        if (q.options) {
+            optionsList = typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
+        } else if (q.choices) {
+            optionsList = typeof q.choices === 'string' ? JSON.parse(q.choices) : q.choices;
         }
+    } catch(e) {}
+
+    // ฟังก์ชันย่อยสำหรับแปลงค่าเดี่ยว
+    const mapSingleValue = (item) => {
+        let strItem = String(item).trim();
+        let num = Number(strItem);
+        // ถ้าค่าที่เก็บมาเป็นตัวเลข index (เช่น 0, 1, 2) และตรงกับช่วงของ options ให้ดึงข้อความมาแสดง
+        if (!isNaN(num) && optionsList.length > 0 && optionsList[num] !== undefined) {
+            return optionsList[num];
+        }
+        return strItem;
+    };
+
+    if (Array.isArray(val)) {
+        return val.map(mapSingleValue).join(', ');
+    }
+
+    return mapSingleValue(val);
+}
+
+// 🌟 ฟังก์ชันตรวจสอบและแสดงรายละเอียดคำตอบรายข้อใน Modal
+async function viewStudentExamDetailInModal(studentId, examId) {
+    Swal.fire({ title: 'กำลังโหลดรายละเอียดข้อสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    const att = allAttempts.find(a => String(a.student_id || a.user_id) === String(studentId) && String(a.exam_id) === String(examId));
+    const exam = allExams.find(e => String(e.id) === String(examId));
+    const profile = allProfilesMap[studentId];
+    const name = getStudentName(profile, studentId);
+
+    const questions = examQuestionsListMap[String(examId)] || [];
+    if (questions.length === 0) {
+        const { data: fetchedQs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
+        if (fetchedQs) examQuestionsListMap[String(examId)] = fetchedQs;
+    }
+    const activeQs = examQuestionsListMap[String(examId)] || [];
+
+    Swal.close();
+
+    if (activeQs.length === 0) {
+        Swal.fire('แจ้งเตือน', 'ไม่พบรายการคำถามในชุดข้อสอบนี้', 'warning');
+        return;
+    }
+
+    const totalQ = activeQs.length;
+    const score = att ? getAttemptScore(att) : 0;
+
+    let questionsHtml = activeQs.map((q, index) => {
+        let rawAns = att ? (att.answer_saved || att.answers || att.user_answers || att.student_answers) : null;
+        if (typeof rawAns === 'string') { try { rawAns = JSON.parse(rawAns); } catch(e){} }
+
+        let userVal = '-';
+        if (rawAns && typeof rawAns === 'object') {
+            if (Array.isArray(rawAns)) {
+                userVal = rawAns[index] !== undefined ? rawAns[index] : (rawAns[q.question_number - 1] !== undefined ? rawAns[q.question_number - 1] : '-');
+            } else {
+                userVal = rawAns[q.id] !== undefined ? rawAns[q.id] : 
+                          (rawAns[String(q.id)] !== undefined ? rawAns[String(q.id)] : 
+                          (rawAns[q.question_number] !== undefined ? rawAns[q.question_number] : 
+                          (rawAns[`q${q.question_number}`] !== undefined ? rawAns[`q${q.question_number}`] : 
+                          (rawAns[index] !== undefined ? rawAns[index] : '-'))));
+            }
+        }
+
+        const isEssay = q.question_type === 'essay';
+        const isMultiple = q.question_type === 'multiple';
+        const isCorrect = checkAnswerIsCorrect(q, userVal);
+
+        // แปลงค่าคำตอบนักเรียนและเฉลยไม่ให้แสดงเป็น index
+        let displayUserVal = formatUserAnswerDisplay(userVal, q);
+        let displayCorrectVal = formatUserAnswerDisplay(q.correct_answer, q);
+
+        return `
+            <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isEssay ? 'border-amber-500/40' : (isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40')} space-y-1.5 text-xs text-left">
+                <div class="flex justify-between font-extrabold">
+                    <span class="text-slate-800 dark:text-slate-100">ข้อที่ ${q.question_number || (index + 1)}: ${q.question_text || q.content || 'โจทย์ข้อสอบ'}</span>
+                    <span class="${isEssay ? 'text-amber-500' : (isCorrect ? 'text-emerald-500' : 'text-rose-500')}">
+                        ${isEssay ? '✍️ อัตนัย' : (isCorrect ? '✅ ถูกต้อง' : '❌ ตอบผิด')}
+                    </span>
+                </div>
+                <div class="text-[11px] text-slate-500 dark:text-slate-400">
+                    นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${displayUserVal}</span> | เฉลยที่ถูกต้อง: <span class="font-bold text-emerald-600">${displayCorrectVal || '-'}</span>
+                    ${isMultiple ? '<span class="ml-2 px-1.5 py-0.5 bg-indigo-500/20 text-indigo-500 rounded font-semibold text-[10px]">หลายตัวเลือก</span>' : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const isDark = document.documentElement.classList.contains('dark');
+
+    let detailModalHtml = `
+        <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            <div class="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 flex justify-between items-center text-xs">
+                <div>
+                    <div class="font-extrabold text-sky-600 dark:text-sky-400">${exam ? exam.title : 'ชุดข้อสอบ'}</div>
+                    <div class="text-slate-500">นักเรียน: <strong>${name}</strong></div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-right font-extrabold text-indigo-600 dark:text-indigo-400 text-sm">
+                        ${score} / ${totalQ} คะแนน
+                    </div>
+                    <button onclick="printSingleExamAttemptReport('${studentId}', '${examId}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1 shrink-0">
+                        <i class="fas fa-print"></i> ปริ้นท์ใบสรุป
+                    </button>
+                </div>
+            </div>
+            <div class="space-y-2">
+                ${questionsHtml}
+            </div>
+        </div>
+    `;
+
+    Swal.fire({
+        title: '📋 ตรวจสอบผลการตอบรายข้อ',
+        html: detailModalHtml,
+        width: '700px',
+        showCancelButton: true,
+        confirmButtonText: 'กลับไปหน้าโปรไฟล์',
+        cancelButtonText: 'ปิดหน้าต่าง',
+        confirmButtonColor: '#0284c7',
+        background: isDark ? '#090d16' : '#ffffff',
+        color: isDark ? '#f1f5f9' : '#1e293b'
+    }).then((res) => {
+        if (res.isConfirmed) {
+            viewIndividualStudentProfile(studentId);
+        }
+    });
+}
 
         function printSingleExamAttemptReport(studentId, examId) {
             const att = allAttempts.find(a => String(a.student_id || a.user_id) === String(studentId) && String(a.exam_id) === String(examId));
