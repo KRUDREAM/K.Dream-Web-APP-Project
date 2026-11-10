@@ -448,81 +448,84 @@
         }
 
         // 🌟 ฟังก์ชันคำนวณคะแนน รองรับ at_least_one / at_least_once และ Partial Credit อย่างแม่นยำ
-        function getQuestionScore(q, rawUserAns) {
-            if (!q) return 0;
-            const qType = (q.question_type || q.type || '').toLowerCase();
-            const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) : 
-                              (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
+// 🌟 ฟังก์ชันคำนวณคะแนน แก้ไขกฎ at_least_one ให้ตอบถูกแค่ 1 ข้อจากเฉลยที่มีหลายข้อก็ถือว่าได้คะแนนเต็มทันที
+function getQuestionScore(q, rawUserAns) {
+    if (!q) return 0;
+    const qType = (q.question_type || q.type || '').toLowerCase();
+    const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) : 
+                      (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
 
-            if (qType === 'essay' || qType === 'subjective') {
-                return 0; // ต้องตรวจด้วยอาจารย์
-            }
+    if (qType === 'essay' || qType === 'subjective') {
+        return 0; // ต้องตรวจด้วยอาจารย์
+    }
 
-            if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
-                return 0;
-            }
+    if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
+        return 0;
+    }
 
-            let correctRaw = q.correct_answer !== undefined ? q.correct_answer : 
-                             (q.answer !== undefined ? q.answer : 
-                             (q.key !== undefined ? q.key : 
-                             (q.solution !== undefined ? q.solution : '')));
+    let correctRaw = q.correct_answer !== undefined ? q.correct_answer : 
+                     (q.answer !== undefined ? q.answer : 
+                     (q.key !== undefined ? q.key : 
+                     (q.solution !== undefined ? q.solution : '')));
 
-            if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
-                return 0;
-            }
+    if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
+        return 0;
+    }
 
-            let correctArr = correctRaw;
-            if (typeof correctArr === 'string') {
-                try { correctArr = JSON.parse(correctArr); } catch (e) { correctArr = correctRaw.toString().split(',').map(s => s.trim()); }
-            }
-            if (!Array.isArray(correctArr)) correctArr = [correctArr];
-            correctArr = correctArr.map(val => String(val).trim()).filter(val => val !== '');
+    // แปลงเฉลยเป็น Array
+    let correctArr = correctRaw;
+    if (typeof correctArr === 'string') {
+        try { correctArr = JSON.parse(correctArr); } catch (e) { correctArr = correctRaw.toString().split(',').map(s => s.trim()); }
+    }
+    if (!Array.isArray(correctArr)) correctArr = [correctArr];
+    correctArr = correctArr.map(val => String(val).trim()).filter(val => val !== '');
 
-            let userArr = rawUserAns;
-            if (typeof userArr === 'string') {
-                try { userArr = JSON.parse(userArr); } catch (e) { userArr = rawUserAns.toString().split(',').map(s => s.trim()); }
-            }
-            if (!Array.isArray(userArr)) userArr = [userArr];
-            userArr = userArr.map(val => String(val).trim()).filter(val => val !== '');
+    // แปลงคำตอบนักเรียนเป็น Array
+    let userArr = rawUserAns;
+    if (typeof userArr === 'string') {
+        try { userArr = JSON.parse(userArr); } catch (e) { userArr = rawUserAns.toString().split(',').map(s => s.trim()); }
+    }
+    if (!Array.isArray(userArr)) userArr = [userArr];
+    userArr = userArr.map(val => String(val).trim()).filter(val => val !== '');
 
-            if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
-                const rawRule = q.grading_rule || q.multiple_grading_rule || (currentExam && currentExam.multiple_grading_rule) || 'all';
-                const gradingRule = String(rawRule).toLowerCase().trim();
+    if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
+        const rawRule = q.grading_rule || q.multiple_grading_rule || (currentExam && currentExam.multiple_grading_rule) || 'all';
+        const gradingRule = String(rawRule).toLowerCase().trim();
 
-                const sortedCorrect = [...correctArr].sort();
-                const sortedUser = [...userArr].sort();
+        const sortedCorrect = [...correctArr].sort();
+        const sortedUser = [...userArr].sort();
 
-                if (gradingRule === 'all') {
-                    if (sortedCorrect.length !== sortedUser.length) return 0;
-                    return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser) ? fullScore : 0;
-                } 
-                else if (gradingRule === 'partial') {
-                    let correctMatches = userArr.filter(ans => correctArr.includes(ans)).length;
-                    let wrongChoices = userArr.filter(ans => !correctArr.includes(ans)).length;
-                    let netCorrect = Math.max(0, correctMatches - wrongChoices);
-                    let ratio = netCorrect / correctArr.length;
-                    return Number((fullScore * ratio).toFixed(2));
-                }
-                else if (gradingRule === 'at_least_one' || gradingRule === 'at_least_once') {
-                    // ตอบถูกอย่างน้อย 1 ข้อ: ขอแค่เลือกถูกอย่างน้อย 1 ตัวเลือกจากเฉลย ก็ได้คะแนนเต็ม
-                    let hasAtLeastOne = userArr.some(ans => correctArr.includes(ans));
-                    return hasAtLeastOne ? fullScore : 0;
-                }
-                else {
-                    if (sortedCorrect.length !== sortedUser.length) return 0;
-                    return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser) ? fullScore : 0;
-                }
-            }
-
-            const singleCorrect = correctArr[0] !== undefined ? String(correctArr[0]).trim() : '';
-            const singleUser = userArr[0] !== undefined ? String(userArr[0]).trim() : '';
-
-            if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
-                return fullScore;
-            }
-
-            return 0;
+        if (gradingRule === 'all') {
+            if (sortedCorrect.length !== sortedUser.length) return 0;
+            return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser) ? fullScore : 0;
+        } 
+        else if (gradingRule === 'partial') {
+            let correctMatches = userArr.filter(ans => correctArr.includes(ans)).length;
+            let wrongChoices = userArr.filter(ans => !correctArr.includes(ans)).length;
+            let netCorrect = Math.max(0, correctMatches - wrongChoices);
+            let ratio = netCorrect / correctArr.length;
+            return Number((fullScore * ratio).toFixed(2));
         }
+        else if (gradingRule === 'at_least_one' || gradingRule === 'at_least_once') {
+            // 🌟 แก้ไขตรงนี้: ขอแค่ในคำตอบของนักเรียน มีตัวเลือกที่อยู่ใน correctArr อย่างน้อย 1 ข้อ ก็ได้คะแนนเต็มทันที
+            let hasAtLeastOne = userArr.some(ans => correctArr.includes(ans));
+            return hasAtLeastOne ? fullScore : 0;
+        }
+        else {
+            if (sortedCorrect.length !== sortedUser.length) return 0;
+            return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser) ? fullScore : 0;
+        }
+    }
+
+    const singleCorrect = correctArr[0] !== undefined ? String(correctArr[0]).trim() : '';
+    const singleUser = userArr[0] !== undefined ? String(userArr[0]).trim() : '';
+
+    if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
+        return fullScore;
+    }
+
+    return 0;
+}
 
         function checkAnswerIsCorrect(q, rawUserAns) {
             return getQuestionScore(q, rawUserAns) > 0;
