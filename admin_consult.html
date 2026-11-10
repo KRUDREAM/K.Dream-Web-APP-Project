@@ -1350,12 +1350,12 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             return formattedList.join(', ');
         }
 
-// ฟังก์ชันตรวจคำตอบที่ปรับปรุงใหม่ให้รองรับทั้งข้อความ, ตัวเลข Index และหลายตัวเลือกอย่างแม่นยำ
-        function checkIsAnswerCorrect(userVal, correctValRaw, choicesArr) {
+// ฟังก์ชันตรวจคำตอบที่รองรับทั้ง Single, Multiple และประเภท at_least_one อย่างสมบูรณ์
+        function checkIsAnswerCorrect(userVal, correctValRaw, choicesArr, questionType = '') {
             if (userVal === null || userVal === undefined || userVal === '-') return false;
             if (correctValRaw === null || correctValRaw === undefined) return false;
 
-            // แปลงคำตอบนักเรียนให้อยู่ในรูปอาเรย์ของข้อความตัวพิมพ์เล็ก (เพื่อตัดปัญหาเรื่องตัวพิมพ์เล็ก/ใหญ่และช่องว่าง)
+            // แปลงคำตอบนักเรียนให้อยู่ในรูปอาเรย์ตัวพิมพ์เล็ก
             let userArr = [];
             if (Array.isArray(userVal)) {
                 userArr = userVal.map(v => String(v).trim().toLowerCase());
@@ -1370,7 +1370,7 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 }
             }
 
-            // แปลงเฉลยให้อยู่ในรูปอาเรย์เช่นเดียวกัน
+            // แปลงเฉลยให้อยู่ในรูปอาเรย์
             let correctArr = [];
             if (Array.isArray(correctValRaw)) {
                 correctArr = correctValRaw.map(v => String(v).trim().toLowerCase());
@@ -1385,7 +1385,7 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 }
             }
 
-            // ถ้านักเรียนตอบเป็นตัวเลข index (เช่น 0, 1, 2) แต่เฉลยเก็บเป็นข้อความ ให้แปลง index เป็นข้อความใน choicesArr ก่อนเทียบ
+            // แปลงตัวเลข index เป็นข้อความช้อยส์ (ถ้ามี)
             if (Array.isArray(choicesArr) && choicesArr.length > 0) {
                 userArr = userArr.map(item => {
                     if (!isNaN(item)) {
@@ -1398,13 +1398,15 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 });
             }
 
-            // ตรวจสอบความถูกต้องแบบเทียบข้อความตรงกันโดยตรงด้วย (กรณีที่บันทึกค่ามาเป็นข้อความโดยตรง)
-            let userJoined = userArr.sort().join('|');
-            let correctJoined = correctArr.sort().join('|');
-            if (userJoined === correctJoined) return true;
+            // 🌟 รองรับเงื่อนไขแบบ at_least_one (เลือกถูกอย่างน้อย 1 ตัวเลือกในเฉลยถือว่าได้คะแนน/ถูกต้อง หรือเลือกตรงเงื่อนไข)
+            if (questionType === 'at_least_one' || String(questionType).toLowerCase().includes('at_least')) {
+                // นักเรียนต้องเลือกคำตอบที่อยู่ในเฉลยอย่างน้อย 1 ตัว และไม่ตอบเกินตัวที่ผิด (หรือเลือกตรงกับตัวใดตัวหนึ่งในเฉลย)
+                return userArr.some(u => correctArr.includes(u));
+            }
 
-            // เช็กเพิ่มเติม: ถ้าข้อความในวงเล็บเฉลยตรงกับที่นักเรียนตอบ (เช่น เปรียบเทียบข้อความในวงเล็บจากภาพ)
-            return userArr.every(u => correctArr.some(c => c.includes(u) || u.includes(c)));
+            // ตรวจสอบแบบปกติ (ต้องตรงกันทั้งหมดทุกตัวเลือก)
+            if (userArr.length !== correctArr.length) return false;
+            return userArr.every(val => correctArr.includes(val)) && correctArr.every(val => userArr.includes(val));
         }
 
         async function viewStudentExamDetailInModal(studentId, examId) {
