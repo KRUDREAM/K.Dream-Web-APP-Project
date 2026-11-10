@@ -560,7 +560,7 @@ function toCleanArray(input) {
     return [str];
 }
 
-// 🌟 ฟังก์ชันคำนวณคะแนนรายข้อ (ฉบับแก้ขาด รองรับ at_least_one ทุกกรณี)
+// 🌟 ฟังก์ชันคำนวณคะแนนรายข้อ (ดึงฟิลด์ multiple_grading_mode มาเช็ค Subset อย่างถูกต้อง)
 function getQuestionScore(q, rawUserAns) {
     if (!q) return 0;
     const qType = (q.question_type || q.type || '').toLowerCase();
@@ -589,35 +589,38 @@ function getQuestionScore(q, rawUserAns) {
 
     if (userArr.length === 0) return 0;
 
-    // ดึงกฎการให้คะแนนจากคำถาม หรือจากค่ากลางของชุดข้อสอบ
-    const rawRule = q.grading_rule || q.multiple_grading_rule || (currentExam && currentExam.multiple_grading_rule) || 'all';
+    // 🔍 ดึงค่าจาก multiple_grading_mode เป็นหลัก ตามด้วยฟิลด์ทางเลือกอื่นๆ
+    const rawRule = q.multiple_grading_mode || q.grading_rule || q.multiple_grading_rule || q.rule || q.grading_type ||
+                    (currentExam && (currentExam.multiple_grading_mode || currentExam.grading_rule || currentExam.multiple_grading_rule)) || '';
     const gradingRule = String(rawRule).toLowerCase().trim();
 
-    // 🌟 ดักเช็คกฎ at_least_one / at_least_once ก่อนเป็นอันดับแรกเสมอ
-    if (multiple_grading_mode === 'at_least_one' || multiple_grading_mode === 'at_least_once') {
-        // เงื่อนไข Subset: นักเรียนต้องตอบอย่างน้อย 1 ข้อ และทุกข้อที่ตอบต้องอยู่ในเซ็ตเฉลย
+    // เช็คว่าเป็นกฎ at_least_one / at_least_once / subset หรือไม่
+    const isAtLeastOneRule = gradingRule.includes('at_least') || gradingRule.includes('one') || gradingRule.includes('once') || gradingRule === 'subset';
+
+    // 🌟 ถ้าเป็น at_least_one หรือถ้าเฉลยมีหลายข้อ และไม่ได้บังคับตอบครบแบบ all/exact
+    if (isAtLeastOneRule || (correctArr.length > 1 && gradingRule !== 'all' && gradingRule !== 'exact')) {
+        // เงื่อนไข Subset: นักเรียนตอบมาอย่างน้อย 1 ข้อ และทุกข้อที่ตอบต้องอยู่ในเซ็ตเฉลย
         const isSubset = userArr.length > 0 && userArr.every(u => correctArr.includes(u));
         return isSubset ? fullScore : 0;
     }
 
-    // ถ้าเป็นข้อสอบแบบหลายตัวเลือก หรือเฉลยมีหลายข้อ
-    if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1 || gradingRule === 'partial') {
-        if (gradingRule === 'partial') {
-            let correctMatches = userArr.filter(u => correctArr.includes(u)).length;
-            let wrongChoices = userArr.filter(u => !correctArr.includes(u)).length;
-            let netCorrect = Math.max(0, correctMatches - wrongChoices);
-            let ratio = netCorrect / correctArr.length;
-            return Number((fullScore * ratio).toFixed(2));
-        }
-        else {
-            // กฎแบบ 'all' (ต้องเป็นเซ็ตที่เท่ากันเป๊ะ)
-            if (correctArr.length !== userArr.length) return 0;
-            let exactMatch = userArr.every(u => correctArr.includes(u)) && correctArr.every(c => userArr.includes(c));
-            return exactMatch ? fullScore : 0;
-        }
+    // ถ้าเป็นกฎ partial (ตอบถูกบางส่วน)
+    if (gradingRule === 'partial') {
+        let correctMatches = userArr.filter(u => correctArr.includes(u)).length;
+        let wrongChoices = userArr.filter(u => !correctArr.includes(u)).length;
+        let netCorrect = Math.max(0, correctMatches - wrongChoices);
+        let ratio = netCorrect / correctArr.length;
+        return Number((fullScore * ratio).toFixed(2));
     }
 
-    // ข้อสอบแบบตัวเลือกเดี่ยว หรือเติมคำทั่วไป (กรณีไม่มีกฎพิเศษ)
+    // ถ้าเป็นข้อสอบแบบหลายตัวเลือก หรือเฉลยมีหลายข้อ (กรณีบังคับตอบครบแบบ all)
+    if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
+        if (correctArr.length !== userArr.length) return 0;
+        let exactMatch = userArr.every(u => correctArr.includes(u)) && correctArr.every(c => userArr.includes(c));
+        return exactMatch ? fullScore : 0;
+    }
+
+    // ข้อสอบแบบตัวเลือกเดี่ยว หรือเติมคำทั่วไป
     let singleCorrect = correctArr[0] || '';
     let singleUser = userArr[0] || '';
 
