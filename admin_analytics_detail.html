@@ -355,15 +355,51 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // 🔍 [ย้อนรอยที่มาของคะแนน]: ดึงคะแนนรวมจากฟิลด์ total_score หรือ score ในตาราง exam_attempts เสมอ
         function getAttemptScore(att) {
             if (att.total_score !== undefined && att.total_score !== null && !isNaN(att.total_score)) return Number(att.total_score);
             if (att.score !== undefined && att.score !== null && !isNaN(att.score)) return Number(att.score);
             return 0;
         }
 
-        // 🔍 [ย้อนรอยการแปลงคำตอบ]: รองรับการแปลงตัวเลือกที่เป็น Index (เช่น 0, 1, 2, 3) หรือตัวอักษร ก/ข/ค/ง, A/B/C/D ให้ตรงกับรูปแบบของข้อสอบ
+        // 🌟 [ฟังก์ชันตรวจคำตอบใหม่]: รองรับ Single Choice, Multiple Answers และ Essay
+        function checkAnswerIsCorrect(q, rawUserAns) {
+            const isEssay = q.question_type === 'essay';
+            const isMultiple = q.question_type === 'multiple';
+
+            if (isEssay) {
+                return false;
+            }
+
+            if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
+                return false;
+            }
+
+            if (isMultiple) {
+                let correctAnsArr = q.correct_answer;
+                if (typeof correctAnsArr === 'string') {
+                    try { correctAnsArr = JSON.parse(correctAnsArr); } catch(e) { correctAnsArr = [String(correctAnsArr)]; }
+                }
+                if (!Array.isArray(correctAnsArr)) correctAnsArr = [String(correctAnsArr)];
+                correctAnsArr = correctAnsArr.map(String).sort();
+
+                let studentAnsArr = Array.isArray(rawUserAns) ? rawUserAns.map(String).sort() : [String(rawUserAns)].sort();
+
+                return JSON.stringify(correctAnsArr) === JSON.stringify(studentAnsArr);
+            } else {
+                return String(rawUserAns).trim() === String(q.correct_answer).trim();
+            }
+        }
+
         function formatAnswerText(ansValue, examObj = null) {
+            if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
+            
+            if (Array.isArray(ansValue)) {
+                return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
+            }
+            return formatSingleAnswerText(ansValue, examObj);
+        }
+
+        function formatSingleAnswerText(ansValue, examObj = null) {
             if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
             const strVal = String(ansValue).trim();
 
@@ -382,7 +418,6 @@
             return strVal;
         }
 
-        // 🔍 [ย้อนรอยเฉลยที่ถูกต้อง]: ตรวจสอบฟิลด์เฉลยจากตาราง questions (รองรับหลายชื่อฟิลด์ เช่น correct_answer, answer, key, solution)
         function getCorrectAnswer(q, examObj = null) {
             let raw = q.correct_answer !== undefined ? q.correct_answer : 
                     (q.answer !== undefined ? q.answer : 
@@ -391,7 +426,6 @@
             return formatAnswerText(raw, examObj);
         }
 
-        // 🔍 [ย้อนรอยคำตอบของนักเรียน]: แกะข้อมูล JSON หรือฟิลด์เก็บคำตอบ (answer_saved, answers, user_answers, student_answers) ตาม ID ของข้อสอบและข้อคำถาม
         function extractStudentAnswer(att, q, index, examObj = null) {
             let raw = att.answer_saved || att.answers || att.user_answers || att.student_answers;
             if (!raw) return '-';
@@ -476,7 +510,6 @@
                     }
 
                     if (isExpired) {
-                        const sId = att.student_id || att.user_id;
                         let rawAns = att.answer_saved || att.answers || att.user_answers || att.student_answers;
                         if (typeof rawAns === 'string') {
                             try { rawAns = JSON.parse(rawAns); } catch(e){}
@@ -486,8 +519,7 @@
                         allQuestions.forEach((q, index) => {
                             if (rawAns && typeof rawAns === 'object') {
                                 let uAns = extractStudentAnswer(att, q, index, currentExam);
-                                let cAns = getCorrectAnswer(q, currentExam);
-                                if (uAns !== '-' && uAns === cAns) {
+                                if (checkAnswerIsCorrect(q, uAns)) {
                                     totalScore += (q.score !== undefined && q.score !== null ? Number(q.score) : 1);
                                 }
                             }
@@ -771,8 +803,7 @@
                 let correctCount = 0;
                 allAttempts.forEach((att, index) => {
                     let uAns = extractStudentAnswer(att, q, index, currentExam);
-                    let cAns = getCorrectAnswer(q, currentExam);
-                    if (uAns !== '-' && uAns === cAns) {
+                    if (checkAnswerIsCorrect(q, uAns)) {
                         correctCount++;
                     }
                 });
@@ -1177,7 +1208,7 @@
             const sId = att.student_id || att.user_id;
             const profile = allStudentsMap[String(sId)] || {};
             const name = (profile.first_name || profile.name || profile.full_name || '').trim() + 
-                       (profile.last_name ? ' ' + profile.last_name : '') || att.student_name || 'นักเรียน';
+                         (profile.last_name ? ' ' + profile.last_name : '') || att.student_name || 'นักเรียน';
             const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
             const score = getAttemptScore(att);
             const maxScore = globalMaxScore;
@@ -1186,7 +1217,9 @@
             let questionsHtml = allQuestions.map((q, index) => {
                 let userAns = extractStudentAnswer(att, q, index, currentExam);
                 let correctAns = getCorrectAnswer(q, currentExam);
-                const isCorrect = (userAns !== '-' && userAns === correctAns);
+                const isEssay = q.question_type === 'essay';
+                const isMultiple = q.question_type === 'multiple';
+                const isCorrect = checkAnswerIsCorrect(q, userAns);
 
                 const catTag = q.category_tag && q.category_tag.trim() !== '' ? q.category_tag : 'ทั่วไป';
                 if (!categoryStats[catTag]) categoryStats[catTag] = { total: 0, correct: 0 };
@@ -1194,13 +1227,16 @@
                 if (isCorrect) categoryStats[catTag].correct++;
 
                 return `
-                    <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40'} space-y-1.5 text-xs text-left">
+                    <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isEssay ? 'border-amber-500/40' : (isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40')} space-y-1.5 text-xs text-left">
                         <div class="flex justify-between font-extrabold gap-2">
                             <span class="text-slate-800 dark:text-slate-100 break-words">ข้อที่ ${q.question_number || (index + 1)} [${escapeHtml(catTag)}]: ${escapeHtml(q.question_text || q.content || 'โจทย์คำถาม')}</span>
-                            <span class="${isCorrect ? 'text-emerald-500' : 'text-rose-500'} shrink-0">${isCorrect ? '✅ ถูกต้อง' : '❌ ตอบผิด'}</span>
+                            <span class="${isEssay ? 'text-amber-500' : (isCorrect ? 'text-emerald-500' : 'text-rose-500')} shrink-0">
+                                ${isEssay ? '✍️ อัตนัย' : (isCorrect ? '✅ ถูกต้อง' : '❌ ตอบผิด')}
+                            </span>
                         </div>
                         <div class="text-[11px] text-slate-500 dark:text-slate-400 break-words">
                             นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(userAns)}</span> | เฉลย: <span class="font-bold text-emerald-600">${escapeHtml(correctAns)}</span>
+                            ${isMultiple ? '<span class="ml-2 px-1.5 py-0.5 bg-indigo-500/20 text-indigo-500 rounded font-semibold text-[10px]">หลายตัวเลือก</span>' : ''}
                         </div>
                     </div>
                 `;
