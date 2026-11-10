@@ -381,32 +381,94 @@
             return false;
         }
 
+        // 🌟 ฟังก์ชันแปลงข้อมูลให้อยู่ในรูป Array ของ String ที่สะอาด
+        function toCleanArray(input) {
+            if (input === undefined || input === null || input === '') return [];
+            if (Array.isArray(input)) {
+                return input.map(item => String(item).trim()).filter(item => item !== '');
+            }
+            let str = String(input).trim();
+            if (str.startsWith('[') && str.endsWith(']')) {
+                try {
+                    let parsed = JSON.parse(str);
+                    if (Array.isArray(parsed)) {
+                        return parsed.map(item => String(item).trim()).filter(item => item !== '');
+                    } else if (typeof parsed === 'object' && parsed !== null) {
+                        return Object.values(parsed).map(item => String(item).trim()).filter(item => item !== '');
+                    }
+                } catch (e) {}
+            }
+            if (str.includes(',')) {
+                return str.split(',').map(s => String(s).trim()).filter(s => s !== '');
+            }
+            return [str];
+        }
+
+        // 🌟 ฟังก์ชันคำนวณคะแนนรายข้อ (รองรับ multiple_grading_mode แบบ Subset)
+        function getQuestionScore(q, rawUserAns) {
+            if (!q) return 0;
+            const qType = (q.question_type || q.type || '').toLowerCase();
+            const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) : 
+                              (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
+
+            if (qType === 'essay' || qType === 'subjective') {
+                return 0; // ต้องตรวจด้วยอาจารย์
+            }
+
+            if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
+                return 0;
+            }
+
+            let correctRaw = q.correct_answer !== undefined ? q.correct_answer : 
+                             (q.answer !== undefined ? q.answer : 
+                             (q.key !== undefined ? q.key : 
+                             (q.solution !== undefined ? q.solution : '')));
+
+            if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
+                return 0;
+            }
+
+            let correctArr = toCleanArray(correctRaw);
+            let userArr = toCleanArray(rawUserAns);
+
+            if (userArr.length === 0) return 0;
+
+            const rawRule = q.multiple_grading_mode || q.grading_rule || q.multiple_grading_rule || q.rule || q.grading_type || '';
+            const gradingRule = String(rawRule).toLowerCase().trim();
+
+            const isAtLeastOneRule = gradingRule.includes('at_least') || gradingRule.includes('one') || gradingRule.includes('once') || gradingRule === 'subset';
+
+            if (isAtLeastOneRule || (correctArr.length > 1 && gradingRule !== 'all' && gradingRule !== 'exact')) {
+                const isSubset = userArr.length > 0 && userArr.every(u => correctArr.includes(u));
+                return isSubset ? fullScore : 0;
+            }
+
+            if (gradingRule === 'partial') {
+                let correctMatches = userArr.filter(u => correctArr.includes(u)).length;
+                let wrongChoices = userArr.filter(u => !correctArr.includes(u)).length;
+                let netCorrect = Math.max(0, correctMatches - wrongChoices);
+                let ratio = netCorrect / correctArr.length;
+                return Number((fullScore * ratio).toFixed(2));
+            }
+
+            if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
+                if (correctArr.length !== userArr.length) return 0;
+                let exactMatch = userArr.every(u => correctArr.includes(u)) && correctArr.every(c => userArr.includes(c));
+                return exactMatch ? fullScore : 0;
+            }
+
+            let singleCorrect = correctArr[0] || '';
+            let singleUser = userArr[0] || '';
+
+            if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
+                return fullScore;
+            }
+
+            return 0;
+        }
+
         function checkAnswerIsCorrect(q, rawUserAns) {
-            const isEssay = q.question_type === 'essay';
-            const isMultiple = q.question_type === 'multiple';
-
-            if (isEssay) {
-                return false;
-            }
-
-            if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '') {
-                return false;
-            }
-
-            if (isMultiple) {
-                let correctAnsArr = q.correct_answer;
-                if (typeof correctAnsArr === 'string') {
-                    try { correctAnsArr = JSON.parse(correctAnsArr); } catch(e) { correctAnsArr = [String(correctAnsArr)]; }
-                }
-                if (!Array.isArray(correctAnsArr)) correctAnsArr = [String(correctAnsArr)];
-                correctAnsArr = correctAnsArr.map(String).sort();
-
-                let studentAnsArr = Array.isArray(rawUserAns) ? rawUserAns.map(String).sort() : [String(rawUserAns)].sort();
-
-                return JSON.stringify(correctAnsArr) === JSON.stringify(studentAnsArr);
-            } else {
-                return String(rawUserAns).trim() === String(q.correct_answer).trim();
-            }
+            return getQuestionScore(q, rawUserAns) > 0;
         }
 
         async function initDashboard() {
