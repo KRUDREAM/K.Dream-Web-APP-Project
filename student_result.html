@@ -360,15 +360,90 @@
             return ans !== undefined && ans !== null ? ans : '-';
         }
 
-        function isAnswerCorrect(q, userAns) {
-            if (userAns === null || userAns === undefined || userAns === '-' || userAns === '') return false;
-            const correctAns = q.correct_answer !== undefined && q.correct_answer !== null ? String(q.correct_answer).trim() : '';
-            const userAnsStr = String(userAns).trim();
-            if (userAnsStr === correctAns) return true;
-            const uIdx = parseChoiceIndex(userAnsStr);
-            const cIdx = parseChoiceIndex(correctAns);
-            if (uIdx !== null && cIdx !== null && uIdx === cIdx) return true;
-            return false;
+        // 🌟 ฟังก์ชันตรวจสอบความถูกต้องของคำตอบแบบเดียวกับแอดมินและพอร์ทัลนักเรียน รองรับทั้ง Index, ข้อความช้อยส์, และเงื่อนไขต่างๆ
+        function isAnswerCorrect(q, userVal, choicesArr = []) {
+            if (userVal === null || userVal === undefined || userVal === '-' || userVal === '') return false;
+            const correctValRaw = q.correct_answer !== undefined && q.correct_answer !== null ? q.correct_answer : '';
+            if (correctValRaw === '') return false;
+
+            // แปลงคำตอบนักเรียนให้อยู่ในรูปอาเรย์ของสตริงตัวพิมพ์เล็ก
+            let userArr = [];
+            if (Array.isArray(userVal)) {
+                userArr = userVal.map(v => String(v).trim().toLowerCase());
+            } else {
+                let sVal = String(userVal).trim();
+                if (sVal.startsWith('[') && sVal.endsWith(']')) {
+                    try { userArr = JSON.parse(sVal).map(v => String(v).trim().toLowerCase()); } catch(e) { userArr = [sVal.toLowerCase()]; }
+                } else if (sVal.includes(',')) {
+                    userArr = sVal.split(',').map(v => v.trim().toLowerCase());
+                } else {
+                    userArr = [sVal.toLowerCase()];
+                }
+            }
+
+            // แปลงค่าเฉลยให้อยู่ในรูปอาเรย์
+            let correctArr = [];
+            if (Array.isArray(correctValRaw)) {
+                correctArr = correctValRaw.map(v => String(v).trim().toLowerCase());
+            } else {
+                let cVal = String(correctValRaw).trim();
+                if (cVal.startsWith('[') && cVal.endsWith(']')) {
+                    try { correctArr = JSON.parse(cVal).map(v => String(v).trim().toLowerCase()); } catch(e) { correctArr = [cVal.toLowerCase()]; }
+                } else if (cVal.includes(',')) {
+                    correctArr = cVal.split(',').map(v => v.trim().toLowerCase());
+                } else {
+                    correctArr = [cVal.toLowerCase()];
+                }
+            }
+
+            // ถ้านักเรียนตอบเป็นตัวเลข index (เช่น 0, 1, 2, 3) หรืออักษร ก ข ค ให้แปลงเป็นข้อความช้อยส์จริง ๆ ก่อนถ้ามีข้อมูลช้อยส์
+            let choices = q.choices || q.options || choicesArr;
+            if (Array.isArray(choices) && choices.length > 0) {
+                userArr = userArr.map(item => {
+                    let strItem = String(item).trim();
+                    if (!isNaN(strItem)) {
+                        let idx = Number(strItem);
+                        if (idx >= 0 && idx < choices.length) {
+                            return String(choices[idx]).trim().toLowerCase();
+                        }
+                    } else if (['ก', 'a', '0'].includes(strItem)) { if (choices[0]) return String(choices[0]).trim().toLowerCase(); }
+                    else if (['ข', 'b', '1'].includes(strItem)) { if (choices[1]) return String(choices[1]).trim().toLowerCase(); }
+                    else if (['ค', 'c', '2'].includes(strItem)) { if (choices[2]) return String(choices[2]).trim().toLowerCase(); }
+                    else if (['ง', 'd', '3'].includes(strItem)) { if (choices[3]) return String(choices[3]).trim().toLowerCase(); }
+                    return strItem;
+                });
+                
+                correctArr = correctArr.map(item => {
+                    let strItem = String(item).trim();
+                    if (!isNaN(strItem)) {
+                        let idx = Number(strItem);
+                        if (idx >= 0 && idx < choices.length) {
+                            return String(choices[idx]).trim().toLowerCase();
+                        }
+                    } else if (['ก', 'a', '0'].includes(strItem)) { if (choices[0]) return String(choices[0]).trim().toLowerCase(); }
+                    else if (['ข', 'b', '1'].includes(strItem)) { if (choices[1]) return String(choices[1]).trim().toLowerCase(); }
+                    else if (['ค', 'c', '2'].includes(strItem)) { if (choices[2]) return String(choices[2]).trim().toLowerCase(); }
+                    else if (['ง', 'd', '3'].includes(strItem)) { if (choices[3]) return String(choices[3]).trim().toLowerCase(); }
+                    return strItem;
+                });
+            }
+
+            // รองรับเงื่อนไขแบบ at_least_one
+            let qType = q.question_type || q.type || '';
+            if (qType === 'at_least_one' || String(qType).toLowerCase().includes('at_least')) {
+                return userArr.some(u => correctArr.includes(u));
+            }
+
+            // เปรียบเทียบว่าคำตอบของนักเรียนตรงกับเฉลยหรือไม่
+            let isMatched = userArr.some(u => {
+                return correctArr.some(c => {
+                    let cleanU = u.replace(/\s+/g, '');
+                    let cleanC = c.replace(/\s+/g, '');
+                    return cleanU === cleanC || c.includes(u) || u.includes(c);
+                });
+            });
+
+            return isMatched;
         }
 
         async function initApp() {
