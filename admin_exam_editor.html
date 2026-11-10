@@ -737,7 +737,13 @@
                     }
 
                     const isMultiple = !!q.is_multiple_answers;
-                    const modeText = isMultiple ? (q.multiple_grading_mode === 'partial' ? 'หลายคำตอบ (ให้คะแนนบางส่วนได้)' : 'หลายคำตอบ (ต้องตอบถูกทั้งหมดเท่านั้น)') : 'คำตอบเดียว';
+                    let modeText = 'คำตอบเดียว';
+                    if (isMultiple) {
+                        const mMode = q.multiple_grading_mode || 'all';
+                        if (mMode === 'partial') modeText = 'หลายคำตอบ (ให้คะแนนบางส่วน)';
+                        else if (mMode === 'at_least_one') modeText = 'หลายคำตอบ (ตอบถูกอย่างน้อย 1 ข้อก็ได้เต็ม)';
+                        else modeText = 'หลายคำตอบ (ต้องตอบถูกทั้งหมดเท่านั้น)';
+                    }
 
                     optionsListHtml = `
                         <div class="mb-2 text-[11px] font-bold text-purple-600 dark:text-purple-400">
@@ -856,7 +862,6 @@
                 if (isMultiple) modeSec.classList.remove('hidden');
                 else modeSec.classList.add('hidden');
             }
-            // รีเรนเดอร์ Radio เป็น Checkbox หรือในทางกลับกัน
             const container = document.getElementById('optionsInputsContainer');
             if (!container) return;
             const rows = container.querySelectorAll('.option-row');
@@ -1053,6 +1058,7 @@
                                     <select id="multipleGradingMode" class="w-full px-3 py-1 border rounded-lg dark:bg-slate-800 font-bold text-xs">
                                         <option value="all" ${gradingMode === 'all' ? 'selected' : ''}>ตอบถูกครบทุกข้อที่ถูกต้องเท่านั้น (All-or-Nothing)</option>
                                         <option value="partial" ${gradingMode === 'partial' ? 'selected' : ''}>ให้คะแนนบางส่วน (Partial Credit ตามสัดส่วนที่ตอบถูก)</option>
+                                        <option value="at_least_one" ${gradingMode === 'at_least_one' ? 'selected' : ''}>ตอบถูกอย่างน้อย 1 ข้อที่ถูก (ก็ได้เต็ม)</option>
                                     </select>
                                 </div>
                             </div>
@@ -1342,7 +1348,7 @@
         async function saveAllChangesSticky() {
             Swal.fire({
                 title: 'กำลังบันทึกและ Regrade คะแนน...',
-                html: '<div class="text-xs text-slate-400 mt-1">กำลังคำนวณและอัปเดตลงช่อง total_score (รองรับระบบหลายคำตอบ)...</div>',
+                html: '<div class="text-xs text-slate-400 mt-1">กำลังคำนวณและอัปเดตลงช่อง total_score (รองรับระบบหลายคำตอบ 3 รูปแบบ)...</div>',
                 allowOutsideClick: false,
                 didOpen: () => Swal.showLoading()
             });
@@ -1416,17 +1422,22 @@
                                 }
 
                                 const gradingMode = q.multiple_grading_mode || 'all';
-                                if (gradingMode === 'partial') {
+
+                                if (gradingMode === 'at_least_one') {
+                                    // ขอแค่ตอบถูกอย่างน้อย 1 ข้อที่ถูกต้อง ก็ได้เต็ม
+                                    const hasAtLeastOneCorrect = userArr.some(ans => correctArr.includes(ans));
+                                    if (hasAtLeastOneCorrect) {
+                                        recalculatedScore += 1;
+                                    }
+                                } else if (gradingMode === 'partial') {
                                     // ให้คะแนนตามสัดส่วน
                                     let matchedCount = 0;
                                     userArr.forEach(ans => {
                                         if (correctArr.includes(ans)) matchedCount++;
                                     });
-                                    // หากตอบผิด (เกินมา) อาจหักคะแนนหรือคิดตามสัดส่วนที่ถูกต้องจริง
                                     let questionScore = 0;
                                     if (correctArr.length > 0) {
                                         const rawPart = matchedCount / correctArr.length;
-                                        // ป้องกันการได้เกิน 1 คะแนน หากเลือกเกิน
                                         const penalty = userArr.length > correctArr.length ? (userArr.length - correctArr.length) * 0.2 : 0;
                                         questionScore = Math.max(0, rawPart - penalty);
                                     }
