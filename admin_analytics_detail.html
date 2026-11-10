@@ -361,17 +361,19 @@
             return 0;
         }
 
-        // 🌟 [ระบบตรวจคำตอบที่ปรับปรุงใหม่สมบูรณ์ รองรับทุกประเภทข้อสอบและ Data Types]:
-        function checkAnswerIsCorrect(q, rawUserAns) {
-            if (!q) return false;
-            
+        // 🌟 [ระบบคำนวณคะแนนและตรวจคำตอบตามเงื่อนไข Multiple Choice Grading Rule]:
+        function getQuestionScore(q, rawUserAns) {
+            if (!q) return 0;
             const qType = (q.question_type || q.type || '').toLowerCase();
+            const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) : 
+                              (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
+
             if (qType === 'essay' || qType === 'subjective') {
-                return false;
+                return 0; // ต้องตรวจด้วยอาจารย์
             }
 
             if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
-                return false;
+                return 0;
             }
 
             let correctRaw = q.correct_answer !== undefined ? q.correct_answer : 
@@ -380,46 +382,68 @@
                              (q.solution !== undefined ? q.solution : '')));
 
             if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
-                return false;
+                return 0;
             }
 
             let correctArr = correctRaw;
             if (typeof correctArr === 'string') {
-                try {
-                    correctArr = JSON.parse(correctArr);
-                } catch (e) {
-                    correctArr = correctRaw.toString().split(',').map(s => s.trim());
-                }
+                try { correctArr = JSON.parse(correctArr); } catch (e) { correctArr = correctRaw.toString().split(',').map(s => s.trim()); }
             }
-            if (!Array.isArray(correctArr)) {
-                correctArr = [correctArr];
-            }
+            if (!Array.isArray(correctArr)) correctArr = [correctArr];
             correctArr = correctArr.map(val => String(val).trim()).filter(val => val !== '').sort();
 
             let userArr = rawUserAns;
             if (typeof userArr === 'string') {
-                try {
-                    userArr = JSON.parse(userArr);
-                } catch (e) {
-                    userArr = rawUserAns.toString().split(',').map(s => s.trim());
-                }
+                try { userArr = JSON.parse(userArr); } catch (e) { userArr = rawUserAns.toString().split(',').map(s => s.trim()); }
             }
-            if (!Array.isArray(userArr)) {
-                userArr = [userArr];
-            }
+            if (!Array.isArray(userArr)) userArr = [userArr];
             userArr = userArr.map(val => String(val).trim()).filter(val => val !== '').sort();
 
-            if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
-                if (correctArr.length !== userArr.length) return false;
-                return JSON.stringify(correctArr) === JSON.stringify(userArr);
-            } 
-            
+            // หากเป็นข้อสอบปรนัยหลายตัวเลือก (Multiple Choice / Multiple Answers)
+            if (qType === 'multiple' || correctArr.length > 1) {
+                // ดึงเงื่อนไขการให้คะแนนจากโจทย์หรือชุดข้อสอบ (เช่น grading_rule: 'all' | 'partial' | 'at_least_one')
+                // ค่าเริ่มต้นมักเป็น 'all' (ตอบถูกทั้งหมด)
+                const gradingRule = q.grading_rule || q.multiple_grading_rule || (currentExam && currentExam.multiple_grading_rule) || 'all';
+
+                if (gradingRule === 'all') {
+                    // ต้องตอบถูกทั้งหมดครบทุกตัวเลือก และไม่มีตัวเลือกที่ผิดเกินมา
+                    if (correctArr.length !== userArr.length) return 0;
+                    const isAllMatch = JSON.stringify(correctArr) === JSON.stringify(userArr);
+                    return isAllMatch ? fullScore : 0;
+                } 
+                else if (gradingRule === 'partial') {
+                    // ให้คะแนนตามสัดส่วนจำนวนตัวเลือกที่ตอบถูก (Partial Credit) โดยหักคะแนนส่วนที่ตอบผิด/เกิน
+                    let correctMatches = userArr.filter(ans => correctArr.includes(ans)).length;
+                    let wrongChoices = userArr.filter(ans => !correctArr.includes(ans)).length;
+                    let netCorrect = Math.max(0, correctMatches - wrongChoices);
+                    let ratio = netCorrect / correctArr.length;
+                    return Number((fullScore * ratio).toFixed(2));
+                }
+                else if (gradingRule === 'at_least_one') {
+                    // ตอบถูกอย่างน้อย 1 ข้อที่ถูกต้อง ได้เต็ม หรือได้ตามสัดส่วน
+                    let hasAtLeastOne = userArr.some(ans => correctArr.includes(ans));
+                    return hasAtLeastOne ? fullScore : 0;
+                }
+                else {
+                    // Default match exact
+                    if (correctArr.length !== userArr.length) return 0;
+                    return JSON.stringify(correctArr) === JSON.stringify(userArr) ? fullScore : 0;
+                }
+            }
+
+            // ข้อสอบแบบ Single Choice หรือเติมคำตอบทั่วไป
             const singleCorrect = correctArr[0] !== undefined ? correctArr[0] : '';
             const singleUser = userArr[0] !== undefined ? userArr[0] : '';
 
-            if (singleCorrect === singleUser) return true;
+            if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
+                return fullScore;
+            }
 
-            return singleCorrect.toLowerCase() === singleUser.toLowerCase();
+            return 0;
+        }
+
+        function checkAnswerIsCorrect(q, rawUserAns) {
+            return getQuestionScore(q, rawUserAns) > 0;
         }
 
         function formatAnswerText(ansValue, examObj = null) {
@@ -504,14 +528,10 @@
             let totalScore = 0;
             questionsList.forEach((q, index) => {
                 const studentAns = extractStudentAnswer(att, q, index, examObj);
-                if (checkAnswerIsCorrect(q, studentAns)) {
-                    const qScore = q.score !== undefined && q.score !== null ? Number(q.score) : 
-                                   (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
-                    totalScore += qScore;
-                }
+                totalScore += getQuestionScore(q, studentAns);
             });
 
-            return totalScore;
+            return Number(totalScore.toFixed(2));
         }
 
         function calculateTimeSpentMinutes(att) {
@@ -1266,19 +1286,25 @@
                 let correctAns = getCorrectAnswer(q, currentExam);
                 const isEssay = q.question_type === 'essay';
                 const isMultiple = q.question_type === 'multiple';
-                const isCorrect = checkAnswerIsCorrect(q, userAns);
+                let qEarnedScore = getQuestionScore(q, userAns);
+                let qMaxScore = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
+                const isCorrect = qEarnedScore >= qMaxScore;
+                const isPartial = qEarnedScore > 0 && qEarnedScore < qMaxScore;
 
                 const catTag = q.category_tag && q.category_tag.trim() !== '' ? q.category_tag : 'ทั่วไป';
                 if (!categoryStats[catTag]) categoryStats[catTag] = { total: 0, correct: 0 };
-                categoryStats[catTag].total++;
-                if (isCorrect) categoryStats[catTag].correct++;
+                categoryStats[catTag].total += qMaxScore;
+                categoryStats[catTag].correct += qEarnedScore;
+
+                let statusText = isCorrect ? '✅ ถูกต้อง' : (isPartial ? `⚠️ ถูกบางส่วน (${qEarnedScore}/${qMaxScore})` : '❌ ตอบผิด');
+                if (isEssay) statusText = '✍️ อัตนัย';
 
                 return `
-                    <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isEssay ? 'border-amber-500/40' : (isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40')} space-y-1.5 text-xs text-left">
+                    <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isEssay ? 'border-amber-500/40' : (isCorrect ? 'border-emerald-500/40' : (isPartial ? 'border-indigo-500/40' : 'border-rose-500/40'))} space-y-1.5 text-xs text-left">
                         <div class="flex justify-between font-extrabold gap-2">
                             <span class="text-slate-800 dark:text-slate-100 break-words">ข้อที่ ${q.question_number || (index + 1)} [${escapeHtml(catTag)}]: ${escapeHtml(q.question_text || q.content || 'โจทย์คำถาม')}</span>
-                            <span class="${isEssay ? 'text-amber-500' : (isCorrect ? 'text-emerald-500' : 'text-rose-500')} shrink-0">
-                                ${isEssay ? '✍️ อัตนัย' : (isCorrect ? '✅ ถูกต้อง' : '❌ ตอบผิด')}
+                            <span class="${isEssay ? 'text-amber-500' : (isCorrect ? 'text-emerald-500' : (isPartial ? 'text-indigo-500' : 'text-rose-500'))} shrink-0">
+                                ${statusText}
                             </span>
                         </div>
                         <div class="text-[11px] text-slate-500 dark:text-slate-400 break-words">
