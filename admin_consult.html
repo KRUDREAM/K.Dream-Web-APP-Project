@@ -346,9 +346,9 @@
     </main>
 
     <script>
-        const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
-        const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
+const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         let currentSetting = null;
         let allSlots = [];
@@ -470,7 +470,7 @@ async function loadCoursesAndEnrollments() {
 
         let enrollsData = [];
 
-        // 2. ดึงข้อมูลจากตาราง enrollments โดยตรง (ไม่ Join เพื่อเลี่ยง Error 400)
+        // 2. ดึงข้อมูลจากตาราง enrollments โดยตรง (มี student_id และ course_id)
         const { data: eRes1, error: err1 } = await mySupabase.from('enrollments').select('*');
         if (eRes1 && !err1) {
             enrollsData = [...enrollsData, ...eRes1];
@@ -478,16 +478,10 @@ async function loadCoursesAndEnrollments() {
             console.warn("Fetch enrollments error:", err1.message);
         }
 
-        // 3. ดึงจากตาราง course_enrollments เผื่อโครงสร้างโปรเจกต์ใช้ชื่อนี้
-        const { data: eRes2, error: err2 } = await mySupabase.from('course_enrollments').select('*');
-        if (eRes2 && !err2) {
-            enrollsData = [...enrollsData, ...eRes2];
-        }
-
-        // 4. แม็ปข้อมูลนักเรียนกับคอร์สในฝั่ง JavaScript
+        // 3. แม็ปข้อมูลนักเรียนกับคอร์สในฝั่ง JavaScript
         studentEnrollmentsMap = {};
         enrollsData.forEach(en => {
-            const sId = String(en.student_id || en.user_id || '');
+            const sId = String(en.student_id || '');
             const cId = String(en.course_id || '');
             if (sId && cId) {
                 if (!studentEnrollmentsMap[sId]) studentEnrollmentsMap[sId] = [];
