@@ -362,90 +362,94 @@
         }
 
         // 🌟 [ระบบคำนวณคะแนนและตรวจคำตอบตามเงื่อนไข Multiple Choice Grading Rule]:
-        function getQuestionScore(q, rawUserAns) {
-            if (!q) return 0;
-            const qType = (q.question_type || q.type || '').toLowerCase();
-            const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) : 
-                              (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
+// 🌟 [ปรับปรุงใหม่] ฟังก์ชันคำนวณคะแนนรายข้อ รองรับกฎเกณฑ์ Multiple Choice อย่างแม่นยำ
+function getQuestionScore(q, rawUserAns) {
+    if (!q) return 0;
+    const qType = (q.question_type || q.type || '').toLowerCase();
+    const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) : 
+                      (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
 
-            if (qType === 'essay' || qType === 'subjective') {
-                return 0; // ต้องตรวจด้วยอาจารย์
-            }
+    if (qType === 'essay' || qType === 'subjective') {
+        return 0; // ต้องตรวจด้วยอาจารย์
+    }
 
-            if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
-                return 0;
-            }
+    if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
+        return 0;
+    }
 
-            let correctRaw = q.correct_answer !== undefined ? q.correct_answer : 
-                             (q.answer !== undefined ? q.answer : 
-                             (q.key !== undefined ? q.key : 
-                             (q.solution !== undefined ? q.solution : '')));
+    let correctRaw = q.correct_answer !== undefined ? q.correct_answer : 
+                     (q.answer !== undefined ? q.answer : 
+                     (q.key !== undefined ? q.key : 
+                     (q.solution !== undefined ? q.solution : '')));
 
-            if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
-                return 0;
-            }
+    if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
+        return 0;
+    }
 
-            let correctArr = correctRaw;
-            if (typeof correctArr === 'string') {
-                try { correctArr = JSON.parse(correctArr); } catch (e) { correctArr = correctRaw.toString().split(',').map(s => s.trim()); }
-            }
-            if (!Array.isArray(correctArr)) correctArr = [correctArr];
-            correctArr = correctArr.map(val => String(val).trim()).filter(val => val !== '').sort();
+    // แปลงเฉลยเป็น Array
+    let correctArr = correctRaw;
+    if (typeof correctArr === 'string') {
+        try { correctArr = JSON.parse(correctArr); } catch (e) { correctArr = correctRaw.toString().split(',').map(s => s.trim()); }
+    }
+    if (!Array.isArray(correctArr)) correctArr = [correctArr];
+    correctArr = correctArr.map(val => String(val).trim()).filter(val => val !== '');
 
-            let userArr = rawUserAns;
-            if (typeof userArr === 'string') {
-                try { userArr = JSON.parse(userArr); } catch (e) { userArr = rawUserAns.toString().split(',').map(s => s.trim()); }
-            }
-            if (!Array.isArray(userArr)) userArr = [userArr];
-            userArr = userArr.map(val => String(val).trim()).filter(val => val !== '').sort();
+    // แปลงคำตอบนักเรียนเป็น Array
+    let userArr = rawUserAns;
+    if (typeof userArr === 'string') {
+        try { userArr = JSON.parse(userArr); } catch (e) { userArr = rawUserAns.toString().split(',').map(s => s.trim()); }
+    }
+    if (!Array.isArray(userArr)) userArr = [userArr];
+    userArr = userArr.map(val => String(val).trim()).filter(val => val !== '');
 
-            // หากเป็นข้อสอบปรนัยหลายตัวเลือก (Multiple Choice / Multiple Answers)
-            if (qType === 'multiple' || correctArr.length > 1) {
-                // ดึงเงื่อนไขการให้คะแนนจากโจทย์หรือชุดข้อสอบ (เช่น grading_rule: 'all' | 'partial' | 'at_least_one')
-                // ค่าเริ่มต้นมักเป็น 'all' (ตอบถูกทั้งหมด)
-                const gradingRule = q.grading_rule || q.multiple_grading_rule || (currentExam && currentExam.multiple_grading_rule) || 'all';
+    // ตรวจสอบว่าเป็นข้อสอบแบบหลายตัวเลือก (Multiple Choice / Multiple Answers) หรือเฉลยมีมากกว่า 1 ข้อ
+    if (qType === 'multiple' || correctArr.length > 1) {
+        // ดึงกฎการให้คะแนน (grading_rule) จากคำถาม หรือจากค่ากลางของชุดข้อสอบ
+        const gradingRule = q.grading_rule || q.multiple_grading_rule || (currentExam && currentExam.multiple_grading_rule) || 'all';
 
-                if (gradingRule === 'all') {
-                    // ต้องตอบถูกทั้งหมดครบทุกตัวเลือก และไม่มีตัวเลือกที่ผิดเกินมา
-                    if (correctArr.length !== userArr.length) return 0;
-                    const isAllMatch = JSON.stringify(correctArr) === JSON.stringify(userArr);
-                    return isAllMatch ? fullScore : 0;
-                } 
-                else if (gradingRule === 'partial') {
-                    // ให้คะแนนตามสัดส่วนจำนวนตัวเลือกที่ตอบถูก (Partial Credit) โดยหักคะแนนส่วนที่ตอบผิด/เกิน
-                    let correctMatches = userArr.filter(ans => correctArr.includes(ans)).length;
-                    let wrongChoices = userArr.filter(ans => !correctArr.includes(ans)).length;
-                    let netCorrect = Math.max(0, correctMatches - wrongChoices);
-                    let ratio = netCorrect / correctArr.length;
-                    return Number((fullScore * ratio).toFixed(2));
-                }
-                else if (gradingRule === 'at_least_one') {
-                    // ตอบถูกอย่างน้อย 1 ข้อที่ถูกต้อง ได้เต็ม หรือได้ตามสัดส่วน
-                    let hasAtLeastOne = userArr.some(ans => correctArr.includes(ans));
-                    return hasAtLeastOne ? fullScore : 0;
-                }
-                else {
-                    // Default match exact
-                    if (correctArr.length !== userArr.length) return 0;
-                    return JSON.stringify(correctArr) === JSON.stringify(userArr) ? fullScore : 0;
-                }
-            }
+        const sortedCorrect = [...correctArr].sort();
+        const sortedUser = [...userArr].sort();
 
-            // ข้อสอบแบบ Single Choice หรือเติมคำตอบทั่วไป
-            const singleCorrect = correctArr[0] !== undefined ? correctArr[0] : '';
-            const singleUser = userArr[0] !== undefined ? userArr[0] : '';
-
-            if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
-                return fullScore;
-            }
-
-            return 0;
+        if (gradingRule === 'all') {
+            // 1. ตอบถูกทั้งหมด (ต้องเลือกถูกครบทุกข้อและไม่มีข้อผิดเกินมา)
+            if (sortedCorrect.length !== sortedUser.length) return 0;
+            const isAllMatch = JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser);
+            return isAllMatch ? fullScore : 0;
+        } 
+        else if (gradingRule === 'partial') {
+            // 2. ตอบถูกบางส่วน (Partial Credit) - คิดตามสัดส่วนข้อที่ถูก หักลบข้อที่ผิด
+            let correctMatches = userArr.filter(ans => correctArr.includes(ans)).length;
+            let wrongChoices = userArr.filter(ans => !correctArr.includes(ans)).length;
+            let netCorrect = Math.max(0, correctMatches - wrongChoices);
+            let ratio = netCorrect / correctArr.length;
+            return Number((fullScore * ratio).toFixed(2));
         }
-
-        function checkAnswerIsCorrect(q, rawUserAns) {
-            return getQuestionScore(q, rawUserAns) > 0;
+        else if (gradingRule === 'at_least_one') {
+            // 3. ตอบถูกอย่างน้อย 1 ข้อจากทั้งหมดที่ถูกต้อง (ขอแค่มีตัวเลือกที่ถูกต้องอยู่ในคำตอบอย่างน้อย 1 ข้อ ได้เต็ม)
+            let hasAtLeastOne = userArr.some(ans => correctArr.includes(ans));
+            return hasAtLeastOne ? fullScore : 0;
         }
+        else {
+            // Fallback: เปรียบเทียบแบบตรงกันเป๊ะ
+            if (sortedCorrect.length !== sortedUser.length) return 0;
+            return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser) ? fullScore : 0;
+        }
+    }
 
+    // ข้อสอบแบบตัวเลือกเดี่ยว (Single Choice) หรือเติมคำ
+    const singleCorrect = correctArr[0] !== undefined ? correctArr[0] : '';
+    const singleUser = userArr[0] !== undefined ? userArr[0] : '';
+
+    if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
+        return fullScore;
+    }
+
+    return 0;
+}
+
+function checkAnswerIsCorrect(q, rawUserAns) {
+    return getQuestionScore(q, rawUserAns) > 0;
+}
         function formatAnswerText(ansValue, examObj = null) {
             if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
             
