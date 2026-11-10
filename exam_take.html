@@ -209,7 +209,7 @@
         let currentExam = null;
         let currentStudentId = null;
         let currentQuestions = [];
-        let studentAnswers = {};
+        let studentAnswers = {}; // รองรับโครงสร้างคำตอบ (เช่น เก็บเป็น Array หรือ String)
         let flaggedQuestions = {};
         let timerInterval = null;
         let currentRemainingSeconds = 0;
@@ -227,9 +227,8 @@
         let currentViewMode = 'scroll'; 
         let currentStepIndex = 0;
         let examRealtimeChannel = null;
-        let activeAttemptRecordId = null; // เก็บ ID แถว attempt ของนักเรียนคนนี้
+        let activeAttemptRecordId = null;
 
-        // 🌟 ล็อกไม่ให้ผู้ใช้กดย้อนกลับ (Back Button) กลับมาหน้าทำข้อสอบได้
         history.pushState(null, null, location.href);
         window.addEventListener('popstate', function () {
             history.pushState(null, null, location.href);
@@ -370,7 +369,6 @@
                 document.getElementById('previewBanner').classList.remove('hidden');
             }
 
-            // 🌟 ตรวจสอบสถานะการสอบและบันทึกสถานะ 'in_progress' ลงใน exam_attempts ทันที
             if (!isPreview && currentStudentId) {
                 try {
                     const { data: existingAttempts } = await mySupabase
@@ -397,7 +395,6 @@
                     if (inProgressAttempt) {
                         activeAttemptRecordId = inProgressAttempt.id;
                     } else {
-                        // สร้างแถวสถานะ in_progress ใหม่ เพื่อให้นับ Active ได้ถูกต้อง
                         const { data: newIns, error: insErr } = await mySupabase
                             .from('exam_attempts')
                             .insert([{
@@ -715,8 +712,12 @@
 
             currentQuestions.forEach(q => {
                 const ans = studentAnswers[q.id];
-                if (ans !== undefined && ans !== null && String(ans).trim() !== '') {
-                    answeredCount++;
+                if (ans !== undefined && ans !== null) {
+                    if (Array.isArray(ans)) {
+                        if (ans.length > 0) answeredCount++;
+                    } else if (String(ans).trim() !== '') {
+                        answeredCount++;
+                    }
                 }
             });
 
@@ -735,7 +736,11 @@
                 gridContainer.innerHTML = currentQuestions.map((q, idx) => {
                     const qNum = q.question_number || (idx + 1);
                     const ans = studentAnswers[q.id];
-                    const isAnswered = ans !== undefined && ans !== null && String(ans).trim() !== '';
+                    let isAnswered = false;
+                    if (ans !== undefined && ans !== null) {
+                        if (Array.isArray(ans)) isAnswered = ans.length > 0;
+                        else isAnswered = String(ans).trim() !== '';
+                    }
                     const isFlagged = flaggedQuestions[q.id];
 
                     let bgClass = 'bg-slate-100 dark:bg-darkinput text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-sky-400';
@@ -794,6 +799,7 @@
                 const q = currentQuestions[currentStepIndex];
                 if (!q) return;
                 const isEssay = q.question_type === 'essay';
+                const isMultiple = q.question_type === 'multiple'; // ตรวจสอบว่าเป็นข้อสอบแบบตอบหลายคำตอบหรือไม่
                 
                 let opts = getParsedOptions(q.options, standardLabels);
                 const qNum = q.question_number || (currentStepIndex + 1);
@@ -824,9 +830,16 @@
                     `;
                 } else {
                     const optionsHtml = opts.map((optText, cIdx) => {
-                        const isSelected = String(studentAnswers[q.id]) === String(cIdx);
+                        let isSelected = false;
+                        const ans = studentAnswers[q.id];
+                        if (isMultiple) {
+                            const selectedArr = Array.isArray(ans) ? ans.map(String) : [];
+                            isSelected = selectedArr.includes(String(cIdx));
+                        } else {
+                            isSelected = String(ans) === String(cIdx);
+                        }
+
                         const displayLabel = standardLabels[cIdx] || (cIdx + 1);
-                        
                         const trimmedOpt = String(optText).trim();
                         const strLabel = String(displayLabel).trim();
                         const strIdx1 = String(cIdx + 1).trim();
@@ -843,8 +856,11 @@
                         const displayText = `${displayLabel}. ${rawText}`;
 
                         return `
-                            <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center justify-start px-5 gap-3 backdrop-blur-sm ${isSelected ? 'bg-sky-500/15 dark:bg-sky-500/20 border-sky-500 text-sky-600 dark:text-sky-400 shadow-sm' : 'bg-white/50 dark:bg-darkinput/40 border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 hover:border-sky-400'}">
+                            <div onclick="selectAnswer('${q.id}', '${cIdx}', ${isMultiple})" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center justify-between px-5 gap-3 backdrop-blur-sm ${isSelected ? 'bg-sky-500/15 dark:bg-sky-500/20 border-sky-500 text-sky-600 dark:text-sky-400 shadow-sm' : 'bg-white/50 dark:bg-darkinput/40 border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 hover:border-sky-400'}">
                                 <span class="font-bold text-sm sm:text-base text-left">${displayText}</span>
+                                <div class="w-5 h-5 rounded ${isMultiple ? 'rounded-md' : 'rounded-full'} border flex items-center justify-center ${isSelected ? 'bg-sky-600 border-sky-600 text-white' : 'border-slate-300 dark:border-slate-700'}">
+                                    ${isSelected ? '<i class="fas fa-check text-[10px]"></i>' : ''}
+                                </div>
                             </div>
                         `;
                     }).join('');
@@ -852,7 +868,10 @@
                     htmlContent += `
                         <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white/70 dark:bg-darkinput/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800/80 space-y-6 shadow-sm">
                             <div class="flex items-center justify-between">
-                                <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum} จาก ${currentQuestions.length}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum} จาก ${currentQuestions.length}</span>
+                                    ${isMultiple ? '<span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-500 text-[10px] font-bold rounded-md">ตอบได้หลายคำตอบ</span>' : ''}
+                                </div>
                                 <div class="flex items-center gap-2">
                                     <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
                                         <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
@@ -891,6 +910,7 @@
 
             currentQuestions.forEach((q, idx) => {
                 const isEssay = q.question_type === 'essay';
+                const isMultiple = q.question_type === 'multiple';
                 let opts = getParsedOptions(q.options, standardLabels);
 
                 const qNum = q.question_number || (idx + 1);
@@ -920,9 +940,16 @@
                         `;
                     } else {
                         const optionsHtml = opts.map((optText, cIdx) => {
-                            const isSelected = String(studentAnswers[q.id]) === String(cIdx);
+                            let isSelected = false;
+                            const ans = studentAnswers[q.id];
+                            if (isMultiple) {
+                                const selectedArr = Array.isArray(ans) ? ans.map(String) : [];
+                                isSelected = selectedArr.includes(String(cIdx));
+                            } else {
+                                isSelected = String(ans) === String(cIdx);
+                            }
+
                             const displayLabel = standardLabels[cIdx] || (cIdx + 1);
-                            
                             const trimmedOpt = String(optText).trim();
                             const strLabel = String(displayLabel).trim();
                             const strIdx1 = String(cIdx + 1).trim();
@@ -939,8 +966,11 @@
                             const displayText = `${displayLabel}. ${rawText}`;
 
                             return `
-                                <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center justify-start px-5 gap-3 backdrop-blur-sm ${isSelected ? 'bg-sky-500/15 dark:bg-sky-500/20 border-sky-500 text-sky-600 dark:text-sky-400 shadow-sm' : 'bg-white/50 dark:bg-darkinput/40 border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 hover:border-sky-400'}">
+                                <div onclick="selectAnswer('${q.id}', '${cIdx}', ${isMultiple})" id="opt-card-${q.id}-${cIdx}" class="p-4.5 sm:p-5 rounded-xl border cursor-pointer transition-all flex items-center justify-between px-5 gap-3 backdrop-blur-sm ${isSelected ? 'bg-sky-500/15 dark:bg-sky-500/20 border-sky-500 text-sky-600 dark:text-sky-400 shadow-sm' : 'bg-white/50 dark:bg-darkinput/40 border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 hover:border-sky-400'}">
                                     <span class="font-bold text-sm sm:text-base text-left">${displayText}</span>
+                                    <div class="w-5 h-5 rounded ${isMultiple ? 'rounded-md' : 'rounded-full'} border flex items-center justify-center ${isSelected ? 'bg-sky-600 border-sky-600 text-white' : 'border-slate-300 dark:border-slate-700'}">
+                                        ${isSelected ? '<i class="fas fa-check text-[10px]"></i>' : ''}
+                                    </div>
                                 </div>
                             `;
                         }).join('');
@@ -948,7 +978,10 @@
                         htmlContent += `
                             <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white/70 dark:bg-darkinput/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800/80 space-y-6 shadow-sm">
                                 <div class="flex items-center justify-between">
-                                    <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum}</span>
+                                        ${isMultiple ? '<span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-500 text-[10px] font-bold rounded-md">ตอบได้หลายคำตอบ</span>' : ''}
+                                    </div>
                                     <div class="flex items-center gap-2">
                                         <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
                                             <i class="fas fa-flag"></i> <span id="flag-text-${q.id}" class="text-xs">${isFlagged ? 'ปักธงแล้ว' : 'ปักธง'}</span>
@@ -984,10 +1017,17 @@
                         `;
                     } else {
                         const bubblesHtml = opts.map((optText, cIdx) => {
-                            const isSelected = String(studentAnswers[q.id]) === String(cIdx);
+                            let isSelected = false;
+                            const ans = studentAnswers[q.id];
+                            if (isMultiple) {
+                                const selectedArr = Array.isArray(ans) ? ans.map(String) : [];
+                                isSelected = selectedArr.includes(String(cIdx));
+                            } else {
+                                isSelected = String(ans) === String(cIdx);
+                            }
                             const displayLabel = standardLabels[cIdx] || (cIdx + 1);
                             return `
-                                <div onclick="selectAnswer('${q.id}', '${cIdx}')" id="bubble-${q.id}-${cIdx}" class="omr-bubble-compact ${isSelected ? 'active' : ''}">
+                                <div onclick="selectAnswer('${q.id}', '${cIdx}', ${isMultiple})" id="bubble-${q.id}-${cIdx}" class="omr-bubble-compact ${isSelected ? 'active' : ''}">
                                     ${displayLabel}
                                 </div>
                             `;
@@ -996,7 +1036,10 @@
                         htmlContent += `
                             <div id="q-box-${q.id}" class="px-4 py-3 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
                                 <div class="flex items-center gap-3.5">
-                                    <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400 w-8 shrink-0">ข้อ ${qNum}</span>
+                                    <div class="flex flex-col">
+                                        <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400 w-12 shrink-0">ข้อ ${qNum}</span>
+                                        ${isMultiple ? '<span class="text-[9px] text-indigo-500 font-bold">หลายคำตอบ</span>' : ''}
+                                    </div>
                                     <div class="flex items-center gap-2.5" id="bubbles-container-${q.id}">${bubblesHtml}</div>
                                 </div>
                                 <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'} shrink-0 ml-2">
@@ -1074,8 +1117,33 @@
             } catch (e) {}
         }
 
-        function selectAnswer(qId, cIdx) {
-            studentAnswers[qId] = String(cIdx);
+        function selectAnswer(qId, cIdx, isMultiple) {
+            cIdx = String(cIdx);
+            if (isMultiple) {
+                // จัดการแบบตอบได้หลายตัวเลือก (Toggle ค่าใน Array)
+                let currentArr = studentAnswers[qId];
+                if (!Array.isArray(currentArr)) {
+                    currentArr = currentArr !== undefined && currentArr !== null ? [String(currentArr)] : [];
+                } else {
+                    currentArr = currentArr.map(String);
+                }
+
+                const index = currentArr.indexOf(cIdx);
+                if (index > -1) {
+                    currentArr.splice(index, 1); // เอาออกถ้าเลือกซ้ำ
+                } else {
+                    currentArr.push(cIdx); // เพิ่มเข้าไปถ้ายังไม่ได้เลือก
+                }
+
+                if (currentArr.length > 0) {
+                    studentAnswers[qId] = currentArr;
+                } else {
+                    delete studentAnswers[qId];
+                }
+            } else {
+                // จัดการแบบตอบข้อเดียวปกติ
+                studentAnswers[qId] = cIdx;
+            }
             
             try {
                 localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
@@ -1164,7 +1232,12 @@
             currentQuestions.forEach((q, idx) => {
                 const qNum = q.question_number || (idx + 1);
                 const ans = studentAnswers[q.id];
-                if (ans === undefined || ans === null || String(ans).trim() === '') {
+                let isAnswered = false;
+                if (ans !== undefined && ans !== null) {
+                    if (Array.isArray(ans)) isAnswered = ans.length > 0;
+                    else isAnswered = String(ans).trim() !== '';
+                }
+                if (!isAnswered) {
                     unanswered.push(qNum);
                     const box = document.getElementById(`q-box-${q.id}`);
                     if (box) box.classList.add('question-unanswered-highlight');
@@ -1245,9 +1318,29 @@
             currentQuestions.forEach(q => {
                 const studentAns = studentAnswers[q.id];
                 const isEssay = q.question_type === 'essay';
+                const isMultiple = q.question_type === 'multiple';
+
                 if (!isEssay) {
-                    if (studentAns !== undefined && studentAns !== null && String(studentAns) === String(q.correct_answer)) {
-                        totalScore += 1;
+                    if (studentAns !== undefined && studentAns !== null) {
+                        if (isMultiple) {
+                            // ตรวจสอบความถูกต้องของคำตอบแบบหลายตัวเลือก (เทียบเซ็ตของคำตอบที่ถูกต้องกับที่นักเรียนเลือก)
+                            let correctAnsArr = q.correct_answer;
+                            if (typeof correctAnsArr === 'string') {
+                                try { correctAnsArr = JSON.parse(correctAnsArr); } catch(e) { correctAnsArr = [String(correctAnsArr)]; }
+                            }
+                            if (!Array.isArray(correctAnsArr)) correctAnsArr = [String(correctAnsArr)];
+                            correctAnsArr = correctAnsArr.map(String).sort();
+
+                            let studentAnsArr = Array.isArray(studentAns) ? studentAns.map(String).sort() : [String(studentAns)].sort();
+
+                            if (JSON.stringify(correctAnsArr) === JSON.stringify(studentAnsArr)) {
+                                totalScore += 1;
+                            }
+                        } else {
+                            if (String(studentAns) === String(q.correct_answer)) {
+                                totalScore += 1;
+                            }
+                        }
                     }
                 }
             });
@@ -1281,7 +1374,6 @@
             let updateError = null;
             let finalAttemptId = activeAttemptRecordId;
 
-            // 🌟 ทำการ UPDATE แถวเดิมที่เป็น in_progress ให้เป็น submitted (หรือ INSERT ใหม่ถ้าหาไม่เจอ)
             if (activeAttemptRecordId) {
                 const { error: updErr } = await mySupabase
                     .from('exam_attempts')
@@ -1312,11 +1404,28 @@
             const answersPayloads = currentQuestions.map(q => {
                 const studentAns = studentAnswers[q.id];
                 const isEssay = q.question_type === 'essay';
+                const isMultiple = q.question_type === 'multiple';
                 let qScore = 0;
 
                 if (!isEssay) {
-                    if (studentAns !== undefined && studentAns !== null && String(studentAns) === String(q.correct_answer)) {
-                        qScore = 1;
+                    if (studentAns !== undefined && studentAns !== null) {
+                        if (isMultiple) {
+                            let correctAnsArr = q.correct_answer;
+                            if (typeof correctAnsArr === 'string') {
+                                try { correctAnsArr = JSON.parse(correctAnsArr); } catch(e) { correctAnsArr = [String(correctAnsArr)]; }
+                            }
+                            if (!Array.isArray(correctAnsArr)) correctAnsArr = [String(correctAnsArr)];
+                            correctAnsArr = correctAnsArr.map(String).sort();
+                            let studentAnsArr = Array.isArray(studentAns) ? studentAns.map(String).sort() : [String(studentAns)].sort();
+
+                            if (JSON.stringify(correctAnsArr) === JSON.stringify(studentAnsArr)) {
+                                qScore = 1;
+                            }
+                        } else {
+                            if (String(studentAns) === String(q.correct_answer)) {
+                                qScore = 1;
+                            }
+                        }
                     }
                 }
 
@@ -1324,7 +1433,7 @@
                     attempt_id: finalAttemptId,
                     question_id: q.id,
                     score: qScore,
-                    selected_option_index: (!isEssay && studentAns !== undefined && studentAns !== null && studentAns !== '') ? parseInt(studentAns) : null,
+                    selected_option_index: (!isEssay && studentAns !== undefined && studentAns !== null && studentAns !== '') ? (Array.isArray(studentAns) ? JSON.stringify(studentAns) : parseInt(studentAns)) : null,
                     subjective_answer: isEssay ? (studentAns || '') : null
                 };
             });
