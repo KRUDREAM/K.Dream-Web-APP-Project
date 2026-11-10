@@ -361,11 +361,12 @@
             return 0;
         }
 
+        // 🌟 [ระบบตรวจคำตอบที่ปรับปรุงใหม่สมบูรณ์ รองรับทุกประเภทข้อสอบและ Data Types]:
         function checkAnswerIsCorrect(q, rawUserAns) {
-            const isEssay = q.question_type === 'essay';
-            const isMultiple = q.question_type === 'multiple';
-
-            if (isEssay) {
+            if (!q) return false;
+            
+            const qType = (q.question_type || q.type || '').toLowerCase();
+            if (qType === 'essay' || qType === 'subjective') {
                 return false;
             }
 
@@ -373,20 +374,52 @@
                 return false;
             }
 
-            if (isMultiple) {
-                let correctAnsArr = q.correct_answer;
-                if (typeof correctAnsArr === 'string') {
-                    try { correctAnsArr = JSON.parse(correctAnsArr); } catch(e) { correctAnsArr = [String(correctAnsArr)]; }
-                }
-                if (!Array.isArray(correctAnsArr)) correctAnsArr = [String(correctAnsArr)];
-                correctAnsArr = correctAnsArr.map(String).sort();
+            let correctRaw = q.correct_answer !== undefined ? q.correct_answer : 
+                             (q.answer !== undefined ? q.answer : 
+                             (q.key !== undefined ? q.key : 
+                             (q.solution !== undefined ? q.solution : '')));
 
-                let studentAnsArr = Array.isArray(rawUserAns) ? rawUserAns.map(String).sort() : [String(rawUserAns)].sort();
-
-                return JSON.stringify(correctAnsArr) === JSON.stringify(studentAnsArr);
-            } else {
-                return String(rawUserAns).trim() === String(q.correct_answer).trim();
+            if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
+                return false;
             }
+
+            let correctArr = correctRaw;
+            if (typeof correctArr === 'string') {
+                try {
+                    correctArr = JSON.parse(correctArr);
+                } catch (e) {
+                    correctArr = correctRaw.toString().split(',').map(s => s.trim());
+                }
+            }
+            if (!Array.isArray(correctArr)) {
+                correctArr = [correctArr];
+            }
+            correctArr = correctArr.map(val => String(val).trim()).filter(val => val !== '').sort();
+
+            let userArr = rawUserAns;
+            if (typeof userArr === 'string') {
+                try {
+                    userArr = JSON.parse(userArr);
+                } catch (e) {
+                    userArr = rawUserAns.toString().split(',').map(s => s.trim());
+                }
+            }
+            if (!Array.isArray(userArr)) {
+                userArr = [userArr];
+            }
+            userArr = userArr.map(val => String(val).trim()).filter(val => val !== '').sort();
+
+            if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
+                if (correctArr.length !== userArr.length) return false;
+                return JSON.stringify(correctArr) === JSON.stringify(userArr);
+            } 
+            
+            const singleCorrect = correctArr[0] !== undefined ? correctArr[0] : '';
+            const singleUser = userArr[0] !== undefined ? userArr[0] : '';
+
+            if (singleCorrect === singleUser) return true;
+
+            return singleCorrect.toLowerCase() === singleUser.toLowerCase();
         }
 
         function formatAnswerText(ansValue, examObj = null) {
@@ -426,32 +459,59 @@
         }
 
         function extractStudentAnswer(att, q, index, examObj = null) {
-            let raw = att.answer_saved || att.answers || att.user_answers || att.student_answers;
+            if (!att) return '-';
+
+            let raw = att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses;
             if (!raw) return '-';
+
             if (typeof raw === 'string') {
-                try { raw = JSON.parse(raw); } catch(e) { return '-'; }
+                try {
+                    raw = JSON.parse(raw);
+                } catch (e) {
+                    return '-';
+                }
             }
 
             let val = null;
             if (typeof raw === 'object' && raw !== null) {
-                if (raw[q.id] !== undefined) val = raw[q.id];
-                else if (raw[String(q.id)] !== undefined) val = raw[String(q.id)];
-                else if (q.question_number !== undefined) {
+                if (q.id !== undefined && raw[q.id] !== undefined) {
+                    val = raw[q.id];
+                } else if (q.id !== undefined && raw[String(q.id)] !== undefined) {
+                    val = raw[String(q.id)];
+                } else if (q.question_number !== undefined) {
                     if (raw[q.question_number] !== undefined) val = raw[q.question_number];
                     else if (raw[String(q.question_number)] !== undefined) val = raw[String(q.question_number)];
                     else if (raw[`q${q.question_number}`] !== undefined) val = raw[`q${q.question_number}`];
                 }
-                if (val === null && Array.isArray(raw)) {
-                    if (raw[index] !== undefined) val = raw[index];
-                    else if (raw[index + 1] !== undefined) val = raw[index + 1];
-                }
+
                 if (val === null) {
-                    const keys = Object.keys(raw);
-                    if (keys[index] !== undefined) val = raw[keys[index]];
+                    if (Array.isArray(raw)) {
+                        if (raw[index] !== undefined) val = raw[index];
+                        else if (raw[index + 1] !== undefined) val = raw[index + 1];
+                    } else {
+                        const keys = Object.keys(raw);
+                        if (keys[index] !== undefined) val = raw[keys[index]];
+                    }
                 }
             }
 
-            return formatAnswerText(val, examObj);
+            return val !== null && val !== undefined ? val : '-';
+        }
+
+        function calculateAttemptTotalScore(att, questionsList, examObj = null) {
+            if (!att || !Array.isArray(questionsList)) return 0;
+
+            let totalScore = 0;
+            questionsList.forEach((q, index) => {
+                const studentAns = extractStudentAnswer(att, q, index, examObj);
+                if (checkAnswerIsCorrect(q, studentAns)) {
+                    const qScore = q.score !== undefined && q.score !== null ? Number(q.score) : 
+                                   (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
+                    totalScore += qScore;
+                }
+            });
+
+            return totalScore;
         }
 
         function calculateTimeSpentMinutes(att) {
@@ -509,20 +569,7 @@
                     }
 
                     if (isExpired) {
-                        let rawAns = att.answer_saved || att.answers || att.user_answers || att.student_answers;
-                        if (typeof rawAns === 'string') {
-                            try { rawAns = JSON.parse(rawAns); } catch(e){}
-                        }
-
-                        let totalScore = 0;
-                        allQuestions.forEach((q, index) => {
-                            if (rawAns && typeof rawAns === 'object') {
-                                let uAns = extractStudentAnswer(att, q, index, currentExam);
-                                if (checkAnswerIsCorrect(q, uAns)) {
-                                    totalScore += (q.score !== undefined && q.score !== null ? Number(q.score) : 1);
-                                }
-                            }
-                        });
+                        let totalScore = calculateAttemptTotalScore(att, allQuestions, currentExam);
 
                         const updatePayload = {
                             status: 'submitted',
@@ -677,7 +724,7 @@
                 const isSubmitted = hasAttempt && (att.status === 'submitted' || (att.total_score !== undefined && att.total_score !== null) || (att.score !== undefined && att.score !== null));
                 const isInProgress = hasAttempt && !isSubmitted;
 
-                const score = isSubmitted ? getAttemptScore(att) : 0;
+                const score = isSubmitted ? calculateAttemptTotalScore(att, allQuestions, currentExam) : 0;
                 const submittedAtVal = att ? (att.submission_time || att.submitted_at || att.created_at || att.updated_at) : null;
 
                 return {
@@ -713,10 +760,10 @@
             setSafeText('statActiveCountBanner', activeCount);
             setSafeText('statSubmittedCount', `${submittedCount} คน`);
 
-            const submittedAttempts = allAttempts.filter(a => a.status === 'submitted' || (a.total_score !== undefined && a.total_score !== null) || (a.score !== undefined && a.score !== null));
-            globalScores = submittedAttempts.map(a => getAttemptScore(a));
-            globalTimes = submittedAttempts.map(a => calculateTimeSpentMinutes(a));
-            globalMaxScore = allQuestions.length || 10;
+            const submittedAttempts = combinedStudentRows.filter(r => r.isSubmitted);
+            globalScores = submittedAttempts.map(r => r.score);
+            globalTimes = allAttempts.map(a => calculateTimeSpentMinutes(a));
+            globalMaxScore = allQuestions.reduce((sum, q) => sum + (q.score !== undefined && q.score !== null ? Number(q.score) : 1), 0) || 10;
 
             let sumScore = globalScores.reduce((acc, curr) => acc + curr, 0);
             let avgScore = submittedAttempts.length > 0 ? (sumScore / submittedAttempts.length).toFixed(1) : '0.0';
@@ -796,11 +843,12 @@
                 titleEl.innerHTML = `<i class="fas fa-chart-bar text-sky-500 shrink-0"></i> สถิติความยาก-ง่ายรายข้อ (${metric === 'correct' ? 'จำนวนผู้ตอบถูก (คน)' : 'จำนวนผู้ตอบผิด (คน)'})`;
             }
             
+            let submittedAttempts = allAttempts.filter(att => att.status === 'submitted' || (att.total_score !== undefined && att.total_score !== null) || (att.score !== undefined && att.score !== null));
+
             let labels = allQuestions.map(q => `ข้อ ${q.question_number}`);
             let counts = allQuestions.map(q => {
-                if (allAttempts.length === 0) return 0;
+                if (submittedAttempts.length === 0) return 0;
                 let correctCount = 0;
-                let submittedAttempts = allAttempts.filter(att => att.status === 'submitted' || (att.total_score !== undefined && att.total_score !== null) || (att.score !== undefined && att.score !== null));
                 
                 submittedAttempts.forEach((att, index) => {
                     let uAns = extractStudentAnswer(att, q, index, currentExam);
@@ -1021,12 +1069,10 @@
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
 
-            let scatterData = allAttempts.map(att => {
-                const score = getAttemptScore(att);
-                const minutes = calculateTimeSpentMinutes(att);
-                const sId = att.student_id || att.user_id;
-                const profile = allStudentsMap[String(sId)] || {};
-                const name = (profile.first_name || profile.name || '').trim() || 'นักเรียน';
+            let scatterData = combinedStudentRows.filter(r => r.isSubmitted).map(r => {
+                const score = r.score;
+                const minutes = r.minutesSpent;
+                const name = r.fullName || 'นักเรียน';
                 return { x: Number(minutes.toFixed(1)), y: score, name: name };
             });
 
@@ -1211,7 +1257,7 @@
             const name = (profile.first_name || profile.name || profile.full_name || '').trim() + 
                          (profile.last_name ? ' ' + profile.last_name : '') || att.student_name || 'นักเรียน';
             const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
-            const score = getAttemptScore(att);
+            const score = calculateAttemptTotalScore(att, allQuestions, currentExam);
             const maxScore = globalMaxScore;
 
             let categoryStats = {};
