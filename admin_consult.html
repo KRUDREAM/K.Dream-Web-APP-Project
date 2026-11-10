@@ -457,8 +457,10 @@
 
 async function loadCoursesAndEnrollments() {
     try {
-        // 1. ดึงรายชื่อคอร์สทั้งหมดก่อน
-        const { data: coursesData } = await mySupabase.from('courses').select('id, title, course_code');
+        // 1. ดึงรายชื่อคอร์สทั้งหมดจากตาราง courses
+        const { data: coursesData, error: courseErr } = await mySupabase.from('courses').select('id, title, course_code');
+        if (courseErr) console.warn("Fetch courses error:", courseErr);
+        
         allCoursesList = coursesData || [];
         coursesMap = {};
         allCoursesList.forEach(c => {
@@ -468,19 +470,21 @@ async function loadCoursesAndEnrollments() {
 
         let enrollsData = [];
 
-        // 2. ดึงจากตาราง enrollments (แบบไม่ Join เพื่อเลี่ยง Error 400)
+        // 2. ดึงข้อมูลจากตาราง enrollments โดยตรง (ไม่ Join เพื่อเลี่ยง Error 400)
         const { data: eRes1, error: err1 } = await mySupabase.from('enrollments').select('*');
         if (eRes1 && !err1) {
             enrollsData = [...enrollsData, ...eRes1];
+        } else if (err1) {
+            console.warn("Fetch enrollments error:", err1.message);
         }
 
-        // 3. ดึงจากตาราง course_enrollments (เผื่อมีโครงสร้างสำรอง)
+        // 3. ดึงจากตาราง course_enrollments เผื่อโครงสร้างโปรเจกต์ใช้ชื่อนี้
         const { data: eRes2, error: err2 } = await mySupabase.from('course_enrollments').select('*');
         if (eRes2 && !err2) {
             enrollsData = [...enrollsData, ...eRes2];
         }
 
-        // 4. แม็ปข้อมูลลงในหน่วยความจำอย่างปลอดภัย
+        // 4. แม็ปข้อมูลนักเรียนกับคอร์สในฝั่ง JavaScript
         studentEnrollmentsMap = {};
         enrollsData.forEach(en => {
             const sId = String(en.student_id || en.user_id || '');
@@ -492,6 +496,7 @@ async function loadCoursesAndEnrollments() {
                 }
             }
         });
+
     } catch (err) {
         console.error("Load courses/enrollments error:", err);
     }
