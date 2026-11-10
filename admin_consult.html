@@ -1311,6 +1311,30 @@
             });
         }
 
+        // 🛠️ ฟังก์ชันช่วยเหลือแปลงค่าช้อยส์เป็น 1/ก/A 
+        function formatChoiceDisplay(val, choicesArr) {
+            if (val === null || val === undefined || val === '-') return '-';
+            let strVal = String(val).trim();
+            
+            // ถ้ามีอาเรย์ช้อยส์ และค่าเป็นตัวเลข (Index)
+            if (Array.isArray(choicesArr) && choicesArr.length > 0 && !isNaN(strVal)) {
+                let idx = Number(strVal);
+                if (idx >= 0 && idx < choicesArr.length) {
+                    // แปลง Index เป็น 1, 2, 3 หรือ ก, ข, ค หรือ A, B, C ตามต้องการ
+                    // ตัวอย่างนี้รองรับการแสดงผลแบบตัวเลข 1, 2, 3 หรือแปลงเป็นอักษร ก. ข. ค. / A. B. C.
+                    const thaiLetters = ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ', 'ช', 'ซ'];
+                    const engLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+                    
+                    let labelNum = idx + 1;
+                    let labelThai = thaiLetters[idx] || labelNum;
+                    let labelEng = engLetters[idx] || labelNum;
+                    
+                    return `${labelNum} / ${labelThai} / ${labelEng} (${choicesArr[idx]})`;
+                }
+            }
+            return strVal;
+        }
+
         async function viewStudentExamDetailInModal(studentId, examId) {
             Swal.fire({ title: 'กำลังโหลดรายละเอียดข้อสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -1343,26 +1367,16 @@
                     userVal = rawAns[q.id] !== undefined ? rawAns[q.id] : strIdKey;
                 }
 
-                // 🛠️ ปรับแก้: ใช้การเช็กเงื่อนไขแบบดั้งเดิม (หลีกเลี่ยง ?? เพื่อป้องกัน SyntaxError ในเบราว์เซอร์เก่า)
                 let choicesArr = q.choices ? q.choices : (q.options ? q.options : (q.choices_list ? q.choices_list : null));
                 if (typeof choicesArr === 'string') { try { choicesArr = JSON.parse(choicesArr); } catch(e){} }
 
-                let displayedUserAns = userVal;
-                let displayedCorrectAns = q.correct_answer ? q.correct_answer : (q.answer ? q.answer : (q.solution ? q.solution : '-'));
-
-                if (Array.isArray(choicesArr) && choicesArr.length > 0) {
-                    if (!isNaN(userVal) && userVal !== '-' && Number(userVal) >= 0 && Number(userVal) < choicesArr.length) {
-                        displayedUserAns = choicesArr[Number(userVal)];
-                    }
-                    if (!isNaN(displayedCorrectAns) && displayedCorrectAns !== '-' && Number(displayedCorrectAns) >= 0 && Number(displayedCorrectAns) < choicesArr.length) {
-                        displayedCorrectAns = choicesArr[Number(displayedCorrectAns)];
-                    }
-                }
+                let displayedUserAns = formatChoiceDisplay(userVal, choicesArr);
+                let correctValRaw = q.correct_answer ? q.correct_answer : (q.answer ? q.answer : (q.solution ? q.solution : '-'));
+                let displayedCorrectAns = formatChoiceDisplay(correctValRaw, choicesArr);
 
                 const userAnsStr = String(userVal).trim().toLowerCase();
-                const correctAnsRaw = q.correct_answer ? q.correct_answer : (q.answer ? q.answer : (q.solution ? q.solution : ''));
-                const correctAnsStr = String(correctAnsRaw).trim().toLowerCase();
-                const isCorrect = userAnsStr !== '' && (userAnsStr === correctAnsStr || (Array.isArray(choicesArr) && !isNaN(userVal) && choicesArr[Number(userVal)] === correctAnsRaw));
+                const correctAnsStr = String(correctValRaw).trim().toLowerCase();
+                const isCorrect = userAnsStr !== '' && (userAnsStr === correctAnsStr || (Array.isArray(choicesArr) && !isNaN(userVal) && choicesArr[Number(userVal)] === correctValRaw));
 
                 return `
                     <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40'} space-y-1.5 text-xs text-left">
@@ -1402,7 +1416,7 @@
             `;
 
             Swal.fire({
-                title: '📋 ตรวจสอบผลการตอบรายข้อ',
+                title: '📋 ตรวจสอบผลการตอบรายข้อ (รูปแบบช้อยส์ 1 / ก / A)',
                 html: detailModalHtml,
                 width: '700px',
                 showCancelButton: true,
@@ -1451,7 +1465,7 @@
                         </style>
                     </head>
                     <body>
-                        <h2>รายงานผลการตอบข้อสอบรายข้อ</h2>
+                        <h2>รายงานผลการตอบข้อสอบรายข้อ (ช้อยส์แบบ 1 / ก / A)</h2>
                         <p>ชุดข้อสอบ: <strong>${exam ? exam.title : '-'}</strong></p>
                         <div class="box">
                             <p>ชื่อ-นามสกุล: <strong>${name}</strong> (รหัส: ${studentIdCode})</p>
@@ -1479,22 +1493,13 @@
                     let choicesArr = q.choices ? q.choices : (q.options ? q.options : (q.choices_list ? q.choices_list : null));
                     if (typeof choicesArr === 'string') { try { choicesArr = JSON.parse(choicesArr); } catch(e){} }
 
-                    let displayedUserAns = userVal;
-                    let displayedCorrectAns = q.correct_answer ? q.correct_answer : (q.answer ? q.answer : (q.solution ? q.solution : '-'));
-
-                    if (Array.isArray(choicesArr) && choicesArr.length > 0) {
-                        if (!isNaN(userVal) && userVal !== '-' && Number(userVal) >= 0 && Number(userVal) < choicesArr.length) {
-                            displayedUserAns = choicesArr[Number(userVal)];
-                        }
-                        if (!isNaN(displayedCorrectAns) && displayedCorrectAns !== '-' && Number(displayedCorrectAns) >= 0 && Number(displayedCorrectAns) < choicesArr.length) {
-                            displayedCorrectAns = choicesArr[Number(displayedCorrectAns)];
-                        }
-                    }
+                    let displayedUserAns = formatChoiceDisplay(userVal, choicesArr);
+                    let correctValRaw = q.correct_answer ? q.correct_answer : (q.answer ? q.answer : (q.solution ? q.solution : '-'));
+                    let displayedCorrectAns = formatChoiceDisplay(correctValRaw, choicesArr);
 
                     const userAnsStr = String(userVal).trim().toLowerCase();
-                    const correctAnsRaw = q.correct_answer ? q.correct_answer : (q.answer ? q.answer : (q.solution ? q.solution : ''));
-                    const correctAnsStr = String(correctAnsRaw).trim().toLowerCase();
-                    const isCorrect = userAnsStr !== '' && (userAnsStr === correctAnsStr || (Array.isArray(choicesArr) && !isNaN(userVal) && choicesArr[Number(userVal)] === correctAnsRaw));
+                    const correctAnsStr = String(correctValRaw).trim().toLowerCase();
+                    const isCorrect = userAnsStr !== '' && (userAnsStr === correctAnsStr || (Array.isArray(choicesArr) && !isNaN(userVal) && choicesArr[Number(userVal)] === correctValRaw));
 
                     printWindow.document.write(`
                         <tr>
