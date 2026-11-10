@@ -404,7 +404,7 @@
             return [str];
         }
 
-        // 🌟 ฟังก์ชันคำนวณคะแนนรายข้อ (รองรับ multiple_grading_mode แบบ Subset)
+        // 🌟 ฟังก์ชันคำนวณคะแนนรายข้อ (รองรับ multiple_grading_mode แบบ Subset / at_least_one)
         function getQuestionScore(q, rawUserAns) {
             if (!q) return 0;
             const qType = (q.question_type || q.type || '').toLowerCase();
@@ -889,7 +889,14 @@
             const studentAttempts = allAttempts.filter(a => String(a.student_id || a.user_id) === String(studentId));
 
             const totalScore = studentAttempts.reduce((acc, curr) => acc + getAttemptScore(curr), 0);
-            const avg = studentAttempts.length > 0 ? (totalScore / studentAttempts.length).toFixed(1) : '0.0';
+            
+            // 🌟 คำนวณหาคะแนนเต็มรวมของทุกชุดข้อสอบที่นักเรียนคนนี้เคยทำ เพื่อให้ค่าเฉลี่ยเป็นเปอร์เซ็นต์หรือสัดส่วนที่ถูกต้องแม่นยำ
+            let totalMaxPossible = 0;
+            studentAttempts.forEach(att => {
+                const maxForThisExam = examQuestionsMap[String(att.exam_id)] || 10;
+                totalMaxPossible += maxForThisExam;
+            });
+            const avgPct = totalMaxPossible > 0 ? ((totalScore / totalMaxPossible) * 100).toFixed(1) : '0.0';
 
             let attemptsHtml = '';
             if (studentAttempts.length === 0) {
@@ -929,7 +936,7 @@
                             <div class="flex gap-4 pt-1 font-semibold text-slate-700 dark:text-slate-300">
                                 <span>ทำแล้ว: <strong>${studentAttempts.length} ชุด</strong></span>
                                 <span>คะแนนรวม: <strong class="text-indigo-600 dark:text-indigo-400">${totalScore}</strong></span>
-                                <span>เฉลี่ย: <strong class="text-amber-500">${avg}</strong></span>
+                                <span>ค่าเฉลี่ยรวม: <strong class="text-amber-500">${avgPct}%</strong></span>
                             </div>
                         </div>
                         <button onclick="printStudentSummaryReport('${studentId}')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-1.5 shrink-0">
@@ -999,9 +1006,20 @@
                 let rawAns = att ? (att.answer_saved || att.answers || att.user_answers || att.student_answers) : null;
                 if (typeof rawAns === 'string') { try { rawAns = JSON.parse(rawAns); } catch(e){} }
 
+                // 🌟 แก้ไขจุดดึงคำตอบนักเรียน: รองรับทั้งแบบ Dictionary (ระบุด้วย q.id หรือ question_number) และ Array ตาม index
                 let userVal = '-';
                 if (rawAns && typeof rawAns === 'object') {
-                    userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] || '-';
+                    if (Array.isArray(rawAns)) {
+                        // กรณีเก็บเป็นอาร์เรย์ตรงๆ เรียงตามลำดับข้อ
+                        userVal = rawAns[index] !== undefined ? rawAns[index] : (rawAns[q.question_number - 1] !== undefined ? rawAns[q.question_number - 1] : '-');
+                    } else {
+                        // ค้นหาคีย์ที่ตรงกันจากรหัสข้อ คำถาม หรือลำดับข้อ
+                        userVal = rawAns[q.id] !== undefined ? rawAns[q.id] : 
+                                  (rawAns[String(q.id)] !== undefined ? rawAns[String(q.id)] : 
+                                  (rawAns[q.question_number] !== undefined ? rawAns[q.question_number] : 
+                                  (rawAns[`q${q.question_number}`] !== undefined ? rawAns[`q${q.question_number}`] : 
+                                  (rawAns[index] !== undefined ? rawAns[index] : '-'))));
+                    }
                 }
 
                 const isEssay = q.question_type === 'essay';
@@ -1125,7 +1143,15 @@
 
                 let userVal = '-';
                 if (rawAns && typeof rawAns === 'object') {
-                    userVal = rawAns[q.id] || rawAns[String(q.id)] || rawAns[q.question_number] || rawAns[`q${q.question_number}`] || rawAns[index] || '-';
+                    if (Array.isArray(rawAns)) {
+                        userVal = rawAns[index] !== undefined ? rawAns[index] : (rawAns[q.question_number - 1] !== undefined ? rawAns[q.question_number - 1] : '-');
+                    } else {
+                        userVal = rawAns[q.id] !== undefined ? rawAns[q.id] : 
+                                  (rawAns[String(q.id)] !== undefined ? rawAns[String(q.id)] : 
+                                  (rawAns[q.question_number] !== undefined ? rawAns[q.question_number] : 
+                                  (rawAns[`q${q.question_number}`] !== undefined ? rawAns[`q${q.question_number}`] : 
+                                  (rawAns[index] !== undefined ? rawAns[index] : '-'))));
+                    }
                 }
 
                 const isEssay = q.question_type === 'essay';
@@ -1160,7 +1186,12 @@
             const studentIdCode = profile?.student_id || '-';
             const studentAttempts = allAttempts.filter(a => String(a.student_id || a.user_id) === String(studentId));
             const totalScore = studentAttempts.reduce((acc, curr) => acc + getAttemptScore(curr), 0);
-            const avg = studentAttempts.length > 0 ? (totalScore / studentAttempts.length).toFixed(1) : '0.0';
+            
+            let totalMaxPossible = 0;
+            studentAttempts.forEach(att => {
+                totalMaxPossible += (examQuestionsMap[String(att.exam_id)] || 10);
+            });
+            const avgPct = totalMaxPossible > 0 ? ((totalScore / totalMaxPossible) * 100).toFixed(1) : '0.0';
 
             let printWindow = window.open('', '_blank');
             printWindow.document.write(`
@@ -1184,7 +1215,7 @@
                         <p>ชื่อ-นามสกุล: <strong>${name}</strong></p>
                         <p>รหัสนักเรียน: <strong>${studentIdCode}</strong></p>
                         <p>จำนวนชุดข้อสอบที่ทำแล้ว: <strong>${studentAttempts.length} ชุด</strong></p>
-                        <p>คะแนนสะสมรวม: <strong>${totalScore} คะแนน</strong> | คะแนนเฉลี่ย: <strong>${avg}</strong></p>
+                        <p>คะแนนสะสมรวม: <strong>${totalScore} คะแนน</strong> | ค่าเฉลี่ยรวม: <strong>${avgPct}%</strong></p>
                     </div>
                     <h3>ประวัติการทำข้อสอบ</h3>
                     <table>
