@@ -466,7 +466,6 @@
                 renderAllowedCoursesCheckboxes();
 
                 let enrollsData = [];
-                // ดึงข้อมูลจากตาราง enrollments และ course_enrollments อย่างครอบคลุม
                 const { data: eRes1, error: err1 } = await mySupabase.from('enrollments').select('*, courses(id, title, course_code)');
                 if (eRes1 && !err1) {
                     enrollsData = [...enrollsData, ...eRes1];
@@ -692,7 +691,6 @@
         }
 
         async function loadAllSlots() {
-            // เอาเงื่อนไข .gt('end_time', nowIso) ออก เพื่อไม่ให้ Slot ที่เลยเวลาแล้วถูกกรองออกหรือหายไป (ปล่อยไว้ตามเดิม)
             const { data } = await mySupabase
                 .from('consult_slots')
                 .select('*, profiles(id, full_name, username, email, school, grade_level, nickname, line_id)')
