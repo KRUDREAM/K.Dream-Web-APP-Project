@@ -537,6 +537,30 @@ function extractStudentAnswer(att, q, index, examObj = null) {
     return val !== null && val !== undefined ? val : '-';
 }
 
+// 🌟 ฟังก์ชันแปลงข้อมูลให้อยู่ในรูป Array ของ String ที่สะอาดและปลอดภัยที่สุด
+function toCleanArray(input) {
+    if (input === undefined || input === null || input === '') return [];
+    if (Array.isArray(input)) {
+        return input.map(item => String(item).trim()).filter(item => item !== '');
+    }
+    let str = String(input).trim();
+    if (str.startsWith('[') && str.endsWith(']')) {
+        try {
+            let parsed = JSON.parse(str);
+            if (Array.isArray(parsed)) {
+                return parsed.map(item => String(item).trim()).filter(item => item !== '');
+            } else if (typeof parsed === 'object' && parsed !== null) {
+                return Object.values(parsed).map(item => String(item).trim()).filter(item => item !== '');
+            }
+        } catch (e) {}
+    }
+    if (str.includes(',')) {
+        return str.split(',').map(s => String(s).trim()).filter(s => s !== '');
+    }
+    return [str];
+}
+
+// 🌟 ฟังก์ชันคำนวณคะแนนรายข้อ (รองรับ at_least_one / at_least_once อย่างถูกต้องแม่นยำ)
 function getQuestionScore(q, rawUserAns) {
     if (!q) return 0;
     const qType = (q.question_type || q.type || '').toLowerCase();
@@ -544,14 +568,13 @@ function getQuestionScore(q, rawUserAns) {
                       (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
 
     if (qType === 'essay' || qType === 'subjective') {
-        return 0; // ข้อสอบอัตนัยต้องตรวจโดยอาจารย์
+        return 0; // ต้องตรวจด้วยอาจารย์
     }
 
     if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
         return 0;
     }
 
-    // ดึงเฉลยจากฟิลด์ที่เป็นไปได้ทั้งหมด
     let correctRaw = q.correct_answer !== undefined ? q.correct_answer : 
                      (q.answer !== undefined ? q.answer : 
                      (q.key !== undefined ? q.key : 
@@ -561,47 +584,28 @@ function getQuestionScore(q, rawUserAns) {
         return 0;
     }
 
-    // แปลงข้อมูลใดๆ ให้เป็น Array ของสตริงที่สะอาด (ตัดช่องว่างออกทั้งหมด)
-    const toCleanArray = (input) => {
-        if (input === undefined || input === null || input === '') return [];
-        if (Array.isArray(input)) {
-            return input.map(item => String(item).trim()).filter(item => item !== '');
-        }
-        let str = String(input).trim();
-        if (str.startsWith('[') && str.endsWith(']')) {
-            try {
-                let parsed = JSON.parse(str);
-                if (Array.isArray(parsed)) {
-                    return parsed.map(item => String(item).trim()).filter(item => item !== '');
-                }
-            } catch (e) {}
-        }
-        if (str.includes(',')) {
-            return str.split(',').map(s => String(s).trim()).filter(s => s !== '');
-        }
-        return [str];
-    };
-
     let correctArr = toCleanArray(correctRaw);
     let userArr = toCleanArray(rawUserAns);
 
     if (userArr.length === 0) return 0;
 
-    // ตรวจสอบกฎการให้คะแนน (grading_rule)
+    // ดึงกฎการให้คะแนน
     const rawRule = q.grading_rule || q.multiple_grading_rule || (currentExam && currentExam.multiple_grading_rule) || 'all';
     const gradingRule = String(rawRule).toLowerCase().trim();
 
-    // ถ้าเป็นข้อสอบแบบเลือกหลายตัวเลือก หรือเฉลยมีหลายข้อ
+    // ถ้าเป็นข้อสอบแบบหลายตัวเลือก หรือเฉลยมีหลายข้อ หรือตั้งกฎพิเศษ
     if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1 || gradingRule === 'at_least_one' || gradingRule === 'at_least_once' || gradingRule === 'partial') {
         
         if (gradingRule === 'at_least_one' || gradingRule === 'at_least_once') {
-            // เงื่อนไข: ตอบถูกอย่างน้อย 1 ข้อ และไม่มีข้อผิดหลุดมา
-            // หมายความว่า: ทุกตัวเลือกที่นักเรียนตอบ (userArr) ต้องอยู่ในเซ็ตของเฉลย (correctArr) และต้องตอบอย่างน้อย 1 ตัวเลือก
+            // 🌟 เงื่อนไขที่ถูกต้อง: 
+            // 1. นักเรียนต้องตอบมาอย่างน้อย 1 ตัวเลือก (userArr.length > 0)
+            // 2. ทุกตัวเลือกที่นักเรียนตอบต้องอยู่ในเซ็ตเฉลย (ห้ามมีตัวเลือกที่ผิดหลุดมา)
+            // เช่น เฉลย [1, 2, 3] -> ตอบ [1] ถูก, ตอบ [2] ถูก, ตอบ [1, 2] ถูก, ตอบ [1, 2, 3] ถูก แต่ถ้าตอบ [1, 4] ผิดเพราะมี 4 หลุดมา
             let isValid = userArr.length > 0 && userArr.every(u => correctArr.includes(u));
             return isValid ? fullScore : 0;
         }
         else if (gradingRule === 'partial') {
-            // ตอบถูกบางส่วน
+            // ตอบถูกบางส่วน (Partial Credit)
             let correctMatches = userArr.filter(u => correctArr.includes(u)).length;
             let wrongChoices = userArr.filter(u => !correctArr.includes(u)).length;
             let netCorrect = Math.max(0, correctMatches - wrongChoices);
@@ -609,7 +613,7 @@ function getQuestionScore(q, rawUserAns) {
             return Number((fullScore * ratio).toFixed(2));
         }
         else {
-            // ค่าเริ่มต้นแบบ 'all' (ต้องถูกครบทุกข้อและไม่มีเกิน)
+            // กฎแบบ 'all' (ต้องตอบถูกครบทุกข้อและไม่มีเกิน)
             if (correctArr.length !== userArr.length) return 0;
             let allMatch = userArr.every(u => correctArr.includes(u)) && correctArr.every(c => userArr.includes(c));
             return allMatch ? fullScore : 0;
