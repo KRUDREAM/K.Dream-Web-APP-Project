@@ -101,7 +101,7 @@
 
     <main class="max-w-7xl mx-auto px-4 pt-20 space-y-6">
         
-        <!-- PDF Upload Panel (จะถูกซ่อนอัตโนมัติหากเลือกเป็นพิมพ์ลงระบบ) -->
+        <!-- PDF Upload Panel -->
         <div id="pdfUploadCard" class="hitech-card p-5 rounded-2xl space-y-3 border-l-4 border-l-red-500">
             <div class="flex justify-between items-center">
                 <h3 class="font-bold text-sm flex items-center gap-2 text-red-600 dark:text-red-400">
@@ -176,7 +176,7 @@
             </div>
         </div>
 
-        <!-- OMR Sheet Card Header (จะถูกซ่อนอัตโนมัติหากเลือกเป็นพิมพ์ลงระบบ) -->
+        <!-- OMR Sheet Card Header -->
         <div id="omrHeaderCard" class="hitech-card p-4 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-l-4 border-l-sky-500">
             <div>
                 <h3 class="font-bold text-sm text-sky-600 dark:text-sky-400 flex items-center gap-2">
@@ -191,11 +191,11 @@
 
         <div id="categorySummaryChips" class="flex flex-wrap gap-2 pt-1"></div>
 
-        <!-- OMR Grid Container (จะถูกซ่อนอัตโนมัติหากเลือกเป็นพิมพ์ลงระบบ) -->
+        <!-- OMR Grid Container -->
         <div id="omrSectionCard" class="hitech-card p-6 rounded-2xl space-y-4">
             <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
                 <h3 class="font-bold text-base flex items-center gap-2"><i class="fas fa-check-double text-sky-500"></i> กระดาษทำเฉลย OMR</h3>
-                <span class="text-xs text-slate-400">จัดวาง 4 ข้อต่อแถว</span>
+                <span class="text-xs text-slate-400">จัดวาง 4 ข้อต่อแถว (รองรับคลิกเลือกหลายตัวเลือกสำหรับข้อหลายคำตอบ)</span>
             </div>
             <div id="omrGridContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="col-span-full text-center py-6 text-slate-400 text-xs">กำลังโหลดเฉลย OMR...</div>
@@ -207,7 +207,7 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div>
                     <h3 class="font-bold text-base flex items-center gap-2"><i class="fas fa-list-ul text-purple-500"></i> เนื้อหาคำถาม & รายการตัวเลือก (Accordion View)</h3>
-                    <p class="text-xs text-slate-400 mt-0.5">ขยายดูโจทย์ แนบรูปภาพ เพิ่มตัวเลือก และตั้งค่า Keyword ตรวจอัตนัย</p>
+                    <p class="text-xs text-slate-400 mt-0.5">ขยายดูโจทย์ แนบรูปภาพ เพิ่มตัวเลือก และตั้งค่าคำถามแบบหลายคำตอบได้</p>
                 </div>
                 
                 <div class="flex items-center gap-2 w-full md:w-auto">
@@ -465,7 +465,6 @@
                     subtitle.textContent = `ฝนเฉลย OMR | รูปแบบตัวเลือก: ${getChoiceFormatLabelText(data.choice_format)}`;
                 }
 
-                // 🌟 ตรวจสอบโหมดจัดสอบ หากเป็นพิมพ์ลงระบบ (online) ให้ซ่อนส่วน PDF และ OMR ทันที
                 const pdfUploadCard = document.getElementById('pdfUploadCard');
                 const omrHeaderCard = document.getElementById('omrHeaderCard');
                 const omrSectionCard = document.getElementById('omrSectionCard');
@@ -669,14 +668,25 @@
                     `;
                 }
 
+                const isMultiple = !!q.is_multiple_answers;
+                let correctArr = [];
+                if (Array.isArray(q.correct_answer)) {
+                    correctArr = q.correct_answer.map(String);
+                } else if (q.correct_answer !== undefined && q.correct_answer !== null) {
+                    correctArr = String(q.correct_answer).split(',').map(s => s.trim());
+                }
+
                 const bubblesHtml = opts.map((cLabel, cIdx) => {
-                    const isSelected = String(q.correct_answer) === String(cIdx);
+                    const isSelected = correctArr.includes(String(cIdx));
                     return `<div onclick="selectOmrChoice('${qId}', '${cIdx}')" class="omr-bubble-lg ${isSelected ? 'active' : ''}">${escapeHtml(cLabel)}</div>`;
                 }).join('');
 
                 return `
                     <div class="p-3 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-                        <span class="font-extrabold text-sm text-slate-800 dark:text-slate-200 w-10">ข้อ ${qNum}</span>
+                        <div class="flex flex-col">
+                            <span class="font-extrabold text-sm text-slate-800 dark:text-slate-200">ข้อ ${qNum}</span>
+                            ${isMultiple ? '<span class="text-[9px] text-purple-500 font-bold">หลายคำตอบ</span>' : ''}
+                        </div>
                         <div class="flex gap-1.5 overflow-x-auto py-1">${bubblesHtml}</div>
                         <button onclick="toggleQuestionType('${qId}', 'essay')" class="text-xs text-slate-400 hover:text-amber-500 px-1" title="เปลี่ยนเป็นข้ออัตนัย"><i class="fas fa-file-signature"></i></button>
                     </div>
@@ -719,8 +729,22 @@
                         ${keywordsTag}
                        </div>`;
                 } else {
-                    optionsListHtml = opts.map((opt, i) => {
-                        const isCorrect = String(q.correct_answer) === String(i);
+                    let correctArr = [];
+                    if (Array.isArray(q.correct_answer)) {
+                        correctArr = q.correct_answer.map(String);
+                    } else if (q.correct_answer !== undefined && q.correct_answer !== null) {
+                        correctArr = String(q.correct_answer).split(',').map(s => s.trim());
+                    }
+
+                    const isMultiple = !!q.is_multiple_answers;
+                    const modeText = isMultiple ? (q.multiple_grading_mode === 'partial' ? 'หลายคำตอบ (ให้คะแนนบางส่วนได้)' : 'หลายคำตอบ (ต้องตอบถูกทั้งหมดเท่านั้น)') : 'คำตอบเดียว';
+
+                    optionsListHtml = `
+                        <div class="mb-2 text-[11px] font-bold text-purple-600 dark:text-purple-400">
+                            <i class="fas fa-info-circle mr-1"></i> รูปแบบ: ${modeText}
+                        </div>
+                    ` + opts.map((opt, i) => {
+                        const isCorrect = correctArr.includes(String(i));
                         const displayLabel = standardLabels[i] || String.fromCharCode(65+i);
                         const correctBadge = isCorrect ? '<span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] rounded-md font-bold"><i class="fas fa-check mr-1"></i>เฉลยถูกต้อง</span>' : '';
                         return `<div class="px-3 py-2 rounded-xl border text-xs flex items-center justify-between ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 font-bold text-emerald-700 dark:text-emerald-300' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}">
@@ -758,7 +782,7 @@
                             </div>
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-bold text-slate-500">ตัวเลือก & เฉลยคำตอบ:</label>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${optionsListHtml}</div>
+                                <div class="space-y-1.5">${optionsListHtml}</div>
                             </div>
                         </div>
                     </div>
@@ -783,7 +807,26 @@
         function selectOmrChoice(qId, choiceIdx) {
             const item = cachedQuestions.find(q => q.id === qId);
             if (item) {
-                item.correct_answer = String(choiceIdx);
+                const isMultiple = !!item.is_multiple_answers;
+                let correctArr = [];
+                if (Array.isArray(item.correct_answer)) {
+                    correctArr = item.correct_answer.map(String);
+                } else if (item.correct_answer !== undefined && item.correct_answer !== null) {
+                    correctArr = String(item.correct_answer).split(',').map(s => s.trim());
+                }
+
+                if (isMultiple) {
+                    const idxStr = String(choiceIdx);
+                    if (correctArr.includes(idxStr)) {
+                        correctArr = correctArr.filter(x => x !== idxStr);
+                    } else {
+                        correctArr.push(idxStr);
+                    }
+                    item.correct_answer = correctArr;
+                } else {
+                    item.correct_answer = String(choiceIdx);
+                }
+
                 renderOmrGrid();
                 renderQuestionAccordions();
                 markAsModified();
@@ -807,6 +850,28 @@
             if (esSec) esSec.className = val === 'essay' ? 'space-y-3 pt-2 border-t dark:border-slate-800' : 'hidden';
         };
 
+        window.toggleMultipleAnswersSec = function(isMultiple) {
+            const modeSec = document.getElementById('multipleModeSection');
+            if (modeSec) {
+                if (isMultiple) modeSec.classList.remove('hidden');
+                else modeSec.classList.add('hidden');
+            }
+            // รีเรนเดอร์ Radio เป็น Checkbox หรือในทางกลับกัน
+            const container = document.getElementById('optionsInputsContainer');
+            if (!container) return;
+            const rows = container.querySelectorAll('.option-row');
+            rows.forEach((row, idx) => {
+                const oldInput = row.querySelector('input[type="radio"], input[type="checkbox"]');
+                if (oldInput) {
+                    const newInput = document.createElement('input');
+                    newInput.type = isMultiple ? 'checkbox' : 'radio';
+                    newInput.name = isMultiple ? `swalCorrectCheck_${idx}` : 'swalCorrectRadio';
+                    newInput.value = idx;
+                    oldInput.replaceWith(newInput);
+                }
+            });
+        };
+
         window.toggleGradingTypeSec = function(val) {
             const kwSec = document.getElementById('keywordSec');
             if (kwSec) kwSec.className = val === 'keyword' ? 'space-y-2' : 'hidden';
@@ -821,11 +886,12 @@
             const formatType = currentExamData?.choice_format || 'num';
             const standardLabels = getChoiceLabels(formatType, 5);
             const label = standardLabels[currentCount] || String.fromCharCode(65 + currentCount);
+            const isMultiple = document.getElementById('isMultipleToggle')?.checked;
 
             const div = document.createElement('div');
             div.className = 'flex items-center gap-2 option-row';
             div.innerHTML = `
-                <input type="radio" name="swalCorrectRadio" value="${currentCount}">
+                <input type="${isMultiple ? 'checkbox' : 'radio'}" name="${isMultiple ? 'swalCorrectCheck' : 'swalCorrectRadio'}" value="${currentCount}">
                 <span class="font-bold w-6">${label}:</span>
                 <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(label)}">
                 <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>
@@ -888,6 +954,15 @@
 
             let currentOpts = (qData?.options && qData.options.length > 0) ? qData.options : standardLabels;
             let currentKeywords = qData?.keywords || [];
+            const isMultiple = !!qData?.is_multiple_answers;
+            const gradingMode = qData?.multiple_grading_mode || 'all';
+
+            let correctArr = [];
+            if (Array.isArray(qData?.correct_answer)) {
+                correctArr = qData.correct_answer.map(String);
+            } else if (qData?.correct_answer !== undefined && qData?.correct_answer !== null) {
+                correctArr = String(qData.correct_answer).split(',').map(s => s.trim());
+            }
 
             const existingTags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
             const currentTag = qData?.category_tag || '';
@@ -901,11 +976,11 @@
             categoryOptionsHtml += `<option value="__NEW__" ${(!isTagInList && currentTag) ? 'selected' : ''}>➕ สร้างหมวดหมู่ใหม่...</option>`;
 
             let optionsHtml = currentOpts.map((opt, i) => {
-                const isChecked = String(qData?.correct_answer) === String(i) || (!qData && i === 0);
+                const isChecked = isMultiple ? correctArr.includes(String(i)) : (String(qData?.correct_answer) === String(i) || (!qData && i === 0));
                 const label = standardLabels[i] || String.fromCharCode(65+i);
                 const deleteBtn = i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>` : '';
                 return `<div class="flex items-center gap-2 option-row">
-                    <input type="radio" name="swalCorrectRadio" value="${i}" ${isChecked ? 'checked' : ''}>
+                    <input type="${isMultiple ? 'checkbox' : 'radio'}" name="${isMultiple ? 'swalCorrectCheck' : 'swalCorrectRadio'}" value="${i}" ${isChecked ? 'checked' : ''}>
                     <span class="font-bold w-6">${escapeHtml(label)}:</span>
                     <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(opt)}">
                     ${deleteBtn}
@@ -925,7 +1000,7 @@
 
             const { value: formValues } = await Swal.fire({
                 title: isEdit ? `แก้ไขโจทย์ ข้อที่ ${qData.question_number}` : 'เพิ่มข้อสอบใหม่',
-                width: '650px',
+                width: '680px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
                         <div class="grid grid-cols-3 gap-2">
@@ -966,7 +1041,23 @@
                         </div>
 
                         <div id="mcSection" class="${qData?.question_type === 'essay' ? 'hidden' : ''} space-y-2 pt-2 border-t dark:border-slate-800">
-                            <div class="flex justify-between items-center">
+                            <!-- ตั้งค่าหลายคำตอบ -->
+                            <div class="p-3 bg-purple-500/10 rounded-xl border border-purple-500/30 space-y-2">
+                                <label class="flex items-center gap-2 cursor-pointer font-bold text-purple-600 dark:text-purple-400">
+                                    <input type="checkbox" id="isMultipleToggle" onchange="toggleMultipleAnswersSec(this.checked)" ${isMultiple ? 'checked' : ''} class="w-4 h-4 rounded">
+                                    <span>ข้อนี้เป็น "ปรนัยหลายคำตอบ" (เลือกตอบได้มากกว่า 1 ข้อ)</span>
+                                </label>
+                                
+                                <div id="multipleModeSection" class="${isMultiple ? '' : 'hidden'} pl-6 space-y-1">
+                                    <label class="block font-bold text-slate-700 dark:text-slate-300">เงื่อนไขการให้คะแนนหลายคำตอบ:</label>
+                                    <select id="multipleGradingMode" class="w-full px-3 py-1 border rounded-lg dark:bg-slate-800 font-bold text-xs">
+                                        <option value="all" ${gradingMode === 'all' ? 'selected' : ''}>ตอบถูกครบทุกข้อที่ถูกต้องเท่านั้น (All-or-Nothing)</option>
+                                        <option value="partial" ${gradingMode === 'partial' ? 'selected' : ''}>ให้คะแนนบางส่วน (Partial Credit ตามสัดส่วนที่ตอบถูก)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-center pt-1">
                                 <label class="font-bold text-slate-800 dark:text-slate-200">รายการตัวเลือกคำตอบ</label>
                                 <button type="button" onclick="addOptionField()" class="px-2 py-1 bg-sky-600 text-white rounded-lg text-[10px] font-bold"><i class="fas fa-plus"></i> เพิ่มตัวเลือก</button>
                             </div>
@@ -1006,7 +1097,17 @@
 
                     const optInputs = document.querySelectorAll('.opt-text-input');
                     const optsParsed = Array.from(optInputs).map(inp => inp.value.trim()).filter(Boolean);
-                    const selectedRadio = document.querySelector('input[name="swalCorrectRadio"]:checked');
+                    
+                    const isMultiple = document.getElementById('isMultipleToggle')?.checked || false;
+                    let correctAnsValue = '0';
+
+                    if (isMultiple) {
+                        const checkedBoxes = document.querySelectorAll('input[name="swalCorrectCheck"]:checked');
+                        correctAnsValue = Array.from(checkedBoxes).map(cb => cb.value);
+                    } else {
+                        const selectedRadio = document.querySelector('input[name="swalCorrectRadio"]:checked');
+                        correctAnsValue = selectedRadio ? selectedRadio.value : '0';
+                    }
 
                     const kwRows = document.querySelectorAll('.keyword-row');
                     const kwParsed = Array.from(kwRows).map(row => ({
@@ -1023,7 +1124,9 @@
                         content: txt,
                         image_url: document.getElementById('qImageUrl').value.trim() || null,
                         options: optsParsed.length > 0 ? optsParsed : standardLabels,
-                        correct_answer: selectedRadio ? selectedRadio.value : '0',
+                        correct_answer: correctAnsValue,
+                        is_multiple_answers: isMultiple,
+                        multiple_grading_mode: isMultiple ? document.getElementById('multipleGradingMode').value : 'all',
                         grading_type: document.getElementById('qGradingType').value,
                         keywords: kwParsed
                     }
@@ -1219,7 +1322,9 @@
                         category_tag: formValues.tag || '',
                         question_type: 'multiple_choice',
                         options: standardLabels,
-                        correct_answer: '0'
+                        correct_answer: '0',
+                        is_multiple_answers: false,
+                        multiple_grading_mode: 'all'
                     });
                 }
                 await mySupabase.from('questions').insert(newItems);
@@ -1237,7 +1342,7 @@
         async function saveAllChangesSticky() {
             Swal.fire({
                 title: 'กำลังบันทึกและ Regrade คะแนน...',
-                html: '<div class="text-xs text-slate-400 mt-1">กำลังคำนวณและอัปเดตลงช่อง total_score...</div>',
+                html: '<div class="text-xs text-slate-400 mt-1">กำลังคำนวณและอัปเดตลงช่อง total_score (รองรับระบบหลายคำตอบ)...</div>',
                 allowOutsideClick: false,
                 didOpen: () => Swal.showLoading()
             });
@@ -1247,7 +1352,9 @@
                     correct_answer: q.correct_answer,
                     question_type: q.question_type,
                     options: q.options,
-                    category_tag: q.category_tag
+                    category_tag: q.category_tag,
+                    is_multiple_answers: q.is_multiple_answers,
+                    multiple_grading_mode: q.multiple_grading_mode
                 }).eq('id', q.id);
             }
 
@@ -1292,10 +1399,52 @@
                         }
 
                         if (userAns !== null && userAns !== undefined && userAns !== '') {
-                            const userStr = String(userAns).trim().toLowerCase();
-                            const correctStr = String(q.correct_answer).trim().toLowerCase();
-                            if (userStr === correctStr) {
-                                recalculatedScore += 1;
+                            const isMultiple = !!q.is_multiple_answers;
+                            let correctArr = [];
+                            if (Array.isArray(q.correct_answer)) {
+                                correctArr = q.correct_answer.map(String);
+                            } else {
+                                correctArr = String(q.correct_answer).split(',').map(s => s.trim());
+                            }
+
+                            if (isMultiple) {
+                                let userArr = [];
+                                if (Array.isArray(userAns)) {
+                                    userArr = userAns.map(String);
+                                } else {
+                                    userArr = String(userAns).split(',').map(s => s.trim());
+                                }
+
+                                const gradingMode = q.multiple_grading_mode || 'all';
+                                if (gradingMode === 'partial') {
+                                    // ให้คะแนนตามสัดส่วน
+                                    let matchedCount = 0;
+                                    userArr.forEach(ans => {
+                                        if (correctArr.includes(ans)) matchedCount++;
+                                    });
+                                    // หากตอบผิด (เกินมา) อาจหักคะแนนหรือคิดตามสัดส่วนที่ถูกต้องจริง
+                                    let questionScore = 0;
+                                    if (correctArr.length > 0) {
+                                        const rawPart = matchedCount / correctArr.length;
+                                        // ป้องกันการได้เกิน 1 คะแนน หากเลือกเกิน
+                                        const penalty = userArr.length > correctArr.length ? (userArr.length - correctArr.length) * 0.2 : 0;
+                                        questionScore = Math.max(0, rawPart - penalty);
+                                    }
+                                    recalculatedScore += questionScore;
+                                } else {
+                                    // All-or-Nothing: ต้องถูกทุกข้อที่เฉลย และไม่มีข้อเกิน
+                                    const isExactMatch = userArr.length === correctArr.length && userArr.every(val => correctArr.includes(val));
+                                    if (isExactMatch) {
+                                        recalculatedScore += 1;
+                                    }
+                                }
+                            } else {
+                                // ข้อเดี่ยวปกติ
+                                const userStr = String(userAns).trim().toLowerCase();
+                                const correctStr = String(correctArr[0] || '').trim().toLowerCase();
+                                if (userStr === correctStr) {
+                                    recalculatedScore += 1;
+                                }
                             }
                         }
                     });
@@ -1305,7 +1454,7 @@
 
                     if (targetId) {
                         const { error: updateErr } = await mySupabase.from('exam_attempts').update({
-                            total_score: recalculatedScore
+                            total_score: Math.round(recalculatedScore * 100) / 100
                         }).eq(primaryKeyName, targetId);
 
                         if (updateErr) {
