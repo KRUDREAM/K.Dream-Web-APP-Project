@@ -1166,151 +1166,164 @@ async function loadCoursesAndEnrollments() {
             return profileObj.nickname || profileObj.nick_name || '';
         }
 
-        async function viewIndividualStudentProfile(studentId) {
-            Swal.fire({ title: 'กำลังโหลดข้อมูลโปรไฟล์นักเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+async function viewIndividualStudentProfile(studentId) {
+    Swal.fire({ title: 'กำลังโหลดข้อมูลโปรไฟล์นักเรียน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            let profile = allProfilesMap[studentId];
-            if (!profile) {
-                const { data: pData } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
-                if (pData) {
-                    profile = pData;
-                    allProfilesMap[studentId] = pData;
-                }
-            }
+    let profile = allProfilesMap[studentId];
+    if (!profile) {
+        const { data: pData } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
+        if (pData) {
+            profile = pData;
+            allProfilesMap[studentId] = pData;
+        }
+    }
 
-            let studentAttempts = allAttemptsCache.filter(a => String(a.student_id || a.user_id) === String(studentId));
-            if (studentAttempts.length === 0) {
-                const { data: aData } = await mySupabase.from('exam_attempts').select('*').eq('student_id', studentId);
-                if (aData && aData.length > 0) studentAttempts = aData;
-            }
+    let studentAttempts = allAttemptsCache.filter(a => String(a.student_id || a.user_id) === String(studentId));
+    if (studentAttempts.length === 0) {
+        const { data: aData } = await mySupabase.from('exam_attempts').select('*').eq('student_id', studentId);
+        if (aData && aData.length > 0) studentAttempts = aData;
+    }
 
-            let enrolledCourses = [];
-            try {
-                let enList = [];
-                const { data: en1 } = await mySupabase.from('course_enrollments').select('*, courses(id, title, course_code)').eq('student_id', studentId);
-                if (en1) enList = enList.concat(en1);
-                const { data: en2 } = await mySupabase.from('enrollments').select('*, courses(id, title, course_code)').eq('student_id', studentId);
-                if (en2) enList = enList.concat(en2);
-                
-                enrolledCourses = enList;
-            } catch(e) {
-                console.warn("Could not fetch enrollments", e);
-            }
+    // --- ส่วนดึงคอร์สที่นักเรียนลงทะเบียน (ปรับปรุงใหม่ แบบแยกดึงแล้วมาจับคู่กันเอง) ---
+    let enrolledCourses = [];
+    try {
+        let rawEnrollments = [];
+        
+        // 1. ดึงจาก enrollments
+        const { data: en1 } = await mySupabase.from('enrollments').select('*').eq('student_id', studentId);
+        if (en1) rawEnrollments = rawEnrollments.concat(en1);
 
-            Swal.close();
+        // 2. ดึงจาก course_enrollments (เผื่อใช้ชื่อนี้)
+        const { data: en2 } = await mySupabase.from('course_enrollments').select('*').eq('student_id', studentId);
+        if (en2) rawEnrollments = rawEnrollments.concat(en2);
 
-            const name = getStudentName(profile, studentId);
-            const nickname = getStudentNickname(profile);
-            const studentIdCode = (profile && profile.student_id) ? profile.student_id : '-';
-            const emailStr = (profile && profile.email) ? profile.email : '-';
-            const schoolStr = (profile && profile.school) ? profile.school : '-';
-            const gradeStr = (profile && profile.grade_level) ? profile.grade_level : '-';
-            const phoneStr = (profile && profile.phone) ? profile.phone : '-';
+        // 3. จับคู่ course_id เข้ากับข้อมูลใน coursesMap ที่เราโหลดไว้แล้ว
+        enrolledCourses = rawEnrollments.map(en => {
+            const cId = String(en.course_id || en.class_id || '');
+            const courseInfo = coursesMap[cId] || { title: `คอร์สรหัส: ${cId}`, course_code: 'COURSE' };
+            return {
+                ...en,
+                courses: courseInfo
+            };
+        });
 
-            const totalScore = studentAttempts.reduce((acc, curr) => acc + getAttemptScore(curr), 0);
-            const avg = studentAttempts.length > 0 ? (totalScore / studentAttempts.length).toFixed(1) : '0.0';
+    } catch(e) {
+        console.warn("Could not fetch enrollments for student", e);
+    }
 
-            let coursesHtml = '';
-            if (enrolledCourses.length === 0) {
-                coursesHtml = `<div class="text-slate-400 text-xs italic py-2">ยังไม่ได้ลงทะเบียนในคอร์สใด</div>`;
-            } else {
-                coursesHtml = enrolledCourses.map((en, idx) => {
-                    const cTitle = (en.courses && en.courses.title) ? en.courses.title : `คอร์สรหัส: ${en.course_id}`;
-                    const cCode = (en.courses && en.courses.course_code) ? en.courses.course_code : 'COURSE';
-                    return `
-                        <div class="p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
-                            <span class="font-bold text-slate-900 dark:text-white"><i class="fas fa-book-open mr-1.5 text-indigo-500"></i> [${cCode}] ${cTitle}</span>
-                        </div>
-                    `;
-                }).join('');
-            }
+    Swal.close();
 
-            let attemptsHtml = '';
-            if (studentAttempts.length === 0) {
-                attemptsHtml = `<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">ยังไม่มีประวัติการทำข้อสอบ</td></tr>`;
-            } else {
-                attemptsHtml = studentAttempts.map((att, idx) => {
-                    const exam = allExamsCache.find(e => String(e.id) === String(att.exam_id));
-                    const examTitle = exam ? exam.title : `ข้อสอบรหัส: ${att.exam_id}`;
-                    const score = getAttemptScore(att);
-                    const submitTime = att.submission_time || att.submitted_at || att.created_at;
-                    const dateStr = submitTime ? new Date(submitTime).toLocaleDateString('th-TH') : '-';
+    const name = getStudentName(profile, studentId);
+    const nickname = getStudentNickname(profile);
+    const studentIdCode = (profile && profile.student_id) ? profile.student_id : '-';
+    const emailStr = (profile && profile.email) ? profile.email : '-';
+    const schoolStr = (profile && profile.school) ? profile.school : '-';
+    const gradeStr = (profile && profile.grade_level) ? profile.grade_level : '-';
 
-                    return `
-                        <tr class="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-xs">
-                            <td class="p-3 font-mono font-bold">${idx + 1}</td>
-                            <td class="p-3 font-bold text-slate-800 dark:text-slate-200">${examTitle}</td>
-                            <td class="p-3 text-center font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${score} คะแนน</td>
-                            <td class="p-3 text-center text-slate-400 text-[11px]">${dateStr}</td>
-                            <td class="p-3 text-center">
-                                <button onclick="viewStudentExamDetailInModal('${studentId}', '${att.exam_id}')" class="px-2.5 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-lg transition-all text-[11px]">
-                                    <i class="fas fa-search-plus mr-1"></i> เช็คข้อสอบชุดนี้
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            }
+    const totalScore = studentAttempts.reduce((acc, curr) => acc + getAttemptScore(curr), 0);
+    const avg = studentAttempts.length > 0 ? (totalScore / studentAttempts.length).toFixed(1) : '0.0';
 
-            const isDark = document.documentElement.classList.contains('dark');
-
-            let modalContent = `
-                <div class="text-left space-y-4 max-h-[75vh] overflow-y-auto pr-1 text-xs">
-                    <div class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                        <div class="space-y-1">
-                            <div class="text-sm font-extrabold text-sky-600 dark:text-sky-400">${name}${nickname ? ' (' + nickname + ')' : ''}</div>
-                            <div class="text-slate-500 dark:text-slate-400">รหัสนักเรียน: <span class="font-mono font-bold text-slate-800 dark:text-slate-200">${studentIdCode}</span> | โรงเรียน: <span class="font-medium text-slate-700 dark:text-slate-300">${schoolStr}</span></div>
-                            <div class="text-slate-500 dark:text-slate-400">อีเมล: <span class="font-mono">${emailStr}</span> | ระดับชั้น: <span class="font-medium">${gradeStr}</span></div>
-                            <div class="flex gap-4 pt-1 font-semibold text-slate-700 dark:text-slate-300">
-                                <span>ทำข้อสอบแล้ว: <strong>${studentAttempts.length} ชุด</strong></span>
-                                <span>คะแนนรวม: <strong class="text-indigo-600 dark:text-indigo-400">${totalScore}</strong></span>
-                                <span>เฉลี่ย: <strong class="text-amber-500">${avg}</strong></span>
-                            </div>
-                        </div>
-                        <button onclick="printStudentSummaryReport('${studentId}')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-1.5 shrink-0">
-                            <i class="fas fa-print"></i> ปริ้นท์ใบสรุป
-                        </button>
-                    </div>
-
-                    <div class="space-y-2">
-                        <h4 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5"><i class="fas fa-book-bookmark text-indigo-500"></i> คอร์สที่ลงทะเบียนเรียน (${enrolledCourses.length})</h4>
-                        <div class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                            ${coursesHtml}
-                        </div>
-                    </div>
-
-                    <div class="space-y-2">
-                        <h4 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5"><i class="fas fa-clipboard-check text-sky-500"></i> ประวัติการทำข้อสอบ (ผลสอบ)</h4>
-                        <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800 text-xs">
-                                        <th class="p-3">ลำดับ</th>
-                                        <th class="p-3">ชุดข้อสอบ</th>
-                                        <th class="p-3 text-center">คะแนน</th>
-                                        <th class="p-3 text-center">วันที่ทำ</th>
-                                        <th class="p-3 text-center">จัดการ</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${attemptsHtml}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+    let coursesHtml = '';
+    if (enrolledCourses.length === 0) {
+        coursesHtml = `<div class="text-slate-400 text-xs italic py-2">ยังไม่ได้ลงทะเบียนในคอร์สใด</div>`;
+    } else {
+        coursesHtml = enrolledCourses.map((en) => {
+            const cTitle = (en.courses && en.courses.title) ? en.courses.title : 'คอร์สเรียน';
+            const cCode = (en.courses && en.courses.course_code) ? en.courses.course_code : 'COURSE';
+            return `
+                <div class="p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
+                    <span class="font-bold text-slate-900 dark:text-white"><i class="fas fa-book-open mr-1.5 text-indigo-500"></i> [${cCode}] ${cTitle}</span>
                 </div>
             `;
+        }).join('');
+    }
 
-            Swal.fire({
-                title: '👤 ข้อมูลส่วนตัวและผลการเรียนนักเรียน',
-                html: modalContent,
-                width: '750px',
-                confirmButtonColor: '#0284c7',
-                confirmButtonText: 'ปิดหน้าต่าง',
-                background: isDark ? '#090d16' : '#ffffff',
-                color: isDark ? '#f1f5f9' : '#1e293b'
-            });
-        }
+    let attemptsHtml = '';
+    if (studentAttempts.length === 0) {
+        attemptsHtml = `<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">ยังไม่มีประวัติการทำข้อสอบ</td></tr>`;
+    } else {
+        attemptsHtml = studentAttempts.map((att, idx) => {
+            const exam = allExamsCache.find(e => String(e.id) === String(att.exam_id));
+            const examTitle = exam ? exam.title : `ข้อสอบรหัส: ${att.exam_id}`;
+            const score = getAttemptScore(att);
+            const submitTime = att.submission_time || att.submitted_at || att.created_at;
+            const dateStr = submitTime ? new Date(submitTime).toLocaleDateString('th-TH') : '-';
+
+            return `
+                <tr class="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-xs">
+                    <td class="p-3 font-mono font-bold">${idx + 1}</td>
+                    <td class="p-3 font-bold text-slate-800 dark:text-slate-200">${examTitle}</td>
+                    <td class="p-3 text-center font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${score} คะแนน</td>
+                    <td class="p-3 text-center text-slate-400 text-[11px]">${dateStr}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="viewStudentExamDetailInModal('${studentId}', '${att.exam_id}')" class="px-2.5 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-lg transition-all text-[11px]">
+                            <i class="fas fa-search-plus mr-1"></i> เช็คข้อสอบชุดนี้
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    const isDark = document.documentElement.classList.contains('dark');
+
+    let modalContent = `
+        <div class="text-left space-y-4 max-h-[75vh] overflow-y-auto pr-1 text-xs">
+            <div class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div class="space-y-1">
+                    <div class="text-sm font-extrabold text-sky-600 dark:text-sky-400">${name}${nickname ? ' (' + nickname + ')' : ''}</div>
+                    <div class="text-slate-500 dark:text-slate-400">รหัสนักเรียน: <span class="font-mono font-bold text-slate-800 dark:text-slate-200">${studentIdCode}</span> | โรงเรียน: <span class="font-medium text-slate-700 dark:text-slate-300">${schoolStr}</span></div>
+                    <div class="text-slate-500 dark:text-slate-400">อีเมล: <span class="font-mono">${emailStr}</span> | ระดับชั้น: <span class="font-medium">${gradeStr}</span></div>
+                    <div class="flex gap-4 pt-1 font-semibold text-slate-700 dark:text-slate-300">
+                        <span>ทำข้อสอบแล้ว: <strong>${studentAttempts.length} ชุด</strong></span>
+                        <span>คะแนนรวม: <strong class="text-indigo-600 dark:text-indigo-400">${totalScore}</strong></span>
+                        <span>เฉลี่ย: <strong class="text-amber-500">${avg}</strong></span>
+                    </div>
+                </div>
+                <button onclick="printStudentSummaryReport('${studentId}')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-1.5 shrink-0">
+                    <i class="fas fa-print"></i> ปริ้นท์ใบสรุป
+                </button>
+            </div>
+
+            <div class="space-y-2">
+                <h4 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5"><i class="fas fa-book-bookmark text-indigo-500"></i> คอร์สที่ลงทะเบียนเรียน (${enrolledCourses.length})</h4>
+                <div class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    ${coursesHtml}
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <h4 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5"><i class="fas fa-clipboard-check text-sky-500"></i> ประวัติการทำข้อสอบ (ผลสอบ)</h4>
+                <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800 text-xs">
+                                <th class="p-3">ลำดับ</th>
+                                <th class="p-3">ชุดข้อสอบ</th>
+                                <th class="p-3 text-center">คะแนน</th>
+                                <th class="p-3 text-center">วันที่ทำ</th>
+                                <th class="p-3 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${attemptsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    Swal.fire({
+        title: '👤 ข้อมูลส่วนตัวและผลการเรียนนักเรียน',
+        html: modalContent,
+        width: '750px',
+        confirmButtonColor: '#0284c7',
+        confirmButtonText: 'ปิดหน้าต่าง',
+        background: isDark ? '#090d16' : '#ffffff',
+        color: isDark ? '#f1f5f9' : '#1e293b'
+    });
+}
 
         function formatChoiceDisplay(val, choicesArr) {
             if (val === null || val === undefined || val === '-') return '-';
