@@ -560,7 +560,7 @@ function toCleanArray(input) {
     return [str];
 }
 
-// 🌟 ฟังก์ชันคำนวณคะแนนรายข้อ (ตรวจสอบเงื่อนไข Subset สำหรับ at_least_one)
+// 🌟 ฟังก์ชันคำนวณคะแนนรายข้อ (ฉบับแก้ขาด รองรับ at_least_one ทุกกรณี)
 function getQuestionScore(q, rawUserAns) {
     if (!q) return 0;
     const qType = (q.question_type || q.type || '').toLowerCase();
@@ -589,20 +589,18 @@ function getQuestionScore(q, rawUserAns) {
 
     if (userArr.length === 0) return 0;
 
-    // ดึงกฎการให้คะแนนจากคำถามหรือชุดข้อสอบ
+    // ดึงกฎการให้คะแนนจากคำถาม หรือจากค่ากลางของชุดข้อสอบ
     const rawRule = q.grading_rule || q.multiple_grading_rule || (currentExam && currentExam.multiple_grading_rule) || 'all';
     const gradingRule = String(rawRule).toLowerCase().trim();
 
-    // 🌟 เช็คกฎ at_least_one หรือ at_least_once ด้วยหลักการ Subset
+    // 🌟 ดักเช็คกฎ at_least_one / at_least_once ก่อนเป็นอันดับแรกเสมอ
     if (gradingRule === 'at_least_one' || gradingRule === 'at_least_once') {
-        // เงื่อนไข Subset:
-        // 1. นักเรียนต้องตอบมาอย่างน้อย 1 ข้อ (userArr.length > 0)
-        // 2. คำตอบที่นักเรียนตอบทุกตัวต้องเป็น Subset ของเฉลย (สมาชิกทุกตัวใน userArr ต้องอยู่ใน correctArr)
+        // เงื่อนไข Subset: นักเรียนต้องตอบอย่างน้อย 1 ข้อ และทุกข้อที่ตอบต้องอยู่ในเซ็ตเฉลย
         const isSubset = userArr.length > 0 && userArr.every(u => correctArr.includes(u));
         return isSubset ? fullScore : 0;
     }
 
-    // ถ้าเป็นข้อสอบแบบหลายตัวเลือก หรือเฉลยมีหลายข้อ (กรณีใช้กฎอื่น เช่น all หรือ partial)
+    // ถ้าเป็นข้อสอบแบบหลายตัวเลือก หรือเฉลยมีหลายข้อ
     if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1 || gradingRule === 'partial') {
         if (gradingRule === 'partial') {
             let correctMatches = userArr.filter(u => correctArr.includes(u)).length;
@@ -612,14 +610,14 @@ function getQuestionScore(q, rawUserAns) {
             return Number((fullScore * ratio).toFixed(2));
         }
         else {
-            // กฎแบบ 'all' (ต้องเป็นเซ็ตที่เท่ากันพอดีเป๊ะ)
+            // กฎแบบ 'all' (ต้องเป็นเซ็ตที่เท่ากันเป๊ะ)
             if (correctArr.length !== userArr.length) return 0;
             let exactMatch = userArr.every(u => correctArr.includes(u)) && correctArr.every(c => userArr.includes(c));
             return exactMatch ? fullScore : 0;
         }
     }
 
-    // ข้อสอบแบบตัวเลือกเดี่ยว หรือเติมคำทั่วไป
+    // ข้อสอบแบบตัวเลือกเดี่ยว หรือเติมคำทั่วไป (กรณีไม่มีกฎพิเศษ)
     let singleCorrect = correctArr[0] || '';
     let singleUser = userArr[0] || '';
 
