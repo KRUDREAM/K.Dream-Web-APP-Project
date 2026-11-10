@@ -455,48 +455,47 @@
             }
         }
 
-        async function loadCoursesAndEnrollments() {
-            try {
-                const { data: coursesData } = await mySupabase.from('courses').select('id, title, course_code');
-                allCoursesList = coursesData || [];
-                coursesMap = {};
-                allCoursesList.forEach(c => {
-                    coursesMap[String(c.id)] = c;
-                });
-                renderAllowedCoursesCheckboxes();
+async function loadCoursesAndEnrollments() {
+    try {
+        // 1. ดึงรายชื่อคอร์สทั้งหมดก่อน
+        const { data: coursesData } = await mySupabase.from('courses').select('id, title, course_code');
+        allCoursesList = coursesData || [];
+        coursesMap = {};
+        allCoursesList.forEach(c => {
+            coursesMap[String(c.id)] = c;
+        });
+        renderAllowedCoursesCheckboxes();
 
-                let enrollsData = [];
-                const { data: eRes1, error: err1 } = await mySupabase.from('enrollments').select('*, courses(id, title, course_code)');
-                if (eRes1 && !err1) {
-                    enrollsData = [...enrollsData, ...eRes1];
-                } else {
-                    const fallback1 = await mySupabase.from('enrollments').select('*');
-                    if (fallback1.data) enrollsData = [...enrollsData, ...fallback1.data];
-                }
+        let enrollsData = [];
 
-                const { data: eRes2, error: err2 } = await mySupabase.from('course_enrollments').select('*, courses(id, title, course_code)');
-                if (eRes2 && !err2) {
-                    enrollsData = [...enrollsData, ...eRes2];
-                } else {
-                    const fallback2 = await mySupabase.from('course_enrollments').select('*');
-                    if (fallback2.data) enrollsData = [...enrollsData, ...fallback2.data];
-                }
-
-                studentEnrollmentsMap = {};
-                enrollsData.forEach(en => {
-                    const sId = String(en.student_id || en.user_id || '');
-                    const cId = String(en.course_id || (en.courses ? en.courses.id : ''));
-                    if (sId && cId) {
-                        if (!studentEnrollmentsMap[sId]) studentEnrollmentsMap[sId] = [];
-                        if (!studentEnrollmentsMap[sId].includes(cId)) {
-                            studentEnrollmentsMap[sId].push(cId);
-                        }
-                    }
-                });
-            } catch (err) {
-                console.error("Load courses/enrollments error:", err);
-            }
+        // 2. ดึงจากตาราง enrollments (แบบไม่ Join เพื่อเลี่ยง Error 400)
+        const { data: eRes1, error: err1 } = await mySupabase.from('enrollments').select('*');
+        if (eRes1 && !err1) {
+            enrollsData = [...enrollsData, ...eRes1];
         }
+
+        // 3. ดึงจากตาราง course_enrollments (เผื่อมีโครงสร้างสำรอง)
+        const { data: eRes2, error: err2 } = await mySupabase.from('course_enrollments').select('*');
+        if (eRes2 && !err2) {
+            enrollsData = [...enrollsData, ...eRes2];
+        }
+
+        // 4. แม็ปข้อมูลลงในหน่วยความจำอย่างปลอดภัย
+        studentEnrollmentsMap = {};
+        enrollsData.forEach(en => {
+            const sId = String(en.student_id || en.user_id || '');
+            const cId = String(en.course_id || '');
+            if (sId && cId) {
+                if (!studentEnrollmentsMap[sId]) studentEnrollmentsMap[sId] = [];
+                if (!studentEnrollmentsMap[sId].includes(cId)) {
+                    studentEnrollmentsMap[sId].push(cId);
+                }
+            }
+        });
+    } catch (err) {
+        console.error("Load courses/enrollments error:", err);
+    }
+}
 
         function renderAllowedCoursesCheckboxes() {
             const container = document.getElementById('allowedCoursesCheckboxContainer');
