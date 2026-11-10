@@ -1009,7 +1009,39 @@ function formatUserAnswerDisplay(val, q) {
     return mapSingleValue(val);
 }
 
-// 🌟 ฟังก์ชันตรวจสอบและแสดงรายละเอียดคำตอบรายข้อใน Modal
+// 🌟 ฟังก์ชันแปลงค่า Index ของตัวเลือกให้กลายเป็นข้อความตัวเลือกจริง ๆ
+function formatUserAnswerDisplay(val, q) {
+    if (val === undefined || val === null || val === '-' || val === '') return '-';
+    
+    // ดึงตัวเลือก (Options/Choices) จากข้อมูลคำถาม
+    let optionsList = [];
+    try {
+        if (q.options) {
+            optionsList = typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
+        } else if (q.choices) {
+            optionsList = typeof q.choices === 'string' ? JSON.parse(q.choices) : q.choices;
+        }
+    } catch(e) {}
+
+    // ฟังก์ชันย่อยสำหรับแปลงค่าเดี่ยว
+    const mapSingleValue = (item) => {
+        let strItem = String(item).trim();
+        let num = Number(strItem);
+        // ถ้าค่าที่เก็บมาเป็นตัวเลข index และตรงกับตำแหน่งใน options ให้ดึงข้อความตัวเลือกมาแสดงแทน
+        if (!isNaN(num) && optionsList.length > 0 && optionsList[num] !== undefined) {
+            return optionsList[num];
+        }
+        return strItem;
+    };
+
+    if (Array.isArray(val)) {
+        return val.map(mapSingleValue).join(', ');
+    }
+
+    return mapSingleValue(val);
+}
+
+// 🌟 นำฟังก์ชันนี้ไปแทนที่ฟังก์ชัน viewStudentExamDetailInModal เดิมในไฟล์ของคุณ
 async function viewStudentExamDetailInModal(studentId, examId) {
     Swal.fire({ title: 'กำลังโหลดรายละเอียดข้อสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -1056,7 +1088,7 @@ async function viewStudentExamDetailInModal(studentId, examId) {
         const isMultiple = q.question_type === 'multiple';
         const isCorrect = checkAnswerIsCorrect(q, userVal);
 
-        // แปลงค่าคำตอบนักเรียนและเฉลยไม่ให้แสดงเป็น index
+        // 🌟 เรียกใช้ฟังก์ชันแปลงค่า Index ให้เป็นข้อความตัวเลือกจริง ๆ
         let displayUserVal = formatUserAnswerDisplay(userVal, q);
         let displayCorrectVal = formatUserAnswerDisplay(q.correct_answer, q);
 
