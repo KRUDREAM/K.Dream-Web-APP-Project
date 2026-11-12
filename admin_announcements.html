@@ -75,7 +75,7 @@
                             <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-bullhorn"></i></span>
                             ศูนย์รวมประกาศข่าวสาร (ผู้ดูแลระบบ)
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">จัดการประกาศแจ้งเปิดข้อสอบ, เปิดระบบ consult, อัปโหลดคลิป และกลุ่มเป้าหมาย</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">จัดการประกาศ หมวดหมู่ ระดับความสำคัญ และตั้งเวลาแสดงผลอัตโนมัติ</p>
                     </div>
                 </div>
                 <button id="themeToggle" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
@@ -96,21 +96,40 @@
                     </div>
                     <div>
                         <h2 class="text-xl font-bold text-slate-900 dark:text-white" id="formTitle">สร้างประกาศใหม่</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">เลือกประเภทประกาศ แจ้งเปิดข้อสอบ/ระบบ/คลิป</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดประเภท ความสำคัญ และลิงก์เนื้อหา</p>
                     </div>
                 </div>
 
                 <form id="announcementForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
                     <input type="hidden" id="editAnnouncementId">
                     
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">ประเภทประกาศ <span class="text-red-500">*</span></label>
-                        <select id="annCategory" class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white text-sm outline-none font-bold">
-                            <option value="general">📢 ประกาศทั่วไป / ข่าวสาร</option>
-                            <option value="exam">📝 แจ้งเปิดข้อสอบใหม่</option>
-                            <option value="consult">💬 แจ้งเปิดระบบ Consult / ปรึกษา</option>
-                            <option value="video">🎬 แจ้งอัปโหลดคลิปบทเรียนใหม่</option>
-                        </select>
+                    <!-- 1. หมวดหมู่และความสำคัญ -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">หมวดหมู่ <span class="text-red-500">*</span></label>
+                            <select id="annCategory" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none font-bold">
+                                <option value="general">📢 ประกาศทั่วไป</option>
+                                <option value="activity">🎉 กิจกรรม/อีเวนต์</option>
+                                <option value="maintenance">🛠️ ซ่อมบำรุง/ระบบ</option>
+                                <option value="exam">📝 แจ้งเปิดข้อสอบ</option>
+                                <option value="consult">💬 ระบบ Consult</option>
+                                <option value="video">🎬 คลิปบทเรียน</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">ระดับความสำคัญ</label>
+                            <select id="annPriority" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl dark:text-white text-xs outline-none font-bold">
+                                <option value="normal">⚪ ปกติ</option>
+                                <option value="important">🟡 สำคัญ</option>
+                                <option value="urgent">🔴 ด่วนที่สุด</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- ตัวเลือกปักหมุดประกาศ -->
+                    <div class="flex items-center gap-2 px-1">
+                        <input type="checkbox" id="annPinned" class="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer">
+                        <label for="annPinned" class="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">📌 ปักหมุดประกาศนี้ไว้ด้านบนสุด</label>
                     </div>
 
                     <div>
@@ -119,8 +138,28 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">เนื้อหาประกาศ <span class="text-red-500">*</span></label>
-                        <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-none transition-all shadow-sm leading-relaxed"></textarea>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">เนื้อหาประกาศ <span class="text-red-500">*</span></label>
+                            <span class="text-[10px] text-slate-400">รองรับการใส่ลิงก์เว็บไซต์หรือ URL</span>
+                        </div>
+                        <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศ หรือแทรกลิงก์ (เช่น https://example.com)..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-none transition-all shadow-sm leading-relaxed"></textarea>
+                    </div>
+
+                    <!-- 2. ระบบกำหนดเวลาแสดงผลอัตโนมัติ -->
+                    <div class="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                            <i class="fas fa-clock mr-1 text-sky-500"></i> ตั้งเวลาแสดงผลประกาศ (เว้นว่างไว้หากต้องการให้แสดงทันทีและตลอดไป)
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <span class="text-[10px] text-slate-400 block mb-1">เริ่มแสดงผลตั้งแต่:</span>
+                                <input type="datetime-local" id="annPublishAt" class="w-full px-3 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none">
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block mb-1">สิ้นสุดการแสดงผล:</span>
+                                <input type="datetime-local" id="annExpiresAt" class="w-full px-3 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none">
+                            </div>
+                        </div>
                     </div>
 
                     <!-- ส่วนเลือกกลุ่มเป้าหมาย -->
@@ -360,17 +399,32 @@
                 const dateStr = new Date(a.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
                 const titleText = a.title || 'ประกาศจากทางโรงเรียน';
                 const category = a.category || a.announcement_type || 'general';
+                const priority = a.priority || 'normal';
+                const isPinned = a.is_pinned || false;
 
                 let categoryBadge = '';
-                if (category === 'exam') {
-                    categoryBadge = `<span class="bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-900"><i class="fas fa-file-pen mr-1"></i> แจ้งเปิดข้อสอบ</span>`;
+                if (category === 'activity') {
+                    categoryBadge = `<span class="bg-pink-50 dark:bg-pink-950/80 text-pink-600 dark:text-pink-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-pink-200 dark:border-pink-900"><i class="fas fa-calendar-star mr-1"></i> กิจกรรม</span>`;
+                } else if (category === 'maintenance') {
+                    categoryBadge = `<span class="bg-orange-50 dark:bg-orange-950/80 text-orange-600 dark:text-orange-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-orange-200 dark:border-orange-900"><i class="fas fa-screwdriver-wrench mr-1"></i> ซ่อมบำรุง</span>`;
+                } else if (category === 'exam') {
+                    categoryBadge = `<span class="bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-900"><i class="fas fa-file-pen mr-1"></i> เปิดข้อสอบ</span>`;
                 } else if (category === 'consult') {
-                    categoryBadge = `<span class="bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900"><i class="fas fa-comments mr-1"></i> เปิดระบบ Consult</span>`;
+                    categoryBadge = `<span class="bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900"><i class="fas fa-comments mr-1"></i> Consult</span>`;
                 } else if (category === 'video') {
-                    categoryBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-play-circle mr-1"></i> อัปโหลดคลิปใหม่</span>`;
+                    categoryBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-play-circle mr-1"></i> คลิปบทเรียน</span>`;
                 } else {
-                    categoryBadge = `<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700"><i class="fas fa-bullhorn mr-1"></i> ประกาศทั่วไป</span>`;
+                    categoryBadge = `<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700"><i class="fas fa-bullhorn mr-1"></i> ทั่วไป</span>`;
                 }
+
+                let priorityBadge = '';
+                if (priority === 'urgent') {
+                    priorityBadge = `<span class="bg-red-50 dark:bg-red-950/80 text-red-600 dark:text-red-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900"><i class="fas fa-fire mr-1"></i> ด่วนที่สุด</span>`;
+                } else if (priority === 'important') {
+                    priorityBadge = `<span class="bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-900"><i class="fas fa-star mr-1"></i> สำคัญ</span>`;
+                }
+
+                let pinnedBadge = isPinned ? `<span class="bg-sky-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm"><i class="fas fa-thumbtack mr-1"></i> ปักหมุด</span>` : '';
 
                 let targetBadge = '';
                 if (a.target_type === 'level') {
@@ -412,14 +466,16 @@
                         <div class="flex justify-between items-start mb-4 pl-3">
                             <div>
                                 <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                                    ${pinnedBadge}
                                     ${categoryBadge}
+                                    ${priorityBadge}
                                     ${targetBadge}
                                 </div>
                                 <h4 class="font-bold text-lg text-slate-900 dark:text-white">${titleText}</h4>
                                 <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5 mt-1"><i class="far fa-clock"></i> ${dateStr}</span>
                             </div>
                             <div class="flex gap-2">
-                                <button type="button" onclick="prepareEdit('${a.id}', '${safeTitle}', '${safeContent}', '${a.target_type || 'all'}', \`${a.target_value || ''}\`, '${category}')" class="action-btn-edit px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                <button type="button" onclick="prepareEdit('${a.id}', '${safeTitle}', '${safeContent}', '${a.target_type || 'all'}', \`${a.target_value || ''}\`, '${category}', '${priority}', ${isPinned}, '${a.publish_at || ''}', '${a.expires_at || ''}')" class="action-btn-edit px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer">
                                     <i class="fas fa-pen-to-square"></i> แก้ไข
                                 </button>
                                 <button type="button" onclick="deleteAnnouncement('${a.id}')" class="action-btn-delete px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer">
@@ -449,8 +505,12 @@
             e.preventDefault();
             const editId = document.getElementById('editAnnouncementId').value;
             const category = document.getElementById('annCategory').value;
+            const priority = document.getElementById('annPriority').value;
+            const isPinned = document.getElementById('annPinned').checked;
             const title = document.getElementById('annTitle').value;
             const content = document.getElementById('annContent').value;
+            const publishAt = document.getElementById('annPublishAt').value || null;
+            const expiresAt = document.getElementById('annExpiresAt').value || null;
             const targetType = document.getElementById('targetType').value;
             let targetValue = '';
 
@@ -489,7 +549,17 @@
                 }
             }
 
-            let payload = { title, content, category, target_type: targetType, target_value: targetValue };
+            let payload = { 
+                title, 
+                content, 
+                category, 
+                priority,
+                is_pinned: isPinned,
+                publish_at: publishAt,
+                expires_at: expiresAt,
+                target_type: targetType, 
+                target_value: targetValue 
+            };
             if (attachmentUrls.length > 0) {
                 payload.attachments = attachmentUrls;
             }
@@ -504,7 +574,6 @@
                     return;
                 }
 
-                // 🌟 บันทึก Log ฝั่ง Admin: แก้ไขประกาศ
                 if (typeof logSystemAction === 'function') {
                     await logSystemAction('ADMIN_UPDATE_ANNOUNCEMENT', `แอดมินแก้ไขประกาศ: ${title}`, { announcement_id: editId });
                 }
@@ -518,7 +587,6 @@
                 }
                 await mySupabase.from('notifications').insert([{ type: 'announcement', message: `${title}: ${content.substring(0, 50)}...` }]);
 
-                // 🌟 บันทึก Log ฝั่ง Admin: สร้างประกาศใหม่
                 if (typeof logSystemAction === 'function') {
                     await logSystemAction('ADMIN_CREATE_ANNOUNCEMENT', `แอดมินสร้างประกาศใหม่: ${title}`, { title: title, category: category });
                 }
@@ -530,11 +598,15 @@
             loadAnnouncements();
         }
 
-        function prepareEdit(id, title, content, targetType, targetValue, category) {
+        function prepareEdit(id, title, content, targetType, targetValue, category, priority, isPinned, publishAt, expiresAt) {
             document.getElementById('editAnnouncementId').value = id;
             document.getElementById('annCategory').value = category || 'general';
+            document.getElementById('annPriority').value = priority || 'normal';
+            document.getElementById('annPinned').checked = isPinned === 'true' || isPinned === true;
             document.getElementById('annTitle').value = title;
             document.getElementById('annContent').value = content.replace(/\\n/g, '\n');
+            document.getElementById('annPublishAt').value = publishAt && publishAt !== 'null' ? publishAt.slice(0, 16) : '';
+            document.getElementById('annExpiresAt').value = expiresAt && expiresAt !== 'null' ? expiresAt.slice(0, 16) : '';
             document.getElementById('targetType').value = targetType;
             handleTargetTypeChange();
 
@@ -561,6 +633,8 @@
             document.getElementById('announcementForm').reset();
             document.getElementById('editAnnouncementId').value = '';
             document.getElementById('annCategory').value = 'general';
+            document.getElementById('annPriority').value = 'normal';
+            document.getElementById('annPinned').checked = false;
             document.getElementById('formTitle').textContent = 'สร้างประกาศใหม่';
             document.getElementById('cancelEditBtn').classList.add('hidden');
             document.querySelectorAll('input[name="courseCheckbox"], input[name="studentCheckbox"]').forEach(cb => cb.checked = false);
@@ -581,7 +655,6 @@
             if (res.isConfirmed) {
                 const { error } = await mySupabase.from('announcements').delete().eq('id', id);
 
-                // 🌟 บันทึก Log ฝั่ง Admin: ลบประกาศ
                 if (!error && typeof logSystemAction === 'function') {
                     await logSystemAction('ADMIN_DELETE_ANNOUNCEMENT', `แอดมินลบประกาศ ID: ${id}`, { announcement_id: id });
                 }
