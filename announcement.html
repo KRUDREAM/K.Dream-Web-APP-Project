@@ -10,6 +10,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- โหลด Marked.js สำหรับแปลง Markdown ฝั่งนักเรียน -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <!-- AUTH GUARD -->
     <script>
@@ -64,6 +66,17 @@
         .action-btn-edit:hover { background-color: #0284c7; color: #ffffff; }
         .action-btn-delete { background-color: rgba(239, 68, 68, 0.1); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.2); }
         .action-btn-delete:hover { background-color: #dc2626; color: #ffffff; }
+
+        /* สไตล์แต่ง Prose (Markdown Output) ให้สวยงามและเข้ากับ Tailwind */
+        .prose h1 { font-size: 1.5rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .prose h2 { font-size: 1.25rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .prose h3 { font-size: 1.1rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .prose strong { font-weight: bold; }
+        .prose em { font-style: italic; }
+        .prose blockquote { border-left: 4px solid #0284c7; padding-left: 1rem; color: #64748b; margin: 0.5rem 0; background: rgba(2, 132, 199, 0.05); padding-top: 0.25rem; padding-bottom: 0.25rem; border-radius: 0 8px 8px 0; }
+        .prose ul { list-style-type: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+        .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+        .prose p { margin-bottom: 0.5rem; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
@@ -281,7 +294,7 @@
             if (themeIcon) themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-async function initPage() {
+        async function initPage() {
             const urlParams = new URLSearchParams(window.location.search);
             currentStudentId = urlParams.get('student_id') || urlParams.get('id') || localStorage.getItem('student_id') || localStorage.getItem('id');
             userRole = localStorage.getItem('role') || localStorage.getItem('user_role') || (currentStudentId ? 'student' : 'admin');
@@ -300,7 +313,6 @@ async function initPage() {
 
             await fetchCoursesAndStudents();
 
-            // ดึงข้อมูลการลงทะเบียนจากตาราง enrollments ด้วย student_id ที่ถูกต้อง
             if (currentStudentId) {
                 let enrollments = [];
                 try {
@@ -309,7 +321,6 @@ async function initPage() {
                 } catch(e) {}
 
                 enrolledCoursesList = enrollments;
-                console.log("Verified Enrolled Courses:", enrolledCoursesList);
             }
 
             await loadAnnouncements();
@@ -412,19 +423,16 @@ async function initPage() {
             }
         }
 
-function isAnnouncementForThisStudent(announcement) {
+        function isAnnouncementForThisStudent(announcement) {
             if (!announcement) return false;
-            // ถ้าเป็นแอดมินหรือครู ให้เห็นทั้งหมด
             if (userRole !== 'student') return true;
             
             const targetType = announcement.target_type || 'all';
 
-            // 1. ประกาศทั่วไป / ทุกคน (แสดงปกติ)
             if (targetType === 'all' || targetType === 'everyone' || !announcement.target_type) {
                 return true;
             }
 
-            // 2. ประกาศตามระดับชั้น
             if (targetType === 'level') {
                 const studentGrade = String(currentStudentData?.grade_level || currentStudentData?.grade || '').trim().toLowerCase();
                 const targetGrade = String(announcement.target_value || '').trim().toLowerCase();
@@ -432,7 +440,6 @@ function isAnnouncementForThisStudent(announcement) {
                 return studentGrade.includes(targetGrade) || targetGrade.includes(studentGrade);
             }
 
-            // 3. ประกาศรายบุคคล
             if (targetType === 'specific') {
                 const studentId = String(currentStudentData?.id || currentStudentData?.student_id || currentStudentId || '').trim();
                 const targetValue = String(announcement.target_value || '').trim();
@@ -440,7 +447,6 @@ function isAnnouncementForThisStudent(announcement) {
                 return targetValue.includes(studentId);
             }
 
-            // 4. ประกาศตามคอร์สเรียน (รองรับทั้งเทียบด้วย UUID, รหัสคอร์ส และชื่อคอร์ส)
             if (targetType === 'course') {
                 if (!Array.isArray(enrolledCoursesList) || enrolledCoursesList.length === 0) {
                     return false;
@@ -449,16 +455,13 @@ function isAnnouncementForThisStudent(announcement) {
                 const targetValue = String(announcement.target_value || '').trim().toLowerCase();
                 if (!targetValue) return false;
 
-                // ค่าที่แอดมินเลือกเก็บไว้ในประกาศ (อาจคั่นด้วยจุลภาค)
                 const targetParts = targetValue.split(',').map(id => id.trim()).filter(Boolean);
 
-                // ดึงรายชื่อคอร์สทั้งหมดที่นักเรียนลงทะเบียนจริง (แปลงทั้ง course_id และชื่อคอร์สที่เกี่ยวข้อง)
                 let studentValidIdentifiers = [];
                 enrolledCoursesList.forEach(e => {
                     const cId = String(e.course_id || e.courseid || '').trim().toLowerCase();
                     if (cId) {
                         studentValidIdentifiers.push(cId);
-                        // ถ้ามี mapping ชื่อคอร์สหรือรหัสคอร์สจาก coursesMap ให้ดึงมาใส่ด้วย
                         const courseObj = allCoursesList.find(c => String(c.id).toLowerCase() === cId);
                         if (courseObj) {
                             if (courseObj.title) studentValidIdentifiers.push(String(courseObj.title).trim().toLowerCase());
@@ -468,7 +471,6 @@ function isAnnouncementForThisStudent(announcement) {
                     }
                 });
 
-                // ตรวจสอบว่า targetParts ของประกาศ ตรงกับคอร์สที่นักเรียนลงทะเบียนหรือไม่
                 const isMatch = targetParts.some(tp => 
                     studentValidIdentifiers.some(sv => sv === tp || sv.includes(tp) || tp.includes(sv))
                 );
@@ -575,6 +577,20 @@ function isAnnouncementForThisStudent(announcement) {
                     attachmentsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">${filesList}</div>`;
                 }
 
+                // --- แปลง Markdown อย่างปลอดภัยสำหรับฝั่งนักเรียน ---
+                let renderedContent = a.content || '';
+                try {
+                    if (typeof marked !== 'undefined') {
+                        if (typeof marked.parse === 'function') {
+                            renderedContent = marked.parse(a.content || '');
+                        } else if (typeof marked === 'function') {
+                            renderedContent = marked(a.content || '');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Markdown parse error:', err);
+                }
+
                 const safeTitle = (a.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const safeContent = (a.content || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\r?\n/g, '\\n');
 
@@ -607,7 +623,8 @@ function isAnnouncementForThisStudent(announcement) {
                             ${adminButtons}
                         </div>
                         <div>
-                            <div class="text-slate-700 dark:text-slate-200 text-sm whitespace-pre-line leading-relaxed bg-slate-50 dark:bg-darkinput/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">${a.content}</div>
+                            <!-- เรนเดอร์ Markdown ผลลัพธ์ฝั่งนักเรียน -->
+                            <div class="prose dark:prose-invert text-slate-700 dark:text-slate-200 text-sm leading-relaxed bg-slate-50 dark:bg-darkinput/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">${renderedContent}</div>
                             ${attachmentsHtml}
                         </div>
                     </div>
