@@ -82,7 +82,7 @@
 </head>
 <body class="bg-slate-100/70 dark:bg-darkbg min-h-screen transition-colors duration-300 text-slate-800 dark:text-slate-100 pb-24">
 
-    <!-- Top Navigation (Optimized for Mobile) -->
+    <!-- Top Navigation -->
     <nav class="glass-nav fixed w-full top-0 z-50">
         <div class="max-w-4xl mx-auto px-3 sm:px-6">
             <div class="flex justify-between h-16 sm:h-20 items-center gap-2">
@@ -97,9 +97,14 @@
                         <p class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium truncate" id="studentWelcomeText">กำลังตรวจสอบข้อมูล...</p>
                     </div>
                 </div>
-                <button id="themeToggle" class="w-10 h-10 sm:w-11 sm:h-11 flex-shrink-0 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:border-sky-500 transition-all">
-                    <i class="fas fa-moon text-sm sm:text-base" id="themeIcon"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="scrollToBookingBtn" onclick="scrollToMyBooking()" class="hidden px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition-all items-center gap-1.5">
+                        <i class="fas fa-bookmark"></i> คิวของฉัน
+                    </button>
+                    <button id="themeToggle" class="w-10 h-10 sm:w-11 sm:h-11 flex-shrink-0 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:border-sky-500 transition-all">
+                        <i class="fas fa-moon text-sm sm:text-base" id="themeIcon"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </nav>
@@ -154,6 +159,11 @@
                         <span class="text-[10px] sm:text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-2.5 py-0.5 rounded-full">จองสำเร็จแล้ว (สิทธิ์ของคุณ)</span>
                         <h3 class="font-extrabold text-sm sm:text-xl text-slate-900 dark:text-white mt-1" id="mySlotTimeText">-</h3>
                     </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="copyBookingDetails()" class="px-3.5 py-2 bg-white dark:bg-darkinput hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold transition-all border border-emerald-500/30 shadow-sm flex items-center gap-1.5">
+                        <i class="fas fa-copy"></i> คัดลอกเวลา
+                    </button>
                 </div>
             </div>
             <div class="flex items-start gap-2.5 bg-amber-500/10 dark:bg-amber-500/5 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-amber-500/20 text-amber-800 dark:text-amber-300 text-[11px] sm:text-xs font-medium">
@@ -217,7 +227,14 @@
                             ช่วงเวลาว่างวันที่: <span id="selectedDateText" class="text-sky-600 dark:text-sky-400 font-black">-</span>
                         </h3>
                     </div>
-                    <span class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-xl text-xs font-bold border border-sky-500/20" id="slotCountBadge">0 ช่วงเวลาว่าง</span>
+                    <div class="flex items-center gap-2">
+                        <div class="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-darkinput p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                            <button onclick="setSlotFilter('all')" id="filter-all" class="px-2.5 py-1 rounded-lg font-bold bg-sky-600 text-white transition-all shadow-sm">ทั้งหมด</button>
+                            <button onclick="setSlotFilter('morning')" id="filter-morning" class="px-2.5 py-1 rounded-lg font-bold text-slate-600 dark:text-slate-300 transition-all">เช้า (< 12:00)</button>
+                            <button onclick="setSlotFilter('afternoon')" id="filter-afternoon" class="px-2.5 py-1 rounded-lg font-bold text-slate-600 dark:text-slate-300 transition-all">บ่าย (≥ 12:00)</button>
+                        </div>
+                        <span class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-xl text-xs font-bold border border-sky-500/20" id="slotCountBadge">0 ช่วงเวลาว่าง</span>
+                    </div>
                 </div>
                 <div id="availableSlotsContainer" class="grid grid-cols-1 gap-3">
                     <div class="col-span-full text-center py-10 text-slate-400 text-xs">
@@ -238,7 +255,7 @@
         let currentStudentId = null;
         let studentProfile = null;
         let allAvailableSlots = [];
-        let allTotalSlots = []; // เก็บ Slot ทั้งหมด (รวมที่จองแล้วและว่าง) สำหรับคำนวณสถิติ
+        let allTotalSlots = []; 
         let systemSettings = null;
         let myCurrentBooking = null;
         let hasValidCourseAccess = false;
@@ -246,6 +263,7 @@
         let displayedYear = new Date().getFullYear();
         let displayedMonth = new Date().getMonth();
         let selectedDateStr = new Date().toISOString().split('T')[0];
+        let currentSlotFilter = 'all';
         let countdownInterval = null;
 
         const htmlElement = document.documentElement;
@@ -446,16 +464,38 @@
             myCurrentBooking = data;
             const myBookingSection = document.getElementById('myBookingSection');
             const bookingInterface = document.getElementById('bookingInterface');
+            const scrollToBookingBtn = document.getElementById('scrollToBookingBtn');
 
             if (myCurrentBooking) {
                 myBookingSection.classList.remove('hidden');
+                scrollToBookingBtn.classList.remove('hidden');
                 const startStr = new Date(myCurrentBooking.start_time).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
                 const endStr = new Date(myCurrentBooking.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
                 document.getElementById('mySlotTimeText').textContent = `${startStr} - ${endStr} น.`;
                 bookingInterface.classList.add('hidden');
             } else {
                 myBookingSection.classList.add('hidden');
+                scrollToBookingBtn.classList.add('hidden');
             }
+        }
+
+        function scrollToMyBooking() {
+            const el = document.getElementById('myBookingSection');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('ring-4', 'ring-emerald-500/50');
+                setTimeout(() => el.classList.remove('ring-4', 'ring-emerald-500/50'), 1500);
+            }
+        }
+
+        function copyBookingDetails() {
+            if (!myCurrentBooking) return;
+            const startStr = new Date(myCurrentBooking.start_time).toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' });
+            const endStr = new Date(myCurrentBooking.end_time).toLocaleTimeString('th-TH', { timeStyle: 'short' });
+            const textToCopy = `นัดหมาย Consult อาจารย์ KRUDREAM LAND วันที่ ${startStr} - ${endStr} น.`;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                Swal.fire({ icon: 'success', title: 'คัดลอกเวลาเรียบร้อย!', text: textToCopy, timer: 1500, showConfirmButton: false });
+            });
         }
 
         async function loadAvailableSlots() {
@@ -464,7 +504,6 @@
             const pruneHours = systemSettings?.prune_hours || 24;
             const pruneThreshold = new Date(now.getTime() + (pruneHours * 3600000)).toISOString();
 
-            // 1. โหลด Slot ทั้งหมดในอนาคต (ที่ยังไม่หมดเวลา) มาคำนวณสถิติภาพรวม
             const { data: totalData } = await mySupabase
                 .from('consult_slots')
                 .select('*')
@@ -472,7 +511,6 @@
 
             allTotalSlots = totalData || [];
 
-            // 2. โหลดเฉพาะ Slot ที่ว่างและผ่านเงื่อนไข prune threshold
             const { data: availableData } = await mySupabase
                 .from('consult_slots')
                 .select('*')
@@ -482,7 +520,6 @@
 
             allAvailableSlots = availableData || [];
 
-            // อัปเดตตัวเลขแสดงผลการ์ดสถิติ Realtime ด้านบน
             const totalCount = allTotalSlots.length;
             const remainingCount = allAvailableSlots.length;
             document.getElementById('totalSlotsCount').textContent = `${totalCount} ช่วงเวลา`;
@@ -562,16 +599,40 @@
             renderSlotsForSelectedDate();
         }
 
+        function setSlotFilter(type) {
+            currentSlotFilter = type;
+            ['all', 'morning', 'afternoon'].forEach(f => {
+                const btn = document.getElementById('filter-' + f);
+                if (btn) {
+                    btn.className = f === type ? 'px-2.5 py-1 rounded-lg font-bold bg-sky-600 text-white transition-all shadow-sm' : 'px-2.5 py-1 rounded-lg font-bold text-slate-600 dark:text-slate-300 transition-all';
+                }
+            });
+            renderSlotsForSelectedDate();
+        }
+
         function renderSlotsForSelectedDate() {
             const container = document.getElementById('availableSlotsContainer');
             const dateFormatted = new Date(selectedDateStr).toLocaleDateString('th-TH', { dateStyle: 'long' });
             document.getElementById('selectedDateText').textContent = dateFormatted;
 
-            const filtered = allAvailableSlots.filter(s => s.start_time.startsWith(selectedDateStr));
+            let filtered = allAvailableSlots.filter(s => s.start_time.startsWith(selectedDateStr));
+
+            if (currentSlotFilter === 'morning') {
+                filtered = filtered.filter(s => {
+                    const hour = new Date(s.start_time).getHours();
+                    return hour < 12;
+                });
+            } else if (currentSlotFilter === 'afternoon') {
+                filtered = filtered.filter(s => {
+                    const hour = new Date(s.start_time).getHours();
+                    return hour >= 12;
+                });
+            }
+
             document.getElementById('slotCountBadge').textContent = `${filtered.length} ช่วงเวลาว่าง`;
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 text-xs"><i class="far fa-calendar-times text-3xl mb-2 block opacity-40"></i> ไม่มีช่วงเวลาว่างสำหรับวันที่เลือก</div>`;
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 text-xs"><i class="far fa-calendar-times text-3xl mb-2 block opacity-40"></i> ไม่มีช่วงเวลาว่างสำหรับตัวกรองที่เลือก</div>`;
                 return;
             }
 
@@ -587,21 +648,24 @@
                             </div>
                             <div class="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pl-4">● สถานะ: ว่าง</div>
                         </div>
-                        <button onclick="bookSlot('${s.id}')" class="w-full sm:w-auto px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-sky-500/25 transition-all active:scale-95">จองเวลานี้</button>
+                        <button onclick="bookSlot('${s.id}', '${startStr}', '${endStr}')" class="w-full sm:w-auto px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-sky-500/25 transition-all active:scale-95">จองเวลานี้</button>
                     </div>
                 `;
             }).join('');
         }
 
-        async function bookSlot(slotId) {
+        async function bookSlot(slotId, startStr, endStr) {
             if (myCurrentBooking) {
                 Swal.fire('คุณมีคิวจองแล้ว', 'คุณได้จองสิทธิ์ Consult ไปแล้ว 1 สิทธิ์', 'warning');
                 return;
             }
 
+            const dateFormatted = new Date(selectedDateStr).toLocaleDateString('th-TH', { dateStyle: 'long' });
+
+            // 🌟 ปรับปรุงการยืนยันการจองให้แสดงเวลาที่เลือกชัดเจน พร้อมคงข้อความเดิมไว้
             const res = await Swal.fire({
                 title: 'ยืนยันการจองเวลานี้?',
-                text: 'เมื่อยืนยันแล้วจะไม่สามารถยกเลิกได้เอง หากต้องการเปลี่ยนเวลาต้องติดต่ออาจารย์',
+                html: `คุณต้องการจองเวลานัดหมาย:<br><b class="text-sky-600 dark:text-sky-400 text-sm">📅 ${dateFormatted}</b><br><b class="text-emerald-600 dark:text-emerald-400 text-sm">⏰ เวลา ${startStr} - ${endStr} น.</b><br><br><span class="text-xs text-slate-500">เมื่อยืนยันแล้วจะไม่สามารถยกเลิกได้เอง หากต้องการเปลี่ยนเวลาต้องติดต่ออาจารย์</span>`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#0ea5e9',
@@ -622,8 +686,8 @@
                 const { error } = await mySupabase.from('consult_slots').update({ status: 'booked', student_id: currentStudentId }).eq('id', slotId);
                 if (!error) {
                     await mySupabase.from('consult_quotas').upsert([{ student_id: currentStudentId, has_booked: true, booked_slot_id: slotId }], { onConflict: 'student_id' });
-                    await logStudentAction(`นักเรียน (${studentProfile.full_name || studentProfile.name}) ทำการจอง Slot เวลา Consult สำเร็จ`);
-                    Swal.fire({ icon: 'success', title: 'จองเวลา Consult สำเร็จ!', timer: 1500, showConfirmButton: false });
+                    await logStudentAction(`นักเรียน (${studentProfile.full_name || studentProfile.name}) ทำการจอง Slot เวลา Consult วันที่ ${dateFormatted} เวลา ${startStr}-${endStr} น. สำเร็จ`);
+                    Swal.fire({ icon: 'success', title: 'จองเวลา Consult สำเร็จ!', text: `นัดหมายวันที่ ${dateFormatted} เวลา ${startStr} - ${endStr} น.`, timer: 2000, showConfirmButton: false });
                     loadMyBooking();
                     loadAvailableSlots();
                 } else {
