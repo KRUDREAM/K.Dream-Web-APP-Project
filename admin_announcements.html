@@ -10,6 +10,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- เพิ่ม Marked.js สำหรับแปลง Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <!-- STRICT ADMIN AUTH GUARD -->
     <script>
@@ -59,6 +61,12 @@
         .action-btn-edit:hover { background-color: #0284c7; color: #ffffff; }
         .action-btn-delete { background-color: rgba(239, 68, 68, 0.1); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.2); }
         .action-btn-delete:hover { background-color: #dc2626; color: #ffffff; }
+        
+        /* สไตล์สำหรับ Scrollbar ในกล่องฟีดประกาศฝั่งขวา */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.5); }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
@@ -75,7 +83,7 @@
                             <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-bullhorn"></i></span>
                             ศูนย์รวมประกาศข่าวสาร (ผู้ดูแลระบบ)
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">จัดการประกาศ หมวดหมู่ ระดับความสำคัญ และตั้งเวลาแสดงผลอัตโนมัติ</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">รองรับ Markdown, จัดการหมวดหมู่ และตั้งเวลาแสดงผลอัตโนมัติ</p>
                     </div>
                 </div>
                 <button id="themeToggle" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
@@ -85,10 +93,10 @@
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            <!-- ฝั่งซ้าย: ฟอร์มสร้าง/แก้ไขประกาศ -->
+            <!-- ฝั่งซ้าย: ฟอร์มสร้าง/แก้ไขประกาศ (Sticky เลื่อนตามหน้าจอ) -->
             <div id="creatorSection" class="lg:col-span-5 modern-card p-8 rounded-3xl sticky top-28">
                 <div class="flex items-center gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div class="w-14 h-14 bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-sky-500/30">
@@ -96,7 +104,7 @@
                     </div>
                     <div>
                         <h2 class="text-xl font-bold text-slate-900 dark:text-white" id="formTitle">สร้างประกาศใหม่</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดประเภท ความสำคัญ และลิงก์เนื้อหา</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">รองรับ Markdown เช่น **ตัวหนา**, # หัวข้อ</p>
                     </div>
                 </div>
 
@@ -140,23 +148,23 @@
                     <div>
                         <div class="flex justify-between items-center mb-2">
                             <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">เนื้อหาประกาศ <span class="text-red-500">*</span></label>
-                            <span class="text-[10px] text-slate-400">รองรับการใส่ลิงก์เว็บไซต์หรือ URL</span>
+                            <span class="text-[10px] text-sky-600 dark:text-sky-400 font-bold">✨ รองรับ Markdown</span>
                         </div>
-                        <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียดประกาศ หรือแทรกลิงก์ (เช่น https://example.com)..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-none transition-all shadow-sm leading-relaxed"></textarea>
+                        <textarea id="annContent" required rows="4" placeholder="พิมพ์รายละเอียด (รองรับ **ตัวหนา**, # หัวข้อ, [ลิงก์](url))..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-none transition-all shadow-sm leading-relaxed"></textarea>
                     </div>
 
                     <!-- 2. ระบบกำหนดเวลาแสดงผลอัตโนมัติ -->
                     <div class="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                            <i class="fas fa-clock mr-1 text-sky-500"></i> ตั้งเวลาแสดงผลประกาศ (เว้นว่างไว้หากต้องการให้แสดงทันทีและตลอดไป)
+                            <i class="fas fa-clock mr-1 text-sky-500"></i> ตั้งเวลาแสดงผล (เว้นว่างไว้เพื่อแสดงทันที)
                         </label>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <span class="text-[10px] text-slate-400 block mb-1">เริ่มแสดงผลตั้งแต่:</span>
+                                <span class="text-[10px] text-slate-400 block mb-1">เริ่มแสดงผล:</span>
                                 <input type="datetime-local" id="annPublishAt" class="w-full px-3 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none">
                             </div>
                             <div>
-                                <span class="text-[10px] text-slate-400 block mb-1">สิ้นสุดการแสดงผล:</span>
+                                <span class="text-[10px] text-slate-400 block mb-1">สิ้นสุด:</span>
                                 <input type="datetime-local" id="annExpiresAt" class="w-full px-3 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none">
                             </div>
                         </div>
@@ -182,7 +190,7 @@
                         <!-- กล่องเลือกคอร์สเรียน (ถ้าเลือก course) -->
                         <div id="courseSelectContainer" class="hidden space-y-2">
                             <p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">เลือกคอร์สเรียนที่ต้องการ:</p>
-                            <div id="courseCheckboxes" class="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-white dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div id="courseCheckboxes" class="max-h-32 overflow-y-auto space-y-1.5 p-2 bg-white dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700 custom-scrollbar">
                                 <span class="text-xs text-slate-400">กำลังโหลดคอร์ส...</span>
                             </div>
                         </div>
@@ -193,7 +201,7 @@
                                 <p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">เลือกนักเรียนเป้าหมาย:</p>
                                 <input type="text" id="searchStudentInput" onkeyup="filterStudentCheckboxes()" placeholder="ค้นหาชื่อ/รหัส..." class="px-2.5 py-1 text-[11px] bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-lg outline-none w-36">
                             </div>
-                            <div id="studentCheckboxes" class="max-h-48 overflow-y-auto space-y-1.5 p-2 bg-white dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div id="studentCheckboxes" class="max-h-36 overflow-y-auto space-y-1.5 p-2 bg-white dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700 custom-scrollbar">
                                 <span class="text-xs text-slate-400">กำลังโหลดรายชื่อนักเรียน...</span>
                             </div>
                         </div>
@@ -202,7 +210,6 @@
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">แนบรูปภาพ / ไฟล์ (สูงสุด 5 ไฟล์)</label>
                         <input type="file" id="annFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-600 hover:file:bg-sky-100 dark:file:bg-slate-800 dark:file:text-sky-400 cursor-pointer">
-                        <p class="text-[11px] text-slate-400 mt-1">รูปภาพจะแสดงพรีวิวขนาดใหญ่ในฟีดทันที</p>
                     </div>
 
                     <div class="flex gap-3 pt-2">
@@ -216,17 +223,18 @@
                 </form>
             </div>
 
-            <!-- ฝั่งขวา: Feed ประกาศทั้งหมด -->
-            <div id="feedSection" class="lg:col-span-7 space-y-5">
-                <div class="flex justify-between items-center modern-card p-6 rounded-3xl">
-                    <h3 class="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-3">
-                        <span class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-sky-600 flex items-center justify-center text-sm"><i class="fas fa-history"></i></span>
+            <!-- ฝั่งขวา: Feed ประกาศทั้งหมด (ทำเป็น Scrollable Box ความสูงพอดีหน้าจอ ไม่ต้องเลื่อนไปล่างสุด) -->
+            <div id="feedSection" class="lg:col-span-7 flex flex-col h-[calc(100vh-140px)] sticky top-28">
+                <div class="flex justify-between items-center modern-card p-5 rounded-3xl mb-4 shrink-0">
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-3">
+                        <span class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-sky-600 flex items-center justify-center text-sm"><i class="fas fa-history"></i></span>
                         ประวัติประกาศทั้งหมด
                     </h3>
-                    <span id="annCount" class="text-xs bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 px-4 py-2 rounded-xl font-bold border border-sky-100 dark:border-sky-900/50">0 รายการ</span>
+                    <span id="annCount" class="text-xs bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 px-3.5 py-1.5 rounded-xl font-bold border border-sky-100 dark:border-sky-900/50">0 รายการ</span>
                 </div>
 
-                <div id="announcementFeed" class="space-y-4">
+                <!-- กล่องเลื่อนเฉพาะ Feed ประกาศ (ความสูงยืดหยุ่นตามจอ มี Scrollbar ในตัว) -->
+                <div id="announcementFeed" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar pb-10">
                     <div class="modern-card p-12 rounded-3xl text-center text-slate-400">
                         <i class="fas fa-spinner fa-spin text-3xl mb-3 text-sky-600"></i>
                         <p class="text-sm font-medium">กำลังโหลดประวัติประกาศ...</p>
@@ -445,25 +453,28 @@
                         if (isImage) {
                             return `
                                 <div class="relative group/img overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-darkinput cursor-pointer shadow-sm col-span-full" onclick="openImageModal('${url}')">
-                                    <img src="${url}" class="w-full max-h-72 object-cover group-hover/img:scale-[1.02] transition-transform duration-300">
+                                    <img src="${url}" class="w-full max-h-60 object-cover group-hover/img:scale-[1.02] transition-transform duration-300">
                                     <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
                                         <i class="fas fa-magnifying-glass-plus text-base"></i> คลิกเพื่อดูรูปขนาดเต็ม
                                     </div>
                                 </div>`;
                         } else {
-                            return `<a href="${url}" target="_blank" class="flex items-center gap-2 p-3.5 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-sky-600 hover:underline shadow-sm"><i class="fas fa-file-arrow-down text-base text-sky-500"></i> ไฟล์แนบ ${idx + 1}</a>`;
+                            return `<a href="${url}" target="_blank" class="flex items-center gap-2 p-3 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-sky-600 hover:underline shadow-sm"><i class="fas fa-file-arrow-down text-base text-sky-500"></i> ไฟล์แนบ ${idx + 1}</a>`;
                         }
                     }).join('');
                     attachmentsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">${filesList}</div>`;
                 }
 
+                // แปลง Markdown เป็น HTML สำหรับแสดงผล
+                const renderedContent = window.marked ? marked.parse(a.content || '') : (a.content || '');
+
                 const safeTitle = (a.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const safeContent = (a.content || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\r?\n/g, '\\n');
 
                 return `
-                    <div class="modern-card p-7 rounded-3xl relative overflow-hidden group">
+                    <div class="modern-card p-6 rounded-3xl relative overflow-hidden group">
                         <div class="absolute top-0 left-0 w-2.5 h-full bg-gradient-to-b from-sky-500 to-indigo-600"></div>
-                        <div class="flex justify-between items-start mb-4 pl-3">
+                        <div class="flex justify-between items-start mb-3 pl-3">
                             <div>
                                 <div class="flex items-center gap-2 mb-1.5 flex-wrap">
                                     ${pinnedBadge}
@@ -471,20 +482,21 @@
                                     ${priorityBadge}
                                     ${targetBadge}
                                 </div>
-                                <h4 class="font-bold text-lg text-slate-900 dark:text-white">${titleText}</h4>
-                                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5 mt-1"><i class="far fa-clock"></i> ${dateStr}</span>
+                                <h4 class="font-bold text-base text-slate-900 dark:text-white">${titleText}</h4>
+                                <span class="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mt-0.5"><i class="far fa-clock"></i> ${dateStr}</span>
                             </div>
                             <div class="flex gap-2">
-                                <button type="button" onclick="prepareEdit('${a.id}', '${safeTitle}', '${safeContent}', '${a.target_type || 'all'}', \`${a.target_value || ''}\`, '${category}', '${priority}', ${isPinned}, '${a.publish_at || ''}', '${a.expires_at || ''}')" class="action-btn-edit px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                <button type="button" onclick="prepareEdit('${a.id}', '${safeTitle}', '${safeContent}', '${a.target_type || 'all'}', \`${a.target_value || ''}\`, '${category}', '${priority}', ${isPinned}, '${a.publish_at || ''}', '${a.expires_at || ''}')" class="action-btn-edit px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer">
                                     <i class="fas fa-pen-to-square"></i> แก้ไข
                                 </button>
-                                <button type="button" onclick="deleteAnnouncement('${a.id}')" class="action-btn-delete px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                <button type="button" onclick="deleteAnnouncement('${a.id}')" class="action-btn-delete px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer">
                                     <i class="fas fa-trash-can"></i> ลบ
                                 </button>
                             </div>
                         </div>
                         <div class="pl-3">
-                            <div class="text-slate-700 dark:text-slate-200 text-sm whitespace-pre-line leading-relaxed bg-slate-50 dark:bg-darkinput/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">${a.content}</div>
+                            <!-- จุดเรนเดอร์ Markdown เนื้อหาประกาศ -->
+                            <div class="prose dark:prose-invert text-slate-700 dark:text-slate-200 text-sm leading-relaxed bg-slate-50 dark:bg-darkinput/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">${renderedContent}</div>
                             ${attachmentsHtml}
                         </div>
                     </div>
