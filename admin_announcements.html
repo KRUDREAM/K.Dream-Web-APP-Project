@@ -10,7 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- โหลด Marked.js แบบถูกต้องและเสถียร -->
+    <!-- โหลด Marked.js แบบระบุเวอร์ชันที่เสถียร -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <!-- STRICT ADMIN AUTH GUARD -->
@@ -62,7 +62,18 @@
         .action-btn-delete { background-color: rgba(239, 68, 68, 0.1); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.2); }
         .action-btn-delete:hover { background-color: #dc2626; color: #ffffff; }
         
-        /* สไตล์สำหรับ Scrollbar ในกล่องฟีดประกาศฝั่งขวา */
+        /* สไตล์แต่ง Prose (Markdown Output) ให้สวยงามและเข้ากับ Tailwind */
+        .prose h1 { font-size: 1.5rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .prose h2 { font-size: 1.25rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .prose h3 { font-size: 1.1rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .prose strong { font-weight: bold; }
+        .prose em { font-style: italic; }
+        .prose blockquote { border-left: 4px solid #0284c7; padding-left: 1rem; color: #64748b; margin: 0.5rem 0; background: rgba(2, 132, 199, 0.05); padding-top: 0.25rem; padding-bottom: 0.25rem; border-radius: 0 8px 8px 0; }
+        .prose ul { list-style-type: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+        .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+        .prose p { margin-bottom: 0.5rem; }
+
+        /* สไตล์ Scrollbar ในกล่องฟีดประกาศฝั่งขวา */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 4px; }
@@ -383,135 +394,137 @@
             }
         }
 
-async function loadAnnouncements() {
-    const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
-    
-    const feed = document.getElementById('announcementFeed');
-    if (error || !anns || anns.length === 0) {
-        feed.innerHTML = `
-            <div class="modern-card p-12 rounded-3xl text-center text-slate-400">
-                <div class="w-16 h-16 bg-sky-50 dark:bg-slate-800 text-sky-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
-                    <i class="fas fa-bullhorn"></i>
-                </div>
-                <h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ยังไม่มีประกาศในระบบ</h4>
-                <p class="text-xs text-slate-400">ประกาศใหม่จะแสดงขึ้นที่นี่ทันทีเมื่อมีการโพสต์</p>
-            </div>
-        `;
-        document.getElementById('annCount').textContent = '0 รายการ';
-        return;
-    }
-
-    document.getElementById('annCount').textContent = `${anns.length} รายการ`;
-
-    feed.innerHTML = anns.map(a => {
-        const dateStr = new Date(a.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
-        const titleText = a.title || 'ประกาศจากทางโรงเรียน';
-        const category = a.category || a.announcement_type || 'general';
-        const priority = a.priority || 'normal';
-        const isPinned = a.is_pinned || false;
-
-        let categoryBadge = '';
-        if (category === 'activity') {
-            categoryBadge = `<span class="bg-pink-50 dark:bg-pink-950/80 text-pink-600 dark:text-pink-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-pink-200 dark:border-pink-900"><i class="fas fa-calendar-star mr-1"></i> กิจกรรม</span>`;
-        } else if (category === 'maintenance') {
-            categoryBadge = `<span class="bg-orange-50 dark:bg-orange-950/80 text-orange-600 dark:text-orange-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-orange-200 dark:border-orange-900"><i class="fas fa-screwdriver-wrench mr-1"></i> ซ่อมบำรุง</span>`;
-        } else if (category === 'exam') {
-            categoryBadge = `<span class="bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-900"><i class="fas fa-file-pen mr-1"></i> เปิดข้อสอบ</span>`;
-        } else if (category === 'consult') {
-            categoryBadge = `<span class="bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900"><i class="fas fa-comments mr-1"></i> Consult</span>`;
-        } else if (category === 'video') {
-            categoryBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-play-circle mr-1"></i> คลิปบทเรียน</span>`;
-        } else {
-            categoryBadge = `<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700"><i class="fas fa-bullhorn mr-1"></i> ทั่วไป</span>`;
-        }
-
-        let priorityBadge = '';
-        if (priority === 'urgent') {
-            priorityBadge = `<span class="bg-red-50 dark:bg-red-950/80 text-red-600 dark:text-red-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900"><i class="fas fa-fire mr-1"></i> ด่วนที่สุด</span>`;
-        } else if (priority === 'important') {
-            priorityBadge = `<span class="bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-900"><i class="fas fa-star mr-1"></i> สำคัญ</span>`;
-        }
-
-        let pinnedBadge = isPinned ? `<span class="bg-sky-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm"><i class="fas fa-thumbtack mr-1"></i> ปักหมุด</span>` : '';
-
-        let targetBadge = '';
-        if (a.target_type === 'level') {
-            targetBadge = `<span class="bg-purple-50 dark:bg-purple-950/80 text-purple-600 dark:text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-purple-200 dark:border-purple-900"><i class="fas fa-layer-group mr-1"></i> ชั้น: ${a.target_value || '-'}</span>`;
-        } else if (a.target_type === 'course') {
-            const courseNameDisplay = formatCourseTargetValue(a.target_value);
-            targetBadge = `<span class="bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-900"><i class="fas fa-book mr-1"></i> คอร์ส: ${courseNameDisplay}</span>`;
-        } else if (a.target_type === 'specific') {
-            targetBadge = `<span class="bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900"><i class="fas fa-user mr-1"></i> รายบุคคล</span>`;
-        } else {
-            targetBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-globe mr-1"></i> ทุกคน</span>`;
-        }
-
-        let attachmentsHtml = '';
-        if (a.attachments && Array.isArray(a.attachments) && a.attachments.length > 0) {
-            let filesList = a.attachments.map((url, idx) => {
-                const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
-                if (isImage) {
-                    return `
-                        <div class="relative group/img overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-darkinput cursor-pointer shadow-sm col-span-full" onclick="openImageModal('${url}')">
-                            <img src="${url}" class="w-full max-h-60 object-cover group-hover/img:scale-[1.02] transition-transform duration-300">
-                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
-                                <i class="fas fa-magnifying-glass-plus text-base"></i> คลิกเพื่อดูรูปขนาดเต็ม
-                            </div>
-                        </div>`;
-                } else {
-                    return `<a href="${url}" target="_blank" class="flex items-center gap-2 p-3 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-sky-600 hover:underline shadow-sm"><i class="fas fa-file-arrow-down text-base text-sky-500"></i> ไฟล์แนบ ${idx + 1}</a>`;
-                }
-            }).join('');
-            attachmentsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">${filesList}</div>`;
-        }
-
-        // --- จุดสำคัญ: ตรวจสอบและแปลง Markdown ให้ออกมาเป็น HTML ---
-        let renderedContent = a.content || '';
-        try {
-            if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
-                renderedContent = marked.parse(a.content || '');
-            } else if (typeof marked === 'function') {
-                renderedContent = marked(a.content || '');
-            }
-        } catch (err) {
-            console.error('Markdown parse error:', err);
-        }
-
-        const safeTitle = (a.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const safeContent = (a.content || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\r?\n/g, '\\n');
-
-        return `
-            <div class="modern-card p-6 rounded-3xl relative overflow-hidden group">
-                <div class="absolute top-0 left-0 w-2.5 h-full bg-gradient-to-b from-sky-500 to-indigo-600"></div>
-                <div class="flex justify-between items-start mb-3 pl-3">
-                    <div>
-                        <div class="flex items-center gap-2 mb-1.5 flex-wrap">
-                            ${pinnedBadge}
-                            ${categoryBadge}
-                            ${priorityBadge}
-                            ${targetBadge}
+        async function loadAnnouncements() {
+            const { data: anns, error } = await mySupabase.from('announcements').select('*').order('created_at', { ascending: false });
+            
+            const feed = document.getElementById('announcementFeed');
+            if (error || !anns || anns.length === 0) {
+                feed.innerHTML = `
+                    <div class="modern-card p-12 rounded-3xl text-center text-slate-400">
+                        <div class="w-16 h-16 bg-sky-50 dark:bg-slate-800 text-sky-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                            <i class="fas fa-bullhorn"></i>
                         </div>
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white">${titleText}</h4>
-                        <span class="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mt-0.5"><i class="far fa-clock"></i> ${dateStr}</span>
+                        <h4 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">ยังไม่มีประกาศในระบบ</h4>
+                        <p class="text-xs text-slate-400">ประกาศใหม่จะแสดงขึ้นที่นี่ทันทีเมื่อมีการโพสต์</p>
                     </div>
-                    <div class="flex gap-2">
-                        <button type="button" onclick="prepareEdit('${a.id}', '${safeTitle}', '${safeContent}', '${a.target_type || 'all'}', \`${a.target_value || ''}\`, '${category}', '${priority}', ${isPinned}, '${a.publish_at || ''}', '${a.expires_at || ''}')" class="action-btn-edit px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer">
-                            <i class="fas fa-pen-to-square"></i> แก้ไข
-                        </button>
-                        <button type="button" onclick="deleteAnnouncement('${a.id}')" class="action-btn-delete px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer">
-                            <i class="fas fa-trash-can"></i> ลบ
-                        </button>
+                `;
+                document.getElementById('annCount').textContent = '0 รายการ';
+                return;
+            }
+
+            document.getElementById('annCount').textContent = `${anns.length} รายการ`;
+
+            feed.innerHTML = anns.map(a => {
+                const dateStr = new Date(a.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+                const titleText = a.title || 'ประกาศจากทางโรงเรียน';
+                const category = a.category || a.announcement_type || 'general';
+                const priority = a.priority || 'normal';
+                const isPinned = a.is_pinned || false;
+
+                let categoryBadge = '';
+                if (category === 'activity') {
+                    categoryBadge = `<span class="bg-pink-50 dark:bg-pink-950/80 text-pink-600 dark:text-pink-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-pink-200 dark:border-pink-900"><i class="fas fa-calendar-star mr-1"></i> กิจกรรม</span>`;
+                } else if (category === 'maintenance') {
+                    categoryBadge = `<span class="bg-orange-50 dark:bg-orange-950/80 text-orange-600 dark:text-orange-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-orange-200 dark:border-orange-900"><i class="fas fa-screwdriver-wrench mr-1"></i> ซ่อมบำรุง</span>`;
+                } else if (category === 'exam') {
+                    categoryBadge = `<span class="bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-900"><i class="fas fa-file-pen mr-1"></i> เปิดข้อสอบ</span>`;
+                } else if (category === 'consult') {
+                    categoryBadge = `<span class="bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900"><i class="fas fa-comments mr-1"></i> Consult</span>`;
+                } else if (category === 'video') {
+                    categoryBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-play-circle mr-1"></i> คลิปบทเรียน</span>`;
+                } else {
+                    categoryBadge = `<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700"><i class="fas fa-bullhorn mr-1"></i> ทั่วไป</span>`;
+                }
+
+                let priorityBadge = '';
+                if (priority === 'urgent') {
+                    priorityBadge = `<span class="bg-red-50 dark:bg-red-950/80 text-red-600 dark:text-red-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900"><i class="fas fa-fire mr-1"></i> ด่วนที่สุด</span>`;
+                } else if (priority === 'important') {
+                    priorityBadge = `<span class="bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-900"><i class="fas fa-star mr-1"></i> สำคัญ</span>`;
+                }
+
+                let pinnedBadge = isPinned ? `<span class="bg-sky-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm"><i class="fas fa-thumbtack mr-1"></i> ปักหมุด</span>` : '';
+
+                let targetBadge = '';
+                if (a.target_type === 'level') {
+                    targetBadge = `<span class="bg-purple-50 dark:bg-purple-950/80 text-purple-600 dark:text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-purple-200 dark:border-purple-900"><i class="fas fa-layer-group mr-1"></i> ชั้น: ${a.target_value || '-'}</span>`;
+                } else if (a.target_type === 'course') {
+                    const courseNameDisplay = formatCourseTargetValue(a.target_value);
+                    targetBadge = `<span class="bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-900"><i class="fas fa-book mr-1"></i> คอร์ส: ${courseNameDisplay}</span>`;
+                } else if (a.target_type === 'specific') {
+                    targetBadge = `<span class="bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900"><i class="fas fa-user mr-1"></i> รายบุคคล</span>`;
+                } else {
+                    targetBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-globe mr-1"></i> ทุกคน</span>`;
+                }
+
+                let attachmentsHtml = '';
+                if (a.attachments && Array.isArray(a.attachments) && a.attachments.length > 0) {
+                    let filesList = a.attachments.map((url, idx) => {
+                        const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
+                        if (isImage) {
+                            return `
+                                <div class="relative group/img overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-darkinput cursor-pointer shadow-sm col-span-full" onclick="openImageModal('${url}')">
+                                    <img src="${url}" class="w-full max-h-60 object-cover group-hover/img:scale-[1.02] transition-transform duration-300">
+                                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                                        <i class="fas fa-magnifying-glass-plus text-base"></i> คลิกเพื่อดูรูปขนาดเต็ม
+                                    </div>
+                                </div>`;
+                        } else {
+                            return `<a href="${url}" target="_blank" class="flex items-center gap-2 p-3 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-sky-600 hover:underline shadow-sm"><i class="fas fa-file-arrow-down text-base text-sky-500"></i> ไฟล์แนบ ${idx + 1}</a>`;
+                        }
+                    }).join('');
+                    attachmentsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">${filesList}</div>`;
+                }
+
+                // --- แปลง Markdown อย่างปลอดภัย ---
+                let renderedContent = a.content || '';
+                try {
+                    if (typeof marked !== 'undefined') {
+                        if (typeof marked.parse === 'function') {
+                            renderedContent = marked.parse(a.content || '');
+                        } else if (typeof marked === 'function') {
+                            renderedContent = marked(a.content || '');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Markdown parse error:', err);
+                }
+
+                const safeTitle = (a.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safeContent = (a.content || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\r?\n/g, '\\n');
+
+                return `
+                    <div class="modern-card p-6 rounded-3xl relative overflow-hidden group">
+                        <div class="absolute top-0 left-0 w-2.5 h-full bg-gradient-to-b from-sky-500 to-indigo-600"></div>
+                        <div class="flex justify-between items-start mb-3 pl-3">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                                    ${pinnedBadge}
+                                    ${categoryBadge}
+                                    ${priorityBadge}
+                                    ${targetBadge}
+                                </div>
+                                <h4 class="font-bold text-base text-slate-900 dark:text-white">${titleText}</h4>
+                                <span class="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mt-0.5"><i class="far fa-clock"></i> ${dateStr}</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="prepareEdit('${a.id}', '${safeTitle}', '${safeContent}', '${a.target_type || 'all'}', \`${a.target_value || ''}\`, '${category}', '${priority}', ${isPinned}, '${a.publish_at || ''}', '${a.expires_at || ''}')" class="action-btn-edit px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer">
+                                    <i class="fas fa-pen-to-square"></i> แก้ไข
+                                </button>
+                                <button type="button" onclick="deleteAnnouncement('${a.id}')" class="action-btn-delete px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer">
+                                    <i class="fas fa-trash-can"></i> ลบ
+                                </button>
+                            </div>
+                        </div>
+                        <div class="pl-3">
+                            <!-- จุดเรนเดอร์ Markdown -->
+                            <div class="prose dark:prose-invert text-slate-700 dark:text-slate-200 text-sm leading-relaxed bg-slate-50 dark:bg-darkinput/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">${renderedContent}</div>
+                            ${attachmentsHtml}
+                        </div>
                     </div>
-                </div>
-                <div class="pl-3">
-                    <!-- แสดงผล Markdown ที่แปลงแล้ว -->
-                    <div class="prose dark:prose-invert text-slate-700 dark:text-slate-200 text-sm leading-relaxed bg-slate-50 dark:bg-darkinput/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">${renderedContent}</div>
-                    ${attachmentsHtml}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
+                `;
+            }).join('');
+        }
 
         function openImageModal(url) {
             document.getElementById('modalImg').src = url;
@@ -645,7 +658,7 @@ async function loadAnnouncements() {
                 });
             }
 
-            document.getElementById('formTitle').textContent = 'แก้ไขประกาศ';
+            document.getElementById('formTitle').textContent = 'แก้ไขประกาศเดิม';
             document.getElementById('cancelEditBtn').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
