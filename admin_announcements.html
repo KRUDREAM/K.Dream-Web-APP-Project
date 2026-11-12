@@ -10,7 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- เพิ่ม Marked.js สำหรับแปลง Markdown -->
+    <!-- โหลด Marked.js แบบถูกต้องและเสถียร -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <!-- STRICT ADMIN AUTH GUARD -->
@@ -465,8 +465,15 @@
                     attachmentsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">${filesList}</div>`;
                 }
 
-                // แปลง Markdown เป็น HTML สำหรับแสดงผล
-                const renderedContent = window.marked ? marked.parse(a.content || '') : (a.content || '');
+                // แปลง Markdown เป็น HTML อย่างถูกต้องปลอดภัยด้วย marked.parse()
+                let renderedContent = a.content || '';
+                try {
+                    if (window.marked && typeof marked.parse === 'function') {
+                        renderedContent = marked.parse(a.content || '');
+                    }
+                } catch (err) {
+                    console.error('Markdown parse error:', err);
+                }
 
                 const safeTitle = (a.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const safeContent = (a.content || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\r?\n/g, '\\n');
