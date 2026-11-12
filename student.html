@@ -9,10 +9,10 @@
     <!-- เชื่อมโยง Web App Manifest ที่นี่ -->
     <link rel="manifest" href="manifest.json">
     
-    <!-- ตั้งค่าสี Theme บนมือถือ (แนะนำให้ตรงกับ theme_color ใน manifest) -->
+    <!-- ตั้งค่าสี Theme บนมือถือ -->
     <meta name="theme-color" content="#4f46e5">
     
-    <!-- Tailwind CSS / Stylesheets ของคุณ -->
+    <!-- Tailwind CSS / Stylesheets -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- 🌟 โลโก้ไอคอนสำหรับเว็บแอป (Favicon & Mobile App Icon) -->
@@ -29,6 +29,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 🌟 โหลด Marked.js สำหรับแปลง Markdown ฝั่งนักเรียน -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <script>
         (function() {
@@ -94,6 +96,17 @@
 
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
+
+        /* สไตล์แต่ง Prose (Markdown Output) ให้สวยงามและเข้ากับ Tailwind */
+        .prose h1 { font-size: 1.5rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .prose h2 { font-size: 1.25rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .prose h3 { font-size: 1.1rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .prose strong { font-weight: bold; }
+        .prose em { font-style: italic; }
+        .prose blockquote { border-left: 4px solid #0284c7; padding-left: 1rem; color: #64748b; margin: 0.5rem 0; background: rgba(2, 132, 199, 0.05); padding-top: 0.25rem; padding-bottom: 0.25rem; border-radius: 0 8px 8px 0; }
+        .prose ul { list-style-type: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+        .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+        .prose p { margin-bottom: 0.5rem; }
     </style>
 </head>
 <body class="bg-slate-50/70 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-24" onclick="closeAllDropdowns(event)">
@@ -506,6 +519,24 @@
         let allCategoryTags = new Set();
         let countdownInterval = null;
 
+        // ฟังก์ชันแปลงข้อความ Markdown ให้เป็น HTML อย่างสวยงาม
+        function renderMarkdown(content) {
+            if (!content) return '';
+            if (typeof marked !== 'undefined') {
+                try {
+                    if (typeof marked.parse === 'function') {
+                        marked.setOptions({ breaks: true, gfm: true });
+                        return marked.parse(content);
+                    } else if (typeof marked === 'function') {
+                        return marked(content);
+                    }
+                } catch (e) {
+                    console.error('Markdown parse error:', e);
+                }
+            }
+            return content.replace(/\n/g, '<br>');
+        }
+
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
         if (localStorage.getItem('theme') === 'dark') {
@@ -567,13 +598,11 @@
             window.location.href = studentId ? `videos.html?student_id=${studentId}` : 'videos.html';
         }
 
-        // 🌟 ฟังก์ชันตรวจสอบความถูกต้องของคำตอบแบบเดียวกับแอดมิน (รองรับทั้งข้อความ, Index, และ At_Least_One)
         function isAnswerCorrect(q, userVal, choicesArr = []) {
             if (userVal === null || userVal === undefined || userVal === '-' || userVal === '') return false;
             const correctValRaw = q.correct_answer !== undefined && q.correct_answer !== null ? q.correct_answer : '';
             if (correctValRaw === '') return false;
 
-            // แปลงคำตอบนักเรียนให้อยู่ในรูปอาเรย์ของสตริงตัวพิมพ์เล็ก
             let userArr = [];
             if (Array.isArray(userVal)) {
                 userArr = userVal.map(v => String(v).trim().toLowerCase());
@@ -588,7 +617,6 @@
                 }
             }
 
-            // แปลงค่าเฉลยให้อยู่ในรูปอาเรย์
             let correctArr = [];
             if (Array.isArray(correctValRaw)) {
                 correctArr = correctValRaw.map(v => String(v).trim().toLowerCase());
@@ -603,7 +631,6 @@
                 }
             }
 
-            // ถ้านักเรียนตอบเป็นตัวเลข index (เช่น 0, 1, 2, 3) หรืออักษร ก ข ค ให้แปลงเป็นข้อความช้อยส์จริง ๆ ก่อนถ้ามีข้อมูลช้อยส์
             let choices = q.choices || q.options || choicesArr;
             if (Array.isArray(choices) && choices.length > 0) {
                 userArr = userArr.map(item => {
@@ -635,13 +662,11 @@
                 });
             }
 
-            // รองรับเงื่อนไขแบบ at_least_one
             let qType = q.question_type || q.type || '';
             if (qType === 'at_least_one' || String(qType).toLowerCase().includes('at_least')) {
                 return userArr.some(u => correctArr.includes(u));
             }
 
-            // เปรียบเทียบว่าคำตอบของนักเรียนตรงกับเฉลยหรือไม่
             let isMatched = userArr.some(u => {
                 return correctArr.some(c => {
                     let cleanU = u.replace(/\s+/g, '');
@@ -857,6 +882,8 @@
                     if (category === 'consult') catIcon = 'fa-comments text-emerald-500';
                     if (category === 'video') catIcon = 'fa-play-circle text-rose-500';
 
+                    const renderedSnippet = renderMarkdown(a.content || '');
+
                     return `
                         <div onclick="clickNotificationItem('${a.id}')" class="px-4 py-3 hover:bg-sky-50 dark:hover:bg-slate-800/85 cursor-pointer transition-all flex items-start gap-3 ${isRead ? 'opacity-70' : 'bg-sky-50/40 dark:bg-slate-900/40 font-bold'}">
                             <div class="w-8 h-8 rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
@@ -867,7 +894,7 @@
                                     <h5 class="text-xs text-slate-900 dark:text-white truncate">${a.title || 'ประกาศจากระบบ'}</h5>
                                     ${!isRead ? '<span class="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>' : ''}
                                 </div>
-                                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-light line-clamp-1">${a.content || ''}</p>
+                                <div class="text-[11px] text-slate-500 dark:text-slate-400 font-light line-clamp-1 prose dark:prose-invert">${renderedSnippet}</div>
                                 <span class="text-[9px] text-slate-400 block">${timeAgoStr}</span>
                             </div>
                         </div>
@@ -1134,7 +1161,7 @@
                             <div class="p-4 space-y-2.5">
                                 <div>
                                     <h4 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white line-clamp-1">${c.title || c.name || 'คอร์สเรียน'}</h4>
-                                    <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">${c.description || 'ไม่มีรายละเอียดคอร์ส'}</p>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">${renderMarkdown(c.description || 'ไม่มีรายละเอียดคอร์ส')}</p>
                                 </div>
                                 <div class="flex flex-col gap-1.5 text-[11px] pt-2 border-t border-slate-100 dark:border-slate-800">
                                     <span class="text-slate-400"><i class="fas fa-clock mr-1 text-sky-500"></i> หมดเขต: ${expiryText}</span>
@@ -1225,6 +1252,8 @@
                         }
                     }
 
+                    const renderedContent = renderMarkdown(a.content || '');
+
                     notifHtml += `
                         <div class="p-4 rounded-2xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm transition-all">
                             <div class="flex justify-between items-start gap-2">
@@ -1234,7 +1263,7 @@
                                 </div>
                                 <span class="text-[10px] text-slate-400 shrink-0"><i class="far fa-clock"></i> ${timeStr}</span>
                             </div>
-                            <p class="text-xs text-slate-600 dark:text-slate-300 font-light whitespace-pre-line leading-relaxed">${a.content || ''}</p>
+                            <div class="text-xs text-slate-600 dark:text-slate-300 font-light leading-relaxed prose dark:prose-invert">${renderedContent}</div>
                             ${attachPreview}
                         </div>
                     `;
@@ -1745,6 +1774,8 @@
                         dueDateHtml = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1"><i class="fas fa-hourglass-end"></i> กำหนดส่ง: ${formattedDue}</div>`;
                     }
 
+                    const renderedDesc = renderMarkdown(exam.description || 'ไม่มีคำอธิบาย');
+
                     return `
                         <div class="hitech-card exam-card-hover border-l-4 border-l-sky-500 p-4 rounded-2xl flex flex-col justify-between space-y-3 shrink-0 w-64 sm:w-72 snap-start">
                             <div class="space-y-1.5">
@@ -1753,7 +1784,7 @@
                                     <button onclick="toggleStarExam('${exam.id}', event)" class="w-7 h-7 rounded-xl flex items-center justify-center transition-all ${isStarred ? 'text-amber-500 bg-amber-500/20' : 'text-slate-400 hover:text-amber-400 bg-sky-50 dark:bg-slate-800'}"><i class="${isStarred ? 'fas' : 'far'} fa-star text-xs"></i></button>
                                 </div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-1">${exam.title}</h3>
-                                <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 font-light">${exam.description || 'ไม่มีคำอธิบาย'}</p>
+                                <div class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 font-light prose dark:prose-invert">${renderedDesc}</div>
                                 ${dueDateHtml}
                             </div>
                             <div class="flex justify-between items-center pt-2.5 border-t border-slate-100 dark:border-slate-800">
@@ -1857,6 +1888,8 @@
 
                 const starBtnHtml = `<button onclick="toggleStarExam('${exam.id}', event)" class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-all ${isStarred ? 'text-amber-500 bg-amber-500/20' : 'text-slate-400 hover:text-amber-400 bg-sky-50 dark:bg-slate-800'}"><i class="${isStarred ? 'fas' : 'far'} fa-star text-xs"></i></button>`;
 
+                const renderedExamDesc = renderMarkdown(exam.description || 'ไม่มีคำอธิบาย');
+
                 if (examViewMode === 'grid') {
                     sectionHtml += `
                         <div class="hitech-card exam-card-hover ${cardHighlightClass} p-4 sm:p-5 rounded-2xl flex flex-col justify-between space-y-3 shrink-0 w-64 sm:w-72 snap-start">
@@ -1866,7 +1899,7 @@
                                     <div class="flex items-center gap-1">${statusBadge}${starBtnHtml}</div>
                                 </div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-1">${exam.title}</h3>
-                                <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 font-light">${exam.description || 'ไม่มีคำอธิบาย'}</p>
+                                <div class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 font-light prose dark:prose-invert">${renderedExamDesc}</div>
                                 ${dueDateDisplayHtml}
                             </div>
                             <div class="flex justify-between items-center pt-2.5 border-t border-slate-100 dark:border-slate-800">
@@ -1881,7 +1914,7 @@
                             <div class="space-y-1 flex-1 min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">${statusBadge}<span class="text-[10px] sm:text-[11px] text-slate-500 font-bold"><i class="fas fa-list-ol mr-1 text-sky-500"></i> ${questionCount} ข้อ | ${durationMins} นาที</span></div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">${exam.title}</h3>
-                                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-light truncate">${exam.description || 'ไม่มีคำอธิบาย'}</p>
+                                <div class="text-[11px] text-slate-500 dark:text-slate-400 font-light truncate prose dark:prose-invert">${renderedExamDesc}</div>
                                 ${dueDateDisplayHtml}
                             </div>
                             <div class="flex items-center gap-2 w-full sm:w-auto justify-end">${starBtnHtml}${actionBtnHtml}</div>
@@ -1911,6 +1944,7 @@
             const questionCount = examQuestionCounts[examId] || 'ไม่ระบุ';
             const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
             const isDark = document.documentElement.classList.contains('dark');
+            const renderedExamDesc = renderMarkdown(exam.description || 'กรุณาอ่านคำชี้แจงและตรวจสอบเวลาให้เรียบร้อยก่อนกดปุ่มเริ่มทำข้อสอบ');
 
             const { value: confirmed } = await Swal.fire({
                 title: `<div class="text-base font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-clipboard-list"></i> คำชี้แจงก่อนเข้าสอบ</div>`,
@@ -1919,9 +1953,9 @@
                         <div class="font-bold text-slate-900 dark:text-white text-sm sm:text-base border-b border-slate-200 dark:border-slate-800 pb-2">
                             📝 ${exam.title}
                         </div>
-                        <p class="text-slate-600 dark:text-slate-300 font-light text-xs">
-                            ${exam.description || 'กรุณาอ่านคำชี้แจงและตรวจสอบเวลาให้เรียบร้อยก่อนกดปุ่มเริ่มทำข้อสอบ'}
-                        </p>
+                        <div class="text-slate-600 dark:text-slate-300 font-light text-xs prose dark:prose-invert">
+                            ${renderedExamDesc}
+                        </div>
                         <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
                             <div class="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                                 <span class="text-slate-400 block text-[10px]">จำนวนข้อสอบ</span>
