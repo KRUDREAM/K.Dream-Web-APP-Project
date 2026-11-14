@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMS | เทปเรียนย้อนหลัง & เอกสารประกอบการเรียน</title>
+    <title>KRUDREAM LAND | เทปเรียนย้อนหลัง & เอกสารประกอบการเรียน</title>
     
     <!-- 🌟 โลโก้ไอคอนสำหรับเว็บแอป (Favicon & Mobile App Icon) -->
     <link rel="icon" type="image/png" sizes="512x512" href="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg">
@@ -171,9 +171,17 @@
                     <div id="watermarkElement" class="watermark-layer">KRUDREAM LAND | กำลังโหลด...</div>
                 </div>
 
-                <div class="flex justify-between items-center pt-1 text-[11px] text-slate-400">
-                    <span><i class="fas fa-shield-alt text-emerald-500 mr-1"></i>• ปลอดภัยสูงสุด 100%</span>
-                    <span id="videoPublishDate">--</span>
+                <!-- 🌟 เพิ่มปุ่มควบคุมบทเรียนก่อนหน้า / ถัดไป -->
+                <div class="flex justify-between items-center pt-2">
+                    <button id="prevLessonBtn" onclick="playAdjacentLesson(-1)" class="px-3.5 py-2 bg-slate-100 dark:bg-darkinput hover:bg-sky-500 hover:text-white text-slate-700 dark:text-slate-300 rounded-xl text-xs font-extrabold transition-all border border-slate-200 dark:border-slate-800 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-100 disabled:hover:text-slate-700">
+                        <i class="fas fa-chevron-left"></i> บทเรียนก่อนหน้า
+                    </button>
+                    
+                    <span id="videoPublishDate" class="text-[11px] text-slate-400 hidden sm:inline">--</span>
+
+                    <button id="nextLessonBtn" onclick="playAdjacentLesson(1)" class="px-3.5 py-2 bg-slate-100 dark:bg-darkinput hover:bg-sky-500 hover:text-white text-slate-700 dark:text-slate-300 rounded-xl text-xs font-extrabold transition-all border border-slate-200 dark:border-slate-800 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-100 disabled:hover:text-slate-700">
+                        บทเรียนถัดไป <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -192,6 +200,7 @@
         let searchQuery = '';
         let activeVideoId = null;
         let isSidebarOpen = true;
+        let currentFilteredVideos = []; // เก็บรายชื่อวิดีโอปัจจุบันเพื่อใช้กด Next/Prev
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -350,6 +359,7 @@
 
             // 🌟 เรียงลำดับเทปเรียนจากเก่าไปใหม่: บนสุดอัพก่อน - ล่างสุดอัพล่าสุด
             videos.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            currentFilteredVideos = videos; // บันทึกรายการปัจจุบันเพื่อใช้กับปุ่ม Next/Prev
 
             document.getElementById('videoCountDisplay').textContent = videos.length;
             const videoContainer = document.getElementById('videoListContainer');
@@ -361,22 +371,25 @@
                 videoContainer.innerHTML = videos.map(v => {
                     const isActive = activeVideoId === v.id;
                     return `
-                        <div onclick="playBunnyVideo('${v.id}', '${encodeURIComponent(v.title)}', '${v.created_at}', '${v.bunny_video_id}')" class="p-3 rounded-2xl cursor-pointer transition-all border ${isActive ? 'bg-sky-500/10 border-sky-500 shadow-sm' : 'bg-white dark:bg-darkinput border-slate-200 dark:border-slate-800'} flex items-center justify-between gap-2.5">
+                        <div onclick="playBunnyVideo('${v.id}', '${encodeURIComponent(v.title)}', '${v.created_at}', '${v.bunny_video_id}')" class="p-3 rounded-2xl cursor-pointer transition-all border ${isActive ? 'bg-sky-500/15 border-sky-500 shadow-md ring-2 ring-sky-500/30' : 'bg-white dark:bg-darkinput border-slate-200 dark:border-slate-800 hover:border-sky-400'} flex items-center justify-between gap-2.5">
                             <div class="flex items-center gap-2.5 min-w-0">
-                                <div class="w-8 h-8 rounded-xl ${isActive ? 'bg-sky-600 text-white' : 'bg-sky-500/10 text-sky-500'} flex items-center justify-center font-bold text-xs shrink-0">
+                                <div class="w-8 h-8 rounded-xl ${isActive ? 'bg-sky-600 text-white animate-pulse' : 'bg-sky-500/10 text-sky-500'} flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
                                     <i class="fas ${isActive ? 'fa-play' : 'fa-video'} text-[10px]"></i>
                                 </div>
                                 <div class="min-w-0">
-                                    <h4 class="font-bold text-xs text-slate-900 dark:text-white truncate">${v.title}</h4>
+                                    <h4 class="font-bold text-xs ${isActive ? 'text-sky-600 dark:text-sky-400 font-extrabold' : 'text-slate-900 dark:text-white'} truncate">${v.title}</h4>
                                     <p class="text-[10px] text-slate-400">${new Date(v.created_at).toLocaleDateString('th-TH')}</p>
                                 </div>
                             </div>
+                            ${isActive ? '<span class="text-[10px] bg-sky-500 text-white font-extrabold px-2 py-0.5 rounded-full shrink-0">กำลังดู</span>' : ''}
                         </div>
                     `;
                 }).join('');
 
                 if (!videos.some(v => v.id === activeVideoId)) {
                     playBunnyVideo(videos[0].id, encodeURIComponent(videos[0].title), videos[0].created_at, videos[0].bunny_video_id);
+                } else {
+                    updateNavigationButtonsState();
                 }
             }
 
@@ -402,6 +415,10 @@
             document.getElementById('currentPlayingTitle').innerHTML = `<i class="fas fa-play-circle text-sky-500 shrink-0"></i> <span class="truncate">${decodeURIComponent(encodedTitle)}</span>`;
             document.getElementById('videoPublishDate').textContent = `เผยแพร่เมื่อ: ${new Date(createdAt).toLocaleString('th-TH')}`;
 
+            // อัปเดตกรอบไฮไลต์ในรายการซ้ายมือใหม่ทันทีโดยไม่ต้องเรนเดอร์ใหม่ทั้งหมด
+            highlightActiveVideoInList();
+            updateNavigationButtonsState();
+
             // ค้นหาคอร์สปัจจุบันเพื่อดึง Bunny Library ID ประจำคอร์สออกมาใช้งาน
             const currentCourse = enrolledCourses.find(c => String(c.id) === String(currentCourseId));
             const libraryId = (currentCourse && (currentCourse.bunny_library_id || currentCourse.library_id)) ? (currentCourse.bunny_library_id || currentCourse.library_id) : '785115';
@@ -414,9 +431,50 @@
             `;
         }
 
+        // ฟังก์ชันอัปเดตสถานะปุ่ม "ก่อนหน้า" และ "ถัดไป"
+        function updateNavigationButtonsState() {
+            const currentIndex = currentFilteredVideos.findIndex(v => v.id === activeVideoId);
+            const prevBtn = document.getElementById('prevLessonBtn');
+            const nextBtn = document.getElementById('nextLessonBtn');
+
+            if (currentIndex <= 0) {
+                prevBtn.disabled = true;
+            } else {
+                prevBtn.disabled = false;
+            }
+
+            if (currentIndex === -1 || currentIndex >= currentFilteredVideos.length - 1) {
+                nextBtn.disabled = true;
+            } else {
+                nextBtn.disabled = false;
+            }
+        }
+
+        // ฟังก์ชันกดสลับไปคลิกก่อนหน้าหรือถัดไป
+        function playAdjacentLesson(direction) {
+            const currentIndex = currentFilteredVideos.findIndex(v => v.id === activeVideoId);
+            if (currentIndex === -1) return;
+
+            const targetIndex = currentIndex + direction;
+            if (targetIndex >= 0 && targetIndex < currentFilteredVideos.length) {
+                const targetVideo = currentFilteredVideos[targetIndex];
+                playBunnyVideo(targetVideo.id, encodeURIComponent(targetVideo.title), targetVideo.created_at, targetVideo.bunny_video_id);
+            }
+        }
+
+        // ไฮไลต์แถวที่กำลังเล่นใน Sidebar แบบเรียลไทม์
+        function highlightActiveVideoInList() {
+            const videoContainer = document.getElementById('videoListContainer');
+            if (!videoContainer) return;
+            // รีเฟรชเฉพาะส่วน List เพื่อความสะอาดและอัปเดตกรอบสีฟ้า
+            renderCourseContent();
+        }
+
         function resetPlayerToEmpty() {
             activeVideoId = null;
             document.getElementById('bunnyPlayerWrapper').innerHTML = `<div class="text-center p-4 text-xs text-slate-500"><p>ไม่มีวิดีโอในคอร์สนี้</p></div>`;
+            document.getElementById('prevLessonBtn').disabled = true;
+            document.getElementById('nextLessonBtn').disabled = true;
         }
 
         initVideoVault();
