@@ -72,6 +72,8 @@
         .prose ul { list-style-type: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
         .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
         .prose p { margin-bottom: 0.5rem; }
+        .prose img { border-radius: 1rem; max-height: 400px; object-fit: cover; margin: 1rem auto; cursor: pointer; transition: transform 0.2s; }
+        .prose img:hover { transform: scale(1.01); }
 
         /* สไตล์ Scrollbar ในกล่องฟีดประกาศฝั่งขวา */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -94,7 +96,7 @@
                             <span class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-md"><i class="fas fa-bullhorn"></i></span>
                             ศูนย์รวมประกาศข่าวสาร (ผู้ดูแลระบบ)
                         </h1>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">รองรับ Markdown, จัดการหมวดหมู่ และตั้งเวลาแสดงผลอัตโนมัติ</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">รองรับ Markdown แทรกรูประหว่างบรรทัดและดูภาพเต็มจอ</p>
                     </div>
                 </div>
                 <button id="themeToggle" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-darkinput text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
@@ -115,7 +117,7 @@
                     </div>
                     <div>
                         <h2 class="text-xl font-bold text-slate-900 dark:text-white" id="formTitle">สร้างประกาศใหม่</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">ใช้ Toolbar ด้านล่างเพื่อจัดรูปแบบข้อความ</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">เลือกรูปภาพด้านล่างเพื่อแทรกโค้ดระหว่างบรรทัดอัตโนมัติ</p>
                     </div>
                 </div>
 
@@ -158,27 +160,11 @@
 
                     <div>
                         <div class="flex justify-between items-center mb-2">
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">เนื้อหาประกาศ <span class="text-red-500">*</span></label>
-                            <span class="text-[10px] text-sky-600 dark:text-sky-400 font-bold">✨ Google Docs / Word Style Toolbar</span>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">เนื้อหาประกาศ (Markdown) <span class="text-red-500">*</span></label>
+                            <span class="text-[10px] text-sky-600 dark:text-sky-400 font-bold">✨ แทรกรูปภาพระหว่างบรรทัดได้</span>
                         </div>
-
-                        <!-- Google Doc / Word Style Formatting Toolbar -->
-                        <div class="flex flex-wrap items-center gap-1.5 p-2 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-t-2xl border-b-0">
-                            <button type="button" onclick="formatText('bold')" class="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold shadow-sm border border-slate-200 dark:border-slate-600" title="ตัวหนา (Bold)"><i class="fas fa-bold"></i></button>
-                            <button type="button" onclick="formatText('italic')" class="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold shadow-sm border border-slate-200 dark:border-slate-600" title="ตัวเอียง (Italic)"><i class="fas fa-italic"></i></button>
-                            <div class="h-4 w-[1px] bg-slate-300 dark:bg-slate-600 mx-1"></div>
-                            <button type="button" onclick="formatText('h1')" class="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold shadow-sm border border-slate-200 dark:border-slate-600" title="หัวข้อหลักใหญ่ (H1)">H1</button>
-                            <button type="button" onclick="formatText('h2')" class="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold shadow-sm border border-slate-200 dark:border-slate-600" title="หัวข้อรอง (H2)">H2</button>
-                            <button type="button" onclick="formatText('h3')" class="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold shadow-sm border border-slate-200 dark:border-slate-600" title="หัวข้อย่อย (H3)">H3</button>
-                            <div class="h-4 w-[1px] bg-slate-300 dark:bg-slate-600 mx-1"></div>
-                            <button type="button" onclick="formatText('ul')" class="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold shadow-sm border border-slate-200 dark:border-slate-600" title="รายการแบบจุด (Bullet List)"><i class="fas fa-list-ul"></i></button>
-                            <button type="button" onclick="formatText('ol')" class="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold shadow-sm border border-slate-200 dark:border-slate-600" title="รายการแบบตัวเลข (Numbered List)"><i class="fas fa-list-ol"></i></button>
-                            <button type="button" onclick="formatText('quote')" class="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold shadow-sm border border-slate-200 dark:border-slate-600" title="ข้อความอ้างอิง (Blockquote)"><i class="fas fa-quote-left"></i></button>
-                            <button type="button" onclick="formatText('table')" class="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold shadow-sm border border-slate-200 dark:border-slate-600" title="แทรกตาราง (Table)"><i class="fas fa-table"></i></button>
-                        </div>
-
-                        <!-- ช่องพิมพ์เนื้อหาประกาศ -->
-                        <textarea id="annContent" required rows="8" placeholder="พิมพ์รายละเอียดประกาศของคุณที่นี่..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-b-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-y transition-all shadow-sm leading-relaxed"></textarea>
+                        <!-- ช่องพิมพ์เนื้อหาประกาศปกติ (ไม่มี Toolbar เกะกะ พิมพ์เองได้เต็มที่) -->
+                        <textarea id="annContent" required rows="9" placeholder="พิมพ์รายละเอียดประกาศของคุณที่นี่ (สามารถพิมพ์ข้อความสลับกับแทรกรูปภาพ)..." class="w-full px-4 py-3 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white focus:border-sky-500 outline-none text-sm resize-y transition-all shadow-sm leading-relaxed"></textarea>
                     </div>
 
                     <!-- 2. ระบบกำหนดเวลาแสดงผลอัตโนมัติ -->
@@ -236,8 +222,10 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">แนบไฟล์ / รูปภาพแทรก (สูงสุด 5 ไฟล์)</label>
-                        <input type="file" id="annFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-600 hover:file:bg-sky-100 dark:file:bg-slate-800 dark:file:text-sky-400 cursor-pointer">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">อัปโหลดรูปภาพ / ไฟล์ เพื่อแทรกระหว่างบรรทัด</label>
+                        <!-- เปลี่ยนมาใช้ event onchange อัปโหลดแล้วแทรก Markdown ลงช่องพิมพ์อัตโนมัติ -->
+                        <input type="file" id="annFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onchange="handleInlineImageUpload(event)" class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-600 hover:file:bg-sky-100 dark:file:bg-slate-800 dark:file:text-sky-400 cursor-pointer">
+                        <p class="text-[11px] text-slate-400 mt-1">* เมื่อเลือกรูปภาพ ระบบจะอัปโหลดและแทรกโค้ดรูปภาพ `![คำอธิบาย](URL)` ลงในตำแหน่งเคอร์เซอร์ทันที</p>
                     </div>
 
                     <div class="flex gap-3 pt-2">
@@ -326,47 +314,44 @@
             return false;
         }
 
-        // ฟังก์ชันช่วยจัดรูปแบบข้อความสไตล์ Google Docs / Word บน textarea
-        function formatText(type) {
-            const textarea = document.getElementById('annContent');
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            const selectedText = textarea.value.substring(start, end) || 'ข้อความ';
-            let replacement = '';
+        // ฟังก์ชันอัปโหลดรูปภาพและแทรก Markdown ลงใน textarea ณ ตำแหน่งเคอร์เซอร์ปัจจุบัน
+        async function handleInlineImageUpload(event) {
+            const fileInput = event.target;
+            if (!fileInput.files || fileInput.files.length === 0) return;
 
-            switch(type) {
-                case 'bold':
-                    replacement = `**${selectedText}**`;
-                    break;
-                case 'italic':
-                    replacement = `*${selectedText}*`;
-                    break;
-                case 'h1':
-                    replacement = `# ${selectedText}`;
-                    break;
-                case 'h2':
-                    replacement = `## ${selectedText}`;
-                    break;
-                case 'h3':
-                    replacement = `### ${selectedText}`;
-                    break;
-                case 'ul':
-                    replacement = `\n- ${selectedText}\n- รายการที่ 2\n`;
-                    break;
-                case 'ol':
-                    replacement = `\n1. ${selectedText}\n2. รายการที่ 2\n`;
-                    break;
-                case 'quote':
-                    replacement = `\n> ${selectedText}\n`;
-                    break;
-                case 'table':
-                    replacement = `\n| หัวข้อ 1 | หัวข้อ 2 |\n| :--- | :--- |\n| ข้อมูล 1 | ข้อมูล 2 |\n`;
-                    break;
+            Swal.fire({ title: 'กำลังอัปโหลดรูปภาพ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const textarea = document.getElementById('annContent');
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            let insertedMarkdown = '';
+
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const file = fileInput.files[i];
+                const cleanFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+                const fileName = `ann_inline_${Date.now()}_${i}_${cleanFileName}`;
+
+                const { error: uploadError } = await mySupabase.storage.from('announcement_files').upload(fileName, file);
+                if (!uploadError) {
+                    const { data } = mySupabase.storage.from('announcement_files').getPublicUrl(fileName);
+                    if (data && data.publicUrl) {
+                        const isImg = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(file.name);
+                        if (isImg) {
+                            insertedMarkdown += `\n![${file.name}](${data.publicUrl})\n`;
+                        } else {
+                            insertedMarkdown += `\n[📥 ดาวน์โหลดไฟล์: ${file.name}](${data.publicUrl})\n`;
+                        }
+                    }
+                }
             }
 
-            textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+            // แทรกข้อความ Markdown ลงในช่อง textarea
+            textarea.value = textarea.value.substring(0, startPos) + insertedMarkdown + textarea.value.substring(endPos);
             textarea.focus();
-            textarea.setSelectionRange(start + replacement.length, start + replacement.length);
+            textarea.setSelectionRange(startPos + insertedMarkdown.length, startPos + insertedMarkdown.length);
+
+            Swal.close();
+            fileInput.value = ''; // Reset input เพื่อให้เลือกไฟล์เดิมซ้ำได้ถ้าต้องการ
         }
 
         async function fetchCoursesAndStudents() {
@@ -516,27 +501,6 @@
                     targetBadge = `<span class="bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-300 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-900"><i class="fas fa-globe mr-1"></i> ทุกคน</span>`;
                 }
 
-                let attachmentsHtml = '';
-                if (a.attachments && Array.isArray(a.attachments) && a.attachments.length > 0) {
-                    let filesList = a.attachments.map((url, idx) => {
-                        const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
-                        if (isImage) {
-                            return `
-                                <div class="relative group/img overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-darkinput cursor-pointer shadow-sm" onclick="openImageModal('${url}')">
-                                    <img src="${url}" class="w-full h-40 object-cover group-hover/img:scale-105 transition-transform duration-300">
-                                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
-                                        <i class="fas fa-expand text-base"></i> คลิกขยายเต็มจอ
-                                    </div>
-                                </div>`;
-                        } else {
-                            const fileNameSplit = url.split('/').pop().split('?')[0];
-                            const cleanName = decodeURIComponent(fileNameSplit.substring(fileNameSplit.indexOf('_') + 1) || `ไฟล์แนบ ${idx + 1}`);
-                            return `<a href="${url}" target="_blank" class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-darkinput rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-sky-600 hover:bg-sky-50 transition-all shadow-sm"><i class="fas fa-file-arrow-down text-lg text-sky-500"></i> <span class="truncate">${cleanName}</span></a>`;
-                        }
-                    }).join('');
-                    attachmentsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">${filesList}</div>`;
-                }
-
                 let renderedContent = a.content || '';
                 try {
                     if (typeof marked !== 'undefined') {
@@ -577,12 +541,18 @@
                             </div>
                         </div>
                         <div class="pl-3">
-                            <div class="prose dark:prose-invert text-slate-700 dark:text-slate-200 text-sm leading-relaxed bg-slate-50 dark:bg-darkinput/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">${renderedContent}</div>
-                            ${attachmentsHtml}
+                            <div class="prose dark:prose-invert text-slate-700 dark:text-slate-200 text-sm leading-relaxed bg-slate-50 dark:bg-darkinput/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800" onclick="handleImageClick(event)">${renderedContent}</div>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        // ฟังชันก์ตรวจจับการคลิกรูปภาพในเนื้อหาประกาศ เพื่อเปิดดูแบบเต็มจออัตโนมัติ
+        function handleImageClick(e) {
+            if (e.target.tagName === 'IMG') {
+                openImageModal(e.target.src);
+            }
         }
 
         function openImageModal(url) {
@@ -617,31 +587,6 @@
                 targetValue = checkedStudents.join(',');
             }
 
-            const fileInput = document.getElementById('annFiles');
-            if (fileInput.files.length > 5) {
-                Swal.fire('จำกัดจำนวนไฟล์', 'แนบไฟล์ได้สูงสุดไม่เกิน 5 ไฟล์ครับ', 'warning');
-                return;
-            }
-
-            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-            let attachmentUrls = [];
-            if (fileInput.files.length > 0) {
-                for (let i = 0; i < fileInput.files.length; i++) {
-                    const file = fileInput.files[i];
-                    const cleanFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
-                    const fileName = `ann_${Date.now()}_${i}_${cleanFileName}`;
-                    
-                    const { error: uploadError } = await mySupabase.storage.from('announcement_files').upload(fileName, file);
-                    if (!uploadError) {
-                        const { data } = mySupabase.storage.from('announcement_files').getPublicUrl(fileName);
-                        if (data && data.publicUrl) {
-                            attachmentUrls.push(data.publicUrl);
-                        }
-                    }
-                }
-            }
-
             let payload = { 
                 title, 
                 content, 
@@ -653,14 +598,10 @@
                 target_type: targetType, 
                 target_value: targetValue 
             };
-            if (attachmentUrls.length > 0) {
-                payload.attachments = attachmentUrls;
-            }
+
+            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             if (editId) {
-                if (attachmentUrls.length === 0) {
-                    delete payload.attachments; 
-                }
                 const { error } = await mySupabase.from('announcements').update(payload).eq('id', editId);
                 if (error) {
                     Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
