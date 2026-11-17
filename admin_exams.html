@@ -472,7 +472,10 @@
                             <button onclick="openAttemptManager('${e.id}', '${e.title}')" class="py-1.5 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 rounded-lg text-[11px] font-bold transition-all"><i class="fas fa-users-gear mr-1"></i>จัดการสิทธิ์สอบ</button>
                             <button onclick='openExamModal(${JSON.stringify(e)})' class="py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-bold hover:bg-slate-200">แก้ไข</button>
                         </div>
-                        <button onclick="deleteExam('${e.id}')" class="w-full py-1 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-lg text-[10px] font-bold hover:bg-red-100"><i class="fas fa-trash-can mr-1"></i> ลบชุดข้อสอบ</button>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <button onclick="duplicateExam('${e.id}')" class="w-full py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-all"><i class="fas fa-copy mr-1"></i> คัดลอก (Duplicate)</button>
+                            <button onclick="deleteExam('${e.id}')" class="w-full py-1 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-lg text-[10px] font-bold hover:bg-red-100"><i class="fas fa-trash-can mr-1"></i> ลบ</button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -518,10 +521,88 @@
                         <button onclick="openAiExamReport('${e.id}', '${e.title}')" class="px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 border border-purple-500/30 rounded-lg text-xs font-bold"><i class="fas fa-brain mr-1"></i>AI วิเคราะห์</button>
                         <button onclick="openAttemptManager('${e.id}', '${e.title}')" class="px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 border border-indigo-500/30 rounded-lg text-xs font-bold"><i class="fas fa-users-gear mr-1"></i>สิทธิ์สอบ</button>
                         <button onclick='openExamModal(${JSON.stringify(e)})' class="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200"><i class="fas fa-pen"></i></button>
+                        <button onclick="duplicateExam('${e.id}')" class="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-100" title="คัดลอกชุดข้อสอบ"><i class="fas fa-copy"></i></button>
                         <button onclick="deleteExam('${e.id}')" class="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100"><i class="fas fa-trash-can"></i></button>
                     </div>
                 </div>
             `;
+        }
+
+        // 🌟 ฟังก์ชันระบบ Duplicate ชุดข้อสอบและโจทย์ทั้งหมด
+        async function duplicateExam(sourceExamId) {
+            const confirmResult = await Swal.fire({
+                title: 'ยืนยันการคัดลอกชุดข้อสอบ?',
+                text: 'ระบบจะทำสำเนาข้อมูลชุดข้อสอบนี้ รวมถึงโจทย์ ตัวเลือก และเฉลยทั้งหมด พร้อมตั้งสถานะเป็น "ซ่อนอยู่ (Draft)" ให้โดยอัตโนมัติ',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'ยืนยันคัดลอก',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if (!confirmResult.isConfirmed) return;
+
+            try {
+                Swal.fire({ title: 'กำลังคัดลอกชุดข้อสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                // 1. ดึงข้อมูลชุดข้อสอบต้นฉบับ
+                const { data: sourceExam, error: fetchErr } = await mySupabase.from('exams').select('*').eq('id', sourceExamId).single();
+                if (fetchErr || !sourceExam) throw new Error('ไม่พบข้อมูลชุดข้อสอบต้นฉบับ');
+
+                // 2. สร้างข้อมูลชุดข้อสอบใหม่ (Template)
+                const newExamPayload = {
+                    title: `${sourceExam.title} (สำเนา)`,
+                    exam_code: `EXAM-${Math.floor(Math.random() * 9000 + 1000)}`,
+                    delivery_type: sourceExam.delivery_type,
+                    exam_type: sourceExam.exam_type,
+                    choice_format: sourceExam.choice_format,
+                    category_id: sourceExam.category_id,
+                    course_id: sourceExam.course_id,
+                    time_limit: sourceExam.time_limit,
+                    max_attempts: sourceExam.max_attempts,
+                    status: 'draft', // ตั้งเป็น draft เสมอเพื่อความปลอดภัย
+                    show_answer_instantly: sourceExam.show_answer_instantly,
+                    start_time: sourceExam.start_time,
+                    due_date: sourceExam.due_date,
+                    created_at: new Date().toISOString()
+                };
+
+                const { data: insertedExam, error: insertExamErr } = await mySupabase.from('exams').insert([newExamPayload]).select().single();
+                if (insertExamErr || !insertedExam) throw new Error(insertExamErr?.message || 'ไม่สามารถสร้างชุดข้อสอบใหม่ได้');
+
+                const newExamId = insertedExam.id;
+
+                // 3. ดึงโจทย์ทั้งหมดของข้อสอบต้นฉบับ
+                const { data: sourceQuestions, error: qFetchErr } = await mySupabase.from('questions').select('*').eq('exam_id', sourceExamId);
+                
+                if (!qFetchErr && sourceQuestions && sourceQuestions.length > 0) {
+                    for (const q of sourceQuestions) {
+                        const { id: oldQId, exam_id, created_at, ...qData } = q;
+                        qData.exam_id = newExamId;
+
+                        const { data: insertedQ, error: insQErr } = await mySupabase.from('questions').insert([qData]).select().single();
+                        if (!insQErr && insertedQ) {
+                            // ถ้ามีตารางตัวเลือกย่อยหรือข้อมูลสัมพันธ์กัน สามารถคัดลอกต่อได้ที่นี่
+                        }
+                    }
+                }
+
+                if (typeof logSystemAction === 'function') {
+                    await logSystemAction('ADMIN_DUPLICATE_EXAM', `แอดมินคัดลอกชุดข้อสอบจาก ID: ${sourceExamId} เป็น IDใหม่: ${newExamId}`, { source_exam_id: sourceExamId, new_exam_id: newExamId });
+                }
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'คัดลอกชุดข้อสอบสำเร็จ!',
+                    text: `สร้างชุดข้อสอบ "${newExamPayload.title}" เรียบร้อยแล้ว`,
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+                loadExams();
+            } catch (err) {
+                console.error('Duplicate Exam Error:', err);
+                Swal.fire('เกิดข้อผิดพลาด', err.message || 'ไม่สามารถคัดลอกข้อสอบได้', 'error');
+            }
         }
 
         async function openAiExamReport(examId, examTitle) {
@@ -783,7 +864,6 @@
                             </div>
                         </div>
 
-                        <!-- 🌟 เพิ่ม UI สำหรับเลือกเปิดเฉลยทันที -->
                         <div class="pt-2 border-t dark:border-slate-800">
                             <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-200">
                                 <input type="checkbox" id="swalShowAnswerInstantly" ${examData?.show_answer_instantly ? 'checked' : ''} class="w-4 h-4 rounded text-sky-600">
