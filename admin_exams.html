@@ -159,6 +159,7 @@
         let categoriesList = [];
         let allCoursesList = [];
         let coursesMap = {};
+        let profilesNameMap = {};
         let currentExamsData = [];
         let allAttemptsMap = {};
         let currentViewMode = localStorage.getItem('exam_view_mode') || 'grid';
@@ -253,6 +254,7 @@
             updateViewSwitcherButtons();
             await loadCategories();
             await loadCourses();
+            await loadProfilesMap();
             await loadAttemptsData();
             await loadExams();
 
@@ -295,6 +297,16 @@
             allCoursesList = data || [];
             coursesMap = {};
             allCoursesList.forEach(c => { coursesMap[c.id] = c; });
+        }
+
+        async function loadProfilesMap() {
+            profilesNameMap = {};
+            const { data } = await mySupabase.from('profiles').select('id, full_name, username');
+            if (data) {
+                data.forEach(p => {
+                    if (p.id) profilesNameMap[String(p.id)] = p.full_name || p.username || 'ไม่ระบุชื่อ';
+                });
+            }
         }
 
         async function loadAttemptsData() {
@@ -415,12 +427,12 @@
                     contentHtml = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-3">${cardsHtml}</div>`;
                 } else {
                     const listRowsHtml = catExams.map(e => renderExamListRow(e, examsWithEssay.has(e.id))).join('');
-                    contentHtml = `<div class="space-y-2 pt-3">${listRowsHtml}</div>`;
+                    contentHtml = `<div class="space-y-2.5 pt-3">${listRowsHtml}</div>`;
                 }
 
                 return `
-                    <div class="hitech-card p-4 rounded-2xl space-y-2">
-                        <div onclick="toggleCategorySection('${catId}')" class="flex justify-between items-center cursor-pointer select-none border-b border-sky-500/20 pb-2">
+                    <div class="hitech-card p-4 sm:p-5 rounded-2xl space-y-2">
+                        <div onclick="toggleCategorySection('${catId}')" class="flex justify-between items-center cursor-pointer select-none border-b border-sky-500/20 pb-2.5">
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-chevron-down text-sky-500 transition-transform duration-200" id="icon-${catId}"></i>
                                 <span class="w-3 h-5 bg-gradient-to-b from-sky-400 to-blue-600 rounded-full"></span>
@@ -453,6 +465,7 @@
             const choiceLabel = getChoiceFormatLabel(e.choice_format);
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
             const courseTagHtml = getCourseOrFreeTagHtml(e);
+            const safeTitle = encodeURIComponent(e.title || 'ชุดข้อสอบ');
 
             let scheduleInfo = '';
             if (e.status === 'countdown' && e.start_time) {
@@ -463,39 +476,47 @@
             }
 
             return `
-                <div class="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800/80 flex flex-col justify-between space-y-3">
+                <div class="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800/80 flex flex-col justify-between space-y-3.5 hover:border-sky-500/40">
                     <div class="space-y-2">
                         <div class="flex justify-between items-center gap-1">
                             <span class="font-mono text-[11px] font-bold glow-badge-sky px-2 py-0.5 rounded-md">${e.exam_code || 'CODE'}</span>
                             ${statusBadge}
                         </div>
                         <h3 class="font-bold text-sm text-slate-900 dark:text-white leading-snug line-clamp-1">${e.title}</h3>
-                        <div>${courseTagHtml}</div>
-                        <div class="space-y-0.5">${scheduleInfo}</div>
-                        <div class="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-slate-500">
+                        <div class="flex flex-wrap items-center gap-1.5">${courseTagHtml}</div>
+                        ${scheduleInfo ? `<div class="space-y-0.5">${scheduleInfo}</div>` : ''}
+                        <div class="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                             ${deliveryBadge}
                             <span><i class="far fa-clock text-sky-500 mr-1"></i>${e.time_limit || 60} นาที</span>
-                            <span class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px]">ตัวเลือก: ${choiceLabel}</span>
+                            <span class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px]">${choiceLabel}</span>
                         </div>
-                        <div class="flex justify-between items-center bg-indigo-50/50 dark:bg-indigo-950/20 px-3 py-1.5 rounded-xl border border-indigo-100 dark:border-indigo-900/40 text-xs">
-                            <span class="text-slate-500">คะแนนเฉลี่ยคลาส:</span>
-                            <span class="font-extrabold text-indigo-600 dark:text-indigo-400">${avgScore} คะแนน <span class="text-[10px] font-normal text-slate-400">(ส่งแล้ว ${submittedCount} คน)</span></span>
+                        <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-200/70 dark:border-slate-700/60 text-xs">
+                            <span class="text-slate-500 dark:text-slate-400">คะแนนเฉลี่ย:</span>
+                            <span class="font-extrabold text-indigo-600 dark:text-indigo-400">${avgScore} <span class="text-[10px] font-normal text-slate-400">(ส่งแล้ว ${submittedCount})</span></span>
                         </div>
                     </div>
 
-                    <div class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-                        <button onclick="window.location.href='admin_exam_editor.html?id=${e.id}${filterCourseId ? '&course_id='+filterCourseId : ''}'" class="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5">
+                    <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                        <button onclick="window.location.href='admin_exam_editor.html?id=${e.id}${filterCourseId ? '&course_id='+filterCourseId : ''}'" class="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm">
                             <i class="fas fa-list-check"></i> จัดการโจทย์ & เฉลย OMR
                         </button>
-                        <div class="grid grid-cols-2 gap-1.5">
-                            ${hasEssay ? `<button onclick="window.location.href='admin_exam_grading.html?exam_id=${e.id}'" class="py-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-lg text-[11px] font-bold transition-all"><i class="fas fa-pen-nib mr-1"></i>ตรวจอัตนัย</button>` : ''}
-                            <button onclick="openAiExamReport('${e.id}', '${e.title}')" class="py-1.5 bg-purple-500/10 hover:bg-purple-500 hover:text-white text-purple-600 dark:text-purple-400 border border-purple-500/30 rounded-lg text-[11px] font-bold transition-all"><i class="fas fa-brain mr-1"></i>AI วิเคราะห์</button>
-                            <button onclick="openAttemptManager('${e.id}', '${e.title}')" class="py-1.5 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 rounded-lg text-[11px] font-bold transition-all"><i class="fas fa-users-gear mr-1"></i>จัดการสิทธิ์สอบ</button>
-                            <button onclick='openExamModal(${JSON.stringify(e)})' class="py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-bold hover:bg-slate-200">แก้ไข</button>
+
+                        <div class="grid ${hasEssay ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5">
+                            ${hasEssay ? `<button onclick="window.location.href='admin_exam_grading.html?exam_id=${e.id}'" class="py-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-600 dark:text-amber-400 border border-amber-500/25 rounded-lg text-[11px] font-bold transition-all"><i class="fas fa-pen-nib mr-1"></i>ตรวจ</button>` : ''}
+                            <button onclick="openAiExamReport('${e.id}', decodeURIComponent('${safeTitle}'))" class="py-1.5 bg-purple-500/10 hover:bg-purple-500 hover:text-white text-purple-600 dark:text-purple-400 border border-purple-500/25 rounded-lg text-[11px] font-bold transition-all"><i class="fas fa-brain mr-1"></i>AI วิเคราะห์</button>
+                            <button onclick="openAttemptManager('${e.id}', decodeURIComponent('${safeTitle}'))" class="py-1.5 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 rounded-lg text-[11px] font-bold transition-all"><i class="fas fa-users-gear mr-1"></i>สิทธิ์สอบ</button>
                         </div>
-                        <div class="grid grid-cols-2 gap-1.5">
-                            <button onclick="duplicateExam('${e.id}')" title="คัดลอกชุดข้อสอบ" aria-label="คัดลอกชุดข้อสอบ" class="w-full py-1.5 bg-amber-500/15 hover:bg-amber-500 text-amber-600 dark:text-amber-400 hover:text-white border border-amber-500/40 rounded-lg text-xs font-bold transition-all shadow-sm"><i class="fas fa-clone"></i></button>
-                            <button onclick="deleteExam('${e.id}')" title="ลบชุดข้อสอบ" aria-label="ลบชุดข้อสอบ" class="w-full py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all"><i class="fas fa-trash-can"></i></button>
+
+                        <div class="flex items-center justify-between gap-1.5 pt-0.5">
+                            <button onclick='openExamModal(${JSON.stringify(e)})' class="flex-1 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1">
+                                <i class="fas fa-pen text-[10px]"></i> แก้ไข
+                            </button>
+                            <button onclick="duplicateExam('${e.id}')" title="คัดลอกชุดข้อสอบ (สำเนา Draft)" aria-label="คัดลอกชุดข้อสอบ" class="w-8 h-7 flex items-center justify-center bg-slate-100 dark:bg-slate-800/80 hover:bg-amber-500/15 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 border border-slate-200/80 dark:border-slate-700/80 rounded-lg text-[11px] transition-all">
+                                <i class="fas fa-clone"></i>
+                            </button>
+                            <button onclick="deleteExam('${e.id}')" title="ลบชุดข้อสอบ" aria-label="ลบชุดข้อสอบ" class="w-8 h-7 flex items-center justify-center bg-red-50 dark:bg-red-950/30 hover:bg-red-500 text-red-500 hover:text-white rounded-lg text-[11px] transition-all">
+                                <i class="fas fa-trash-can"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -509,34 +530,35 @@
             const choiceLabel = getChoiceFormatLabel(e.choice_format);
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
             const courseTagHtml = getCourseOrFreeTagHtml(e);
+            const safeTitle = encodeURIComponent(e.title || 'ชุดข้อสอบ');
 
             return `
-                <div class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 hover:border-sky-500/50 transition-colors">
-                    <div class="flex items-center gap-3">
+                <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 hover:border-sky-500/50 transition-colors">
+                    <div class="flex items-start sm:items-center gap-3 min-w-0">
                         <span class="font-mono text-xs font-bold glow-badge-sky px-2.5 py-1 rounded-lg shrink-0">${e.exam_code || 'CODE'}</span>
-                        <div class="space-y-0.5">
+                        <div class="space-y-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <h4 class="font-bold text-sm text-slate-900 dark:text-white">${e.title}</h4>
+                                <h4 class="font-bold text-sm text-slate-900 dark:text-white truncate">${e.title}</h4>
                                 ${statusBadge}
                                 ${courseTagHtml}
                             </div>
-                            <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                            <div class="flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500 dark:text-slate-400">
                                 ${deliveryBadge}
                                 <span><i class="far fa-clock text-sky-500 mr-1"></i>${e.time_limit || 60} นาที</span>
-                                <span class="text-indigo-600 dark:text-indigo-400 font-bold">🎯 คะแนนเฉลี่ย: ${avgScore} (ส่งแล้ว ${submittedCount} คน)</span>
-                                <span class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[10px]">ตัวเลือก: ${choiceLabel}</span>
+                                <span class="text-indigo-600 dark:text-indigo-400 font-bold">เฉลี่ย: ${avgScore} (${submittedCount})</span>
+                                <span class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[10px]">${choiceLabel}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-1.5 w-full md:w-auto shrink-0 justify-end flex-wrap">
+                    <div class="flex items-center gap-1.5 w-full lg:w-auto shrink-0 justify-end flex-wrap">
                         <button onclick="window.location.href='admin_exam_editor.html?id=${e.id}${filterCourseId ? '&course_id='+filterCourseId : ''}'" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold transition-all"><i class="fas fa-list-check mr-1"></i> จัดการโจทย์</button>
-                        ${hasEssay ? `<button onclick="window.location.href='admin_exam_grading.html?exam_id=${e.id}'" class="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border border-amber-500/30 rounded-lg text-xs font-bold"><i class="fas fa-pen-nib mr-1"></i>ตรวจ</button>` : ''}
-                        <button onclick="openAiExamReport('${e.id}', '${e.title}')" class="px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 border border-purple-500/30 rounded-lg text-xs font-bold"><i class="fas fa-brain mr-1"></i>AI วิเคราะห์</button>
-                        <button onclick="openAttemptManager('${e.id}', '${e.title}')" class="px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 border border-indigo-500/30 rounded-lg text-xs font-bold"><i class="fas fa-users-gear mr-1"></i>สิทธิ์สอบ</button>
-                        <button onclick='openExamModal(${JSON.stringify(e)})' class="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200"><i class="fas fa-pen"></i></button>
-                        <button onclick="duplicateExam('${e.id}')" title="คัดลอกชุดข้อสอบ" aria-label="คัดลอกชุดข้อสอบ" class="px-2.5 py-1.5 bg-amber-500/15 hover:bg-amber-500 text-amber-600 dark:text-amber-400 hover:text-white border border-amber-500/40 rounded-lg text-xs font-bold transition-all shadow-sm"><i class="fas fa-clone"></i></button>
-                        <button onclick="deleteExam('${e.id}')" title="ลบชุดข้อสอบ" aria-label="ลบชุดข้อสอบ" class="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100"><i class="fas fa-trash-can"></i></button>
+                        ${hasEssay ? `<button onclick="window.location.href='admin_exam_grading.html?exam_id=${e.id}'" class="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border border-amber-500/30 rounded-lg text-xs font-bold"><i class="fas fa-pen-nib mr-1"></i>ตรวจ</button>` : ''}
+                        <button onclick="openAiExamReport('${e.id}', decodeURIComponent('${safeTitle}'))" class="px-2.5 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 border border-purple-500/30 rounded-lg text-xs font-bold"><i class="fas fa-brain mr-1"></i>AI วิเคราะห์</button>
+                        <button onclick="openAttemptManager('${e.id}', decodeURIComponent('${safeTitle}'))" class="px-2.5 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 border border-indigo-500/30 rounded-lg text-xs font-bold"><i class="fas fa-users-gear mr-1"></i>สิทธิ์สอบ</button>
+                        <button onclick='openExamModal(${JSON.stringify(e)})' title="แก้ไขชุดข้อสอบ" class="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200"><i class="fas fa-pen"></i></button>
+                        <button onclick="duplicateExam('${e.id}')" title="คัดลอกชุดข้อสอบ" aria-label="คัดลอกชุดข้อสอบ" class="w-7 h-7 flex items-center justify-center bg-slate-100 dark:bg-slate-800/80 hover:bg-amber-500/15 text-slate-500 dark:text-slate-400 hover:text-amber-600 border border-slate-200/80 dark:border-slate-700/80 rounded-lg text-[11px] transition-all"><i class="fas fa-clone"></i></button>
+                        <button onclick="deleteExam('${e.id}')" title="ลบชุดข้อสอบ" aria-label="ลบชุดข้อสอบ" class="w-8 h-8 flex items-center justify-center bg-red-50 dark:bg-red-950/40 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100"><i class="fas fa-trash-can"></i></button>
                     </div>
                 </div>
             `;
@@ -667,45 +689,73 @@
 
         async function openAttemptManager(examId, examTitle) {
             Swal.fire({ title: 'กำลังโหลดรายชื่อและประวัติ Attempt...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const { data: attempts } = await mySupabase
+
+            if (Object.keys(profilesNameMap).length === 0) {
+                await loadProfilesMap();
+            }
+
+            let { data: attempts, error } = await mySupabase
                 .from('exam_attempts')
-                .select('*, profiles(full_name)')
+                .select('*')
                 .eq('exam_id', examId)
                 .order('created_at', { ascending: true });
+
+            if (error) {
+                const retryRes = await mySupabase
+                    .from('exam_attempts')
+                    .select('*')
+                    .eq('exam_id', examId);
+                attempts = retryRes.data || [];
+                error = retryRes.error;
+            }
+
             Swal.close();
+
+            if (error) {
+                Swal.fire('โหลดข้อมูลไม่สำเร็จ', error.message || 'ไม่สามารถดึงข้อมูลประวัติการสอบได้', 'error');
+                return;
+            }
 
             if (!attempts || attempts.length === 0) {
                 Swal.fire('ไม่พบประวัติการสอบ', 'ยังไม่มีนักเรียนทำข้อสอบชุดนี้', 'info');
                 return;
             }
 
-            // นับลำดับ Attempt ต่อนักเรียน (1, 2, 3, ...)
             const studentAttemptCounter = {};
             const enrichedAttempts = attempts.map(att => {
-                const sKey = String(att.student_id || att.user_id || att.id);
-                studentAttemptCounter[sKey] = (studentAttemptCounter[sKey] || 0) + 1;
-                return { ...att, attemptNo: studentAttemptCounter[sKey] };
-            }).reverse(); // แสดงรอบล่าสุดขึ้นก่อน
+                const sId = String(att.student_id || att.user_id || att.id);
+                studentAttemptCounter[sId] = (studentAttemptCounter[sId] || 0) + 1;
+                const resolvedName =
+                    profilesNameMap[sId] ||
+                    att.student_name ||
+                    att.full_name ||
+                    (sId.length > 8 ? `นักเรียน (${sId.slice(0, 6)}...)` : `นักเรียน (${sId})`);
+
+                return {
+                    ...att,
+                    attemptNo: studentAttemptCounter[sId],
+                    resolvedName
+                };
+            }).reverse();
 
             const renderAttemptRows = (list) => {
                 if (list.length === 0) return `<div class="text-center py-4 text-slate-400 text-xs">ไม่พบรายชื่อนักเรียนที่ค้นหา</div>`;
                 return list.map(att => {
                     const submitted = isAttemptSubmitted(att);
                     const rawScore = att.total_score !== undefined && att.total_score !== null ? att.total_score : (att.score ?? '-');
-                    const submittedDateRaw = att.submission_time || att.submitted_at;
+                    const submittedDateRaw = att.submission_time || att.submitted_at || (submitted ? att.created_at : null);
                     const submittedDateStr = submittedDateRaw ? new Date(submittedDateRaw).toLocaleString('th-TH') : '-';
-                    const studentName = att.profiles?.full_name || att.student_name || 'ไม่ระบุชื่อ';
 
                     const statusBadge = submitted
                         ? `<span class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">ส่งแล้ว</span>`
                         : `<span class="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold text-[10px]">ทำค้างอยู่</span>`;
 
                     return `
-                        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs attempt-row border border-slate-200/60 dark:border-slate-700/60" data-name="${studentName.toLowerCase()}">
+                        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs attempt-row border border-slate-200/60 dark:border-slate-700/60" data-name="${att.resolvedName.toLowerCase()}">
                             <div class="space-y-0.5">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-mono font-bold text-[10px]">Attempt #${att.attemptNo}</span>
-                                    <span class="font-bold text-slate-900 dark:text-white">${studentName}</span>
+                                    <span class="font-bold text-slate-900 dark:text-white">${att.resolvedName}</span>
                                     ${statusBadge}
                                 </div>
                                 <div class="text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-3 pt-0.5">
@@ -713,7 +763,7 @@
                                     <span><i class="far fa-clock text-sky-500 mr-1"></i>เวลาที่ส่ง: <strong class="font-mono">${submitted ? submittedDateStr : '-'}</strong></span>
                                 </div>
                             </div>
-                            <button onclick="deleteAttemptRecord('${att.id}', '${examId}', '${examTitle.replace(/'/g, "\\'")}')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[11px] shrink-0 transition-all">
+                            <button onclick="deleteAttemptRecord('${att.id}', '${examId}', decodeURIComponent('${encodeURIComponent(examTitle)}'))" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[11px] shrink-0 transition-all">
                                 <i class="fas fa-rotate-left mr-1"></i> Reset Attempt
                             </button>
                         </div>
@@ -760,11 +810,19 @@
 
             if (res.isConfirmed) {
                 Swal.fire({ title: 'กำลัง Reset Attempt...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                await mySupabase.from('exam_answers').delete().eq('attempt_id', attemptId);
-                await mySupabase.from('exam_attempts').delete().eq('id', attemptId);
+                const { error: ansErr } = await mySupabase.from('exam_answers').delete().eq('attempt_id', attemptId);
+                if (ansErr) console.warn('exam_answers delete note:', ansErr.message);
+
+                const { error: attErr } = await mySupabase.from('exam_attempts').delete().eq('id', attemptId);
+                if (attErr) {
+                    Swal.fire('Reset ไม่สำเร็จ', attErr.message || 'ไม่สามารถลบรอบการสอบได้', 'error');
+                    return;
+                }
+
                 await loadAttemptsData();
+                await renderExamsContainer();
                 Swal.fire({ icon: 'success', title: 'Reset Attempt สำเร็จ!', timer: 1200, showConfirmButton: false });
-                setTimeout(() => openAttemptManager(examId, examTitle), 400);
+                setTimeout(() => openAttemptManager(examId, examTitle), 350);
             }
         }
 
@@ -812,7 +870,7 @@
             const isEdit = !!examData;
             const categoryOptions = categoriesList.map(c => `<option value="${c.id}" ${examData?.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
             
-            const isFreeDefault = examData ? isFreeUnassignedExam(examData) : (!filterCourseId && false);
+            const isFreeDefault = examData ? isFreeUnassignedExam(examData) : false;
             let currentCourseId = examData?.course_id || filterCourseId || '';
             if (Array.isArray(currentCourseId)) {
                 currentCourseId = currentCourseId.length > 0 ? currentCourseId[0] : '';
