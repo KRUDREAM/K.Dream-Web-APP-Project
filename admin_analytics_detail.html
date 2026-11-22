@@ -84,8 +84,13 @@
         <!-- Exam Header Banner -->
         <div class="hitech-card p-6 sm:p-8 rounded-3xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-l-8 border-l-sky-500">
             <div class="space-y-2 min-w-0 flex-1">
-                <div id="examBadgeCode" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 font-mono font-bold text-xs border border-sky-500/20">
-                    EXAM CODE
+                <div class="flex items-center gap-2 flex-wrap">
+                    <div id="examBadgeCode" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 font-mono font-bold text-xs border border-sky-500/20">
+                        EXAM CODE
+                    </div>
+                    <span id="examScopeBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-300 font-bold text-xs border border-slate-500/20">
+                        กำลังตรวจสอบสังกัด...
+                    </span>
                 </div>
                 <h2 id="headerExamTitle" class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white break-words">กำลังโหลดชุดข้อสอบ...</h2>
                 <p id="headerExamDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words">กำลังดึงข้อมูลสถิติ...</p>
@@ -224,7 +229,7 @@
         <div class="hitech-card p-6 rounded-3xl space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-sky-500/20">
                 <div class="min-w-0">
-                    <h3 class="font-extrabold text-sm text-slate-900 dark:text-white truncate">สถานะการทำข้อสอบของนักเรียนทั้งหมด (เรียงตามวันเวลาส่งล่าสุด)</h3>
+                    <h3 class="font-extrabold text-sm text-slate-900 dark:text-white truncate">สถานะการทำข้อสอบของนักเรียนในสังกัดคอร์ส (เรียงตามวันเวลาส่งล่าสุด)</h3>
                     <p id="submissionCountLabel" class="text-xs text-slate-400">แสดง 0 รายการ</p>
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -273,6 +278,7 @@
         const courseId = urlParams.get('course_id');
 
         let currentExam = null;
+        let activeCourseId = null;
         let allQuestions = [];
         let allAttempts = [];
         let allProfiles = [];
@@ -355,6 +361,51 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+        }
+
+        // ตรวจว่าเป็นบัญชี admin / ครู / ผู้ดูแลหรือไม่ (เพื่อกรองออกให้เหลือเฉพาะ นร.)
+        function isAdminAccount(obj) {
+            if (!obj || typeof obj !== 'object') return false;
+            if (obj.is_admin === true || obj.admin === true) return true;
+
+            const roleCandidates = [
+                obj.role,
+                obj.user_role,
+                obj.account_type,
+                obj.member_role,
+                obj.type
+            ]
+                .filter(v => v !== undefined && v !== null)
+                .map(v => String(v).toLowerCase().trim());
+
+            if (roleCandidates.some(r => ['admin', 'administrator', 'super_admin', 'superadmin', 'teacher', 'ta', 'staff', 'moderator'].includes(r))) {
+                return true;
+            }
+
+            const nameStr = String(obj.full_name || obj.name || obj.first_name || '').toLowerCase().trim();
+            const emailStr = String(obj.email || '').toLowerCase().trim();
+            if (nameStr === 'admin' || emailStr.startsWith('admin@')) {
+                return true;
+            }
+
+            return false;
+        }
+
+        // ตรวจว่าชุดข้อสอบ / โจทย์เป็นแบบ "ฟรี" หรือไม่
+        function isFreeExam(exam) {
+            if (!exam) return false;
+            if (exam.is_free === true || exam.free === true) return true;
+            if (exam.price !== undefined && exam.price !== null && Number(exam.price) === 0) return true;
+
+            const accessStr = String(exam.access_type || exam.exam_type || exam.category || exam.type || '').toLowerCase().trim();
+            if (accessStr === 'free' || accessStr.includes('ฟรี')) return true;
+
+            const titleStr = String(exam.title || '').toLowerCase();
+            if (titleStr.includes('โจทย์ฟรี') || titleStr.includes('ข้อสอบฟรี') || titleStr.includes('[free]') || titleStr.includes('(ฟรี)')) {
+                return true;
+            }
+
+            return false;
         }
 
         function isBonusAllQuestion(q) {
@@ -676,35 +727,20 @@
             }
         }
 
-        async function loadCourseEnrollments(activeCourseId) {
-            if (!activeCourseId) return [];
-            try {
-                const ceRes = await mySupabase
-                    .from('course_enrollments')
-                    .select('student_id, user_id')
-                    .eq('course_id', activeCourseId);
+        async function loadCourseEnrollments(targetCourseId) {
+            if (!targetCourseId) return [];
+            const tablesToTry = ['course_enrollments', 'course_members', 'enrollments'];
 
-                if (!ceRes.error && Array.isArray(ceRes.data) && ceRes.data.length > 0) {
-                    return ceRes.data;
+            for (const tbl of tablesToTry) {
+                try {
+                    const res = await mySupabase.from(tbl).select('*').eq('course_id', targetCourseId);
+                    if (!res.error && Array.isArray(res.data) && res.data.length > 0) {
+                        return res.data;
+                    }
+                } catch (e) {
+                    console.warn(`${tbl} query failed`, e);
                 }
-            } catch (e) {
-                console.warn("course_enrollments query failed", e);
             }
-
-            try {
-                const cmRes = await mySupabase.from('course_members').select('*').eq('course_id', activeCourseId);
-                if (!cmRes.error && Array.isArray(cmRes.data) && cmRes.data.length > 0) {
-                    return cmRes.data;
-                }
-            } catch (e) {}
-
-            try {
-                const enRes = await mySupabase.from('enrollments').select('*').eq('course_id', activeCourseId);
-                if (!enRes.error && Array.isArray(enRes.data) && enRes.data.length > 0) {
-                    return enRes.data;
-                }
-            } catch (e) {}
-
             return [];
         }
 
@@ -723,7 +759,7 @@
                     return;
                 }
                 currentExam = examRes.data;
-                const activeCourseId = courseId || currentExam.course_id;
+                activeCourseId = courseId || currentExam.course_id || null;
 
                 const [qRes, attRes, profRes, enrolledRows] = await Promise.all([
                     mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true }),
@@ -740,21 +776,32 @@
 
                 allStudentsMap = {};
                 allProfiles.forEach(p => {
-                    const sId = String(p.id || p.user_id || p.student_id);
+                    const sId = String(p.id || p.user_id || p.student_id || '');
                     if (sId) allStudentsMap[sId] = p;
                 });
 
-                if (enrolledRows.length > 0) {
-                    courseStudents = enrolledRows;
-                } else {
-                    courseStudents = allProfiles.map(p => ({ student_id: p.id || p.user_id, profiles: p }));
-                }
+                courseStudents = enrolledRows || [];
 
                 setupRealtimeSubscription();
             } catch (err) {
                 console.error("Analytics Load Error:", err);
             } finally {
                 Swal.close();
+            }
+
+            const freeMode = isFreeExam(currentExam);
+            const scopeBadge = document.getElementById('examScopeBadge');
+            if (scopeBadge) {
+                if (freeMode) {
+                    scopeBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-500/20';
+                    scopeBadge.innerHTML = '<i class="fas fa-gift"></i> โจทย์ฟรี (เฉพาะนักเรียน)';
+                } else if (activeCourseId) {
+                    scopeBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs border border-indigo-500/20';
+                    scopeBadge.innerHTML = `<i class="fas fa-layer-group"></i> สังกัดคอร์ส (${escapeHtml(activeCourseId)})`;
+                } else {
+                    scopeBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-300 font-bold text-xs border border-slate-500/20';
+                    scopeBadge.innerHTML = '<i class="fas fa-users"></i> เฉพาะนักเรียน';
+                }
             }
 
             document.getElementById('examBadgeCode').textContent = currentExam.exam_code || 'EXAM CODE';
@@ -815,41 +862,72 @@
 
         function computeAndRenderStats() {
             const attemptMap = pickBestAttemptPerStudent(allAttempts);
+            const freeMode = isFreeExam(currentExam);
+            const hasCourseRoster = Array.isArray(courseStudents) && courseStudents.length > 0;
 
             const studentMasterList = [];
             const seenStudentIds = new Set();
 
-            courseStudents.forEach(cs => {
-                const sId = String(cs.student_id || cs.user_id || cs.id || '');
-                if (!sId || seenStudentIds.has(sId)) return;
-                seenStudentIds.add(sId);
+            // 1. ดึงนักเรียนในสังกัดคอร์สของชุดข้อสอบ (และกรอง admin ออกเสมอ)
+            if (hasCourseRoster) {
+                courseStudents.forEach(cs => {
+                    const sId = String(cs.student_id || cs.user_id || cs.id || '');
+                    if (!sId || seenStudentIds.has(sId)) return;
 
-                const p = cs.profiles || allStudentsMap[sId] || cs;
-                const nickname = (p.nickname || p.nick_name || '').trim();
-                studentMasterList.push({
-                    studentId: sId,
-                    profile: p,
-                    fullName: ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() || 'ไม่ระบุชื่อ',
-                    nickname: nickname,
-                    studentIdCode: p.student_id || p.code || '-'
+                    const p = cs.profiles || allStudentsMap[sId] || cs;
+                    if (isAdminAccount(p) || isAdminAccount(cs)) return;
+
+                    seenStudentIds.add(sId);
+                    const nickname = (p.nickname || p.nick_name || '').trim();
+                    studentMasterList.push({
+                        studentId: sId,
+                        profile: p,
+                        fullName: ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() || 'ไม่ระบุชื่อ',
+                        nickname: nickname,
+                        studentIdCode: p.student_id || p.code || '-'
+                    });
                 });
-            });
+            }
 
-            Object.keys(attemptMap).forEach(sId => {
-                if (seenStudentIds.has(sId)) return;
-                seenStudentIds.add(sId);
+            // 2. ถ้าเป็น "โจทย์ฟรี" หรือไม่ได้มีรายชื่อคอร์สล็อกไว้:
+            // เพิ่มเฉพาะนักเรียนที่ไม่ใช่ admin ที่มี attempt ในโจทย์ฟรีนี้ (หรือกรณีเป็นโจทย์ฟรีสาธารณะที่ไม่มี course_id ให้ดูเฉพาะนักเรียนที่ไม่ใช่ admin)
+            if (freeMode || !hasCourseRoster) {
+                Object.keys(attemptMap).forEach(sId => {
+                    if (seenStudentIds.has(sId)) return;
 
-                const att = attemptMap[sId];
-                const p = allStudentsMap[sId] || {};
-                const nickname = (p.nickname || p.nick_name || '').trim();
-                studentMasterList.push({
-                    studentId: sId,
-                    profile: p,
-                    fullName: ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() || att.student_name || 'ไม่ระบุชื่อ',
-                    nickname: nickname,
-                    studentIdCode: p.student_id || p.code || att.student_id_code || '-'
+                    const att = attemptMap[sId];
+                    const p = allStudentsMap[sId] || {};
+                    if (isAdminAccount(p) || isAdminAccount(att)) return;
+
+                    seenStudentIds.add(sId);
+                    const nickname = (p.nickname || p.nick_name || '').trim();
+                    studentMasterList.push({
+                        studentId: sId,
+                        profile: p,
+                        fullName: ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() || att.student_name || 'ไม่ระบุชื่อ',
+                        nickname: nickname,
+                        studentIdCode: p.student_id || p.code || att.student_id_code || '-'
+                    });
                 });
-            });
+
+                // ถ้าเป็นโจทย์ฟรีที่เปิดให้ทุกคนทำและยังไม่มีคนทำเลย แต่มีโปรไฟล์นักเรียน (ไม่ใช่ admin) ในระบบ
+                if (freeMode && !activeCourseId && studentMasterList.length === 0) {
+                    allProfiles.forEach(p => {
+                        if (isAdminAccount(p)) return;
+                        const sId = String(p.id || p.user_id || p.student_id || '');
+                        if (!sId || seenStudentIds.has(sId)) return;
+                        seenStudentIds.add(sId);
+                        const nickname = (p.nickname || p.nick_name || '').trim();
+                        studentMasterList.push({
+                            studentId: sId,
+                            profile: p,
+                            fullName: ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() || 'ไม่ระบุชื่อ',
+                            nickname: nickname,
+                            studentIdCode: p.student_id || p.code || '-'
+                        });
+                    });
+                }
+            }
 
             combinedStudentRows = studentMasterList.map(item => {
                 const att = attemptMap[item.studentId];
@@ -895,7 +973,7 @@
             setSafeText('statSubmittedCount', `${submittedCount} คน`);
 
             globalScores = submittedRows.map(r => r.score);
-            globalTimes = Object.values(attemptMap).map(a => calculateTimeSpentMinutes(a));
+            globalTimes = combinedStudentRows.filter(r => r.hasAttempt).map(r => r.minutesSpent);
             globalMaxScore = allQuestions.reduce((sum, q) => sum + (q.score !== undefined && q.score !== null ? Number(q.score) : 1), 0) || 10;
 
             const sumScore = globalScores.reduce((acc, curr) => acc + curr, 0);
