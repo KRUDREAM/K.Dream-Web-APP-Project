@@ -65,6 +65,7 @@
         .math-prose ul { list-style-type: disc; padding-left: 1.35rem; margin: 0.35rem 0; }
         .math-prose ol { list-style-type: decimal; padding-left: 1.35rem; margin: 0.35rem 0; }
         .math-prose code { background: rgba(148, 163, 184, 0.18); padding: 0.1rem 0.35rem; border-radius: 0.35rem; font-size: 0.85em; }
+        .math-prose img { border-radius: 0.75rem; max-height: 340px; object-fit: contain; margin: 0.5rem auto; }
         .math-prose .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.25rem 0; margin: 0.35rem 0; }
         .math-prose .katex { font-size: 1.03em; }
 
@@ -279,6 +280,7 @@
         let currentExam = null;
         let currentStudentId = null;
         let currentQuestions = [];
+        let sharedPassagesList = [];
         let studentAnswers = {};
         let flaggedQuestions = {};
         let timerInterval = null;
@@ -298,6 +300,64 @@
         let currentStepIndex = 0;
         let examRealtimeChannel = null;
         let activeAttemptRecordId = null;
+
+        function getQuestionMetaMap() {
+            try {
+                const raw = localStorage.getItem(`question_meta_${examId}`);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function resolveSharedPassages(examObj) {
+            let fromDb = examObj?.shared_passages;
+            if (typeof fromDb === 'string') {
+                try { fromDb = JSON.parse(fromDb); } catch (e) { fromDb = []; }
+            }
+            if (Array.isArray(fromDb) && fromDb.length > 0) {
+                return fromDb;
+            }
+            try {
+                const rawLocal = localStorage.getItem(`shared_passages_${examId}`);
+                const parsed = rawLocal ? JSON.parse(rawLocal) : [];
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function hydrateQuestionMeta(q) {
+            const metaMap = getQuestionMetaMap();
+            const meta = metaMap[String(q.id)] || {};
+            const modeStr = String(q.multiple_grading_mode || meta.multiple_grading_mode || '').toLowerCase();
+            const isBonus = Boolean(
+                q.is_bonus_all ||
+                meta.is_bonus_all ||
+                modeStr === 'bonus_all' ||
+                String(q.correct_answer || '').toUpperCase() === 'BONUS_ALL'
+            );
+            const isSingleMultiKey = !isBonus && Boolean(
+                q.allow_multi_correct_keys ||
+                meta.allow_multi_correct_keys ||
+                modeStr === 'single_multi_key'
+            );
+            const isMultiple = !isBonus && !isSingleMultiKey && Boolean(q.is_multiple_answers);
+
+            const resolvedPassageId = (q.shared_passage_id !== undefined && q.shared_passage_id !== null && String(q.shared_passage_id).trim() !== '')
+                ? String(q.shared_passage_id).trim()
+                : (meta.shared_passage_id ? String(meta.shared_passage_id).trim() : null);
+
+            return {
+                ...q,
+                score: (q.score !== undefined && q.score !== null) ? Number(q.score) : (meta.score !== undefined ? Number(meta.score) : 1),
+                shared_passage_id: resolvedPassageId,
+                is_bonus_all: isBonus,
+                allow_multi_correct_keys: isSingleMultiKey,
+                is_multiple_answers: isMultiple,
+                multiple_grading_mode: isBonus ? 'bonus_all' : (isSingleMultiKey ? 'single_multi_key' : (q.multiple_grading_mode || meta.multiple_grading_mode || 'all'))
+            };
+        }
 
         function readLocalExamFilesMetaForExam(targetExamId) {
             if (!targetExamId) return {};
@@ -742,15 +802,21 @@
         }
 
         function calculateQuestionScore(q, studentAns) {
-            const isEssay = q.question_type === 'essay';
-            const isMultiple = !!q.is_multiple_answers;
-            const maxQScore = Number(q.score);
-            const fullPoints = (!Number.isNaN(maxQScore) && maxQScore > 0) ? maxQScore : 1;
+            const hydrated = hydrateQuestionMeta(q);
+            const isEssay = hydrated.question_type === 'essay';
+            const isBonusAll = !!hydrated.is_bonus_all;
+            const isMultiple = !isBonusAll && !!hydrated.is_multiple_answers;
+            const isSingleMultiKey = !isBonusAll && !isMultiple && !!hydrated.allow_multi_correct_keys;
+            const maxQScore = Number(hydrated.score);
+            const fullPoints = (!Number.isNaN(maxQScore) && maxQScore >= 0) ? maxQScore : 1;
 
-            if (isEssay || studentAns === undefined || studentAns === null) return 0;
+            if (isEssay) return 0;
+            if (isBonusAll) return fullPoints;
+            if (studentAns === undefined || studentAns === null) return 0;
 
-            let correctAnsArr = q.correct_answer;
+            let correctAnsArr = hydrated.correct_answer;
             if (typeof correctAnsArr === 'string') {
+                if (correctAnsArr.trim().toUpperCase() === 'BONUS_ALL') return fullPoints;
                 try { correctAnsArr = JSON.parse(correctAnsArr); } catch (e) { correctAnsArr = [String(correctAnsArr)]; }
             }
             if (!Array.isArray(correctAnsArr)) correctAnsArr = [String(correctAnsArr)];
@@ -758,12 +824,18 @@
 
             if (correctAnsArr.length === 0) return 0;
 
+            if (isSingleMultiKey) {
+                const rawStudentArr = Array.isArray(studentAns) ? studentAns : [studentAns];
+                const matchedAny = rawStudentArr.some(ans => correctAnsArr.includes(String(ans).trim().toLowerCase()));
+                return matchedAny ? fullPoints : 0;
+            }
+
             if (isMultiple) {
                 const rawStudentArr = Array.isArray(studentAns) ? studentAns : [studentAns];
                 const studentAnsArr = Array.from(new Set(rawStudentArr.map(v => String(v).trim().toLowerCase()).filter(v => v !== ''))).sort();
                 if (studentAnsArr.length === 0) return 0;
 
-                const gradingMode = q.multiple_grading_mode || currentExam?.multiple_grading_mode || 'all';
+                const gradingMode = hydrated.multiple_grading_mode || currentExam?.multiple_grading_mode || 'all';
 
                 if (gradingMode === 'at_least_one') {
                     const hasAtLeastOne = studentAnsArr.some(ans => correctAnsArr.includes(ans));
@@ -801,12 +873,18 @@
 
         function getParentIdFromQuestion(q) {
             if (!q) return null;
-            return q.parent_id || q.passage_id || q.group_id || q.parent_question_id || null;
+            return q.shared_passage_id || q.parent_id || q.passage_id || q.group_id || q.parent_question_id || null;
         }
 
         function getParentPassage(q) {
             const parentId = getParentIdFromQuestion(q);
             if (!parentId) return null;
+
+            // 1. ค้นหาจาก exams.shared_passages / localStorage (ระบบโจทย์ร่วมหลัก)
+            const fromExamPassages = sharedPassagesList.find(sp => String(sp.id) === String(parentId));
+            if (fromExamPassages) return fromExamPassages;
+
+            // 2. เผื่อกรณีเก็บเป็นแถวในตาราง questions
             return currentQuestions.find(item => String(item.id) === String(parentId)) || null;
         }
 
@@ -820,7 +898,7 @@
             return {
                 id: `inline-${q.id}`,
                 title,
-                question_text: text,
+                content: text,
                 image_url: imageUrl,
                 groupKey
             };
@@ -833,48 +911,57 @@
         function buildSharedPassageBox(passageObj, childQuestions = [], compact = false) {
             if (!passageObj) return '';
             const title = passageObj.title || passageObj.passage_title || 'คำชี้แจง / โจทย์ร่วม';
-            const rawContent = passageObj.question_text || passageObj.content || passageObj.passage_text || '';
+            const rawContent = passageObj.content || passageObj.question_text || passageObj.passage_text || '';
             const renderedContent = renderStudentMathText(rawContent);
 
             let rangeBadge = '';
             if (Array.isArray(childQuestions) && childQuestions.length > 0) {
-                const nums = childQuestions.map((c, i) => Number(c.question_number) || (i + 1));
-                const minNum = Math.min(...nums);
-                const maxNum = Math.max(...nums);
-                rangeBadge = minNum === maxNum
-                    ? `ใช้ตอบคำถามข้อที่ ${minNum}`
-                    : `ใช้ตอบคำถามข้อที่ ${minNum} - ${maxNum}`;
+                const nums = childQuestions
+                    .map(c => Number(c.question_number))
+                    .filter(n => !Number.isNaN(n) && n > 0)
+                    .sort((a, b) => a - b);
+
+                if (nums.length > 0) {
+                    const isContiguous = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1);
+                    if (nums.length === 1) {
+                        rangeBadge = `ใช้ตอบคำถามข้อที่ ${nums[0]}`;
+                    } else if (isContiguous) {
+                        rangeBadge = `ใช้ตอบคำถามข้อที่ ${nums[0]} - ${nums[nums.length - 1]}`;
+                    } else {
+                        rangeBadge = `ใช้ตอบคำถามข้อที่ ${nums.join(', ')}`;
+                    }
+                }
             }
 
             if (compact) {
                 return `
-                    <div class="p-4 bg-indigo-500/10 dark:bg-indigo-950/30 backdrop-blur-md rounded-2xl border border-indigo-500/30 space-y-2.5 shadow-sm">
-                        <div class="flex items-center justify-between flex-wrap gap-2 pb-1.5 border-b border-indigo-500/20">
-                            <span class="font-extrabold text-xs text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                    <div class="p-4 bg-teal-500/10 dark:bg-teal-950/30 backdrop-blur-md rounded-2xl border border-teal-500/35 space-y-2.5 shadow-sm">
+                        <div class="flex items-center justify-between flex-wrap gap-2 pb-1.5 border-b border-teal-500/20">
+                            <span class="font-extrabold text-xs text-teal-700 dark:text-teal-300 flex items-center gap-1.5">
                                 <i class="fas fa-book-open"></i> ${escapeHtmlText(title)}
                             </span>
-                            ${rangeBadge ? `<span class="px-2 py-0.5 bg-indigo-600 text-white font-bold text-[10px] rounded-md">${rangeBadge}</span>` : ''}
+                            ${rangeBadge ? `<span class="px-2 py-0.5 bg-teal-600 text-white font-bold text-[10px] rounded-md">${rangeBadge}</span>` : ''}
                         </div>
                         <div class="text-xs text-slate-800 dark:text-slate-100 leading-relaxed math-prose">
                             ${renderedContent}
                         </div>
-                        ${passageObj.image_url ? `<div class="pt-1"><img src="${escapeHtmlText(passageObj.image_url)}" class="max-h-52 rounded-xl object-contain border border-indigo-500/20 mx-auto" /></div>` : ''}
+                        ${passageObj.image_url ? `<div class="pt-1"><img src="${escapeHtmlText(passageObj.image_url)}" class="max-h-52 rounded-xl object-contain border border-teal-500/20 mx-auto" /></div>` : ''}
                     </div>
                 `;
             }
 
             return `
-                <div class="p-6 sm:p-7 bg-indigo-500/10 dark:bg-indigo-950/30 backdrop-blur-md rounded-2xl border-2 border-indigo-500/30 space-y-4 shadow-sm">
-                    <div class="flex items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-indigo-500/20">
-                        <span class="font-extrabold text-sm text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
+                <div class="p-6 sm:p-7 bg-teal-500/10 dark:bg-teal-950/30 backdrop-blur-md rounded-2xl border-2 border-teal-500/35 space-y-4 shadow-sm">
+                    <div class="flex items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-teal-500/20">
+                        <span class="font-extrabold text-sm text-teal-700 dark:text-teal-300 flex items-center gap-2">
                             <i class="fas fa-book-open"></i> ${escapeHtmlText(title)}
                         </span>
-                        ${rangeBadge ? `<span class="px-3 py-1 bg-indigo-600 text-white font-bold text-xs rounded-lg shadow-sm">${rangeBadge}</span>` : ''}
+                        ${rangeBadge ? `<span class="px-3 py-1 bg-teal-600 text-white font-bold text-xs rounded-lg shadow-sm">${rangeBadge}</span>` : ''}
                     </div>
                     <div class="text-sm sm:text-base text-slate-800 dark:text-slate-100 leading-loose math-prose">
                         ${renderedContent}
                     </div>
-                    ${passageObj.image_url ? `<div class="pt-2"><img src="${escapeHtmlText(passageObj.image_url)}" class="max-h-80 rounded-xl object-contain border border-indigo-500/20 mx-auto" /></div>` : ''}
+                    ${passageObj.image_url ? `<div class="pt-2"><img src="${escapeHtmlText(passageObj.image_url)}" class="max-h-80 rounded-xl object-contain border border-teal-500/20 mx-auto" /></div>` : ''}
                 </div>
             `;
         }
@@ -899,6 +986,7 @@
             }
 
             currentExam = exam;
+            sharedPassagesList = resolveSharedPassages(exam);
             document.getElementById('examTitleNav').textContent = exam.title;
             document.getElementById('examSubNav').textContent = `รหัส: ${exam.exam_code || 'ไม่มี'} | เวลาทำ: ${exam.time_limit || 60} นาที`;
 
@@ -1079,6 +1167,7 @@
                         const updatedExam = payload.new;
                         if (String(updatedExam.id) !== String(examId)) return;
                         currentExam = updatedExam;
+                        sharedPassagesList = resolveSharedPassages(updatedExam);
                         document.getElementById('examSubNav').textContent = `รหัส: ${currentExam.exam_code || 'ไม่มี'} | เวลาทำ: ${currentExam.time_limit || 60} นาที`;
                         syncExamDownloadUI();
                         renderQuestionsContainer();
@@ -1092,7 +1181,7 @@
                         if (!row || String(row.exam_id) !== String(examId)) return;
                         const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
                         if (qs) {
-                            currentQuestions = qs;
+                            currentQuestions = qs.map(hydrateQuestionMeta);
                             renderQuestionsContainer();
                             updateExamProgress();
                         }
@@ -1184,7 +1273,7 @@
 
         async function loadQuestions() {
             const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
-            currentQuestions = qs || [];
+            currentQuestions = (qs || []).map(hydrateQuestionMeta);
             const answerable = getAnswerableQuestions();
             if (currentStepIndex >= answerable.length) {
                 currentStepIndex = Math.max(0, answerable.length - 1);
@@ -1546,14 +1635,14 @@
             if (stepFooter) stepFooter.classList.add('hidden');
 
             let htmlContent = `<div class="space-y-8">`;
-            const renderedPassageIds = new Set();
+            let lastRenderedPassageId = null;
             let lastInlinePassageKey = null;
             let answerableCounter = 0;
 
             currentQuestions.forEach((q) => {
                 if (isPassageHeader(q)) {
                     const childList = answerable.filter(item => String(getParentIdFromQuestion(item)) === String(q.id));
-                    renderedPassageIds.add(String(q.id));
+                    lastRenderedPassageId = String(q.id);
                     lastInlinePassageKey = null;
                     htmlContent += buildSharedPassageBox(q, childList, hasPdf);
                     return;
@@ -1562,15 +1651,17 @@
                 const parentPassage = getParentPassage(q);
                 const inlinePassage = !parentPassage ? getInlinePassageData(q) : null;
 
-                if (parentPassage && !renderedPassageIds.has(String(parentPassage.id))) {
+                if (parentPassage && String(parentPassage.id) !== lastRenderedPassageId) {
                     const childList = answerable.filter(item => String(getParentIdFromQuestion(item)) === String(parentPassage.id));
-                    renderedPassageIds.add(String(parentPassage.id));
+                    lastRenderedPassageId = String(parentPassage.id);
                     lastInlinePassageKey = null;
                     htmlContent += buildSharedPassageBox(parentPassage, childList, hasPdf);
                 } else if (inlinePassage && inlinePassage.groupKey !== lastInlinePassageKey) {
+                    lastRenderedPassageId = null;
                     lastInlinePassageKey = inlinePassage.groupKey;
                     htmlContent += buildSharedPassageBox(inlinePassage, [], hasPdf);
                 } else if (!parentPassage && !inlinePassage) {
+                    lastRenderedPassageId = null;
                     lastInlinePassageKey = null;
                 }
 
@@ -1875,7 +1966,7 @@
 
             answerableQuestions.forEach(q => {
                 const maxQScore = Number(q.score);
-                maxTotalScore += (!Number.isNaN(maxQScore) && maxQScore > 0) ? maxQScore : 1;
+                maxTotalScore += (!Number.isNaN(maxQScore) && maxQScore >= 0) ? maxQScore : 1;
                 totalScore += calculateQuestionScore(q, studentAnswers[q.id]);
             });
 
