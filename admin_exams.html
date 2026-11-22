@@ -10,21 +10,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Markdown Renderer -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- MathJax v3 for LaTeX Equations -->
-    <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']],
-                processEscapes: true
-            },
-            svg: { fontCache: 'global' },
-            startup: { typeset: false }
-        };
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
     
     <script>
         (function() {
@@ -79,19 +64,6 @@
         .dark .glow-badge-sky { background: rgba(2, 132, 199, 0.2); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); }
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
-
-        /* Rich Content (Markdown + Math + Images) */
-        .rich-content p { margin: 0 0 0.45rem 0; }
-        .rich-content p:last-child { margin-bottom: 0; }
-        .rich-content ul, .rich-content ol { margin: 0.25rem 0 0.5rem 1.25rem; list-style: revert; }
-        .rich-content code { background: rgba(148, 163, 184, 0.18); padding: 0.1rem 0.35rem; border-radius: 0.35rem; font-size: 0.9em; font-family: monospace; }
-        .rich-content pre { background: #0f172a; color: #f8fafc; padding: 0.65rem 0.85rem; border-radius: 0.6rem; overflow-x: auto; margin: 0.4rem 0; font-size: 0.85em; }
-        .rich-content pre code { background: transparent; padding: 0; color: inherit; }
-        .rich-content blockquote { border-left: 3px solid #0284c7; padding-left: 0.65rem; margin: 0.35rem 0; opacity: 0.9; }
-        .rich-content img, .rich-inline img { max-width: 100%; max-height: 260px; width: auto; height: auto; border-radius: 0.5rem; margin: 0.35rem 0; display: inline-block; object-fit: contain; }
-        .rich-inline p { display: inline; margin: 0; }
-        mjx-container { display: inline-block !important; }
-        mjx-container[display="true"] { display: block !important; margin: 0.4rem 0 !important; text-align: center; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
@@ -273,58 +245,6 @@
         let currentViewMode = localStorage.getItem('exam_view_mode') || 'grid';
         let isAllCollapsed = false;
 
-        // Protect LaTeX math blocks from Marked altering underscores/asterisks before MathJax renders
-        function protectMathBeforeMarkdown(rawText) {
-            const text = String(rawText || '');
-            const mathTokens = [];
-            const stash = (match) => {
-                const token = `@@MATHTOKEN_${mathTokens.length}@@`;
-                mathTokens.push(match);
-                return token;
-            };
-
-            const protectedText = text
-                .replace(/\$\$[\s\S]*?\$\$/g, stash)
-                .replace(/\\\[[\s\S]*?\\\]/g, stash)
-                .replace(/\\\([\s\S]*?\\\)/g, stash)
-                .replace(/(?<!\\)\$(?!\$)(?:\\.|[^$\n])+?(?<!\\)\$/g, stash);
-
-            return { protectedText, mathTokens };
-        }
-
-        function restoreMathAfterMarkdown(htmlText, mathTokens) {
-            let out = String(htmlText || '');
-            mathTokens.forEach((mathExpr, idx) => {
-                out = out.split(`@@MATHTOKEN_${idx}@@`).join(mathExpr);
-            });
-            return out;
-        }
-
-        function renderRichText(rawText, { inline = false } = {}) {
-            const str = String(rawText || '');
-            if (!str.trim()) return '';
-            const { protectedText, mathTokens } = protectMathBeforeMarkdown(str);
-
-            let html = '';
-            if (window.marked && typeof window.marked.parse === 'function') {
-                html = inline && typeof window.marked.parseInline === 'function'
-                    ? window.marked.parseInline(protectedText)
-                    : window.marked.parse(protectedText);
-            } else {
-                html = escapePreviewHtml(protectedText).replace(/\n/g, '<br>');
-            }
-
-            return restoreMathAfterMarkdown(html, mathTokens);
-        }
-
-        function typesetMath(targetEl = null) {
-            if (!window.MathJax || typeof window.MathJax.typesetPromise !== 'function') return;
-            const targets = targetEl ? [targetEl] : undefined;
-            window.MathJax.typesetPromise(targets).catch((err) => {
-                console.warn('MathJax typeset note:', err);
-            });
-        }
-
         function readLocalDownloadFlags() {
             try {
                 return JSON.parse(localStorage.getItem(LOCAL_DOWNLOAD_FLAGS_KEY) || '{}');
@@ -378,7 +298,6 @@
             const isDark = htmlElement.classList.contains('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
-            typesetMath();
         });
 
         function readLocalFallbackTags() {
@@ -695,7 +614,6 @@
                     document.getElementById('navTitle').innerHTML = `<span class="w-7 h-7 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 text-white flex items-center justify-center text-xs shadow-md"><i class="fas fa-file-signature"></i></span> ข้อสอบในคอร์ส: ${course.title}`;
                 }
             }
-            typesetMath();
         }
 
         function switchViewMode(mode) {
@@ -796,7 +714,7 @@
                                 </span>
                                 <span class="font-mono text-xs text-amber-600 dark:text-amber-400 font-bold">${e.exam_code || 'CODE'}</span>
                             </div>
-                            <h4 class="font-bold text-slate-900 dark:text-white text-sm rich-inline">${renderRichText(e.title, { inline: true })}</h4>
+                            <h4 class="font-bold text-slate-900 dark:text-white text-sm">${e.title}</h4>
                             <div class="text-[11px] text-slate-600 dark:text-slate-300">📅 เปิดสอบ: ${st.toLocaleString('th-TH')}</div>
                             <div class="pt-2">
                                 <button onclick="window.location.href='admin_exam_editor.html?id=${e.id}'" class="w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm">
@@ -891,7 +809,7 @@
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-chevron-down text-sky-500 transition-transform duration-200" id="icon-${catId}"></i>
                                 <span class="w-3 h-5 bg-gradient-to-b from-sky-400 to-blue-600 rounded-full"></span>
-                                <h3 class="font-extrabold text-base text-slate-900 dark:text-white">${escapePreviewHtml(catName)}</h3>
+                                <h3 class="font-extrabold text-base text-slate-900 dark:text-white">${catName}</h3>
                                 <span class="px-2.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 text-xs font-bold">${catExams.length} ชุด</span>
                             </div>
                             <span class="text-[11px] text-slate-400 font-semibold">คลิกเพื่อ ยุบ/ขยาย</span>
@@ -900,8 +818,6 @@
                     </div>
                 `;
             }).join('');
-
-            typesetMath(container);
         }
 
         function getCourseOrFreeTagHtml(e) {
@@ -910,7 +826,7 @@
             if (Array.isArray(targetCourseId)) targetCourseId = targetCourseId[0];
             if (!isFree && targetCourseId && coursesMap[targetCourseId]) {
                 const cObj = coursesMap[targetCourseId];
-                return `<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-md"><i class="fas fa-chalkboard"></i> ${escapePreviewHtml(cObj.title)}</span>`;
+                return `<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-md"><i class="fas fa-chalkboard"></i> ${cObj.title}</span>`;
             }
             return `<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-500/15 text-teal-600 dark:text-teal-300 border border-teal-500/30 text-[10px] font-bold rounded-md"><i class="fas fa-gift"></i> โจทย์แจกฟรี (ไม่สังกัดคอร์ส)</span>`;
         }
@@ -940,7 +856,7 @@
                             <span class="font-mono text-[11px] font-bold glow-badge-sky px-2 py-0.5 rounded-md">${e.exam_code || 'CODE'}</span>
                             ${statusBadge}
                         </div>
-                        <h3 class="font-bold text-sm text-slate-900 dark:text-white leading-snug line-clamp-1 rich-inline">${renderRichText(e.title, { inline: true })}</h3>
+                        <h3 class="font-bold text-sm text-slate-900 dark:text-white leading-snug line-clamp-1">${e.title}</h3>
                         <div class="flex flex-wrap items-center gap-1.5">${courseTagHtml}</div>
                         ${examTagsHtml}
                         ${scheduleInfo ? `<div class="space-y-0.5">${scheduleInfo}</div>` : ''}
@@ -998,7 +914,7 @@
                         <span class="font-mono text-xs font-bold glow-badge-sky px-2.5 py-1 rounded-lg shrink-0">${e.exam_code || 'CODE'}</span>
                         <div class="space-y-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <h4 class="font-bold text-sm text-slate-900 dark:text-white truncate rich-inline">${renderRichText(e.title, { inline: true })}</h4>
+                                <h4 class="font-bold text-sm text-slate-900 dark:text-white truncate">${e.title}</h4>
                                 ${statusBadge}
                                 ${courseTagHtml}
                             </div>
@@ -1126,11 +1042,10 @@
             }
 
             Swal.fire({
-                title: `📊 AI Diagnostic Report`,
+                title: `📊 AI Diagnostic Report: ${examTitle}`,
                 width: '650px',
                 html: `
                     <div class="space-y-4 text-left text-xs">
-                        <div class="font-extrabold text-sm text-slate-900 dark:text-white rich-content">${renderRichText(examTitle)}</div>
                         <div class="grid grid-cols-3 gap-2 text-center">
                             <div class="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl">
                                 <div class="text-lg font-extrabold text-sky-600">${totalStudents}</div>
@@ -1153,7 +1068,6 @@
                         </div>
                     </div>
                 `,
-                didOpen: (popup) => typesetMath(popup),
                 confirmButtonText: 'ปิดหน้าต่าง'
             });
         }
@@ -1226,7 +1140,7 @@
                             <div class="space-y-0.5">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-mono font-bold text-[10px]">Attempt #${att.attemptNo}</span>
-                                    <span class="font-bold text-slate-900 dark:text-white">${escapePreviewHtml(att.resolvedName)}</span>
+                                    <span class="font-bold text-slate-900 dark:text-white">${att.resolvedName}</span>
                                     ${statusBadge}
                                 </div>
                                 <div class="text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-3 pt-0.5">
@@ -1243,11 +1157,10 @@
             };
 
             Swal.fire({
-                title: `จัดการสิทธิ์สอบ`,
+                title: `จัดการสิทธิ์สอบ: ${examTitle}`,
                 width: '680px',
                 html: `
                     <div class="space-y-3 text-left">
-                        <div class="font-bold text-xs text-slate-800 dark:text-slate-200 rich-content">${renderRichText(examTitle)}</div>
                         <div class="flex justify-between items-center text-[11px] text-slate-400">
                             <span>ทั้งหมด ${enrichedAttempts.length} Attempt</span>
                             <span>กด Reset Attempt เพื่อลบรอบนั้นให้นักเรียนสอบใหม่</span>
@@ -1256,7 +1169,6 @@
                         <div id="attemptListContainer" class="space-y-2 max-h-72 overflow-y-auto pr-1">${renderAttemptRows(enrichedAttempts)}</div>
                     </div>
                 `,
-                didOpen: (popup) => typesetMath(popup),
                 showConfirmButton: false,
                 showCloseButton: true
             });
@@ -1320,7 +1232,6 @@
             if (box.classList.contains('hidden')) {
                 box.classList.remove('hidden');
                 icon.classList.remove('-rotate-90');
-                typesetMath(box);
             } else {
                 box.classList.add('hidden');
                 icon.classList.add('-rotate-90');
@@ -1338,7 +1249,6 @@
                 else i.classList.remove('-rotate-90');
             });
             document.getElementById('toggleAllBtnText').textContent = isAllCollapsed ? 'ขยายทั้งหมด' : 'ยุบทั้งหมด';
-            if (!isAllCollapsed) typesetMath();
         }
 
         async function saveExamTagAssignments(examId, newTagIds) {
@@ -1572,64 +1482,37 @@
             return new Blob([pdf], { type: 'application/pdf' });
         }
 
-        function extractQuestionImageUrl(q) {
-            if (!q || typeof q !== 'object') return '';
-            const candidates = [q.image_url, q.image, q.img_url, q.picture_url, q.attachment_url];
-            for (const c of candidates) {
-                if (typeof c === 'string' && c.trim()) return c.trim();
-            }
-            return '';
-        }
-
         function buildFormattedOnlineSampleHtml(titleText, codeText, choiceFormat, questions = []) {
             const labels = getChoiceLabels(choiceFormat);
 
             const questionsHtml = questions.length > 0
                 ? questions.map((q, idx) => {
-                    const qRaw = q.question_text || q.prompt || q.title || `โจทย์ข้อที่ ${idx + 1}`;
-                    const qHtml = renderRichText(qRaw);
-                    const qImgUrl = extractQuestionImageUrl(q);
-                    const qImgBlock = qImgUrl
-                        ? `<div class="q-img-wrap"><img src="${escapePreviewHtml(qImgUrl)}" alt="รูปประกอบข้อที่ ${idx + 1}"></div>`
-                        : '';
-
+                    const qText = escapePreviewHtml(q.question_text || q.prompt || q.title || `โจทย์ข้อที่ ${idx + 1}`);
                     const rawChoices = Array.isArray(q.choices)
                         ? q.choices
                         : [q.choice_1, q.choice_2, q.choice_3, q.choice_4].filter(Boolean);
 
                     const choicesBlock = rawChoices.length > 0
-                        ? `<div class="choices">${rawChoices.map((ch, cIdx) => {
-                            const chText = typeof ch === 'object' && ch !== null
-                                ? (ch.text || ch.label || ch.content || '')
-                                : ch;
-                            const chImg = typeof ch === 'object' && ch !== null
-                                ? (ch.image_url || ch.image || '')
-                                : '';
-                            return `<div class="choice-item"><strong>${escapePreviewHtml(labels[cIdx] || String(cIdx + 1))}.</strong> <span class="rich-inline">${renderRichText(chText, { inline: true })}</span>${chImg ? `<div class="q-img-wrap"><img src="${escapePreviewHtml(chImg)}" alt="ตัวเลือก ${cIdx + 1}"></div>` : ''}</div>`;
-                        }).join('')}</div>`
+                        ? `<div class="choices">${rawChoices.map((ch, cIdx) =>
+                            `<div><strong>${escapePreviewHtml(labels[cIdx] || String(cIdx + 1))}.</strong> ${escapePreviewHtml(ch)}</div>`
+                        ).join('')}</div>`
                         : `<div class="answer-line"></div><div class="answer-line"></div>`;
 
                     return `
                         <div class="q-block">
-                            <div class="q-title">ข้อที่ ${idx + 1}: <div class="rich-content">${qHtml}</div></div>
-                            ${qImgBlock}
+                            <div class="q-title">ข้อที่ ${idx + 1}: ${qText}</div>
                             ${choicesBlock}
                         </div>
                     `;
                 }).join('')
                 : `
                     <div class="q-block">
-                        <div class="q-title">ตัวอย่างข้อที่ 1 (Markdown + สมการคณิตศาสตร์ + รูปภาพ):</div>
-                        <div class="rich-content">
-                            <p>กำหนดฟังก์ชัน **กำลังสอง** $f(x) = ax^2 + bx + c$ โดยที่ $a \\neq 0$ และสมการทั่วไป:</p>
-                            $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
-                            <p>หากแทรกรูปภาพในโจทย์ สามารถใช้ Markdown <code>![คำอธิบาย](https://example.com/image.png)</code> หรือแท็ก <code>&lt;img src="..."&gt;</code> ได้ทันที</p>
-                        </div>
+                        <div class="q-title">ตัวอย่างข้อที่ 1: ข้อความโจทย์ที่พิมพ์ลงระบบจะถูกจัดหน้าแยกบล็อกชัดเจน อ่านง่าย</div>
                         <div class="choices">
-                            <div class="choice-item"><strong>${escapePreviewHtml(labels[0])}.</strong> <span class="rich-inline">${renderRichText('$\\Delta > 0$', { inline: true })}</span></div>
-                            <div class="choice-item"><strong>${escapePreviewHtml(labels[1])}.</strong> <span class="rich-inline">${renderRichText('$\\Delta = 0$', { inline: true })}</span></div>
-                            <div class="choice-item"><strong>${escapePreviewHtml(labels[2])}.</strong> <span class="rich-inline">${renderRichText('$\\Delta < 0$', { inline: true })}</span></div>
-                            <div class="choice-item"><strong>${escapePreviewHtml(labels[3])}.</strong> <span class="rich-inline">${renderRichText('**ไม่มีคำตอบจริง**', { inline: true })}</span></div>
+                            <div><strong>${escapePreviewHtml(labels[0])}.</strong> ตัวเลือกที่ 1</div>
+                            <div><strong>${escapePreviewHtml(labels[1])}.</strong> ตัวเลือกที่ 2</div>
+                            <div><strong>${escapePreviewHtml(labels[2])}.</strong> ตัวเลือกที่ 3</div>
+                            <div><strong>${escapePreviewHtml(labels[3])}.</strong> ตัวเลือกที่ 4</div>
                         </div>
                     </div>
                     <div class="q-block">
@@ -1644,18 +1527,6 @@
 <head>
 <meta charset="UTF-8">
 <title>ตัวอย่างไฟล์ข้อสอบ - ${escapePreviewHtml(titleText)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
-      displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
-      processEscapes: true
-    },
-    svg: { fontCache: 'global' }
-  };
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 <style>
   @page { size: A4; margin: 18mm; }
   * { box-sizing: border-box; }
@@ -1666,13 +1537,7 @@
   .copyright { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; padding: 12px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 20px; }
   .q-block { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; page-break-inside: avoid; }
   .q-title { font-weight: 700; margin-bottom: 8px; color: #0f172a; }
-  .rich-content p { margin: 0 0 6px 0; }
-  .rich-content p:last-child { margin-bottom: 0; }
-  .rich-inline p { display: inline; margin: 0; }
-  .q-img-wrap { margin: 8px 0; }
-  .q-img-wrap img, img { max-width: 100%; max-height: 280px; width: auto; height: auto; border-radius: 8px; display: block; }
-  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 13.5px; color: #334155; margin-top: 8px; }
-  .choice-item { padding: 4px 0; }
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 13.5px; color: #334155; }
   .answer-line { border-bottom: 1px dotted #94a3b8; height: 24px; margin-top: 6px; }
   .footer { margin-top: 24px; padding-top: 12px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; font-size: 11.5px; color: #64748b; }
   .print-bar { max-width: 820px; margin: 0 auto 12px auto; display: flex; justify-content: flex-end; }
@@ -1685,7 +1550,7 @@
   <div class="sheet">
     <div class="header">
       <div>
-        <div style="font-size:12px;color:#0284c7;font-weight:700;">ตัวอย่างการจัดหน้าเอกสารข้อสอบ (รองรับ Markdown, สมการคณิตศาสตร์ และรูปภาพ)</div>
+        <div style="font-size:12px;color:#0284c7;font-weight:700;">ตัวอย่างการจัดหน้าเอกสารข้อสอบ (สร้างอัตโนมัติจากโจทย์ในระบบ)</div>
         <h1 style="margin:4px 0 0 0;font-size:20px;">${escapePreviewHtml(titleText)}</h1>
       </div>
       <span class="code">${escapePreviewHtml(codeText)}</span>
@@ -1744,7 +1609,7 @@
             const isPdfMode = deliveryType === 'pdf';
             const sourceDesc = isPdfMode
                 ? 'ไฟล์ PDF ที่แอดมินอัปโหลดลงระบบ'
-                : 'สร้างไฟล์เอกสารใหม่จากโจทย์ที่พิมพ์ลงระบบ (รองรับ Markdown, สมการคณิตศาสตร์ และรูปภาพ)';
+                : 'สร้างไฟล์เอกสารใหม่จากโจทย์ที่พิมพ์ลงระบบ (จัดหน้าอ่านง่าย)';
 
             const fileBadge = isPdfMode
                 ? `<span class="px-2 py-0.5 rounded bg-red-500/15 text-red-600 dark:text-red-400 font-bold text-[10px]"><i class="fas fa-file-pdf mr-1"></i>ต้นฉบับ PDF</span>`
@@ -1763,7 +1628,7 @@
                     </div>
                     <div class="p-2.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-2">
                         <div class="min-w-0">
-                            <div class="font-bold text-xs text-slate-800 dark:text-slate-100 truncate rich-inline">${renderRichText(titleVal, { inline: true })} <span class="font-mono text-[10px] text-slate-400">(${escapePreviewHtml(codeVal)})</span></div>
+                            <div class="font-bold text-xs text-slate-800 dark:text-slate-100 truncate">${escapePreviewHtml(titleVal)} <span class="font-mono text-[10px] text-slate-400">(${escapePreviewHtml(codeVal)})</span></div>
                             <div class="text-[10px] text-slate-500 dark:text-slate-400">นักเรียนจะไม่เห็นปุ่มดาวน์โหลดไฟล์ — อ่าน/ทำข้อสอบบนหน้าเว็บเท่านั้น</div>
                         </div>
                         <span class="px-2.5 py-1 rounded-lg bg-slate-200/80 dark:bg-slate-800 text-slate-400 text-[10px] font-bold shrink-0 cursor-not-allowed">
@@ -1771,7 +1636,6 @@
                         </span>
                     </div>
                 `;
-                typesetMath(previewBox);
                 return;
             }
 
@@ -1790,7 +1654,7 @@
                 </div>
                 <div class="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-sky-500/25 flex items-center justify-between gap-2 shadow-sm">
                     <div class="min-w-0 space-y-0.5">
-                        <div class="font-bold text-xs text-slate-900 dark:text-white truncate rich-inline">${renderRichText(titleVal, { inline: true })} <span class="font-mono text-[10px] text-sky-600 dark:text-sky-400">(${escapePreviewHtml(codeVal)})</span></div>
+                        <div class="font-bold text-xs text-slate-900 dark:text-white truncate">${escapePreviewHtml(titleVal)} <span class="font-mono text-[10px] text-sky-600 dark:text-sky-400">(${escapePreviewHtml(codeVal)})</span></div>
                         <div class="text-[10px] text-slate-600 dark:text-slate-300">แหล่งไฟล์: <strong>${sourceDesc}</strong></div>
                     </div>
                     <button type="button" onclick="downloadSampleExamPreview('${escapePreviewHtml(previewExamId)}')" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 active:scale-95 text-white text-[11px] font-bold shrink-0 shadow-sm flex items-center gap-1.5 transition-all cursor-pointer">
@@ -1802,12 +1666,11 @@
                     <span><strong>ลิขสิทธิ์และการจัดหน้า:</strong> กดปุ่ม "ดาวน์โหลดข้อสอบ" เพื่อโหลดไฟล์ตัวอย่างดูการจัดหน้าและประกาศลิขสิทธิ์ก่อนใช้งานจริง</span>
                 </div>
             `;
-            typesetMath(previewBox);
         };
 
         async function openExamModal(examData = null) {
             const isEdit = !!examData;
-            const categoryOptions = categoriesList.map(c => `<option value="${c.id}" ${examData?.category_id === c.id ? 'selected' : ''}>${escapePreviewHtml(c.name)}</option>`).join('');
+            const categoryOptions = categoriesList.map(c => `<option value="${c.id}" ${examData?.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
             
             const isFreeDefault = examData ? isFreeUnassignedExam(examData) : false;
             let currentCourseId = examData?.course_id || filterCourseId || '';
@@ -1816,7 +1679,7 @@
             }
             if (isFreeDefault) currentCourseId = '';
 
-            const courseDropdownOptions = allCoursesList.map(c => `<option value="${c.id}" ${String(currentCourseId) === String(c.id) ? 'selected' : ''}>📚 ${escapePreviewHtml(c.title)} (${escapePreviewHtml(c.course_code || 'COURSE')})</option>`).join('');
+            const courseDropdownOptions = allCoursesList.map(c => `<option value="${c.id}" ${String(currentCourseId) === String(c.id) ? 'selected' : ''}>📚 ${c.title} (${c.course_code || 'COURSE'})</option>`).join('');
 
             const currentDelivery = examData?.delivery_type || examData?.exam_type || 'pdf';
             const currentChoiceFormat = examData?.choice_format || 'num';
@@ -1860,7 +1723,7 @@
                                     <input type="radio" name="swalDeliveryType" value="online" onchange="updateStudentDownloadPreview()" ${currentDelivery === 'online' ? 'checked' : ''}>
                                     <div>
                                         <div class="font-bold"><i class="fas fa-keyboard text-purple-500 mr-1"></i>พิมพ์ลงระบบ</div>
-                                        <div class="text-[10px] text-slate-400">รองรับ Markdown, สมการคณิตศาสตร์ &amp; รูปภาพ</div>
+                                        <div class="text-[10px] text-slate-400">พิมพ์โจทย์ลงระบบออนไลน์</div>
                                     </div>
                                 </label>
                             </div>
@@ -1886,12 +1749,12 @@
 
                         <div class="grid grid-cols-3 gap-2">
                             <div class="col-span-2">
-                                <label class="block font-bold mb-1">ชื่อชุดข้อสอบ (รองรับ Markdown &amp; $LaTeX$) <span class="text-red-500">*</span></label>
-                                <input id="swalTitle" oninput="updateStudentDownloadPreview()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" value="${escapePreviewHtml(examData?.title || '')}">
+                                <label class="block font-bold mb-1">ชื่อชุดข้อสอบ <span class="text-red-500">*</span></label>
+                                <input id="swalTitle" oninput="updateStudentDownloadPreview()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" value="${examData?.title || ''}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">รหัสข้อสอบ (Code)</label>
-                                <input id="swalExamCode" oninput="updateStudentDownloadPreview()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl font-mono uppercase outline-none" value="${escapePreviewHtml(examData?.exam_code || '')}">
+                                <input id="swalExamCode" oninput="updateStudentDownloadPreview()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl font-mono uppercase outline-none" value="${examData?.exam_code || ''}">
                             </div>
                         </div>
 
@@ -2169,7 +2032,7 @@
                 return `
                     <div class="flex justify-between items-center gap-2 p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs border border-slate-200/70 dark:border-slate-700/70">
                         <div class="min-w-0">
-                            <span class="font-bold text-emerald-700 dark:text-emerald-300 block truncate">#${escapePreviewHtml(t.name)}</span>
+                            <span class="font-bold text-emerald-700 dark:text-emerald-300 block truncate">#${t.name}</span>
                             <span class="text-[10px] text-slate-500 dark:text-slate-400">ใช้งานใน ${cnt} ชุดข้อสอบ</span>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
@@ -2300,7 +2163,7 @@
                             <div class="flex items-center gap-2.5 min-w-0">
                                 <input type="checkbox" name="tagAssignExamCheck" value="${e.id}" ${checked ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-600 shrink-0">
                                 <div class="min-w-0">
-                                    <div class="font-bold text-slate-900 dark:text-white truncate rich-inline">${renderRichText(e.title, { inline: true })}</div>
+                                    <div class="font-bold text-slate-900 dark:text-white truncate">${e.title}</div>
                                     <div class="text-[10px] text-slate-500 font-mono">${e.exam_code || 'CODE'}</div>
                                 </div>
                             </div>
@@ -2311,15 +2174,14 @@
                 : `<div class="text-center py-4 text-slate-400">ยังไม่มีชุดข้อสอบในระบบ</div>`;
 
             const { value: checkedExamIds } = await Swal.fire({
-                title: `ผูกชุดข้อสอบกับ #${escapePreviewHtml(tagName)}`,
+                title: `ผูกชุดข้อสอบกับ #${tagName}`,
                 width: '600px',
                 html: `
                     <div class="space-y-2.5 text-left text-xs">
-                        <div class="text-[11px] text-slate-500 dark:text-slate-400">ติ๊กเลือกชุดข้อสอบที่ต้องการติด Tag <strong>#${escapePreviewHtml(tagName)}</strong> (1 ชุดมีหลาย Tag ได้)</div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">ติ๊กเลือกชุดข้อสอบที่ต้องการติด Tag <strong>#${tagName}</strong> (1 ชุดมีหลาย Tag ได้)</div>
                         <div class="space-y-1.5 max-h-72 overflow-y-auto pr-1">${rowsHtml}</div>
                     </div>
                 `,
-                didOpen: (popup) => typesetMath(popup),
                 showCancelButton: true,
                 confirmButtonText: 'บันทึกการผูก Tag',
                 cancelButtonText: 'ย้อนกลับ',
@@ -2395,7 +2257,7 @@
                 return `
                     <div class="flex justify-between items-center gap-2 p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs border border-slate-200/70 dark:border-slate-700/70">
                         <div class="min-w-0">
-                            <span class="font-bold text-slate-900 dark:text-white block truncate">${escapePreviewHtml(c.name)}</span>
+                            <span class="font-bold text-slate-900 dark:text-white block truncate">${c.name}</span>
                             <span class="text-[10px] text-slate-500 dark:text-slate-400">${cnt} ชุดข้อสอบในหมวดนี้</span>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
@@ -2482,7 +2344,7 @@
                         <div class="flex items-center gap-2.5 min-w-0">
                             <input type="checkbox" name="catExamCheckbox" value="${e.id}" checked class="w-4 h-4 rounded text-indigo-600 shrink-0">
                             <div class="min-w-0">
-                                <div class="font-bold text-slate-900 dark:text-white truncate rich-inline">${renderRichText(e.title, { inline: true })}</div>
+                                <div class="font-bold text-slate-900 dark:text-white truncate">${e.title}</div>
                                 <div class="text-[10px] text-slate-500 font-mono">${e.exam_code || 'CODE'}</div>
                             </div>
                         </div>
@@ -2497,7 +2359,7 @@
                         <div class="flex items-center gap-2.5 min-w-0">
                             <input type="checkbox" name="catExamCheckbox" value="${e.id}" class="w-4 h-4 rounded text-indigo-600 shrink-0">
                             <div class="min-w-0">
-                                <div class="font-bold text-slate-900 dark:text-white truncate rich-inline">${renderRichText(e.title, { inline: true })}</div>
+                                <div class="font-bold text-slate-900 dark:text-white truncate">${e.title}</div>
                                 <div class="text-[10px] text-slate-500 font-mono">${e.exam_code || 'CODE'}</div>
                             </div>
                         </div>
@@ -2507,7 +2369,7 @@
                 : `<div class="text-center py-3 text-slate-400 text-[11px] bg-slate-50 dark:bg-slate-900/50 rounded-xl">ไม่มีชุดข้อสอบที่ว่าง (ชุดอื่นสังกัดหมวดหมู่อื่นอยู่แล้ว)</div>`;
 
             const { value: selectedIds } = await Swal.fire({
-                title: `ชุดข้อสอบในหมวด: ${escapePreviewHtml(catName)}`,
+                title: `ชุดข้อสอบในหมวด: ${catName}`,
                 width: '620px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
@@ -2524,7 +2386,6 @@
                         </div>
                     </div>
                 `,
-                didOpen: (popup) => typesetMath(popup),
                 showCancelButton: true,
                 confirmButtonText: 'บันทึกการจัดหมวดหมู่',
                 cancelButtonText: 'ย้อนกลับ',
