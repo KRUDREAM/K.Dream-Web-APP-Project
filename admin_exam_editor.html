@@ -393,7 +393,6 @@
             const storeMath = (tex, displayMode) => {
                 const idx = mathTokens.length;
                 mathTokens.push(renderKatexSafe(tex, displayMode));
-                // ใช้ตัวอักษรล้วนเป็น placeholder เพื่อไม่ให้ marked แปลง _ หรือ * ข้างใน
                 return `MATHTOKENBLOCK${idx}ENDMATHTOKEN`;
             };
 
@@ -402,14 +401,10 @@
                 .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => storeMath(expr, true))
                 .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => storeMath(expr, true));
 
-            // 2. แยก inline math: \(...\) และ $...$ (หลีกเลี่ยง $$ และ currency เช่น $5)
+            // 2. แยก inline math: \(...\) และ $...$ (แปลงตัวเลขปกติใน $...$ เช่น $5$ หรือ $12.5$ ด้วย)
             protectedText = protectedText
                 .replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => storeMath(expr, false))
-                .replace(/(?<!\$)\$(?!\$|\s)([^$\n]*?[^\s$])\$(?!\$)/g, (match, expr) => {
-                    // ถ้าเป็นตัวเลขล้วนติดกัน เช่น $100 ให้ถือเป็นสกุลเงินตามปกติ เว้นแต่มีสัญลักษณ์คณิตศาสตร์
-                    if (/^\d+(\.\d+)?$/.test(expr.trim())) return match;
-                    return storeMath(expr, false);
-                });
+                .replace(/(?<!\\)\$(?!\$)([^$\n]+?)(?<!\\)\$(?!\$)/g, (_, expr) => storeMath(expr, false));
 
             let htmlOutput = '';
             try {
@@ -1801,7 +1796,7 @@
 
                             <div id="keywordSec" class="${qData?.grading_type === 'keyword' ? '' : 'hidden'} space-y-2">
                                 <div class="flex justify-between items-center">
-                                    <label class="font-bold text-amber-500"><i class="fas fa-key mr-1"></i> คำสำคัญสำหรับตรวจอัตนัย</label>
+                                    <label class="font-bold text-amber-500"><i class="fas fa-key mr-1"></i> คำสำคัญสำหรับตรวจอัตโนมัติ</label>
                                     <button type="button" onclick="addKeywordField()" class="px-2 py-1 bg-amber-500 text-white rounded-lg text-[10px] font-bold"><i class="fas fa-plus"></i> เพิ่มคำตอบ</button>
                                 </div>
                                 <div id="keywordsContainer" class="space-y-2">
