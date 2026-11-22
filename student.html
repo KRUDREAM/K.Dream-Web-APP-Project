@@ -206,7 +206,7 @@
                 <div class="space-y-1 sm:space-y-2">
                     <span class="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-extrabold tracking-wide uppercase">KRUDREAM LAND - ศูนย์การเรียนรู้ออนไลน์อัจฉริยะ</span>
                     <h2 class="text-base sm:text-2xl font-extrabold tracking-tight truncate max-w-xs sm:max-w-none" id="studentWelcomeBanner">ยินดีต้อนรับ</h2>
-                    <p class="text-xs sm:text-sm text-sky-100 max-w-xl font-light">เลือกทำชุดข้อสอบตามรายวิชา ทบทวนเทปเรียนย้อนหลัง หรือแลกของรางวัลจาก Token สะสมได้จากเมนูด้านล่างนี้</p>
+                    <p class="text-xs sm:text-sm text-sky-100 max-w-xl font-light">เลือกทำชุดข้อสอบตามรายวิชาหรือโจทย์แจกฟรี ทบทวนเทปเรียนย้อนหลัง หรือแลกของรางวัลจาก Token สะสมได้จากเมนูด้านล่างนี้</p>
                 </div>
 
                 <div class="flex items-center gap-1 bg-black/30 backdrop-blur-md p-1.5 rounded-2xl border border-white/20 shrink-0 w-full md:w-auto">
@@ -298,13 +298,13 @@
                         <i class="fas fa-layer-group"></i>
                     </div>
                     <div>
-                        <span class="text-[10px] text-sky-600 dark:text-sky-400 font-extrabold uppercase block">Course Selector</span>
-                        <h3 class="font-extrabold text-xs sm:text-base text-slate-900 dark:text-white">เลือกคอร์สเรียนเพื่อแสดงข้อสอบ</h3>
+                        <span class="text-[10px] text-sky-600 dark:text-sky-400 font-extrabold uppercase block">Course & Free Selector</span>
+                        <h3 class="font-extrabold text-xs sm:text-base text-slate-900 dark:text-white">เลือกคอร์สเรียนหรือโจทย์แจกฟรี</h3>
                     </div>
                 </div>
                 <div class="w-full sm:w-80">
                     <select id="globalCourseSelect" onchange="onGlobalCourseChange()" class="w-full px-3.5 py-2.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold outline-none cursor-pointer focus:border-sky-500">
-                        <option value="all">📚 ทุกคอร์สที่ยังใช้งานได้</option>
+                        <option value="all">📚 ทุกคอร์สที่ใช้งานได้ & โจทย์แจกฟรี</option>
                     </select>
                 </div>
             </div>
@@ -343,7 +343,7 @@
 
             <div class="space-y-4">
                 <div id="examCategoriesGroupContainer" class="space-y-4">
-                    <div class="text-slate-400 text-xs py-16 text-center"><i class="fas fa-book-open text-sky-500 mr-2 text-base"></i> กำลังโหลดชุดข้อสอบตามคอร์สเรียน...</div>
+                    <div class="text-slate-400 text-xs py-16 text-center"><i class="fas fa-book-open text-sky-500 mr-2 text-base"></i> กำลังโหลดชุดข้อสอบตามคอร์สเรียนและโจทย์แจกฟรี...</div>
                 </div>
             </div>
         </div>
@@ -531,6 +531,27 @@
 
         function hasInProgressAttempt(examId) {
             return userAttempts.some(a => String(a.exam_id) === String(examId) && a.status === 'in_progress');
+        }
+
+        function extractExamCourseId(exam) {
+            if (!exam) return '';
+            const raw = exam.course_id !== undefined ? exam.course_id : exam.courseid;
+            if (!raw) return '';
+            if (Array.isArray(raw)) return raw.length > 0 ? String(raw[0]) : '';
+            return String(raw);
+        }
+
+        function isFreeUnassignedExam(exam) {
+            if (!exam) return false;
+            const cId = extractExamCourseId(exam);
+            return Boolean(exam.is_free_public || exam.free_access || !cId);
+        }
+
+        function isExamAccessibleToStudent(exam) {
+            if (!exam || exam.status === 'draft') return false;
+            if (isFreeUnassignedExam(exam)) return true;
+            const examCourseId = extractExamCourseId(exam);
+            return Boolean(examCourseId && activeEnrolledCourseIds.includes(String(examCourseId)));
         }
 
         function renderMarkdown(content) {
@@ -1499,7 +1520,7 @@
 
         function updateCourseCountdownBanner() {
             const banner = document.getElementById('courseCountdownBanner');
-            if (selectedGlobalCourseId === 'all' || selectedGlobalCourseId === 'none') {
+            if (selectedGlobalCourseId === 'all' || selectedGlobalCourseId === 'none' || selectedGlobalCourseId === 'free_only') {
                 banner.classList.add('hidden');
                 return;
             }
@@ -1541,10 +1562,13 @@
             loadStudentNotificationsCount();
 
             const courseSelect = document.getElementById('globalCourseSelect');
+            courseSelect.innerHTML = '';
             if (activeEnrolledCoursesList.length === 0) {
-                courseSelect.innerHTML = `<option value="none">⚠️ ไม่มีคอร์สที่ยังใช้งานได้</option>`;
+                courseSelect.innerHTML += `<option value="free_only">🆓 โจทย์แจกฟรี (ไม่สังกัดคอร์ส)</option>`;
+                courseSelect.innerHTML += `<option value="none">⚠️ ไม่มีคอร์สที่ยังใช้งานได้</option>`;
             } else {
-                courseSelect.innerHTML = `<option value="all">📚 ทุกคอร์สที่ยังใช้งานได้ (${activeEnrolledCoursesList.length} คอร์ส)</option>`;
+                courseSelect.innerHTML += `<option value="all">📚 ทุกคอร์สที่ใช้งานได้ (${activeEnrolledCoursesList.length} คอร์ส) & โจทย์แจกฟรี</option>`;
+                courseSelect.innerHTML += `<option value="free_only">🆓 เฉพาะโจทย์แจกฟรี (ไม่สังกัดคอร์ส)</option>`;
                 activeEnrolledCoursesList.forEach(c => {
                     const opt = document.createElement('option');
                     opt.value = c.id;
@@ -1662,7 +1686,7 @@
                 }
             });
 
-            if (selectedGlobalCourseId !== 'all' && selectedGlobalCourseId !== 'none') {
+            if (selectedGlobalCourseId !== 'all' && selectedGlobalCourseId !== 'none' && selectedGlobalCourseId !== 'free_only') {
                 const courseObj = enrolledCoursesList.find(c => String(c.id) === String(selectedGlobalCourseId));
                 if (courseObj && courseObj.expires_at) {
                     const expiryMs = new Date(courseObj.expires_at).getTime();
@@ -1699,6 +1723,13 @@
             });
         }
 
+        function matchesCourseFilter(exam) {
+            if (selectedGlobalCourseId === 'all') return true;
+            if (selectedGlobalCourseId === 'free_only') return isFreeUnassignedExam(exam);
+            if (selectedGlobalCourseId === 'none') return false;
+            return extractExamCourseId(exam) === String(selectedGlobalCourseId);
+        }
+
         function renderExamCatalog() {
             const container = document.getElementById('examCategoriesGroupContainer');
             const quickPendingContainer = document.getElementById('quickPendingContainer');
@@ -1706,33 +1737,18 @@
             const keyword = document.getElementById('searchExamInput').value.toLowerCase();
             const now = new Date();
 
-            if (!activeEnrolledCourseIds || activeEnrolledCourseIds.length === 0) {
-                container.innerHTML = `
-                    <div class="hitech-card p-8 rounded-3xl text-center space-y-3 border-amber-500/40 bg-amber-500/5">
-                        <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center text-2xl shadow-inner">
-                            <i class="fas fa-lock"></i>
-                        </div>
-                        <h4 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">ยังไม่มีคอร์สเรียนที่ใช้งานได้ในระบบ</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 font-light max-w-md mx-auto">
-                            คุณยังไม่ได้ลงทะเบียนคอร์สเรียน หรือคอร์สเรียนของคุณหมดอายุแล้ว จึงไม่สามารถมองเห็นชุดข้อสอบหรือทำข้อสอบได้ในขณะนี้
-                        </p>
-                    </div>
-                `;
-                document.getElementById('examCountBadge').textContent = `0 ชุด`;
-                quickPendingSection.classList.add('hidden');
-                document.getElementById('overallProgressText').textContent = `0/0 ชุด (0%)`;
-                document.getElementById('overallProgressBar').style.width = `0%`;
-                return;
-            }
+            const accessibleExams = allExams.filter(exam => isExamAccessibleToStudent(exam));
+            const activeExams = accessibleExams.filter(exam => matchesCourseFilter(exam));
 
-            const availableExams = allExams.filter(exam => {
-                if (exam.status === 'draft') return false;
-                
-                const examCourseId = String(exam.course_id || exam.courseid || '');
-                
-                if (examCourseId && !activeEnrolledCourseIds.includes(examCourseId)) return false;
-                if (selectedGlobalCourseId !== 'all' && examCourseId !== String(selectedGlobalCourseId)) return false;
-                if (!exam.title.toLowerCase().includes(keyword) && (!exam.description || !exam.description.toLowerCase().includes(keyword))) return false;
+            const completedExamIds = new Set(userAttempts.filter(a => isAttemptSubmitted(a)).map(a => a.exam_id));
+            const completedCountTotal = activeExams.filter(e => completedExamIds.has(e.id)).length;
+            const progressPercent = activeExams.length > 0 ? Math.round((completedCountTotal / activeExams.length) * 100) : 0;
+            
+            document.getElementById('overallProgressText').textContent = `${completedCountTotal}/${activeExams.length} ชุด (${progressPercent}%)`;
+            document.getElementById('overallProgressBar').style.width = `${progressPercent}%`;
+
+            const availableExams = activeExams.filter(exam => {
+                if (keyword && !exam.title.toLowerCase().includes(keyword) && (!exam.description || !exam.description.toLowerCase().includes(keyword))) return false;
 
                 const myAttemptsForExam = userAttempts.filter(a => a.exam_id === exam.id);
                 const completedCount = myAttemptsForExam.filter(a => isAttemptSubmitted(a)).length;
@@ -1743,21 +1759,6 @@
             });
 
             document.getElementById('examCountBadge').textContent = `${availableExams.length} ชุด`;
-
-            const activeExams = allExams.filter(e => {
-                if (e.status === 'draft') return false;
-                const examCourseId = String(e.course_id || e.courseid || '');
-                if (activeEnrolledCourseIds.length > 0 && examCourseId && !activeEnrolledCourseIds.includes(examCourseId)) return false;
-                if (selectedGlobalCourseId !== 'all') return examCourseId === String(selectedGlobalCourseId);
-                return true;
-            });
-
-            const completedExamIds = new Set(userAttempts.filter(a => isAttemptSubmitted(a)).map(a => a.exam_id));
-            const completedCountTotal = activeExams.filter(e => completedExamIds.has(e.id)).length;
-            const progressPercent = activeExams.length > 0 ? Math.round((completedCountTotal / activeExams.length) * 100) : 0;
-            
-            document.getElementById('overallProgressText').textContent = `${completedCountTotal}/${activeExams.length} ชุด (${progressPercent}%)`;
-            document.getElementById('overallProgressBar').style.width = `${progressPercent}%`;
 
             const pendingExamsList = activeExams.filter(exam => {
                 const isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < now.getTime() : false;
@@ -1783,6 +1784,9 @@
                     const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
                     const isStarred = starredExams.includes(exam.id);
                     const inProgress = hasInProgressAttempt(exam.id);
+                    const freeTag = isFreeUnassignedExam(exam)
+                        ? `<span class="px-1.5 py-0.5 bg-teal-500/15 text-teal-600 dark:text-teal-300 border border-teal-500/30 rounded text-[9px] font-bold">🆓 แจกฟรี</span>`
+                        : '';
                     
                     let dueDateHtml = '';
                     if (exam.due_date) {
@@ -1796,7 +1800,10 @@
                         <div class="hitech-card exam-card-hover border-l-4 border-l-sky-500 p-4 rounded-2xl flex flex-col justify-between space-y-3 shrink-0 w-64 sm:w-72 snap-start">
                             <div class="space-y-1.5">
                                 <div class="flex justify-between items-center gap-2">
-                                    <span class="text-[10px] sm:text-[11px] text-slate-500 font-bold"><i class="fas fa-list-ol mr-1 text-sky-500"></i> ${questionCount} ข้อ | ${durationMins} นาที</span>
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <span class="text-[10px] sm:text-[11px] text-slate-500 font-bold"><i class="fas fa-list-ol mr-1 text-sky-500"></i> ${questionCount} ข้อ | ${durationMins} นาที</span>
+                                        ${freeTag}
+                                    </div>
                                     <button onclick="toggleStarExam('${exam.id}', event)" class="w-7 h-7 rounded-xl flex items-center justify-center transition-all ${isStarred ? 'text-amber-500 bg-amber-500/20' : 'text-slate-400 hover:text-amber-400 bg-sky-50 dark:bg-slate-800'}"><i class="${isStarred ? 'fas' : 'far'} fa-star text-xs"></i></button>
                                 </div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-1">${exam.title}</h3>
@@ -1815,7 +1822,21 @@
             }
 
             if (availableExams.length === 0) {
-                container.innerHTML = `<div class="text-slate-400 text-xs py-16 text-center"><i class="fas fa-folder-open text-2xl text-sky-500 mb-2"></i><br>ไม่พบชุดข้อสอบในคอร์สที่ยังใช้งานได้</div>`;
+                if (activeEnrolledCourseIds.length === 0 && !accessibleExams.some(isFreeUnassignedExam)) {
+                    container.innerHTML = `
+                        <div class="hitech-card p-8 rounded-3xl text-center space-y-3 border-amber-500/40 bg-amber-500/5">
+                            <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center text-2xl shadow-inner">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <h4 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">ยังไม่มีคอร์สเรียนที่ใช้งานได้หรือโจทย์แจกฟรีในระบบ</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-light max-w-md mx-auto">
+                                คุณยังไม่ได้ลงทะเบียนคอร์สเรียน หรือคอร์สเรียนของคุณหมดอายุแล้ว และยังไม่มีชุดข้อสอบแจกฟรีที่เปิดให้บริการในขณะนี้
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = `<div class="text-slate-400 text-xs py-16 text-center"><i class="fas fa-folder-open text-2xl text-sky-500 mb-2"></i><br>ไม่พบชุดข้อสอบในตัวกรองที่เลือก</div>`;
+                }
                 return;
             }
 
@@ -1865,6 +1886,9 @@
                 const questionCount = examQuestionCounts[exam.id] || 0;
                 const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
                 const isStarred = starredExams.includes(exam.id);
+                const freeBadgeHtml = isFreeUnassignedExam(exam)
+                    ? `<span class="px-2 py-0.5 bg-teal-500/15 text-teal-600 dark:text-teal-300 border border-teal-500/30 rounded-lg text-[9px] sm:text-[10px] font-extrabold">🆓 แจกฟรี</span>`
+                    : '';
 
                 let actionBtnHtml = '';
                 let statusBadge = '';
@@ -1918,7 +1942,7 @@
                             <div class="space-y-1.5">
                                 <div class="flex justify-between items-center gap-2">
                                     <span class="text-[10px] sm:text-[11px] text-slate-500 font-bold"><i class="fas fa-list-ol mr-1 text-sky-500"></i> ${questionCount} ข้อ | ${durationMins} น.</span>
-                                    <div class="flex items-center gap-1">${statusBadge}${starBtnHtml}</div>
+                                    <div class="flex items-center gap-1 flex-wrap justify-end">${freeBadgeHtml}${statusBadge}${starBtnHtml}</div>
                                 </div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-1">${exam.title}</h3>
                                 <div class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 font-light prose dark:prose-invert">${renderedExamDesc}</div>
@@ -1934,7 +1958,7 @@
                     sectionHtml += `
                         <div class="hitech-card exam-card-hover ${cardHighlightClass} p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                             <div class="space-y-1 flex-1 min-w-0">
-                                <div class="flex flex-wrap items-center gap-2">${statusBadge}<span class="text-[10px] sm:text-[11px] text-slate-500 font-bold"><i class="fas fa-list-ol mr-1 text-sky-500"></i> ${questionCount} ข้อ | ${durationMins} นาที</span></div>
+                                <div class="flex flex-wrap items-center gap-2">${freeBadgeHtml}${statusBadge}<span class="text-[10px] sm:text-[11px] text-slate-500 font-bold"><i class="fas fa-list-ol mr-1 text-sky-500"></i> ${questionCount} ข้อ | ${durationMins} นาที</span></div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">${exam.title}</h3>
                                 <div class="text-[11px] text-slate-500 dark:text-slate-400 font-light truncate prose dark:prose-invert">${renderedExamDesc}</div>
                                 ${dueDateDisplayHtml}
@@ -1976,7 +2000,7 @@
                 html: `
                     <div class="space-y-3 text-left text-xs sm:text-sm bg-slate-50 dark:bg-darkinput p-4 rounded-2xl border border-sky-500/20">
                         <div class="font-bold text-slate-900 dark:text-white text-sm sm:text-base border-b border-slate-200 dark:border-slate-800 pb-2">
-                            📝 ${exam.title}
+                            📝 ${exam.title} ${isFreeUnassignedExam(exam) ? '<span class="ml-1 px-2 py-0.5 bg-teal-500/15 text-teal-600 dark:text-teal-300 rounded text-[10px]">🆓 แจกฟรี</span>' : ''}
                         </div>
                         <div class="text-slate-600 dark:text-slate-300 font-light text-xs prose dark:prose-invert">
                             ${renderedExamDesc}
@@ -2024,7 +2048,7 @@
                 if (!isAttemptSubmitted(a)) return false;
                 const exam = allExams.find(e => e.id === a.exam_id);
                 if (!exam) return false;
-                if (selectedGlobalCourseId !== 'all' && String(exam.course_id || exam.courseid) !== String(selectedGlobalCourseId)) return false;
+                if (!matchesCourseFilter(exam)) return false;
                 if (keyword && !exam.title.toLowerCase().includes(keyword)) return false;
                 return true;
             });
@@ -2096,13 +2120,20 @@
         function renderAnalyticsCourseOptions() {
             const select = document.getElementById('analyticsCourseFilter');
             if (!select) return;
-            select.innerHTML = `<option value="all">📚 ทุกคอร์สที่ยังใช้งานได้</option>`;
+            select.innerHTML = `<option value="all">📚 ทุกคอร์สที่ยังใช้งานได้ & โจทย์แจกฟรี</option>`;
+            select.innerHTML += `<option value="free_only">🆓 เฉพาะโจทย์แจกฟรี</option>`;
             activeEnrolledCoursesList.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.id;
                 opt.textContent = `📖 ${c.title || c.name || 'คอร์สเรียน'}`;
                 select.appendChild(opt);
             });
+        }
+
+        function matchesAnalyticsCourseFilter(exam, filterVal) {
+            if (!filterVal || filterVal === 'all') return true;
+            if (filterVal === 'free_only') return isFreeUnassignedExam(exam);
+            return extractExamCourseId(exam) === String(filterVal);
         }
 
         function renderExamCheckboxes() {
@@ -2113,15 +2144,11 @@
                 if (!isAttemptSubmitted(a)) return false;
                 const exam = allExams.find(e => e.id === a.exam_id);
                 if (!exam) return false;
-                if (selectedCourseFilter !== 'all') {
-                    const examCourseId = String(exam.course_id || exam.courseid || '');
-                    if (examCourseId !== String(selectedCourseFilter)) return false;
-                }
-                return true;
+                return matchesAnalyticsCourseFilter(exam, selectedCourseFilter);
             });
 
             if (completedAttempts.length === 0) {
-                group.innerHTML = `<div class="text-slate-400 text-xs py-2">ยังไม่มีชุดข้อสอบในคอร์สนี้ที่ทำเสร็จแล้ว</div>`;
+                group.innerHTML = `<div class="text-slate-400 text-xs py-2">ยังไม่มีชุดข้อสอบในตัวกรองนี้ที่ทำเสร็จแล้ว</div>`;
                 return;
             }
 
@@ -2150,12 +2177,9 @@
             const selectedCourseFilter = document.getElementById('analyticsCourseFilter')?.value || 'all';
             const completedAttempts = userAttempts.filter(a => {
                 if (!isAttemptSubmitted(a)) return false;
-                if (selectedCourseFilter !== 'all') {
-                    const exam = allExams.find(e => e.id === a.exam_id);
-                    const examCourseId = String(exam?.course_id || exam?.courseid || '');
-                    if (examCourseId !== String(selectedCourseFilter)) return false;
-                }
-                return true;
+                const exam = allExams.find(e => e.id === a.exam_id);
+                if (!exam) return false;
+                return matchesAnalyticsCourseFilter(exam, selectedCourseFilter);
             });
 
             document.getElementById('completedCountMetric').textContent = `${completedAttempts.length} ชุด`;
