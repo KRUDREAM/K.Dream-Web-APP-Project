@@ -11,9 +11,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <script>
-        (function() {
+        (function () {
             let hasSession = false;
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
@@ -80,7 +80,7 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-24 space-y-6">
-        
+
         <!-- Exam Header Banner -->
         <div class="hitech-card p-6 sm:p-8 rounded-3xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-l-8 border-l-sky-500">
             <div class="space-y-2 min-w-0 flex-1">
@@ -283,11 +283,13 @@
         let globalScores = [];
         let globalTimes = [];
         let globalMaxScore = 10;
+
         let diffChartInstance = null;
         let distChartInstance = null;
         let spreadChartInstance = null;
         let timeSpentChartInstance = null;
         let scatterChartInstance = null;
+        let analyticsRealtimeChannel = null;
 
         const verticalLinePlugin = {
             id: 'verticalLine',
@@ -339,7 +341,7 @@
 
         function goBack() {
             if (courseId) {
-                window.location.href = `admin_analytics.html?course_id=${courseId}`;
+                window.location.href = `admin_analytics.html?course_id=${encodeURIComponent(courseId)}`;
             } else {
                 window.location.href = 'admin_analytics.html';
             }
@@ -355,6 +357,11 @@
                 .replace(/'/g, '&#039;');
         }
 
+        function isAttemptSubmitted(att) {
+            if (!att) return false;
+            return Boolean(att.status === 'submitted' || att.status === 'completed' || att.submitted_at || att.submission_time);
+        }
+
         function formatSingleAnswerText(ansValue, examObj = null) {
             if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
 
@@ -362,7 +369,7 @@
                 return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
             }
 
-            let strVal = String(ansValue).trim();
+            const strVal = String(ansValue).trim();
             if (strVal.startsWith('[') && strVal.endsWith(']')) {
                 try {
                     const parsed = JSON.parse(strVal);
@@ -451,7 +458,8 @@
                     const parsed = JSON.parse(str);
                     if (Array.isArray(parsed)) {
                         return parsed.map(item => String(item).trim()).filter(item => item !== '');
-                    } else if (typeof parsed === 'object' && parsed !== null) {
+                    }
+                    if (typeof parsed === 'object' && parsed !== null) {
                         return Object.values(parsed).map(item => String(item).trim()).filter(item => item !== '');
                     }
                 } catch (e) {}
@@ -465,7 +473,7 @@
         function extractEssayScore(att, q, index) {
             if (!att || !q) return null;
             const scoreMaps = [att.essay_scores, att.question_scores, att.graded_scores];
-            for (let map of scoreMaps) {
+            for (const map of scoreMaps) {
                 if (!map) continue;
                 let parsed = map;
                 if (typeof parsed === 'string') {
@@ -576,7 +584,7 @@
             if (!att) return 0;
             const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
             const totalExamSeconds = examDurationMinutes * 60;
-            
+
             if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
                 let remSeconds = Number(att.remaining_time);
                 if (remSeconds < 0) remSeconds = 0;
@@ -613,8 +621,7 @@
             const now = new Date().getTime();
 
             for (const att of allAttempts) {
-                const isSubmitted = att.status === 'submitted' || att.status === 'completed' || att.submitted_at || att.submission_time;
-                if (isSubmitted) continue;
+                if (isAttemptSubmitted(att)) continue;
 
                 const startTimeStr = att.started_at || att.created_at || att.start_time;
                 if (startTimeStr) {
@@ -628,13 +635,14 @@
 
                     if (isExpired) {
                         const totalScore = calculateAttemptTotalScore(att, allQuestions);
+                        const nowIso = new Date().toISOString();
 
                         const updatePayload = {
                             status: 'submitted',
                             total_score: totalScore,
                             score: totalScore,
-                            submitted_at: new Date().toISOString(),
-                            submission_time: new Date().toISOString(),
+                            submitted_at: nowIso,
+                            submission_time: nowIso,
                             remaining_time: 0
                         };
 
@@ -643,13 +651,46 @@
                             att.status = 'submitted';
                             att.total_score = totalScore;
                             att.score = totalScore;
-                            att.submitted_at = updatePayload.submitted_at;
+                            att.submitted_at = nowIso;
+                            att.submission_time = nowIso;
                         } catch (err) {
                             console.error("Failed to auto-submit attempt:", err);
                         }
                     }
                 }
             }
+        }
+
+        async function loadCourseEnrollments(activeCourseId) {
+            if (!activeCourseId) return [];
+            try {
+                const ceRes = await mySupabase
+                    .from('course_enrollments')
+                    .select('student_id, user_id')
+                    .eq('course_id', activeCourseId);
+
+                if (!ceRes.error && Array.isArray(ceRes.data) && ceRes.data.length > 0) {
+                    return ceRes.data;
+                }
+            } catch (e) {
+                console.warn("course_enrollments query failed", e);
+            }
+
+            try {
+                const cmRes = await mySupabase.from('course_members').select('*').eq('course_id', activeCourseId);
+                if (!cmRes.error && Array.isArray(cmRes.data) && cmRes.data.length > 0) {
+                    return cmRes.data;
+                }
+            } catch (e) {}
+
+            try {
+                const enRes = await mySupabase.from('enrollments').select('*').eq('course_id', activeCourseId);
+                if (!enRes.error && Array.isArray(enRes.data) && enRes.data.length > 0) {
+                    return enRes.data;
+                }
+            } catch (e) {}
+
+            return [];
         }
 
         async function initAnalytics() {
@@ -669,43 +710,32 @@
                 currentExam = examRes.data;
                 const activeCourseId = courseId || currentExam.course_id;
 
-                const qRes = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
-                allQuestions = qRes.data || [];
+                const [qRes, attRes, profRes, enrolledRows] = await Promise.all([
+                    mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true }),
+                    mySupabase.from('exam_attempts').select('*').eq('exam_id', examId),
+                    mySupabase.from('profiles').select('*'),
+                    loadCourseEnrollments(activeCourseId)
+                ]);
 
-                const attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examId);
+                allQuestions = qRes.data || [];
                 allAttempts = attRes.data || [];
+                allProfiles = profRes.data || [];
 
                 await checkAndAutoSubmitExpiredAttempts();
 
-                const profRes = await mySupabase.from('profiles').select('*');
-                allProfiles = profRes.data || [];
-                if (allProfiles.length === 0) {
-                    const fallback = await mySupabase.from('students').select('*');
-                    allProfiles = fallback.data || [];
-                }
+                allStudentsMap = {};
                 allProfiles.forEach(p => {
                     const sId = String(p.id || p.user_id || p.student_id);
-                    allStudentsMap[sId] = p;
+                    if (sId) allStudentsMap[sId] = p;
                 });
 
-                if (activeCourseId) {
-                    try {
-                        const cmRes = await mySupabase.from('course_members').select('*').eq('course_id', activeCourseId);
-                        if (cmRes.data && cmRes.data.length > 0) {
-                            courseStudents = cmRes.data;
-                        } else {
-                            const enRes = await mySupabase.from('enrollments').select('*').eq('course_id', activeCourseId);
-                            if (enRes.data && enRes.data.length > 0) courseStudents = enRes.data;
-                        }
-                    } catch (e) { console.warn("Course members fetch skipped", e); }
-                }
-
-                if (courseStudents.length === 0) {
+                if (enrolledRows.length > 0) {
+                    courseStudents = enrolledRows;
+                } else {
                     courseStudents = allProfiles.map(p => ({ student_id: p.id || p.user_id, profiles: p }));
                 }
 
                 setupRealtimeSubscription();
-
             } catch (err) {
                 console.error("Analytics Load Error:", err);
             } finally {
@@ -721,7 +751,10 @@
 
         function setupRealtimeSubscription() {
             try {
-                mySupabase.channel('exam_attempts_realtime_' + examId)
+                if (analyticsRealtimeChannel) {
+                    mySupabase.removeChannel(analyticsRealtimeChannel);
+                }
+                analyticsRealtimeChannel = mySupabase.channel('exam_attempts_realtime_' + examId)
                     .on('postgres_changes', {
                         event: '*',
                         schema: 'public',
@@ -741,45 +774,72 @@
             }
         }
 
-        function computeAndRenderStats() {
-            const attemptMap = {};
-            allAttempts.forEach(att => {
-                const sId = String(att.student_id || att.user_id);
-                attemptMap[sId] = att;
+        function pickBestAttemptPerStudent(attemptsList) {
+            const grouped = {};
+            attemptsList.forEach(att => {
+                const sId = String(att.student_id || att.user_id || '');
+                if (!sId) return;
+                if (!grouped[sId]) grouped[sId] = [];
+                grouped[sId].push(att);
             });
 
-            const studentMasterList = courseStudents.map(cs => {
-                const sId = String(cs.student_id || cs.user_id || cs.id);
+            const bestMap = {};
+            Object.entries(grouped).forEach(([sId, list]) => {
+                const sorted = [...list].sort((a, b) => {
+                    const aSub = isAttemptSubmitted(a) ? 1 : 0;
+                    const bSub = isAttemptSubmitted(b) ? 1 : 0;
+                    if (aSub !== bSub) return bSub - aSub;
+                    const aTime = new Date(a.submission_time || a.submitted_at || a.updated_at || a.created_at || 0).getTime();
+                    const bTime = new Date(b.submission_time || b.submitted_at || b.updated_at || b.created_at || 0).getTime();
+                    return bTime - aTime;
+                });
+                bestMap[sId] = sorted[0];
+            });
+            return bestMap;
+        }
+
+        function computeAndRenderStats() {
+            const attemptMap = pickBestAttemptPerStudent(allAttempts);
+
+            const studentMasterList = [];
+            const seenStudentIds = new Set();
+
+            courseStudents.forEach(cs => {
+                const sId = String(cs.student_id || cs.user_id || cs.id || '');
+                if (!sId || seenStudentIds.has(sId)) return;
+                seenStudentIds.add(sId);
+
                 const p = cs.profiles || allStudentsMap[sId] || cs;
                 const nickname = (p.nickname || p.nick_name || '').trim();
-                return {
+                studentMasterList.push({
                     studentId: sId,
                     profile: p,
-                    fullName: (p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '') || 'ไม่ระบุชื่อ',
+                    fullName: ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() || 'ไม่ระบุชื่อ',
                     nickname: nickname,
                     studentIdCode: p.student_id || p.code || '-'
-                };
+                });
             });
 
-            allAttempts.forEach(att => {
-                const sId = String(att.student_id || att.user_id);
-                if (!studentMasterList.some(s => s.studentId === sId)) {
-                    const p = allStudentsMap[sId] || {};
-                    const nickname = (p.nickname || p.nick_name || '').trim();
-                    studentMasterList.push({
-                        studentId: sId,
-                        profile: p,
-                        fullName: (p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '') || att.student_name || 'ไม่ระบุชื่อ',
-                        nickname: nickname,
-                        studentIdCode: p.student_id || p.code || att.student_id_code || '-'
-                    });
-                }
+            Object.keys(attemptMap).forEach(sId => {
+                if (seenStudentIds.has(sId)) return;
+                seenStudentIds.add(sId);
+
+                const att = attemptMap[sId];
+                const p = allStudentsMap[sId] || {};
+                const nickname = (p.nickname || p.nick_name || '').trim();
+                studentMasterList.push({
+                    studentId: sId,
+                    profile: p,
+                    fullName: ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() || att.student_name || 'ไม่ระบุชื่อ',
+                    nickname: nickname,
+                    studentIdCode: p.student_id || p.code || att.student_id_code || '-'
+                });
             });
 
             combinedStudentRows = studentMasterList.map(item => {
                 const att = attemptMap[item.studentId];
                 const hasAttempt = !!att;
-                const isSubmitted = hasAttempt && (att.status === 'submitted' || att.status === 'completed' || att.submitted_at || att.submission_time);
+                const isSubmitted = hasAttempt && isAttemptSubmitted(att);
                 const isInProgress = hasAttempt && !isSubmitted;
 
                 const score = isSubmitted ? calculateAttemptTotalScore(att, allQuestions) : 0;
@@ -808,7 +868,8 @@
             });
 
             const activeCount = combinedStudentRows.filter(r => r.isInProgress).length;
-            const submittedCount = combinedStudentRows.filter(r => r.isSubmitted).length;
+            const submittedRows = combinedStudentRows.filter(r => r.isSubmitted);
+            const submittedCount = submittedRows.length;
 
             const setSafeText = (id, text) => {
                 const el = document.getElementById(id);
@@ -818,13 +879,12 @@
             setSafeText('statActiveCountBanner', activeCount);
             setSafeText('statSubmittedCount', `${submittedCount} คน`);
 
-            const submittedAttempts = combinedStudentRows.filter(r => r.isSubmitted);
-            globalScores = submittedAttempts.map(r => r.score);
-            globalTimes = allAttempts.map(a => calculateTimeSpentMinutes(a));
+            globalScores = submittedRows.map(r => r.score);
+            globalTimes = Object.values(attemptMap).map(a => calculateTimeSpentMinutes(a));
             globalMaxScore = allQuestions.reduce((sum, q) => sum + (q.score !== undefined && q.score !== null ? Number(q.score) : 1), 0) || 10;
 
             const sumScore = globalScores.reduce((acc, curr) => acc + curr, 0);
-            const avgScore = submittedAttempts.length > 0 ? (sumScore / submittedAttempts.length).toFixed(1) : '0.0';
+            const avgScore = submittedRows.length > 0 ? (sumScore / submittedRows.length).toFixed(1) : '0.0';
             const highestScore = globalScores.length > 0 ? Math.max(...globalScores) : 0;
             const lowestScore = globalScores.length > 0 ? Math.min(...globalScores) : 0;
 
@@ -867,17 +927,19 @@
                 titleText = '🟡 รายชื่อนักเรียนที่กำลังทำข้อสอบอยู่ (Active / In Progress)';
             }
 
-            const listHtml = targetRows.length === 0 ? `<div class="text-center py-6 text-slate-400">ไม่มีรายชื่อนักเรียนในสถานะนี้</div>` : targetRows.map((r, idx) => `
-                <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs">
-                    <div>
-                        <div class="font-bold text-slate-800 dark:text-slate-100">${idx + 1}. ${escapeHtml(r.fullName)}${r.nickname ? ' (' + escapeHtml(r.nickname) + ')' : ''}</div>
-                        <div class="text-slate-500 font-mono text-[11px]">รหัส: ${escapeHtml(r.studentIdCode)}</div>
+            const listHtml = targetRows.length === 0
+                ? `<div class="text-center py-6 text-slate-400">ไม่มีรายชื่อนักเรียนในสถานะนี้</div>`
+                : targetRows.map((r, idx) => `
+                    <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs">
+                        <div>
+                            <div class="font-bold text-slate-800 dark:text-slate-100">${idx + 1}. ${escapeHtml(r.fullName)}${r.nickname ? ' (' + escapeHtml(r.nickname) + ')' : ''}</div>
+                            <div class="text-slate-500 font-mono text-[11px]">รหัส: ${escapeHtml(r.studentIdCode)}</div>
+                        </div>
+                        <div>
+                            <span class="${statusType === 'submitted' ? 'text-emerald-500' : 'text-amber-500'} font-bold">${statusType === 'submitted' ? 'ส่งแล้ว' : 'In Progress'}</span>
+                        </div>
                     </div>
-                    <div>
-                        <span class="${statusType === 'submitted' ? 'text-emerald-500' : 'text-amber-500'} font-bold">${statusType === 'submitted' ? 'ส่งแล้ว' : 'In Progress'}</span>
-                    </div>
-                </div>
-            `).join('');
+                `).join('');
 
             Swal.fire({
                 title: titleText,
@@ -900,16 +962,16 @@
             if (titleEl) {
                 titleEl.innerHTML = `<i class="fas fa-chart-bar text-sky-500 shrink-0"></i> สถิติความยาก-ง่ายรายข้อ (${metric === 'correct' ? 'จำนวนผู้ตอบถูก (คน)' : 'จำนวนผู้ตอบผิด (คน)'})`;
             }
-            
-            const submittedAttempts = allAttempts.filter(att => att.status === 'submitted' || att.status === 'completed' || att.submitted_at || att.submission_time);
 
-            const labels = allQuestions.map(q => `ข้อ ${q.question_number}`);
+            const submittedAttempts = combinedStudentRows.filter(r => r.isSubmitted && r.attempt).map(r => r.attempt);
+
+            const labels = allQuestions.map((q, idx) => `ข้อ ${q.question_number || (idx + 1)}`);
             const counts = allQuestions.map((q, qIdx) => {
                 if (submittedAttempts.length === 0) return 0;
                 let correctCount = 0;
-                
-                submittedAttempts.forEach((att, attIdx) => {
-                    const uAns = extractStudentAnswer(att, q, attIdx);
+
+                submittedAttempts.forEach(att => {
+                    const uAns = extractStudentAnswer(att, q, qIdx);
                     if (checkAnswerIsCorrect(q, uAns, att, qIdx)) {
                         correctCount++;
                     }
@@ -932,7 +994,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { 
+                    plugins: {
                         legend: { display: false },
                         tooltip: { callbacks: { label: c => ` จำนวน: ${c.raw} คน` } }
                     },
@@ -1045,7 +1107,7 @@
             const canvasEl = document.getElementById('scoreDistChart');
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
-            
+
             const ranges = [0, 0, 0, 0];
             scores.forEach(s => {
                 const pct = maxScore > 0 ? (s / maxScore) * 100 : 0;
@@ -1127,12 +1189,11 @@
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
 
-            const scatterData = combinedStudentRows.filter(r => r.isSubmitted).map(r => {
-                const score = r.score;
-                const minutes = r.minutesSpent;
-                const name = r.fullName || 'นักเรียน';
-                return { x: Number(minutes.toFixed(1)), y: score, name: name };
-            });
+            const scatterData = combinedStudentRows.filter(r => r.isSubmitted).map(r => ({
+                x: Number(r.minutesSpent.toFixed(1)),
+                y: r.score,
+                name: r.fullName || 'นักเรียน'
+            }));
 
             if (scatterChartInstance) scatterChartInstance.destroy();
             scatterChartInstance = new Chart(ctx, {
@@ -1188,7 +1249,7 @@
                 const dateText = row.isSubmitted && row.submittedAt ? new Date(row.submittedAt).toLocaleString('th-TH') : '-';
 
                 const actionBtn = row.hasAttempt && row.attempt
-                    ? `<button onclick="viewAttemptDetail('${row.attempt.id}')" class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-xl transition-all text-[11px] whitespace-nowrap"><i class="fas fa-search-plus mr-1"></i> ตรวจคำตอบ</button>`
+                    ? `<button onclick="viewAttemptDetail('${escapeHtml(row.attempt.id)}')" class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-xl transition-all text-[11px] whitespace-nowrap"><i class="fas fa-search-plus mr-1"></i> ตรวจคำตอบ</button>`
                     : `<span class="text-slate-400 text-[11px]">-</span>`;
 
                 const displayName = escapeHtml(row.fullName) + (row.nickname ? ` <span class="text-sky-500 font-normal">(${escapeHtml(row.nickname)})</span>` : '');
@@ -1197,11 +1258,11 @@
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-3 font-mono font-bold">${idx + 1}</td>
                         <td class="p-3 font-mono text-sky-600 truncate" title="${escapeHtml(row.studentIdCode)}"><div class="truncate">${escapeHtml(row.studentIdCode)}</div></td>
-                        <td class="p-3 font-bold truncate" title="${escapeHtml(row.fullName)}${row.nickname ? ' (' + row.nickname + ')' : ''}"><div class="truncate">${displayName}</div></td>
+                        <td class="p-3 font-bold truncate" title="${escapeHtml(row.fullName)}${row.nickname ? ' (' + escapeHtml(row.nickname) + ')' : ''}"><div class="truncate">${displayName}</div></td>
                         <td class="p-3 text-center">${statusBadge}</td>
                         <td class="p-3 text-center">${scoreText}</td>
                         <td class="p-3 text-center">${timeText}</td>
-                        <td class="p-3 text-center text-slate-400 text-[11px] truncate" title="${dateText}"><div class="truncate">${dateText}</div></td>
+                        <td class="p-3 text-center text-slate-400 text-[11px] truncate" title="${escapeHtml(dateText)}"><div class="truncate">${escapeHtml(dateText)}</div></td>
                         <td class="p-3 text-center">${actionBtn}</td>
                     </tr>
                 `;
@@ -1219,9 +1280,9 @@
                 else if (statusFilter === 'in_progress') matchStatus = row.isInProgress;
                 else if (statusFilter === 'inactive') matchStatus = !row.hasAttempt;
 
-                const matchKeyword = !keyword || 
-                    row.fullName.toLowerCase().includes(keyword) || 
-                    (row.nickname && row.nickname.toLowerCase().includes(keyword)) || 
+                const matchKeyword = !keyword ||
+                    row.fullName.toLowerCase().includes(keyword) ||
+                    (row.nickname && row.nickname.toLowerCase().includes(keyword)) ||
                     row.studentIdCode.toLowerCase().includes(keyword);
 
                 return matchStatus && matchKeyword;
@@ -1253,7 +1314,7 @@
                         <td style="padding: 8px;"><b>${escapeHtml(cat)}</b></td>
                         <td style="padding: 8px; text-align: center;">${stat.correct} / ${stat.total}</td>
                         <td style="padding: 8px; text-align: center; font-weight: bold; color: #0284c7;">${pct}%</td>
-                        ${hasCriteria ? `<td style="padding: 8px; text-align: center;">${evalLevel || '-'}</td>` : ''}
+                        ${hasCriteria ? `<td style="padding: 8px; text-align: center;">${escapeHtml(evalLevel || '-')}</td>` : ''}
                     </tr>
                 `;
             }).join('');
@@ -1312,8 +1373,8 @@
 
             const sId = att.student_id || att.user_id;
             const profile = allStudentsMap[String(sId)] || {};
-            const name = (profile.first_name || profile.name || profile.full_name || '').trim() + 
-                         (profile.last_name ? ' ' + profile.last_name : '') || att.student_name || 'นักเรียน';
+            const name = ((profile.first_name || profile.name || profile.full_name || '').trim() +
+                (profile.last_name ? ' ' + profile.last_name : '')).trim() || att.student_name || 'นักเรียน';
             const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
             const score = calculateAttemptTotalScore(att, allQuestions);
             const maxScore = globalMaxScore;
@@ -1325,7 +1386,7 @@
                 const correctAnsFormatted = getCorrectAnswer(q, currentExam);
 
                 const isEssay = (q.question_type || q.type || '').toLowerCase() === 'essay';
-                const isMultiple = (q.question_type || q.type || '').toLowerCase() === 'multiple';
+                const isMultiple = (q.question_type || q.type || '').toLowerCase() === 'multiple' || !!q.is_multiple_answers;
                 const qEarnedScore = getQuestionScore(q, rawUserAns, att, index);
                 const qMaxScore = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
                 const isCorrect = qEarnedScore >= qMaxScore;
@@ -1405,5 +1466,3 @@
     </script>
 </body>
 </html>
-
-
