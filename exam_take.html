@@ -201,7 +201,12 @@
                             <button onclick="zoomIn()" class="w-7 h-7 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-500 font-bold rounded-lg transition-all" title="ซูมเข้า"><i class="fas fa-search-plus text-xs"></i></button>
                             <button onclick="resetZoom()" class="px-2 text-[10px] font-bold text-slate-500 hover:text-sky-500" title="รีเซ็ตขนาด">Reset</button>
                         </div>
-                        <span class="px-2.5 py-1 bg-red-500/10 text-red-600 text-[10px] font-bold rounded-lg border border-red-500/20"><i class="fas fa-shield-alt mr-1"></i> ป้องกันดาวน์โหลด</span>
+
+                        <button id="pdfDownloadBtn" type="button" onclick="triggerExamFileDownload()" class="hidden px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer">
+                            <i class="fas fa-download"></i> <span id="pdfDownloadLabel">ดาวน์โหลดไฟล์ข้อสอบ</span>
+                        </button>
+
+                        <span id="pdfNoDownloadBadge" class="px-2.5 py-1 bg-red-500/10 text-red-600 text-[10px] font-bold rounded-lg border border-red-500/20"><i class="fas fa-shield-alt mr-1"></i> ป้องกันดาวน์โหลด</span>
                     </div>
                 </div>
 
@@ -228,6 +233,22 @@
                     </div>
                 </div>
 
+                <!-- แถบดาวน์โหลดไฟล์ข้อสอบสำหรับโหมดออนไลน์/เมื่อเปิดให้ดาวน์โหลดได้ -->
+                <div id="onlineExamDownloadBanner" class="hidden p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                            <i class="fas fa-file-arrow-down text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="text-xs font-bold text-emerald-700 dark:text-emerald-300">เปิดให้ดาวน์โหลดไฟล์ข้อสอบได้</div>
+                            <div id="onlineDownloadFileName" class="text-[11px] text-slate-600 dark:text-slate-300 truncate">ไฟล์ข้อสอบ</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="triggerExamFileDownload()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 shrink-0 cursor-pointer">
+                        <i class="fas fa-download"></i> ดาวน์โหลดข้อสอบ
+                    </button>
+                </div>
+
                 <div id="questionsListContainer" class="space-y-6">
                     <div class="text-center py-12 text-slate-400 text-xs">กรุณากดเริ่มทำข้อสอบเพื่อแสดงชุดข้อสอบ</div>
                 </div>
@@ -249,6 +270,7 @@
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const LOCAL_EXAM_FILES_KEY = 'lms_exam_files_fallback_v1';
 
         const urlParams = new URLSearchParams(window.location.search);
         const examId = urlParams.get('id') || urlParams.get('exam_id');
@@ -276,6 +298,163 @@
         let currentStepIndex = 0;
         let examRealtimeChannel = null;
         let activeAttemptRecordId = null;
+
+        function readLocalExamFilesMetaForExam(targetExamId) {
+            if (!targetExamId) return {};
+            try {
+                const all = JSON.parse(localStorage.getItem(LOCAL_EXAM_FILES_KEY) || '{}');
+                return all[String(targetExamId)] || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function normalizeFileUrl(rawUrl) {
+            if (!rawUrl) return '';
+            let clean = String(rawUrl).trim();
+            try {
+                if (clean.startsWith('https%3A') || clean.startsWith('http%3A') || clean.startsWith('data%3A')) {
+                    clean = decodeURIComponent(clean);
+                }
+            } catch (_) {}
+            return clean;
+        }
+
+        function getDownloadableExamFileInfo(examObj) {
+            if (!examObj) return { canDownload: false, url: '', fileName: '' };
+            const localMeta = readLocalExamFilesMetaForExam(examObj.id || examId);
+
+            const canDownload = Boolean(
+                examObj.allow_file_download === true ||
+                examObj.allow_download === true ||
+                examObj.can_download === true ||
+                examObj.downloadable === true ||
+                localMeta.allow_file_download === true
+            );
+
+            const rawUrl =
+                examObj.exam_file_url ||
+                examObj.question_file_url ||
+                examObj.file_url ||
+                examObj.pdf_url ||
+                localMeta.exam_file_url ||
+                '';
+
+            const url = normalizeFileUrl(rawUrl);
+            const fallbackCode = (examObj.exam_code || examObj.title || 'exam-sheet').toString().trim().replace(/[^\w\u0E00-\u0E7F-]+/g, '-');
+            const defaultName = url.toLowerCase().includes('.pdf') || examObj.pdf_url ? `${fallbackCode}.pdf` : `${fallbackCode}`;
+            const fileName =
+                examObj.exam_file_name ||
+                examObj.question_file_name ||
+                examObj.file_name ||
+                localMeta.exam_file_name ||
+                defaultName;
+
+            return {
+                canDownload: canDownload && Boolean(url),
+                url,
+                fileName
+            };
+        }
+
+        function dataUrlToBlobUrl(dataUrl) {
+            const parts = String(dataUrl).split(',');
+            if (parts.length < 2) return dataUrl;
+            const mimeMatch = parts[0].match(/:(.*?);/);
+            const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+            const binaryStr = atob(parts[1]);
+            const len = binaryStr.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryStr.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: mimeType });
+            return URL.createObjectURL(blob);
+        }
+
+        function syncExamDownloadUI() {
+            const info = getDownloadableExamFileInfo(currentExam);
+            const hasPdf = Boolean(currentExam?.pdf_url && String(currentExam.pdf_url).trim() !== '');
+
+            const pdfBtn = document.getElementById('pdfDownloadBtn');
+            const pdfLabel = document.getElementById('pdfDownloadLabel');
+            const pdfNoBadge = document.getElementById('pdfNoDownloadBadge');
+            const onlineBanner = document.getElementById('onlineExamDownloadBanner');
+            const onlineFileName = document.getElementById('onlineDownloadFileName');
+
+            if (pdfBtn) {
+                if (info.canDownload) {
+                    pdfBtn.classList.remove('hidden');
+                    if (pdfLabel) pdfLabel.textContent = `ดาวน์โหลด (${info.fileName})`;
+                } else {
+                    pdfBtn.classList.add('hidden');
+                }
+            }
+
+            if (pdfNoBadge) {
+                if (info.canDownload) {
+                    pdfNoBadge.classList.add('hidden');
+                } else {
+                    pdfNoBadge.classList.remove('hidden');
+                }
+            }
+
+            if (onlineBanner) {
+                if (!hasPdf && info.canDownload) {
+                    onlineBanner.classList.remove('hidden');
+                    onlineBanner.classList.add('flex');
+                    if (onlineFileName) onlineFileName.textContent = info.fileName;
+                } else {
+                    onlineBanner.classList.add('hidden');
+                    onlineBanner.classList.remove('flex');
+                }
+            }
+        }
+
+        window.triggerExamFileDownload = async function() {
+            const info = getDownloadableExamFileInfo(currentExam);
+            if (!info.canDownload || !info.url) {
+                Swal.fire('ไม่สามารถดาวน์โหลดได้', 'ชุดข้อสอบนี้ไม่ได้เปิดให้ดาวน์โหลด หรือยังไม่มีไฟล์แนบ', 'info');
+                return;
+            }
+
+            try {
+                let downloadHref = info.url;
+                let revokeAfter = false;
+
+                if (info.url.startsWith('data:')) {
+                    downloadHref = dataUrlToBlobUrl(info.url);
+                    revokeAfter = true;
+                } else if (/^https?:\/\//i.test(info.url)) {
+                    try {
+                        const resp = await fetch(info.url);
+                        if (resp.ok) {
+                            const blob = await resp.blob();
+                            downloadHref = URL.createObjectURL(blob);
+                            revokeAfter = true;
+                        }
+                    } catch (_) {
+                        downloadHref = info.url;
+                    }
+                }
+
+                const link = document.createElement('a');
+                link.href = downloadHref;
+                link.download = info.fileName || 'exam-file';
+                link.target = '_blank';
+                link.rel = 'noopener';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                if (revokeAfter) {
+                    setTimeout(() => URL.revokeObjectURL(downloadHref), 60000);
+                }
+            } catch (err) {
+                console.error('Download exam file error:', err);
+                window.open(info.url, '_blank', 'noopener');
+            }
+        };
 
         function escapeHtmlText(str) {
             if (str === null || str === undefined) return '';
@@ -770,6 +949,7 @@
                 }
             }
 
+            syncExamDownloadUI();
             await loadQuestions();
 
             let startTime = localStorage.getItem(timerKey);
@@ -806,6 +986,7 @@
                         if (String(updatedExam.id) !== String(examId)) return;
                         currentExam = updatedExam;
                         document.getElementById('examSubNav').textContent = `รหัส: ${currentExam.exam_code || 'ไม่มี'} | เวลาทำ: ${currentExam.time_limit || 60} นาที`;
+                        syncExamDownloadUI();
                         renderQuestionsContainer();
                     }
                 )
