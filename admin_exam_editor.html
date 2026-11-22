@@ -192,7 +192,7 @@
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>
                             <tr class="bg-slate-100 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-b dark:border-slate-800">
-                                <th class="p-3 w-1/4">หมวดหมู่โจทย์ (ดึงจากข้อสอบอัตโนมัติ)</th>
+                                <th class="p-3 w-1/3">หมวดหมู่โจทย์ (ดึงจากข้อสอบอัตโนมัติ)</th>
                                 <th class="p-3 w-1/4">ชื่อเกณฑ์ / ระดับผลการประเมิน</th>
                                 <th class="p-3 w-1/6">Min %</th>
                                 <th class="p-3 w-1/6">Max %</th>
@@ -227,7 +227,26 @@
             </button>
         </div>
 
-        <div id="categorySummaryChips" class="flex flex-wrap gap-2 pt-1"></div>
+        <!-- Category Manager & Summary Card -->
+        <div id="categoryManagerCard" class="hitech-card p-6 rounded-2xl space-y-4 border-l-4 border-l-cyan-500">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div>
+                    <h3 class="font-bold text-base flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+                        <i class="fas fa-tags"></i> จัดการหมวดหมู่โจทย์ (แก้ไขชื่อยาวได้เต็มที่ & เลือกข้อเข้าหมวดหมู่)
+                    </h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ไม่จำกัดความยาวชื่อหมวดหมู่ สามารถกดแก้ไขชื่อหมวดหมู่และเลือกข้อสอบเข้า/ออกแต่ละหมวดหมู่ได้ทันที</p>
+                </div>
+                <button type="button" onclick="openCreateCategoryModal()" class="px-3.5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 shrink-0">
+                    <i class="fas fa-folder-plus"></i> สร้างหมวดหมู่ใหม่
+                </button>
+            </div>
+
+            <div id="categorySummaryChips" class="flex flex-wrap gap-2"></div>
+
+            <div id="categoryCardsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="col-span-full text-xs text-slate-400 py-2">กำลังโหลดหมวดหมู่โจทย์...</div>
+            </div>
+        </div>
 
         <!-- OMR Grid Container -->
         <div id="omrSectionCard" class="hitech-card p-6 rounded-2xl space-y-4">
@@ -249,7 +268,7 @@
                 </div>
                 
                 <div class="flex items-center gap-2 w-full md:w-auto flex-wrap">
-                    <select id="categoryFilterDropdown" onchange="renderQuestionAccordions()" class="px-4 py-2 bg-slate-100 dark:bg-slate-800 font-bold text-xs rounded-xl border border-slate-300 dark:border-slate-700 outline-none text-sky-600 dark:text-sky-400">
+                    <select id="categoryFilterDropdown" onchange="renderQuestionAccordions()" class="max-w-full sm:max-w-md px-4 py-2 bg-slate-100 dark:bg-slate-800 font-bold text-xs rounded-xl border border-slate-300 dark:border-slate-700 outline-none text-sky-600 dark:text-sky-400">
                         <option value="ALL">📂 แสดงหมวดหมู่โจทย์ทั้งหมด</option>
                     </select>
                     <button onclick="openQuestionModal()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-sm shrink-0"><i class="fas fa-plus mr-1"></i> เพิ่มโจทย์ใหม่</button>
@@ -299,6 +318,7 @@
         let hasUnsavedChanges = false;
         let cachedQuestions = [];
         let sharedPassages = [];
+        let customCategoryNames = [];
         let currentExamData = null;
         let gradingCriteriaList = [];
         let enableCriteria = false;
@@ -317,6 +337,34 @@
             const map = getQuestionMetaMap();
             map[String(qId)] = { ...(map[String(qId)] || {}), ...patch };
             localStorage.setItem(`question_meta_${examId}`, JSON.stringify(map));
+        }
+
+        function loadCustomCategoryNames() {
+            try {
+                const raw = localStorage.getItem(`exam_custom_categories_${examId}`);
+                const parsed = raw ? JSON.parse(raw) : [];
+                return Array.isArray(parsed) ? parsed.map(v => String(v).trim()).filter(Boolean) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveCustomCategoryNames(list) {
+            customCategoryNames = Array.from(new Set((list || []).map(v => String(v).trim()).filter(Boolean)));
+            localStorage.setItem(`exam_custom_categories_${examId}`, JSON.stringify(customCategoryNames));
+        }
+
+        function getAllDistinctCategories() {
+            const set = new Set();
+            cachedQuestions.forEach(q => {
+                const tag = String(q.category_tag || '').trim();
+                if (tag) set.add(tag);
+            });
+            customCategoryNames.forEach(tag => {
+                const clean = String(tag || '').trim();
+                if (clean) set.add(clean);
+            });
+            return Array.from(set);
         }
 
         function hydrateQuestionWithFlags(q) {
@@ -341,8 +389,13 @@
             else if (isSingleMultiKey) cleanGradingMode = 'single_multi_key';
             else if (['partial', 'at_least_one', 'all'].includes(modeStr)) cleanGradingMode = modeStr;
 
+            const resolvedCategoryTag = (q.category_tag !== undefined && q.category_tag !== null && String(q.category_tag).trim() !== '')
+                ? String(q.category_tag).trim()
+                : (meta.category_tag !== undefined && meta.category_tag !== null ? String(meta.category_tag).trim() : '');
+
             return {
                 ...q,
+                category_tag: resolvedCategoryTag,
                 score: (q.score !== undefined && q.score !== null) ? Number(q.score) : (meta.score !== undefined ? Number(meta.score) : 1),
                 shared_passage_id: q.shared_passage_id || meta.shared_passage_id || null,
                 is_bonus_all: isBonus,
@@ -396,12 +449,10 @@
                 return `MATHTOKENBLOCK${idx}ENDMATHTOKEN`;
             };
 
-            // 1. แยก block math: $$...$$ และ \[...\]
             let protectedText = text
                 .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => storeMath(expr, true))
                 .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => storeMath(expr, true));
 
-            // 2. แยก inline math: \(...\) และ $...$ (แปลงตัวเลขปกติใน $...$ เช่น $5$ หรือ $12.5$ ด้วย)
             protectedText = protectedText
                 .replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => storeMath(expr, false))
                 .replace(/(?<!\\)\$(?!\$)([^$\n]+?)(?<!\\)\$(?!\$)/g, (_, expr) => storeMath(expr, false));
@@ -424,7 +475,6 @@
                 htmlOutput = escapeHtml(protectedText).replace(/\r?\n/g, '<br>');
             }
 
-            // 3. คืนค่าสมการ KaTeX ที่เรนเดอร์แล้วกลับเข้าไป
             return htmlOutput.replace(/MATHTOKENBLOCK(\d+)ENDMATHTOKEN/g, (_, idxStr) => {
                 const tokenIdx = parseInt(idxStr, 10);
                 return mathTokens[tokenIdx] !== undefined ? mathTokens[tokenIdx] : '';
@@ -571,9 +621,9 @@
                     Swal.fire('อัปโหลดล้มเหลว', msg, 'error');
                 }
             } finally {
-                if (triggerLabel && origLabelHtml) {
+                if (triggerLabel && origHtml) {
                     triggerLabel.classList.remove('opacity-70', 'pointer-events-none');
-                    triggerLabel.innerHTML = origLabelHtml;
+                    triggerLabel.innerHTML = origHtml;
                 }
             }
         }
@@ -813,6 +863,7 @@
                 Swal.fire('ไม่พบ ID ข้อสอบ', '', 'warning').then(() => window.location.href = 'admin_exams.html');
                 return;
             }
+            customCategoryNames = loadCustomCategoryNames();
             await loadExamHeader();
             await loadQuestions();
         }
@@ -1063,7 +1114,7 @@
             const tbody = document.getElementById('criteriaTableBody');
             if (!tbody) return;
 
-            const availableTags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
+            const availableTags = getAllDistinctCategories();
 
             if (gradingCriteriaList.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">ยังไม่มีเกณฑ์การประเมิน กดปุ่ม "เพิ่มแถวเกณฑ์" ด้านบน</td></tr>`;
@@ -1145,35 +1196,306 @@
             clearModifiedFlag();
         }
 
-        async function loadQuestions() {
-            const { data: questions } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
-            cachedQuestions = (questions || []).map(hydrateQuestionWithFlags);
+        async function persistCategoryForQuestions(questionIds, newTagValue) {
+            const cleanTag = String(newTagValue || '').trim();
+            for (const qId of questionIds) {
+                const targetQ = cachedQuestions.find(q => String(q.id) === String(qId));
+                if (!targetQ) continue;
+                targetQ.category_tag = cleanTag;
+                saveQuestionMetaItem(targetQ.id, { category_tag: cleanTag });
+                try {
+                    await mySupabase.from('questions').update({ category_tag: cleanTag }).eq('id', targetQ.id);
+                } catch (err) {
+                    console.warn('Update category_tag error:', err);
+                }
+            }
+        }
+
+        function refreshCategoryRelatedViews(preserveFilter = true) {
+            const dd = document.getElementById('categoryFilterDropdown');
+            const prevFilterVal = preserveFilter && dd ? dd.value : 'ALL';
 
             const tagCounts = {};
             cachedQuestions.forEach(q => {
-                const tag = q.category_tag || 'ทั่วไป';
+                const tag = String(q.category_tag || '').trim() || 'ทั่วไป';
                 tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            });
+            customCategoryNames.forEach(t => {
+                const clean = String(t || '').trim();
+                if (clean && tagCounts[clean] === undefined) {
+                    tagCounts[clean] = 0;
+                }
             });
 
             const chipsSec = document.getElementById('categorySummaryChips');
             if (chipsSec) {
                 chipsSec.innerHTML = Object.keys(tagCounts).map(tag => `
-                    <span class="px-3 py-1 bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 rounded-full font-bold text-xs border border-sky-300 dark:border-sky-800">
+                    <span class="px-3 py-1 bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 rounded-2xl font-bold text-xs border border-sky-300 dark:border-sky-800 break-words max-w-full">
                         🏷️ ${escapeHtml(tag)}: ${tagCounts[tag]} ข้อ
                     </span>
                 `).join('');
             }
 
-            const tags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
-            const dd = document.getElementById('categoryFilterDropdown');
+            const tags = getAllDistinctCategories();
             if (dd) {
                 dd.innerHTML = '<option value="ALL">📂 แสดงหมวดหมู่โจทย์ทั้งหมด</option>' + tags.map(t => `<option value="${escapeHtml(t)}">🏷️ หมวดหมู่: ${escapeHtml(t)}</option>`).join('');
+                if (prevFilterVal !== 'ALL' && tags.includes(prevFilterVal)) {
+                    dd.value = prevFilterVal;
+                } else {
+                    dd.value = 'ALL';
+                }
             }
 
-            renderSharedPassagesPanel();
-            renderOmrGrid();
+            renderCategoryManagerCards();
             renderQuestionAccordions();
             renderCriteriaTable();
+        }
+
+        function renderCategoryManagerCards() {
+            const container = document.getElementById('categoryCardsContainer');
+            if (!container) return;
+
+            const categories = getAllDistinctCategories();
+            if (categories.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-xs text-slate-400 py-2">ยังไม่มีหมวดหมู่โจทย์ กดปุ่ม "สร้างหมวดหมู่ใหม่" ด้านบนเพื่อสร้างหมวดหมู่และเลือกข้อสอบเข้าหมวดหมู่</div>`;
+                return;
+            }
+
+            container.innerHTML = categories.map((catName, catIdx) => {
+                const assignedQuestions = cachedQuestions
+                    .filter(q => String(q.category_tag || '').trim() === catName)
+                    .sort((a, b) => (Number(a.question_number) || 0) - (Number(b.question_number) || 0));
+
+                const unassignedToThis = cachedQuestions
+                    .filter(q => String(q.category_tag || '').trim() !== catName)
+                    .sort((a, b) => (Number(a.question_number) || 0) - (Number(b.question_number) || 0));
+
+                const encodedCat = encodeURIComponent(catName);
+
+                const assignedBadgesHtml = assignedQuestions.length > 0
+                    ? assignedQuestions.map(q => {
+                        const qNum = q.question_number || '?';
+                        return `
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 text-[11px] font-bold">
+                                ข้อ ${qNum}
+                                <button type="button" onclick="removeQuestionFromCategory('${q.id}', decodeURIComponent('${encodedCat}'))" class="ml-0.5 text-red-500 hover:text-red-600" title="นำข้อ ${qNum} ออกจากหมวดหมู่นี้">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </span>
+                        `;
+                    }).join('')
+                    : `<span class="text-[11px] text-slate-400">ยังไม่มีข้อสอบในหมวดหมู่นี้</span>`;
+
+                const dropdownOptionsHtml = unassignedToThis.map(q => {
+                    const qNum = q.question_number || '?';
+                    const currentCatNote = q.category_tag ? ` [เดิม: ${q.category_tag}]` : ' [ยังไม่มีหมวดหมู่]';
+                    const rawSnippet = String(q.question_text || q.content || '').replace(/!\[.*?\]\(.*?\)/g, '[รูป]').replace(/\s+/g, ' ').trim();
+                    const shortSnippet = rawSnippet.length > 48 ? `${rawSnippet.slice(0, 48)}...` : rawSnippet;
+                    return `<option value="${escapeHtml(String(q.id))}">ข้อ ${qNum}${escapeHtml(currentCatNote)}${shortSnippet ? ` — ${escapeHtml(shortSnippet)}` : ''}</option>`;
+                }).join('');
+
+                return `
+                    <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-cyan-500/30 space-y-3 flex flex-col justify-between">
+                        <div class="space-y-2.5">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">หมวดหมู่ที่ ${catIdx + 1} (${assignedQuestions.length} ข้อ)</div>
+                                    <div class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white break-words leading-snug mt-0.5">${escapeHtml(catName)}</div>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <button type="button" onclick="openEditCategoryModal(decodeURIComponent('${encodedCat}'))" class="px-2.5 py-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg text-[11px] font-bold flex items-center gap-1" title="แก้ไขชื่อหมวดหมู่">
+                                        <i class="fas fa-pen"></i> แก้ไขชื่อ
+                                    </button>
+                                    <button type="button" onclick="confirmDeleteCategory(decodeURIComponent('${encodedCat}'))" class="px-2 py-1 bg-red-100 dark:bg-red-950/50 text-red-600 rounded-lg text-[11px] font-bold" title="ลบหมวดหมู่นี้">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                ${assignedBadgesHtml}
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2">
+                            <select id="catAssignSelect_${catIdx}" class="flex-1 min-w-0 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-[11px] font-bold outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- เลือกข้อสอบเข้าหมวดหมู่นี้ --</option>
+                                ${dropdownOptionsHtml}
+                            </select>
+                            <button type="button" onclick="assignSelectedQuestionToCategory(${catIdx}, decodeURIComponent('${encodedCat}'))" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-[11px] font-bold shrink-0">
+                                <i class="fas fa-plus mr-1"></i> เพิ่มเข้าหมวดหมู่
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.openCreateCategoryModal = async function() {
+            const questionCheckboxesHtml = cachedQuestions.map(q => {
+                const qNum = q.question_number || '?';
+                const tagNote = q.category_tag ? ` (หมวดปัจจุบัน: ${escapeHtml(q.category_tag)})` : '';
+                return `
+                    <label class="flex items-start gap-2 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border border-slate-200 dark:border-slate-800">
+                        <input type="checkbox" class="new-cat-q-cb mt-0.5" value="${escapeHtml(String(q.id))}">
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200 break-words">ข้อ ${qNum}${tagNote}</span>
+                    </label>
+                `;
+            }).join('');
+
+            const { value: formRes } = await Swal.fire({
+                title: 'สร้างหมวดหมู่โจทย์ใหม่',
+                width: '680px',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <div>
+                            <label class="block font-bold mb-1">ชื่อหมวดหมู่ (พิมพ์ได้ยาวเต็มที่ ไม่จำกัดความยาว)</label>
+                            <textarea id="newCategoryNameInput" rows="2" class="w-full px-3 py-2 border rounded-xl dark:bg-slate-800 font-bold text-xs leading-relaxed" placeholder="พิมพ์ชื่อหมวดหมู่หรือตัวชี้วัด/มาตรฐานการเรียนรู้ที่ต้องการ..."></textarea>
+                        </div>
+                        ${cachedQuestions.length > 0 ? `
+                        <div>
+                            <label class="block font-bold mb-1">เลือกข้อสอบที่ต้องการจัดเข้าหมวดหมู่นี้ทันที (เลือกได้หลายข้อ หรือข้ามไว้เลือกทีหลังได้)</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto p-1">
+                                ${questionCheckboxesHtml}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกหมวดหมู่',
+                cancelButtonText: 'ยกเลิก',
+                preConfirm: () => {
+                    const nameVal = document.getElementById('newCategoryNameInput').value.trim();
+                    if (!nameVal) {
+                        Swal.showValidationMessage('กรุณากรอกชื่อหมวดหมู่');
+                        return false;
+                    }
+                    const selectedIds = Array.from(document.querySelectorAll('.new-cat-q-cb:checked')).map(cb => cb.value);
+                    return { name: nameVal, selectedIds };
+                }
+            });
+
+            if (formRes) {
+                saveCustomCategoryNames([...customCategoryNames, formRes.name]);
+                if (formRes.selectedIds.length > 0) {
+                    await persistCategoryForQuestions(formRes.selectedIds, formRes.name);
+                }
+                await logAdminAction('สร้างหมวดหมู่โจทย์', `สร้างหมวดหมู่ "${formRes.name}" (กำหนด ${formRes.selectedIds.length} ข้อ)`);
+                refreshCategoryRelatedViews(true);
+                markAsModified();
+            }
+        };
+
+        window.openEditCategoryModal = async function(oldCategoryName) {
+            const { value: newCategoryName } = await Swal.fire({
+                title: 'แก้ไขชื่อหมวดหมู่โจทย์',
+                width: '650px',
+                html: `
+                    <div class="space-y-2 text-left text-xs">
+                        <label class="block font-bold">ชื่อหมวดหมู่ใหม่ (พิมพ์ชื่อยาวได้เต็มที่ ไม่จำกัดความยาว)</label>
+                        <textarea id="editCategoryNameInput" rows="3" class="w-full px-3 py-2 border rounded-xl dark:bg-slate-800 font-bold text-xs leading-relaxed">${escapeHtml(oldCategoryName)}</textarea>
+                        <p class="text-[11px] text-slate-400">ระบบจะอัปเดตชื่อหมวดหมู่ใหม่ให้ทุกข้อสอบที่อยู่ในหมวดหมู่นี้ รวมถึงเกณฑ์การประเมินผลโดยอัตโนมัติ</p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกชื่อหมวดหมู่',
+                cancelButtonText: 'ยกเลิก',
+                preConfirm: () => {
+                    const val = document.getElementById('editCategoryNameInput').value.trim();
+                    if (!val) {
+                        Swal.showValidationMessage('กรุณากรอกชื่อหมวดหมู่');
+                        return false;
+                    }
+                    return val;
+                }
+            });
+
+            if (newCategoryName && newCategoryName !== oldCategoryName) {
+                const targetIds = cachedQuestions
+                    .filter(q => String(q.category_tag || '').trim() === oldCategoryName)
+                    .map(q => q.id);
+
+                if (targetIds.length > 0) {
+                    await persistCategoryForQuestions(targetIds, newCategoryName);
+                }
+
+                const updatedCustom = customCategoryNames.map(c => c === oldCategoryName ? newCategoryName : c);
+                if (!updatedCustom.includes(newCategoryName)) updatedCustom.push(newCategoryName);
+                saveCustomCategoryNames(updatedCustom);
+
+                gradingCriteriaList.forEach(item => {
+                    if (item.category === oldCategoryName) {
+                        item.category = newCategoryName;
+                    }
+                });
+                localStorage.setItem(`grading_criteria_${examId}`, JSON.stringify(gradingCriteriaList));
+
+                const dd = document.getElementById('categoryFilterDropdown');
+                if (dd && dd.value === oldCategoryName) {
+                    dd.value = newCategoryName;
+                }
+
+                await logAdminAction('แก้ไขชื่อหมวดหมู่', `เปลี่ยนชื่อหมวดหมู่จาก "${oldCategoryName}" เป็น "${newCategoryName}"`);
+                refreshCategoryRelatedViews(true);
+                markAsModified();
+            }
+        };
+
+        window.assignSelectedQuestionToCategory = async function(catIdx, categoryName) {
+            const sel = document.getElementById(`catAssignSelect_${catIdx}`);
+            if (!sel || !sel.value) {
+                Swal.fire({ icon: 'info', title: 'กรุณาเลือกข้อสอบจากรายการก่อน', timer: 1300, showConfirmButton: false });
+                return;
+            }
+            const qId = sel.value;
+            await persistCategoryForQuestions([qId], categoryName);
+            const targetQ = cachedQuestions.find(q => String(q.id) === String(qId));
+            await logAdminAction('จัดหมวดหมู่โจทย์', `ย้ายข้อ ${targetQ?.question_number || qId} เข้าหมวดหมู่ "${categoryName}"`);
+            refreshCategoryRelatedViews(true);
+            markAsModified();
+        };
+
+        window.removeQuestionFromCategory = async function(qId, categoryName) {
+            await persistCategoryForQuestions([qId], '');
+            const targetQ = cachedQuestions.find(q => String(q.id) === String(qId));
+            await logAdminAction('นำข้อสอบออกจากหมวดหมู่', `นำข้อ ${targetQ?.question_number || qId} ออกจากหมวดหมู่ "${categoryName}"`);
+            refreshCategoryRelatedViews(true);
+            markAsModified();
+        };
+
+        window.confirmDeleteCategory = async function(categoryName) {
+            const res = await Swal.fire({
+                title: 'ลบหมวดหมู่นี้?',
+                html: `<div class="text-xs text-slate-500 break-words">หมวดหมู่: <b>${escapeHtml(categoryName)}</b><br>ข้อสอบที่อยู่ในหมวดหมู่นี้จะไม่ถูกลบ แต่จะถูกปลดออกจากหมวดหมู่</div>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ยืนยันลบหมวดหมู่',
+                cancelButtonText: 'ยกเลิก'
+            });
+            if (!res.isConfirmed) return;
+
+            const targetIds = cachedQuestions
+                .filter(q => String(q.category_tag || '').trim() === categoryName)
+                .map(q => q.id);
+
+            if (targetIds.length > 0) {
+                await persistCategoryForQuestions(targetIds, '');
+            }
+            saveCustomCategoryNames(customCategoryNames.filter(c => c !== categoryName));
+            await logAdminAction('ลบหมวดหมู่โจทย์', `ลบหมวดหมู่ "${categoryName}"`);
+            refreshCategoryRelatedViews(true);
+            markAsModified();
+        };
+
+        async function loadQuestions() {
+            const { data: questions } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
+            cachedQuestions = (questions || []).map(hydrateQuestionWithFlags);
+
+            refreshCategoryRelatedViews(true);
+            renderSharedPassagesPanel();
+            renderOmrGrid();
         }
 
         function renderOmrGrid() {
@@ -1241,7 +1563,7 @@
 
             const filtered = filterTag === 'ALL' 
                 ? cachedQuestions 
-                : cachedQuestions.filter(q => q.category_tag === filterTag);
+                : cachedQuestions.filter(q => String(q.category_tag || '').trim() === filterTag);
 
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="text-center py-6 text-slate-400 text-xs">ไม่มีรายการโจทย์ในหมวดหมู่นี้</div>`;
@@ -1307,7 +1629,7 @@
                 }
 
                 const qNum = q.question_number || (idx+1);
-                const categoryBadge = q.category_tag ? `<span class="px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-600 font-bold text-[10px]">${escapeHtml(q.category_tag)}</span>` : '';
+                const categoryBadge = q.category_tag ? `<span class="px-2 py-0.5 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 font-bold text-[10px] break-words max-w-xs">${escapeHtml(q.category_tag)}</span>` : '';
                 const bonusBadge = isBonusAll ? `<span class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 font-bold text-[10px]">🎁 แจกคะแนนฟรี</span>` : '';
                 const passageBadge = linkedPassage ? `<span class="px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-600 dark:text-teal-300 font-bold text-[10px]">🔗 ${escapeHtml(linkedPassage.title || 'โจทย์ร่วม')}</span>` : '';
                 const scoreBadge = `<span class="px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 font-bold text-[10px]">${qScore} คะแนน</span>`;
@@ -1328,16 +1650,16 @@
 
                 return `
                     <div class="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
-                        <div onclick="toggleAccordion('acc-${qId}')" class="p-3.5 bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                            <div class="flex items-center gap-2 font-bold text-xs truncate pr-2">
+                        <div onclick="toggleAccordion('acc-${qId}')" class="p-3.5 bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors gap-2">
+                            <div class="flex items-center gap-2 font-bold text-xs flex-wrap min-w-0 pr-2">
                                 <i class="fas fa-chevron-down text-slate-400 transition-transform" id="icon-acc-${qId}"></i>
-                                <span class="text-sky-600 dark:text-sky-400">ข้อ ${qNum}:</span>
+                                <span class="text-sky-600 dark:text-sky-400 shrink-0">ข้อ ${qNum}:</span>
                                 ${scoreBadge}
                                 ${hasImgBadge}
                                 ${bonusBadge}
                                 ${categoryBadge}
                                 ${passageBadge}
-                                <span class="text-slate-800 dark:text-slate-200 truncate">${qTextPlain}</span>
+                                <span class="text-slate-800 dark:text-slate-200 truncate max-w-md">${qTextPlain}</span>
                             </div>
                             <div class="flex gap-1 shrink-0" onclick="event.stopPropagation()">
                                 <button onclick="openQuestionModalById('${qId}')" class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-bold"><i class="fas fa-pen mr-1"></i> แก้ไข</button>
@@ -1614,7 +1936,7 @@
             const allowMultiSelectInputs = isMultiple || isSingleMultiKey;
             const correctArr = normalizeCorrectAnswerList(qData?.correct_answer);
 
-            const existingTags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
+            const existingTags = getAllDistinctCategories();
             const currentTag = qData?.category_tag || '';
             const isTagInList = existingTags.includes(currentTag);
 
@@ -1725,7 +2047,7 @@
                 width: '720px',
                 html: `
                     <div class="space-y-3 text-left text-xs max-h-[75vh] overflow-y-auto pr-1">
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div class="grid grid-cols-3 gap-2">
                             <div>
                                 <label class="block font-bold mb-1">ข้อที่</label>
                                 <input type="number" id="qNum" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" value="${qData?.question_number || (cachedQuestions.length + 1)}">
@@ -1735,19 +2057,20 @@
                                 <input type="number" step="0.5" min="0" id="qScore" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-mono font-bold text-indigo-600 dark:text-indigo-400" value="${qScoreVal}">
                             </div>
                             <div>
-                                <label class="block font-bold mb-1">หมวดหมู่ย่อยโจทย์</label>
-                                <select id="qCategorySelect" onchange="onCategorySelectChange(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-sky-600 dark:text-sky-400 mb-1">
-                                    ${categoryOptionsHtml}
-                                </select>
-                                <input id="qCategoryTagCustom" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 ${(!isTagInList && currentTag) ? '' : 'hidden'}" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่..." value="${escapeHtml(!isTagInList ? currentTag : '')}">
-                            </div>
-                            <div>
                                 <label class="block font-bold mb-1">ประเภทข้อสอบ</label>
                                 <select id="qType" onchange="toggleQuestionTypeModal(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800">
                                     <option value="multiple_choice" ${qData?.question_type !== 'essay' ? 'selected' : ''}>ปรนัย</option>
                                     <option value="essay" ${qData?.question_type === 'essay' ? 'selected' : ''}>อัตนัย (ข้อเขียน)</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="block font-bold">หมวดหมู่ย่อยโจทย์ (พิมพ์ชื่อยาวได้เต็มที่ ไม่จำกัดความยาว)</label>
+                            <select id="qCategorySelect" onchange="onCategorySelectChange(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-sky-600 dark:text-sky-400">
+                                ${categoryOptionsHtml}
+                            </select>
+                            <textarea id="qCategoryTagCustom" rows="2" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-xs leading-relaxed ${(!isTagInList && currentTag) ? '' : 'hidden'}" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่แบบยาวได้เต็มที่...">${escapeHtml(!isTagInList ? currentTag : '')}</textarea>
                         </div>
 
                         ${sharedPassageField}
@@ -1911,12 +2234,17 @@
 
                 if (savedRecordId) {
                     saveQuestionMetaItem(savedRecordId, {
+                        category_tag: formValues.category_tag,
                         score: formValues.score,
                         shared_passage_id: formValues.shared_passage_id,
                         is_bonus_all: formValues.is_bonus_all,
                         allow_multi_correct_keys: formValues.allow_multi_correct_keys,
                         multiple_grading_mode: formValues.multiple_grading_mode
                     });
+                }
+
+                if (formValues.category_tag) {
+                    saveCustomCategoryNames([...customCategoryNames, formValues.category_tag]);
                 }
 
                 markAsModified();
@@ -2028,7 +2356,7 @@
         };
 
         async function openAutoAnswerSheetModal() {
-            const existingTags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
+            const existingTags = getAllDistinctCategories();
             let categoryOptionsHtml = `<option value="">-- ไม่ระบุ / หมวดหมู่ทั่วไป --</option>`;
             existingTags.forEach(t => {
                 categoryOptionsHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`;
@@ -2037,9 +2365,10 @@
 
             const { value: formValues } = await Swal.fire({
                 title: '⚡ เจนกระดาษคำตอบ OMR',
+                width: '620px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-3 gap-2">
                             <div>
                                 <label class="block font-bold mb-1">เริ่มข้อที่</label>
                                 <input type="number" id="genStartNum" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" value="1">
@@ -2048,8 +2377,6 @@
                                 <label class="block font-bold mb-1">ถึงข้อที่</label>
                                 <input type="number" id="genEndNum" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" value="20">
                             </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block font-bold mb-1">จำนวนตัวเลือกต่อข้อ</label>
                                 <select id="genChoiceCount" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-sky-600">
@@ -2059,13 +2386,13 @@
                                     <option value="2">2 ตัวเลือก (ถูก/ผิด)</option>
                                 </select>
                             </div>
-                            <div>
-                                <label class="block font-bold mb-1">หมวดหมู่ย่อย</label>
-                                <select id="genCategorySelect" onchange="onGenCategorySelectChange(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-sky-600 dark:text-sky-400 mb-1">
-                                    ${categoryOptionsHtml}
-                                </select>
-                                <input id="genCategoryTagCustom" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 hidden" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่...">
-                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block font-bold">หมวดหมู่ย่อย (พิมพ์ชื่อยาวได้เต็มที่ ไม่จำกัดความยาว)</label>
+                            <select id="genCategorySelect" onchange="onGenCategorySelectChange(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-sky-600 dark:text-sky-400">
+                                ${categoryOptionsHtml}
+                            </select>
+                            <textarea id="genCategoryTagCustom" rows="2" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-xs leading-relaxed hidden" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่แบบยาวได้เต็มที่..."></textarea>
                         </div>
                     </div>
                 `,
@@ -2105,7 +2432,11 @@
                         multiple_grading_mode: 'all'
                     });
                 }
-                await mySupabase.from('questions').insert(newItems);
+                const { data: createdRows } = await mySupabase.from('questions').insert(newItems).select('id');
+                if (createdRows && formValues.tag) {
+                    createdRows.forEach(r => saveQuestionMetaItem(r.id, { category_tag: formValues.tag }));
+                    saveCustomCategoryNames([...customCategoryNames, formValues.tag]);
+                }
                 await logAdminAction('เจนกระดาษ OMR', `สร้างข้อสอบอัตโนมัติ ข้อที่ ${formValues.start} ถึง ${formValues.end}`);
                 markAsModified();
                 loadQuestions();
@@ -2186,6 +2517,7 @@
                 const persistedCorrect = q.is_bonus_all ? 'BONUS_ALL' : q.correct_answer;
 
                 saveQuestionMetaItem(q.id, {
+                    category_tag: q.category_tag || '',
                     score: qScoreVal,
                     shared_passage_id: q.shared_passage_id || null,
                     is_bonus_all: !!q.is_bonus_all,
