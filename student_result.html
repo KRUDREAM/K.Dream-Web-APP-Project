@@ -64,9 +64,14 @@
                     <span class="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-full inline-flex items-center gap-1.5 border border-emerald-500/20">
                         <i class="fas fa-circle-check"></i> ตรวจผลคะแนนเรียบร้อย
                     </span>
-                    <button onclick="downloadSummaryReport()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm">
-                        <i class="fas fa-file-pdf"></i> ดาวน์โหลด PDF รายงาน
-                    </button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button id="downloadExamAndKeyBtn" type="button" onclick="downloadExamAndAnswerKey()" class="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-not-allowed opacity-75" title="จะดาวน์โหลดได้เมื่อเปิดเฉลยแล้ว">
+                            <i class="fas fa-lock"></i> <span id="downloadExamAndKeyLabel">ดาวน์โหลดข้อสอบและเฉลย (รอเปิดเฉลย)</span>
+                        </button>
+                        <button type="button" onclick="downloadSummaryReport()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
+                            <i class="fas fa-file-pdf"></i> ดาวน์โหลด PDF รายงาน
+                        </button>
+                    </div>
                 </div>
                 <h2 class="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white pt-1" id="examTitle">กำลังโหลดชุดข้อสอบ...</h2>
                 <div class="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400 pt-1">
@@ -190,6 +195,7 @@
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
+        const LOCAL_EXAM_FILES_KEY = 'lms_exam_files_fallback_v1';
 
         let supabaseClient = null;
         try {
@@ -219,6 +225,282 @@
 
         let enableGradingCriteria = false;
         let gradingCriteriaList = [];
+
+        function isTruthyFlag(val) {
+            return val === true || val === 'true' || val === 1 || val === '1';
+        }
+
+        function isAnswerKeyUnlocked(exam) {
+            if (!globalShowAnswerInstantly) return false;
+            if (!exam) return true;
+
+            const explicitUnlockKeys = [
+                'show_answer',
+                'show_solution',
+                'show_solutions',
+                'reveal_answers',
+                'allow_answer_download',
+                'allow_solution_download'
+            ];
+
+            for (const k of explicitUnlockKeys) {
+                if (exam[k] !== undefined && exam[k] !== null) {
+                    return isTruthyFlag(exam[k]);
+                }
+            }
+
+            if (exam.answer_release_time) {
+                const releaseMs = new Date(exam.answer_release_time).getTime();
+                if (!Number.isNaN(releaseMs) && Date.now() < releaseMs) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        function readLocalExamFilesMetaForExam(targetExamId) {
+            if (!targetExamId) return {};
+            try {
+                const all = JSON.parse(localStorage.getItem(LOCAL_EXAM_FILES_KEY) || '{}');
+                return all[String(targetExamId)] || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function normalizeFileUrl(rawUrl) {
+            if (!rawUrl) return '';
+            let clean = String(rawUrl).trim();
+            try {
+                if (clean.startsWith('https%3A') || clean.startsWith('http%3A') || clean.startsWith('data%3A')) {
+                    clean = decodeURIComponent(clean);
+                }
+            } catch (_) {}
+            return clean;
+        }
+
+        function getExamAttachmentInfo(examObj) {
+            if (!examObj) return { url: '', fileName: '' };
+            const localMeta = readLocalExamFilesMetaForExam(examObj.id || examObj.exam_id || '');
+            const rawUrl =
+                examObj.exam_file_url ||
+                examObj.question_file_url ||
+                examObj.file_url ||
+                examObj.pdf_url ||
+                localMeta.exam_file_url ||
+                '';
+            const url = normalizeFileUrl(rawUrl);
+            const fallbackCode = (examObj.exam_code || examObj.title || 'exam-sheet')
+                .toString()
+                .trim()
+                .replace(/[^\w\u0E00-\u0E7F-]+/g, '-');
+            const defaultName = url.toLowerCase().includes('.pdf') || examObj.pdf_url ? `${fallbackCode}.pdf` : `${fallbackCode}`;
+            const fileName =
+                examObj.exam_file_name ||
+                examObj.question_file_name ||
+                examObj.file_name ||
+                localMeta.exam_file_name ||
+                defaultName;
+            return { url, fileName };
+        }
+
+        function dataUrlToBlobUrl(dataUrl) {
+            const parts = String(dataUrl).split(',');
+            if (parts.length < 2) return dataUrl;
+            const mimeMatch = parts[0].match(/:(.*?);/);
+            const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+            const binaryStr = atob(parts[1]);
+            const len = binaryStr.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryStr.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: mimeType });
+            return URL.createObjectURL(blob);
+        }
+
+        async function triggerDirectFileDownload(url, fileName) {
+            if (!url) return;
+            let downloadHref = url;
+            let revokeAfter = false;
+
+            if (url.startsWith('data:')) {
+                downloadHref = dataUrlToBlobUrl(url);
+                revokeAfter = true;
+            } else if (/^https?:\/\//i.test(url)) {
+                try {
+                    const resp = await fetch(url);
+                    if (resp.ok) {
+                        const blob = await resp.blob();
+                        downloadHref = URL.createObjectURL(blob);
+                        revokeAfter = true;
+                    }
+                } catch (_) {
+                    downloadHref = url;
+                }
+            }
+
+            const link = document.createElement('a');
+            link.href = downloadHref;
+            link.download = fileName || 'exam-file';
+            link.target = '_blank';
+            link.rel = 'noopener';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            if (revokeAfter) {
+                setTimeout(() => URL.revokeObjectURL(downloadHref), 60000);
+            }
+        }
+
+        function syncDownloadExamAndKeyButton() {
+            const btn = document.getElementById('downloadExamAndKeyBtn');
+            const label = document.getElementById('downloadExamAndKeyLabel');
+            if (!btn || !label) return;
+
+            const unlocked = isAnswerKeyUnlocked(currentExam);
+            if (unlocked) {
+                btn.disabled = false;
+                btn.className = 'px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer';
+                btn.title = 'ดาวน์โหลดข้อสอบและเฉลย';
+                btn.innerHTML = `<i class="fas fa-download"></i> <span>ดาวน์โหลดข้อสอบและเฉลย</span>`;
+            } else {
+                btn.disabled = false;
+                btn.className = 'px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-not-allowed opacity-75';
+                btn.title = 'จะดาวน์โหลดข้อสอบและเฉลยได้เมื่อเปิดเฉลยแล้ว';
+                btn.innerHTML = `<i class="fas fa-lock"></i> <span>ดาวน์โหลดข้อสอบและเฉลย (รอเปิดเฉลย)</span>`;
+            }
+        }
+
+        function formatCorrectAnswerDisplay(q) {
+            const opts = getQuestionOptions(q);
+            const rawCorrect = q.correct_answer !== undefined && q.correct_answer !== null ? q.correct_answer : '';
+            const tokens = toNormalizedArray(rawCorrect);
+            if (tokens.length === 0) return '-';
+
+            return tokens.map(tok => {
+                if (/^\d+$/.test(tok)) {
+                    const idx = Number(tok);
+                    const letter = idx >= 0 && idx < 26 ? String.fromCharCode(65 + idx) : String(idx + 1);
+                    const text = idx >= 0 && idx < opts.length ? ` (${opts[idx]})` : '';
+                    return `${letter}${text}`;
+                }
+                return tok;
+            }).join(', ');
+        }
+
+        function formatUserAnswerDisplay(q, userVal) {
+            if (userVal === null || userVal === undefined || userVal === '-' || userVal === '') return 'ไม่ได้ตอบ';
+            const opts = getQuestionOptions(q);
+            const tokens = toNormalizedArray(userVal);
+            if (tokens.length === 0) return String(userVal);
+
+            return tokens.map(tok => {
+                if (/^\d+$/.test(tok)) {
+                    const idx = Number(tok);
+                    const letter = idx >= 0 && idx < 26 ? String.fromCharCode(65 + idx) : String(idx + 1);
+                    const text = idx >= 0 && idx < opts.length ? ` (${opts[idx]})` : '';
+                    return `${letter}${text}`;
+                }
+                return tok;
+            }).join(', ');
+        }
+
+        async function downloadExamAndAnswerKey() {
+            if (!isAnswerKeyUnlocked(currentExam)) {
+                alert('ยังไม่เปิดเฉลยคำตอบ กรุณารอให้เปิดเฉลยก่อนจึงจะดาวน์โหลดข้อสอบและเฉลยได้');
+                return;
+            }
+
+            try {
+                const attachment = getExamAttachmentInfo(currentExam);
+                const allowRawDownload = Boolean(
+                    currentExam?.allow_file_download === true ||
+                    currentExam?.allow_download === true ||
+                    currentExam?.can_download === true ||
+                    readLocalExamFilesMetaForExam(currentExam?.id || '').allow_file_download === true
+                );
+
+                if (allowRawDownload && attachment.url) {
+                    await triggerDirectFileDownload(attachment.url, attachment.fileName);
+                }
+
+                const itemsHtml = (globalQuestions || []).map((q, index) => {
+                    const qNum = q.question_number || (index + 1);
+                    const qText = q.question_text || q.content || '';
+                    const tag = q.category_tag || 'ทั่วไป';
+                    const opts = getQuestionOptions(q);
+                    const userVal = getUserAnswer(q, globalRawAnswers);
+                    const earnedPts = getQuestionEarnedScore(q, userVal);
+                    const maxPts = getQuestionMaxPoints(q);
+                    const isCorrect = earnedPts >= maxPts;
+                    const correctDisplay = formatCorrectAnswerDisplay(q);
+                    const userDisplay = formatUserAnswerDisplay(q, userVal);
+                    const explanation = q.explanation || q.solution_text || q.answer_explanation || '';
+
+                    const choicesListHtml = opts.map((optText, optIdx) => {
+                        const letter = String.fromCharCode(65 + optIdx);
+                        return `<li style="margin: 2px 0; font-size: 11px;"><b>${escapeHtml(letter)}.</b> ${escapeHtml(optText)}</li>`;
+                    }).join('');
+
+                    return `
+                        <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 12px; page-break-inside: avoid;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px;">
+                                <b>ข้อที่ ${qNum} [${escapeHtml(tag)}]</b>
+                                <span style="font-weight: bold; color: ${isCorrect ? '#059669' : '#dc2626'};">
+                                    ${isCorrect ? 'ถูก' : 'ตรวจแล้ว'} (${earnedPts} / ${maxPts} คะแนน)
+                                </span>
+                            </div>
+                            <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #0f172a;">${escapeHtml(qText)}</div>
+                            <ul style="list-style: none; padding-left: 8px; margin: 4px 0 8px 0; color: #334155;">${choicesListHtml}</ul>
+                            <div style="background: #f8fafc; border-radius: 6px; padding: 8px; font-size: 11px; line-height: 1.5;">
+                                <div><b>คำตอบที่เลือก:</b> ${escapeHtml(userDisplay)}</div>
+                                <div style="color: #059669;"><b>เฉลยคำตอบ:</b> ${escapeHtml(correctDisplay)}</div>
+                                ${explanation ? `<div style="margin-top: 4px; color: #1e293b;"><b>คำอธิบายเฉลย:</b> ${escapeHtml(explanation)}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                const win = window.open('', '_blank');
+                if (!win) {
+                    alert('เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัปเพื่อดาวน์โหลดข้อสอบและเฉลย');
+                    return;
+                }
+
+                win.document.write(`<!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>ข้อสอบและเฉลย - ${escapeHtml(cachedExamTitle)}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <style>
+                        body { font-family: 'Prompt', sans-serif; padding: 20px; color: #1e293b; background: #ffffff; }
+                        .header-box { border: 1px solid #bae6fd; background: #f0f9ff; padding: 14px 16px; border-radius: 10px; margin-bottom: 16px; }
+                        h1 { margin: 0 0 6px 0; font-size: 18px; color: #0369a1; }
+                        p { margin: 2px 0; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header-box">
+                        <h1>ข้อสอบและเฉลยคำตอบ: ${escapeHtml(cachedExamTitle)}</h1>
+                        <p><b>ผู้สอบ:</b> ${escapeHtml(cachedStudentName)} | <b>คะแนน:</b> ${cachedScore} / ${cachedTotal}</p>
+                        ${attachment.url ? `<p><b>ไฟล์ข้อสอบแนบ:</b> ${escapeHtml(attachment.fileName)}</p>` : ''}
+                    </div>
+                    ${itemsHtml || '<p>ไม่พบรายการข้อสอบ</p>'}
+                    <script>
+                        window.onload = function() { setTimeout(function() { window.print(); }, 450); };
+                    <\/script>
+                </body>
+                </html>`);
+                win.document.close();
+            } catch (err) {
+                console.error('Download exam & answer key error:', err);
+                alert('ไม่สามารถดาวน์โหลดข้อสอบและเฉลยได้');
+            }
+        }
 
         function calculateTimeSpentMinutes(attempt, exam) {
             if (attempt.time_spent !== undefined && attempt.time_spent !== null && !isNaN(attempt.time_spent)) {
@@ -474,6 +756,7 @@
                 if (!attempt) {
                     document.getElementById('examTitle').textContent = 'ไม่พบข้อมูลการสอบ';
                     document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-amber-500 text-xs">ไม่พบผลการสอบ กรุณาตรวจสอบลิงก์ใหม่อีกครั้ง</div>';
+                    syncDownloadExamAndKeyButton();
                     return;
                 }
 
@@ -495,6 +778,8 @@
                     enableGradingCriteria = (rawEnable === true || rawEnable === 'true' || rawEnable === 1 || rawEnable === '1');
                     gradingCriteriaList = Array.isArray(exam.grading_criteria) ? exam.grading_criteria : [];
                 }
+
+                syncDownloadExamAndKeyButton();
 
                 if (!enableGradingCriteria || gradingCriteriaList.length === 0) {
                     const localCriteria = localStorage.getItem(`grading_criteria_${examRef}`);
