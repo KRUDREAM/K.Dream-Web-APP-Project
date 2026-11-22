@@ -110,13 +110,13 @@
             <div id="upcomingExamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
 
-        <div class="space-y-6">
+        <div class="space-y-4">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hitech-card p-5 rounded-2xl">
                 <div>
                     <h2 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
                         <i class="fas fa-layer-group text-sky-500"></i> คลังชุดข้อสอบประจำคอร์ส & ชุดแจกฟรี
                     </h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เลือกสลับมุมมองแบบการ์ด/ลิสต์ จัดการวันเปิด-ปิด โจทย์แจกฟรี และสิทธิ์สอบได้สะดวก</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เลือกสลับมุมมองแบบการ์ด/ลิสต์ ค้นหาตามชื่อ/รหัส/Tag และจัดการหมวดหมู่หรือ Tag ได้สะดวก</p>
                 </div>
                 
                 <div class="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto justify-between md:justify-end">
@@ -134,11 +134,73 @@
                     </button>
 
                     <button onclick="openCategoryManagerModal()" class="px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 rounded-xl font-bold text-xs border border-indigo-200 dark:border-indigo-900 hover:bg-indigo-100 transition-all flex items-center gap-1.5">
-                        <i class="fas fa-tags text-indigo-500"></i> หมวดหมู่
+                        <i class="fas fa-folder-tree text-indigo-500"></i> หมวดหมู่
                     </button>
+
+                    <button onclick="openTagManagerModal()" class="px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 rounded-xl font-bold text-xs border border-emerald-200 dark:border-emerald-900 hover:bg-emerald-100 transition-all flex items-center gap-1.5">
+                        <i class="fas fa-tags text-emerald-500"></i> จัดการ Tag
+                    </button>
+
                     <button onclick="openExamModal()" class="px-4 py-2 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-sky-500/25 transition-all flex items-center gap-1.5">
                         <i class="fas fa-plus"></i> สร้างชุดข้อสอบ
                     </button>
+                </div>
+            </div>
+
+            <!-- แถบค้นหาข้อสอบ & ค้นหาด่วนตาม Tag (พับ/หุบ Tag ได้) -->
+            <div class="hitech-card p-4 rounded-2xl space-y-3">
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                    <div class="relative flex-1">
+                        <i class="fas fa-magnifying-glass text-slate-400 text-xs absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                        <input
+                            type="text"
+                            id="examSearchInput"
+                            oninput="handleSearchInput(this.value)"
+                            placeholder="ค้นหาชื่อชุดข้อสอบ, รหัสข้อสอบ (Code), คอร์ส หรือ Tag..."
+                            class="w-full pl-9 pr-9 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-sky-500 transition-colors"
+                        >
+                        <button
+                            id="clearSearchBtn"
+                            onclick="clearAllFilters()"
+                            title="ล้างคำค้นหาและ Tag ที่เลือก"
+                            class="hidden text-slate-400 hover:text-rose-500 text-xs absolute right-3 top-1/2 -translate-y-1/2"
+                        >
+                            <i class="fas fa-circle-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                        <span id="searchResultCount" class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 px-2"></span>
+                        <button
+                            id="toggleTagBarBtn"
+                            onclick="toggleTagFilterBar()"
+                            class="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1.5"
+                        >
+                            <i class="fas fa-hashtag text-emerald-500"></i>
+                            <span id="toggleTagBarText">ซ่อน Tag</span>
+                            <i id="toggleTagBarChevron" class="fas fa-chevron-up text-[10px] transition-transform"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="quickTagBarSection" class="pt-2 border-t border-slate-200/70 dark:border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                            <i class="fas fa-bolt text-emerald-500"></i> ค้นหาด่วนตาม Tag
+                            <span id="selectedTagCountBadge" class="hidden px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 text-[10px]"></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="clearSelectedTagsBtn" onclick="clearSelectedTags()" class="hidden text-[11px] font-bold text-rose-500 hover:underline">
+                                ล้าง Tag ที่เลือก
+                            </button>
+                            <button id="expandAllTagsBtn" onclick="toggleShowAllTags()" class="hidden text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline">
+                                แสดง Tag ทั้งหมด
+                            </button>
+                        </div>
+                    </div>
+                    <div id="quickTagChipsContainer" class="flex flex-wrap items-center gap-1.5">
+                        <span class="text-[11px] text-slate-400">ยังไม่มี Tag ในระบบ</span>
+                    </div>
                 </div>
             </div>
 
@@ -153,10 +215,23 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        const LOCAL_TAGS_KEY = 'lms_exam_tags_fallback_v1';
+        const LOCAL_ASSIGN_KEY = 'lms_exam_tag_assignments_fallback_v1';
+        const TAG_BAR_COLLAPSED_KEY = 'lms_tag_bar_collapsed_v1';
+        const QUICK_TAG_LIMIT = 10;
+
         const urlParams = new URLSearchParams(window.location.search);
         const filterCourseId = urlParams.get('course_id');
 
         let categoriesList = [];
+        let tagsList = [];
+        let examTagIdsMap = {}; // { [examId]: [tagId, ...] }
+        let tagTableAvailable = true;
+        let selectedFilterTagIds = new Set();
+        let searchKeyword = '';
+        let showAllQuickTags = false;
+        let isTagBarCollapsed = localStorage.getItem(TAG_BAR_COLLAPSED_KEY) === 'true';
+
         let allCoursesList = [];
         let coursesMap = {};
         let profilesNameMap = {};
@@ -195,6 +270,248 @@
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
+
+        function readLocalFallbackTags() {
+            try {
+                return JSON.parse(localStorage.getItem(LOCAL_TAGS_KEY) || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        function writeLocalFallbackTags(list) {
+            localStorage.setItem(LOCAL_TAGS_KEY, JSON.stringify(list));
+        }
+
+        function readLocalFallbackAssignments() {
+            try {
+                return JSON.parse(localStorage.getItem(LOCAL_ASSIGN_KEY) || '{}');
+            } catch {
+                return {};
+            }
+        }
+
+        function writeLocalFallbackAssignments(mapObj) {
+            localStorage.setItem(LOCAL_ASSIGN_KEY, JSON.stringify(mapObj));
+        }
+
+        async function loadTagsAndAssignments() {
+            examTagIdsMap = {};
+            const { data: dbTags, error: tagErr } = await mySupabase.from('exam_tags').select('*').order('name');
+            if (tagErr) {
+                tagTableAvailable = false;
+                tagsList = readLocalFallbackTags().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'th'));
+                const localAssign = readLocalFallbackAssignments();
+                Object.keys(localAssign).forEach(eId => {
+                    examTagIdsMap[String(eId)] = (localAssign[eId] || []).map(String);
+                });
+            } else {
+                tagTableAvailable = true;
+                tagsList = dbTags || [];
+                const { data: dbAssign, error: assignErr } = await mySupabase.from('exam_tag_assignments').select('exam_id, tag_id');
+                if (!assignErr && dbAssign) {
+                    dbAssign.forEach(row => {
+                        const eId = String(row.exam_id);
+                        const tId = String(row.tag_id);
+                        if (!examTagIdsMap[eId]) examTagIdsMap[eId] = [];
+                        if (!examTagIdsMap[eId].includes(tId)) examTagIdsMap[eId].push(tId);
+                    });
+                }
+            }
+            applyTagBarCollapseUI();
+            renderQuickTagChips();
+        }
+
+        function getTagMapById() {
+            const map = {};
+            tagsList.forEach(t => { map[String(t.id)] = t; });
+            return map;
+        }
+
+        function getExamTags(examId) {
+            const tMap = getTagMapById();
+            const ids = examTagIdsMap[String(examId)] || [];
+            return ids.map(id => tMap[String(id)]).filter(Boolean);
+        }
+
+        function toggleTagFilterBar() {
+            isTagBarCollapsed = !isTagBarCollapsed;
+            localStorage.setItem(TAG_BAR_COLLAPSED_KEY, String(isTagBarCollapsed));
+            applyTagBarCollapseUI();
+        }
+
+        function applyTagBarCollapseUI() {
+            const sec = document.getElementById('quickTagBarSection');
+            const textEl = document.getElementById('toggleTagBarText');
+            const chevEl = document.getElementById('toggleTagBarChevron');
+            if (!sec || !textEl || !chevEl) return;
+
+            if (isTagBarCollapsed) {
+                sec.classList.add('hidden');
+                textEl.textContent = `แสดง Tag (${tagsList.length})`;
+                chevEl.classList.add('rotate-180');
+            } else {
+                sec.classList.remove('hidden');
+                textEl.textContent = 'ซ่อน Tag';
+                chevEl.classList.remove('rotate-180');
+            }
+        }
+
+        function toggleShowAllTags() {
+            showAllQuickTags = !showAllQuickTags;
+            renderQuickTagChips();
+        }
+
+        function renderQuickTagChips() {
+            const container = document.getElementById('quickTagChipsContainer');
+            const badgeEl = document.getElementById('selectedTagCountBadge');
+            const clearBtn = document.getElementById('clearSelectedTagsBtn');
+            const expandBtn = document.getElementById('expandAllTagsBtn');
+            if (!container) return;
+
+            const selCount = selectedFilterTagIds.size;
+            if (badgeEl) {
+                if (selCount > 0) {
+                    badgeEl.textContent = `เลือกอยู่ ${selCount}`;
+                    badgeEl.classList.remove('hidden');
+                } else {
+                    badgeEl.classList.add('hidden');
+                }
+            }
+            if (clearBtn) {
+                if (selCount > 0) clearBtn.classList.remove('hidden');
+                else clearBtn.classList.add('hidden');
+            }
+
+            if (tagsList.length === 0) {
+                container.innerHTML = `<span class="text-[11px] text-slate-400">ยังไม่มี Tag — กดปุ่ม "จัดการ Tag" เพื่อเพิ่ม Tag ได้ไม่จำกัด</span>`;
+                if (expandBtn) expandBtn.classList.add('hidden');
+                return;
+            }
+
+            const hasMore = tagsList.length > QUICK_TAG_LIMIT;
+            if (expandBtn) {
+                if (hasMore) {
+                    expandBtn.classList.remove('hidden');
+                    expandBtn.textContent = showAllQuickTags
+                        ? 'หุบ Tag เหลือบางส่วน'
+                        : `ดู Tag ทั้งหมด (${tagsList.length})`;
+                } else {
+                    expandBtn.classList.add('hidden');
+                }
+            }
+
+            const visibleTags = (!showAllQuickTags && hasMore)
+                ? tagsList.slice(0, QUICK_TAG_LIMIT)
+                : tagsList;
+
+            container.innerHTML = visibleTags.map(t => {
+                const tId = String(t.id);
+                const active = selectedFilterTagIds.has(tId);
+                const count = Object.values(examTagIdsMap).filter(arr => (arr || []).includes(tId)).length;
+                return `
+                    <button
+                        type="button"
+                        onclick="toggleFilterTag('${tId}')"
+                        class="px-2.5 py-1 rounded-full text-[11px] font-bold transition-all flex items-center gap-1 border ${
+                            active
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
+                        }"
+                    >
+                        <span>#${t.name}</span>
+                        <span class="text-[10px] opacity-80">(${count})</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function toggleFilterTag(tagId) {
+            const key = String(tagId);
+            if (selectedFilterTagIds.has(key)) {
+                selectedFilterTagIds.delete(key);
+            } else {
+                selectedFilterTagIds.add(key);
+            }
+            renderQuickTagChips();
+            applySearchAndTagFilter();
+        }
+
+        function clearSelectedTags() {
+            selectedFilterTagIds.clear();
+            renderQuickTagChips();
+            applySearchAndTagFilter();
+        }
+
+        function handleSearchInput(val) {
+            searchKeyword = (val || '').trim().toLowerCase();
+            applySearchAndTagFilter();
+        }
+
+        function clearAllFilters() {
+            searchKeyword = '';
+            const input = document.getElementById('examSearchInput');
+            if (input) input.value = '';
+            selectedFilterTagIds.clear();
+            renderQuickTagChips();
+            applySearchAndTagFilter();
+        }
+
+        function applySearchAndTagFilter() {
+            const clearSearchBtn = document.getElementById('clearSearchBtn');
+            const countEl = document.getElementById('searchResultCount');
+            const hasActiveFilter = Boolean(searchKeyword) || selectedFilterTagIds.size > 0;
+
+            if (clearSearchBtn) {
+                if (hasActiveFilter) clearSearchBtn.classList.remove('hidden');
+                else clearSearchBtn.classList.add('hidden');
+            }
+
+            let baseExams = allExamsRawData;
+            if (filterCourseId) {
+                baseExams = baseExams.filter(e => {
+                    if (!e.course_id) return false;
+                    if (Array.isArray(e.course_id)) return e.course_id.includes(filterCourseId);
+                    return String(e.course_id) === String(filterCourseId);
+                });
+            }
+
+            const filtered = baseExams.filter(e => {
+                const eTags = getExamTags(e.id);
+                const eTagIdSet = new Set(eTags.map(t => String(t.id)));
+
+                if (selectedFilterTagIds.size > 0) {
+                    for (const reqTagId of selectedFilterTagIds) {
+                        if (!eTagIdSet.has(reqTagId)) return false;
+                    }
+                }
+
+                if (searchKeyword) {
+                    const title = (e.title || '').toLowerCase();
+                    const code = (e.exam_code || '').toLowerCase();
+                    const catName = (e.exam_categories?.name || '').toLowerCase();
+                    const tagNames = eTags.map(t => (t.name || '').toLowerCase()).join(' ');
+                    let cId = e.course_id;
+                    if (Array.isArray(cId)) cId = cId[0];
+                    const courseTitle = (cId && coursesMap[cId]?.title ? coursesMap[cId].title : '').toLowerCase();
+
+                    const haystack = `${title} ${code} ${catName} ${tagNames} ${courseTitle}`;
+                    if (!haystack.includes(searchKeyword)) return false;
+                }
+
+                return true;
+            });
+
+            currentExamsData = filtered;
+
+            if (countEl) {
+                countEl.textContent = hasActiveFilter
+                    ? `พบ ${filtered.length} / ${baseExams.length} ชุด`
+                    : `ทั้งหมด ${baseExams.length} ชุด`;
+            }
+
+            renderExamsContainer();
+        }
 
         async function autoPostAnnouncementForExam(examTitle, examCode, courseId, status, isFree = false) {
             if (status !== 'public') return;
@@ -254,6 +571,7 @@
         async function initPage() {
             updateViewSwitcherButtons();
             await loadCategories();
+            await loadTagsAndAssignments();
             await loadCourses();
             await loadProfilesMap();
             await loadAttemptsData();
@@ -338,27 +656,18 @@
 
             allExamsRawData = allExams;
 
-            let filteredExams = allExams;
-            if (filterCourseId) {
-                filteredExams = allExams.filter(e => {
-                    if (!e.course_id) return false;
-                    if (Array.isArray(e.course_id)) {
-                        return e.course_id.includes(filterCourseId);
-                    }
-                    return String(e.course_id) === String(filterCourseId);
-                });
-            }
-
-            currentExamsData = filteredExams;
-            
-            if (error || currentExamsData.length === 0) {
-                document.getElementById('classroomExamsContainer').innerHTML = `<div class="hitech-card p-8 rounded-2xl text-center text-slate-400 text-xs">ยังไม่มีชุดข้อสอบในระบบ${filterCourseId ? 'ของคอร์สนี้' : ''}</div>`;
+            if (error) {
+                document.getElementById('classroomExamsContainer').innerHTML = `<div class="hitech-card p-8 rounded-2xl text-center text-slate-400 text-xs">ยังไม่มีชุดข้อสอบในระบบ</div>`;
                 document.getElementById('upcomingExamSection').classList.add('hidden');
                 return;
             }
 
+            const baseForUpcoming = filterCourseId
+                ? allExams.filter(e => Array.isArray(e.course_id) ? e.course_id.includes(filterCourseId) : String(e.course_id) === String(filterCourseId))
+                : allExams;
+
             const in48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-            const upcomingExams = currentExamsData.filter(e => e.status === 'countdown' && e.start_time && new Date(e.start_time) > now && new Date(e.start_time) <= in48Hours);
+            const upcomingExams = baseForUpcoming.filter(e => e.status === 'countdown' && e.start_time && new Date(e.start_time) > now && new Date(e.start_time) <= in48Hours);
 
             const upcomingSec = document.getElementById('upcomingExamSection');
             const upcomingGrid = document.getElementById('upcomingExamsGrid');
@@ -390,7 +699,8 @@
                 upcomingSec.classList.add('hidden');
             }
 
-            renderExamsContainer();
+            renderQuickTagChips();
+            applySearchAndTagFilter();
         }
 
         function getExamAverageScore(examId) {
@@ -407,9 +717,32 @@
             return '1, 2, 3, 4';
         }
 
+        function getExamTagsHtml(examId) {
+            const tags = getExamTags(examId);
+            if (!tags || tags.length === 0) return '';
+            return `
+                <div class="flex flex-wrap items-center gap-1">
+                    ${tags.map(t => `
+                        <button type="button" onclick="event.stopPropagation(); toggleFilterTag('${String(t.id)}')" class="px-2 py-0.5 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px] font-semibold transition-colors">
+                            #${t.name}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+        }
+
         async function renderExamsContainer() {
             const container = document.getElementById('classroomExamsContainer');
-            if (currentExamsData.length === 0) return;
+            if (currentExamsData.length === 0) {
+                const hasFilter = Boolean(searchKeyword) || selectedFilterTagIds.size > 0;
+                container.innerHTML = `
+                    <div class="hitech-card p-8 rounded-2xl text-center text-slate-400 text-xs space-y-2">
+                        <div>${hasFilter ? 'ไม่พบชุดข้อสอบที่ตรงกับเงื่อนไขการค้นหา / Tag' : `ยังไม่มีชุดข้อสอบในระบบ${filterCourseId ? 'ของคอร์สนี้' : ''}`}</div>
+                        ${hasFilter ? `<button onclick="clearAllFilters()" class="px-3 py-1.5 bg-sky-600 text-white rounded-xl text-xs font-bold">ล้างตัวกรองทั้งหมด</button>` : ''}
+                    </div>
+                `;
+                return;
+            }
 
             const { data: essayQuestions } = await mySupabase.from('questions').select('exam_id').eq('question_type', 'essay');
             const examsWithEssay = new Set((essayQuestions || []).map(q => q.exam_id));
@@ -469,6 +802,7 @@
             const choiceLabel = getChoiceFormatLabel(e.choice_format);
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
             const courseTagHtml = getCourseOrFreeTagHtml(e);
+            const examTagsHtml = getExamTagsHtml(e.id);
             const safeTitle = encodeURIComponent(e.title || 'ชุดข้อสอบ');
 
             let scheduleInfo = '';
@@ -488,6 +822,7 @@
                         </div>
                         <h3 class="font-bold text-sm text-slate-900 dark:text-white leading-snug line-clamp-1">${e.title}</h3>
                         <div class="flex flex-wrap items-center gap-1.5">${courseTagHtml}</div>
+                        ${examTagsHtml}
                         ${scheduleInfo ? `<div class="space-y-0.5">${scheduleInfo}</div>` : ''}
                         <div class="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                             ${deliveryBadge}
@@ -534,6 +869,7 @@
             const choiceLabel = getChoiceFormatLabel(e.choice_format);
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
             const courseTagHtml = getCourseOrFreeTagHtml(e);
+            const examTagsHtml = getExamTagsHtml(e.id);
             const safeTitle = encodeURIComponent(e.title || 'ชุดข้อสอบ');
 
             return `
@@ -546,6 +882,7 @@
                                 ${statusBadge}
                                 ${courseTagHtml}
                             </div>
+                            ${examTagsHtml}
                             <div class="flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500 dark:text-slate-400">
                                 ${deliveryBadge}
                                 <span><i class="far fa-clock text-sky-500 mr-1"></i>${e.time_limit || 60} นาที</span>
@@ -626,6 +963,11 @@
                         qData.exam_id = newExamId;
                         await mySupabase.from('questions').insert([qData]);
                     }
+                }
+
+                const srcTagIds = examTagIdsMap[String(sourceExamId)] || [];
+                if (srcTagIds.length > 0) {
+                    await saveExamTagAssignments(newExamId, srcTagIds);
                 }
 
                 if (typeof logSystemAction === 'function') {
@@ -870,6 +1212,38 @@
             document.getElementById('toggleAllBtnText').textContent = isAllCollapsed ? 'ขยายทั้งหมด' : 'ยุบทั้งหมด';
         }
 
+        async function saveExamTagAssignments(examId, newTagIds) {
+            const eKey = String(examId);
+            const cleanTagIds = Array.from(new Set((newTagIds || []).map(String)));
+            examTagIdsMap[eKey] = cleanTagIds;
+
+            if (!tagTableAvailable) {
+                const localAssign = readLocalFallbackAssignments();
+                localAssign[eKey] = cleanTagIds;
+                writeLocalFallbackAssignments(localAssign);
+                return;
+            }
+
+            const { error: delErr } = await mySupabase.from('exam_tag_assignments').delete().eq('exam_id', examId);
+            if (delErr) {
+                console.warn('Tag assignment fallback to local:', delErr.message);
+                const localAssign = readLocalFallbackAssignments();
+                localAssign[eKey] = cleanTagIds;
+                writeLocalFallbackAssignments(localAssign);
+                return;
+            }
+
+            if (cleanTagIds.length > 0) {
+                const rows = cleanTagIds.map(tId => ({ exam_id: examId, tag_id: tId }));
+                const { error: insErr } = await mySupabase.from('exam_tag_assignments').insert(rows);
+                if (insErr) {
+                    const localAssign = readLocalFallbackAssignments();
+                    localAssign[eKey] = cleanTagIds;
+                    writeLocalFallbackAssignments(localAssign);
+                }
+            }
+        }
+
         async function openExamModal(examData = null) {
             const isEdit = !!examData;
             const categoryOptions = categoriesList.map(c => `<option value="${c.id}" ${examData?.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
@@ -885,6 +1259,16 @@
 
             const currentDelivery = examData?.delivery_type || examData?.exam_type || 'pdf';
             const currentChoiceFormat = examData?.choice_format || 'num';
+            const existingTagIds = examData ? new Set((examTagIdsMap[String(examData.id)] || []).map(String)) : new Set();
+
+            const tagCheckboxesHtml = tagsList.length > 0
+                ? tagsList.map(t => `
+                    <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 cursor-pointer text-[11px] font-semibold text-emerald-800 dark:text-emerald-200">
+                        <input type="checkbox" name="swalExamTagCheck" value="${t.id}" ${existingTagIds.has(String(t.id)) ? 'checked' : ''} class="rounded text-emerald-600">
+                        <span>#${t.name}</span>
+                    </label>
+                `).join('')
+                : `<span class="text-[11px] text-slate-400">ยังไม่มี Tag ในระบบ — สามารถพิมพ์เพิ่มใหม่ด้านล่างได้เลย</span>`;
 
             const { value: formValues } = await Swal.fire({
                 title: isEdit ? 'แก้ไขชุดข้อสอบ' : 'สร้างชุดข้อสอบใหม่',
@@ -948,7 +1332,7 @@
 
                         <div class="grid grid-cols-3 gap-2">
                             <div>
-                                <label class="block font-bold mb-1">หมวดหมู่</label>
+                                <label class="block font-bold mb-1">หมวดหมู่ (1 หมวด)</label>
                                 <select id="swalCategory" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none">
                                     <option value="">-- ไม่ระบุ --</option>
                                     ${categoryOptions}
@@ -962,6 +1346,12 @@
                                 <label class="block font-bold mb-1">จำนวนครั้ง (Attempt)</label>
                                 <input type="number" id="swalMaxAttempts" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" placeholder="0 = ไม่จำกัด" value="${examData?.max_attempts ?? 1}">
                             </div>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/25 space-y-2">
+                            <label class="block font-bold text-emerald-700 dark:text-emerald-300"><i class="fas fa-hashtag mr-1"></i> Tag ชุดข้อสอบ (เลือกได้หลาย Tag / เพิ่มใหม่ได้ไม่จำกัด)</label>
+                            <div class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">${tagCheckboxesHtml}</div>
+                            <input id="swalNewTagsText" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none text-xs" placeholder="เพิ่ม Tag ใหม่คั่นด้วยจุลภาค เช่น สอวน., Graph, DP">
                         </div>
 
                         <div>
@@ -1015,6 +1405,11 @@
                     const isFreeUnassigned = document.getElementById('swalFreeUnassignedCheck').checked;
                     const selectedCourseId = isFreeUnassigned ? '' : document.getElementById('swalCourseSelect').value;
                     const show_answer_instantly = document.getElementById('swalShowAnswerInstantly').checked;
+                    const checkedTagIds = Array.from(document.querySelectorAll('input[name="swalExamTagCheck"]:checked')).map(cb => String(cb.value));
+                    const rawNewTags = (document.getElementById('swalNewTagsText').value || '')
+                        .split(',')
+                        .map(s => s.replace(/^#+/, '').trim())
+                        .filter(Boolean);
 
                     if (!title) { Swal.showValidationMessage('กรุณากรอกชื่อชุดข้อสอบ'); return false; }
 
@@ -1022,60 +1417,84 @@
                     const courseIdPayload = selectedCourseId ? [selectedCourseId] : null;
 
                     return {
-                        title,
-                        exam_code: exam_code || `EXAM-${Math.floor(Math.random()*9000+1000)}`,
-                        delivery_type,
-                        exam_type: delivery_type,
-                        choice_format,
-                        category_id: catVal ? catVal : null,
-                        course_id: courseIdPayload,
-                        is_free_public: isFreeFinal,
-                        free_access: isFreeFinal,
-                        time_limit: parseInt(document.getElementById('swalTimeLimit').value) || 60,
-                        max_attempts: parseInt(document.getElementById('swalMaxAttempts').value) || 0,
-                        status: status,
-                        show_answer_instantly: show_answer_instantly,
-                        allow_late_submission,
-                        start_time: (status === 'countdown' && document.getElementById('swalStartTime').value) ? new Date(document.getElementById('swalStartTime').value).toISOString() : null,
-                        due_date: (hasDueDate && document.getElementById('swalDueDate').value) ? new Date(document.getElementById('swalDueDate').value).toISOString() : null
+                        payload: {
+                            title,
+                            exam_code: exam_code || `EXAM-${Math.floor(Math.random()*9000+1000)}`,
+                            delivery_type,
+                            exam_type: delivery_type,
+                            choice_format,
+                            category_id: catVal ? catVal : null,
+                            course_id: courseIdPayload,
+                            is_free_public: isFreeFinal,
+                            free_access: isFreeFinal,
+                            time_limit: parseInt(document.getElementById('swalTimeLimit').value) || 60,
+                            max_attempts: parseInt(document.getElementById('swalMaxAttempts').value) || 0,
+                            status: status,
+                            show_answer_instantly: show_answer_instantly,
+                            allow_late_submission,
+                            start_time: (status === 'countdown' && document.getElementById('swalStartTime').value) ? new Date(document.getElementById('swalStartTime').value).toISOString() : null,
+                            due_date: (hasDueDate && document.getElementById('swalDueDate').value) ? new Date(document.getElementById('swalDueDate').value).toISOString() : null
+                        },
+                        checkedTagIds,
+                        rawNewTags
                     };
                 }
             });
 
             if (formValues) {
                 Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                
+
+                const { payload, checkedTagIds, rawNewTags } = formValues;
                 let resError = null;
+                let savedExamId = isEdit ? examData.id : null;
                 let wasNotPublishedBefore = !isEdit || examData.status !== 'public';
 
-                const coreExamPayload = { ...formValues };
+                const coreExamPayload = { ...payload };
                 delete coreExamPayload.is_free_public;
                 delete coreExamPayload.free_access;
 
                 if (isEdit) {
-                    const { error } = await mySupabase.from('exams').update(formValues).eq('id', examData.id);
+                    const { error } = await mySupabase.from('exams').update(payload).eq('id', examData.id);
                     resError = error ? (await mySupabase.from('exams').update(coreExamPayload).eq('id', examData.id)).error : null;
                     
                     if (!resError && typeof logSystemAction === 'function') {
-                        await logSystemAction('ADMIN_UPDATE_EXAM', `แอดมินแก้ไขชุดข้อสอบ: ${formValues.title}`, { exam_id: examData.id });
+                        await logSystemAction('ADMIN_UPDATE_EXAM', `แอดมินแก้ไขชุดข้อสอบ: ${payload.title}`, { exam_id: examData.id });
                     }
                 } else {
-                    const { error } = await mySupabase.from('exams').insert([formValues]);
-                    resError = error ? (await mySupabase.from('exams').insert([coreExamPayload])).error : null;
+                    const { data: insData, error } = await mySupabase.from('exams').insert([payload]).select().single();
+                    if (error) {
+                        const fallbackRes = await mySupabase.from('exams').insert([coreExamPayload]).select().single();
+                        resError = fallbackRes.error;
+                        savedExamId = fallbackRes.data?.id;
+                    } else {
+                        savedExamId = insData?.id;
+                    }
                     
                     if (!resError && typeof logSystemAction === 'function') {
-                        await logSystemAction('ADMIN_CREATE_EXAM', `แอดมินสร้างชุดข้อสอบใหม่: ${formValues.title}`, { title: formValues.title });
+                        await logSystemAction('ADMIN_CREATE_EXAM', `แอดมินสร้างชุดข้อสอบใหม่: ${payload.title}`, { title: payload.title });
                     }
                 }
 
-                if (!resError && formValues.status === 'public' && wasNotPublishedBefore) {
-                    let targetCourseVal = formValues.course_id?.[0] || '';
+                if (!resError && savedExamId) {
+                    const finalTagIds = new Set(checkedTagIds);
+                    for (const tagName of rawNewTags) {
+                        const createdTag = await ensureTagExists(tagName);
+                        if (createdTag && createdTag.id) {
+                            finalTagIds.add(String(createdTag.id));
+                        }
+                    }
+                    await saveExamTagAssignments(savedExamId, Array.from(finalTagIds));
+                    await loadTagsAndAssignments();
+                }
+
+                if (!resError && payload.status === 'public' && wasNotPublishedBefore) {
+                    let targetCourseVal = payload.course_id?.[0] || '';
                     await autoPostAnnouncementForExam(
-                        formValues.title,
-                        formValues.exam_code,
+                        payload.title,
+                        payload.exam_code,
                         targetCourseVal,
-                        formValues.status,
-                        formValues.is_free_public
+                        payload.status,
+                        payload.is_free_public
                     );
                 }
 
@@ -1106,6 +1525,224 @@
             document.getElementById('dueDateBox').className = checked ? 'space-y-2' : 'hidden';
         }
 
+        // ==================== ระบบจัดการ Tag (ไม่จำกัดจำนวน) ====================
+        async function ensureTagExists(rawName) {
+            const clean = (rawName || '').replace(/^#+/, '').trim();
+            if (!clean) return null;
+
+            const existing = tagsList.find(t => (t.name || '').toLowerCase() === clean.toLowerCase());
+            if (existing) return existing;
+
+            if (tagTableAvailable) {
+                const { data, error } = await mySupabase
+                    .from('exam_tags')
+                    .insert([{ name: clean }])
+                    .select()
+                    .single();
+                if (!error && data) {
+                    tagsList.push(data);
+                    return data;
+                }
+            }
+
+            const localTag = { id: `local-tag-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, name: clean };
+            tagsList.push(localTag);
+            writeLocalFallbackTags(tagsList);
+            return localTag;
+        }
+
+        async function openTagManagerModal() {
+            const countByTag = {};
+            Object.values(examTagIdsMap).forEach(arr => {
+                (arr || []).forEach(tId => {
+                    const k = String(tId);
+                    countByTag[k] = (countByTag[k] || 0) + 1;
+                });
+            });
+
+            const tagRowsHtml = tagsList.length > 0
+                ? tagsList.map(t => {
+                    const tId = String(t.id);
+                    const cnt = countByTag[tId] || 0;
+                    const safeName = encodeURIComponent(t.name || '');
+                    return `
+                        <div class="flex justify-between items-center gap-2 p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs border border-slate-200/70 dark:border-slate-700/70">
+                            <div class="min-w-0">
+                                <span class="font-bold text-emerald-700 dark:text-emerald-300 block truncate">#${t.name}</span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400">ใช้งานใน ${cnt} ชุดข้อสอบ</span>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <button onclick="openTagExamsEditor('${tId}', decodeURIComponent('${safeName}'))" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] transition-all">
+                                    <i class="fas fa-check-square mr-1"></i>ผูกชุดสอบ
+                                </button>
+                                <button onclick="renameTag('${tId}', decodeURIComponent('${safeName}'))" class="px-2 py-1 bg-sky-500/15 hover:bg-sky-500 text-sky-600 dark:text-sky-400 hover:text-white rounded-lg text-[11px] font-bold transition-all" title="แก้ไขชื่อ Tag">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button onclick="deleteTag('${tId}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg text-[11px] transition-all" title="ลบ Tag">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')
+                : `<div class="text-center text-slate-400 py-4">ยังไม่มี Tag ในระบบ เพิ่มได้ไม่จำกัดจำนวน</div>`;
+
+            const { value: newTagInput } = await Swal.fire({
+                title: `จัดการ Tag ข้อสอบ (${tagsList.length} Tag)`,
+                width: '580px',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">
+                            Tag เพิ่มได้ไม่จำกัด และ 1 ชุดข้อสอบมีได้หลาย Tag (พิมพ์หลาย Tag คั่นด้วยจุลภาคได้เลย)
+                        </div>
+                        <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1">${tagRowsHtml}</div>
+                        <div class="pt-2 border-t dark:border-slate-800">
+                            <label class="block font-bold mb-1">เพิ่ม Tag ใหม่</label>
+                            <input id="newTagNameInput" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" placeholder="เช่น คณิตศาสตร์, สอวน., กลางภาค (คั่นด้วย , ได้)">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-plus mr-1"></i>เพิ่ม Tag',
+                cancelButtonText: 'ปิด',
+                preConfirm: () => document.getElementById('newTagNameInput').value.trim()
+            });
+
+            if (newTagInput) {
+                const names = newTagInput.split(',').map(s => s.replace(/^#+/, '').trim()).filter(Boolean);
+                for (const n of names) {
+                    await ensureTagExists(n);
+                }
+                await loadTagsAndAssignments();
+                applySearchAndTagFilter();
+                openTagManagerModal();
+            }
+        }
+
+        async function renameTag(tagId, oldName) {
+            const { value: updated } = await Swal.fire({
+                title: 'แก้ไขชื่อ Tag',
+                input: 'text',
+                inputValue: oldName,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึก',
+                cancelButtonText: 'ยกเลิก',
+                inputValidator: (v) => {
+                    if (!v || !v.replace(/^#+/, '').trim()) return 'กรุณากรอกชื่อ Tag';
+                }
+            });
+
+            if (updated) {
+                const clean = updated.replace(/^#+/, '').trim();
+                if (clean === oldName) return;
+
+                if (tagTableAvailable && !String(tagId).startsWith('local-tag-')) {
+                    const { error } = await mySupabase.from('exam_tags').update({ name: clean }).eq('id', tagId);
+                    if (error) {
+                        Swal.fire('แก้ไขไม่สำเร็จ', error.message, 'error');
+                        return;
+                    }
+                } else {
+                    const localTags = readLocalFallbackTags().map(t => String(t.id) === String(tagId) ? { ...t, name: clean } : t);
+                    writeLocalFallbackTags(localTags);
+                }
+
+                await loadTagsAndAssignments();
+                applySearchAndTagFilter();
+                openTagManagerModal();
+            }
+        }
+
+        async function openTagExamsEditor(tagId, tagName) {
+            const tKey = String(tagId);
+            const rowsHtml = allExamsRawData.length > 0
+                ? allExamsRawData.map(e => {
+                    const checked = (examTagIdsMap[String(e.id)] || []).includes(tKey);
+                    return `
+                        <label class="flex items-center justify-between gap-2 p-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 rounded-xl cursor-pointer hover:border-emerald-400 transition-all">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <input type="checkbox" name="tagAssignExamCheck" value="${e.id}" ${checked ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-600 shrink-0">
+                                <div class="min-w-0">
+                                    <div class="font-bold text-slate-900 dark:text-white truncate">${e.title}</div>
+                                    <div class="text-[10px] text-slate-500 font-mono">${e.exam_code || 'CODE'}</div>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${checked ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}">${checked ? 'ติด Tag แล้ว' : 'ยังไม่ติด'}</span>
+                        </label>
+                    `;
+                }).join('')
+                : `<div class="text-center py-4 text-slate-400">ยังไม่มีชุดข้อสอบในระบบ</div>`;
+
+            const { value: checkedExamIds } = await Swal.fire({
+                title: `ผูกชุดข้อสอบกับ #${tagName}`,
+                width: '600px',
+                html: `
+                    <div class="space-y-2.5 text-left text-xs">
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">ติ๊กเลือกชุดข้อสอบที่ต้องการติด Tag <strong>#${tagName}</strong> (1 ชุดมีหลาย Tag ได้)</div>
+                        <div class="space-y-1.5 max-h-72 overflow-y-auto pr-1">${rowsHtml}</div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกการผูก Tag',
+                cancelButtonText: 'ย้อนกลับ',
+                preConfirm: () => Array.from(document.querySelectorAll('input[name="tagAssignExamCheck"]:checked')).map(cb => String(cb.value))
+            });
+
+            if (Array.isArray(checkedExamIds)) {
+                const checkedSet = new Set(checkedExamIds);
+                for (const e of allExamsRawData) {
+                    const eKey = String(e.id);
+                    const currentArr = new Set((examTagIdsMap[eKey] || []).map(String));
+                    const shouldHave = checkedSet.has(eKey);
+                    if (shouldHave && !currentArr.has(tKey)) {
+                        currentArr.add(tKey);
+                        await saveExamTagAssignments(e.id, Array.from(currentArr));
+                    } else if (!shouldHave && currentArr.has(tKey)) {
+                        currentArr.delete(tKey);
+                        await saveExamTagAssignments(e.id, Array.from(currentArr));
+                    }
+                }
+                await loadTagsAndAssignments();
+                applySearchAndTagFilter();
+                openTagManagerModal();
+            } else {
+                openTagManagerModal();
+            }
+        }
+
+        async function deleteTag(tagId) {
+            const tKey = String(tagId);
+            const res = await Swal.fire({
+                title: 'ยืนยันลบ Tag นี้?',
+                text: 'Tag จะถูกถอดออกจากชุดข้อสอบทั้งหมดที่เคยติด Tag นี้',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ลบ Tag',
+                cancelButtonText: 'ยกเลิก'
+            });
+            if (!res.isConfirmed) return;
+
+            selectedFilterTagIds.delete(tKey);
+
+            if (tagTableAvailable && !tKey.startsWith('local-tag-')) {
+                await mySupabase.from('exam_tag_assignments').delete().eq('tag_id', tagId);
+                await mySupabase.from('exam_tags').delete().eq('id', tagId);
+            } else {
+                writeLocalFallbackTags(readLocalFallbackTags().filter(t => String(t.id) !== tKey));
+                const localAssign = readLocalFallbackAssignments();
+                Object.keys(localAssign).forEach(eId => {
+                    localAssign[eId] = (localAssign[eId] || []).filter(id => String(id) !== tKey);
+                });
+                writeLocalFallbackAssignments(localAssign);
+            }
+
+            await loadTagsAndAssignments();
+            applySearchAndTagFilter();
+            openTagManagerModal();
+        }
+
+        // ==================== ระบบจัดการหมวดหมู่ (คงไว้ตามเดิม) ====================
         async function openCategoryManagerModal() {
             const countByCat = {};
             allExamsRawData.forEach(e => {
