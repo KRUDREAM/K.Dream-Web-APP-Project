@@ -142,7 +142,7 @@
                     <i class="fas fa-clock"></i>
                 </div>
                 <div>
-                    <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Slot ที่ว่างอยู่</span>
+                    <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Slot ที่ว่างอยู่ (ยังไม่ถึงเวลา)</span>
                     <h3 class="font-black text-base sm:text-xl text-emerald-600 dark:text-emerald-400 mt-0.5" id="remainingSlotsCount">0 ช่วงเวลา</h3>
                 </div>
             </div>
@@ -255,16 +255,19 @@
         let currentStudentId = null;
         let studentProfile = null;
         let allAvailableSlots = [];
-        let allTotalSlots = []; 
+        let allTotalSlots = [];
         let systemSettings = null;
         let myCurrentBooking = null;
         let hasValidCourseAccess = false;
+        let allowedCourseIdsSet = new Set();
 
-        let displayedYear = new Date().getFullYear();
-        let displayedMonth = new Date().getMonth();
-        let selectedDateStr = new Date().toISOString().split('T')[0];
+        const nowInit = new Date();
+        let displayedYear = nowInit.getFullYear();
+        let displayedMonth = nowInit.getMonth();
+        let selectedDateStr = toLocalDateKey(nowInit);
         let currentSlotFilter = 'all';
         let countdownInterval = null;
+        let refreshTimer = null;
 
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
@@ -278,6 +281,30 @@
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
+
+        function toLocalDateKey(dateInput) {
+            const d = new Date(dateInput);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        function isSlotCourseAllowed(slot) {
+            if (!allowedCourseIdsSet || allowedCourseIdsSet.size === 0) return true;
+            if (!slot || slot.course_id === undefined || slot.course_id === null || slot.course_id === '') return true;
+            return allowedCourseIdsSet.has(String(slot.course_id));
+        }
+
+        function isUpcomingAvailableSlot(slot, referenceTimeMs = Date.now()) {
+            if (!slot || slot.status !== 'available') return false;
+            if (!isSlotCourseAllowed(slot)) return false;
+            const startMs = new Date(slot.start_time).getTime();
+            const endMs = new Date(slot.end_time).getTime();
+            if (isNaN(startMs)) return false;
+            if (!isNaN(endMs) && endMs <= referenceTimeMs) return false;
+            return startMs > referenceTimeMs;
+        }
 
         async function authenticateStudent() {
             let userId = localStorage.getItem('student_id') || localStorage.getItem('id');
@@ -326,6 +353,12 @@
             await loadMyBooking();
             await loadAvailableSlots();
             setupStudentConsultRealtime();
+
+            // รีเฟรชการกรองเวลาที่ยังไม่ถึงทุก 30 วินาทีอัตโนมัติ
+            if (refreshTimer) clearInterval(refreshTimer);
+            refreshTimer = setInterval(() => {
+                recomputeSlotCountsAndViews();
+            }, 30000);
         }
 
         function setupStudentConsultRealtime() {
@@ -343,7 +376,10 @@
 
         async function loadSystemStatus() {
             const { data } = await mySupabase.from('consult_settings').select('*').eq('id', 1).maybeSingle();
-            systemSettings = data || { is_open: true, prune_hours: 24, allowed_courses: [] };
+            systemSettings = data || { is_open: true, prune_hours: 0, allowed_courses: [] };
+
+            const rawAllowed = Array.isArray(systemSettings.allowed_courses) ? systemSettings.allowed_courses : [];
+            allowedCourseIdsSet = new Set(rawAllowed.map(id => String(id)));
 
             const banner = document.getElementById('systemStatusBanner');
             const bannerTitle = document.getElementById('bannerTitle');
@@ -378,7 +414,7 @@
                     countdownBox.classList.add('hidden');
                 }
 
-                if (hasValidCourseAccess) bookingInterface.classList.remove('hidden');
+                if (hasValidCourseAccess && !myCurrentBooking) bookingInterface.classList.remove('hidden');
             } else {
                 banner.className = 'glossy-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl border-l-4 border-l-amber-500 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4';
                 bannerTitle.textContent = 'ระบบปิดรับจอง Consult ในขณะนี้';
@@ -439,7 +475,7 @@
                 if (en3) enrolledCourseIds = enrolledCourseIds.concat(en3.map(e => String(e.course_id)));
 
                 enrolledCourseIds = [...new Set(enrolledCourseIds)];
-                hasValidCourseAccess = enrolledCourseIds.some(courseId => allowedCoursesSetting.includes(String(courseId)));
+                hasValidCourseAccess = enrolledCourseIds.some(courseId => allowedCourseIdsSet.has(String(courseId)));
 
                 if (!hasValidCourseAccess) {
                     document.getElementById('accessDeniedReasonText').textContent = 
@@ -498,32 +534,40 @@
             });
         }
 
+        let rawFetchedSlots = [];
+
         async function loadAvailableSlots() {
-            const now = new Date();
-            const nowIso = now.toISOString();
-            const pruneHours = systemSettings?.prune_hours || 24;
-            const pruneThreshold = new Date(now.getTime() + (pruneHours * 3600000)).toISOString();
-
-            const { data: totalData } = await mySupabase
+            const nowIso = new Date().toISOString();
+            const { data } = await mySupabase
                 .from('consult_slots')
                 .select('*')
-                .gt('end_time', nowIso);
-
-            allTotalSlots = totalData || [];
-
-            const { data: availableData } = await mySupabase
-                .from('consult_slots')
-                .select('*')
-                .eq('status', 'available')
-                .gt('start_time', pruneThreshold)
+                .gt('end_time', nowIso)
                 .order('start_time', { ascending: true });
 
-            allAvailableSlots = availableData || [];
+            rawFetchedSlots = data || [];
+            recomputeSlotCountsAndViews();
+        }
 
-            const totalCount = allTotalSlots.length;
-            const remainingCount = allAvailableSlots.length;
-            document.getElementById('totalSlotsCount').textContent = `${totalCount} ช่วงเวลา`;
-            document.getElementById('remainingSlotsCount').textContent = `${remainingCount} ช่วงเวลา`;
+        function recomputeSlotCountsAndViews() {
+            const nowMs = Date.now();
+            const pruneHours = Number(systemSettings?.prune_hours || 0);
+            const cutoffMs = nowMs + (Math.max(0, pruneHours) * 3600000);
+
+            allTotalSlots = rawFetchedSlots.filter(s => {
+                if (!isSlotCourseAllowed(s)) return false;
+                const endMs = new Date(s.end_time).getTime();
+                return isNaN(endMs) || endMs > nowMs;
+            });
+
+            // แสดงและนับเฉพาะช่องที่ว่างอยู่และเวลาเริ่มต้นยังไม่ถึง (รวมถึงเคารพ prune_hours ถ้าตั้งไว้)
+            allAvailableSlots = allTotalSlots.filter(s => {
+                if (!isUpcomingAvailableSlot(s, nowMs)) return false;
+                const startMs = new Date(s.start_time).getTime();
+                return startMs > cutoffMs;
+            });
+
+            document.getElementById('totalSlotsCount').textContent = `${allTotalSlots.length} ช่วงเวลา`;
+            document.getElementById('remainingSlotsCount').textContent = `${allAvailableSlots.length} ช่วงเวลา`;
 
             renderCalendar();
             renderSlotsForSelectedDate();
@@ -552,7 +596,7 @@
 
             const firstDayIndex = new Date(displayedYear, displayedMonth, 1).getDay();
             const totalDays = new Date(displayedYear, displayedMonth + 1, 0).getDate();
-            const todayStr = new Date().toISOString().split('T')[0];
+            const todayStr = toLocalDateKey(new Date());
 
             for (let i = 0; i < firstDayIndex; i++) { grid.innerHTML += `<div></div>`; }
 
@@ -561,7 +605,7 @@
                 const dayStr = String(day).padStart(2, '0');
                 const dateKey = `${displayedYear}-${monthStr}-${dayStr}`;
 
-                const slotsOnThisDay = allAvailableSlots.filter(s => s.start_time.startsWith(dateKey));
+                const slotsOnThisDay = allAvailableSlots.filter(s => toLocalDateKey(s.start_time) === dateKey);
                 const count = slotsOnThisDay.length;
 
                 let badgeColor = 'bg-white/80 dark:bg-darkinput text-slate-400 border border-slate-200/80 dark:border-slate-800';
@@ -612,27 +656,23 @@
 
         function renderSlotsForSelectedDate() {
             const container = document.getElementById('availableSlotsContainer');
-            const dateFormatted = new Date(selectedDateStr).toLocaleDateString('th-TH', { dateStyle: 'long' });
+            const [y, m, d] = selectedDateStr.split('-').map(Number);
+            const dateObj = new Date(y, (m || 1) - 1, d || 1);
+            const dateFormatted = dateObj.toLocaleDateString('th-TH', { dateStyle: 'long' });
             document.getElementById('selectedDateText').textContent = dateFormatted;
 
-            let filtered = allAvailableSlots.filter(s => s.start_time.startsWith(selectedDateStr));
+            let filtered = allAvailableSlots.filter(s => toLocalDateKey(s.start_time) === selectedDateStr);
 
             if (currentSlotFilter === 'morning') {
-                filtered = filtered.filter(s => {
-                    const hour = new Date(s.start_time).getHours();
-                    return hour < 12;
-                });
+                filtered = filtered.filter(s => new Date(s.start_time).getHours() < 12);
             } else if (currentSlotFilter === 'afternoon') {
-                filtered = filtered.filter(s => {
-                    const hour = new Date(s.start_time).getHours();
-                    return hour >= 12;
-                });
+                filtered = filtered.filter(s => new Date(s.start_time).getHours() >= 12);
             }
 
             document.getElementById('slotCountBadge').textContent = `${filtered.length} ช่วงเวลาว่าง`;
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 text-xs"><i class="far fa-calendar-times text-3xl mb-2 block opacity-40"></i> ไม่มีช่วงเวลาว่างสำหรับตัวกรองที่เลือก</div>`;
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 text-xs"><i class="far fa-calendar-times text-3xl mb-2 block opacity-40"></i> ไม่มีช่วงเวลาว่างที่ยังไม่ถึงเวลาสำหรับวันที่หรือตัวกรองนี้</div>`;
                 return;
             }
 
@@ -646,7 +686,7 @@
                                 <span class="w-2 h-2 rounded-full bg-sky-500 inline-block"></span>
                                 ${startStr} - ${endStr} น.
                             </div>
-                            <div class="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pl-4">● สถานะ: ว่าง</div>
+                            <div class="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pl-4">● สถานะ: ว่าง (ยังไม่ถึงเวลา)</div>
                         </div>
                         <button onclick="bookSlot('${s.id}', '${startStr}', '${endStr}')" class="w-full sm:w-auto px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-sky-500/25 transition-all active:scale-95">จองเวลานี้</button>
                     </div>
@@ -660,9 +700,9 @@
                 return;
             }
 
-            const dateFormatted = new Date(selectedDateStr).toLocaleDateString('th-TH', { dateStyle: 'long' });
+            const [y, m, d] = selectedDateStr.split('-').map(Number);
+            const dateFormatted = new Date(y, (m || 1) - 1, d || 1).toLocaleDateString('th-TH', { dateStyle: 'long' });
 
-            // 🌟 ปรับปรุงการยืนยันการจองให้แสดงเวลาที่เลือกชัดเจน พร้อมคงข้อความเดิมไว้
             const res = await Swal.fire({
                 title: 'ยืนยันการจองเวลานี้?',
                 html: `คุณต้องการจองเวลานัดหมาย:<br><b class="text-sky-600 dark:text-sky-400 text-sm">📅 ${dateFormatted}</b><br><b class="text-emerald-600 dark:text-emerald-400 text-sm">⏰ เวลา ${startStr} - ${endStr} น.</b><br><br><span class="text-xs text-slate-500">เมื่อยืนยันแล้วจะไม่สามารถยกเลิกได้เอง หากต้องการเปลี่ยนเวลาต้องติดต่ออาจารย์</span>`,
@@ -676,9 +716,9 @@
 
             if (res.isConfirmed) {
                 Swal.fire({ title: 'กำลังบันทึกการจอง...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                const { data: slotCheck } = await mySupabase.from('consult_slots').select('status').eq('id', slotId).single();
-                if (!slotCheck || slotCheck.status !== 'available') {
-                    Swal.fire('ไม่สำเร็จ', 'ช่วงเวลานี้ถูกผู้อื่นจองไปแล้ว', 'error');
+                const { data: slotCheck } = await mySupabase.from('consult_slots').select('status, start_time').eq('id', slotId).single();
+                if (!slotCheck || slotCheck.status !== 'available' || new Date(slotCheck.start_time).getTime() <= Date.now()) {
+                    Swal.fire('ไม่สำเร็จ', 'ช่วงเวลานี้ถูกผู้อื่นจองไปแล้วหรือเลยเวลาแล้ว', 'error');
                     loadAvailableSlots();
                     return;
                 }
