@@ -357,6 +357,13 @@
                 .replace(/'/g, '&#039;');
         }
 
+        function isBonusAllQuestion(q) {
+            if (!q) return false;
+            const modeStr = String(q.multiple_grading_mode || q.grading_rule || q.grading_type || '').toLowerCase().trim();
+            const ansStr = String(q.correct_answer || q.answer || q.key || '').trim().toUpperCase();
+            return Boolean(q.is_bonus_all || modeStr === 'bonus_all' || ansStr === 'BONUS_ALL');
+        }
+
         function isAttemptSubmitted(att) {
             if (!att) return false;
             return Boolean(att.status === 'submitted' || att.status === 'completed' || att.submitted_at || att.submission_time);
@@ -364,6 +371,7 @@
 
         function formatSingleAnswerText(ansValue, examObj = null) {
             if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
+            if (String(ansValue).trim().toUpperCase() === 'BONUS_ALL') return 'แจกคะแนนฟรี (ได้เต็มทุกคน)';
 
             if (Array.isArray(ansValue)) {
                 return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
@@ -403,6 +411,7 @@
         }
 
         function getCorrectAnswer(q, examObj = null) {
+            if (isBonusAllQuestion(q)) return 'แจกคะแนนฟรี (ได้เต็มทุกคน)';
             const raw = q.correct_answer !== undefined ? q.correct_answer :
                 (q.answer !== undefined ? q.answer :
                 (q.key !== undefined ? q.key :
@@ -505,6 +514,10 @@
                 return graded !== null ? Math.min(Math.max(graded, 0), fullScore) : 0;
             }
 
+            if (isBonusAllQuestion(q)) {
+                return fullScore;
+            }
+
             if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
                 return 0;
             }
@@ -527,11 +540,12 @@
                 (currentExam && (currentExam.multiple_grading_mode || currentExam.grading_rule || currentExam.multiple_grading_rule)) || '';
             const gradingRule = String(rawRule).toLowerCase().trim();
 
-            const isAtLeastOneRule = gradingRule.includes('at_least') || gradingRule.includes('one') || gradingRule.includes('once') || gradingRule === 'subset';
+            const isSingleMultiKey = Boolean(q.allow_multi_correct_keys || gradingRule === 'single_multi_key');
+            const isAtLeastOneRule = isSingleMultiKey || gradingRule.includes('at_least') || gradingRule.includes('one') || gradingRule.includes('once') || gradingRule === 'subset';
 
             if (isAtLeastOneRule || (correctArr.length > 1 && gradingRule !== 'all' && gradingRule !== 'exact')) {
-                const isSubset = userArr.length > 0 && userArr.every(u => correctArr.includes(u));
-                return isSubset ? fullScore : 0;
+                const matchedAny = userArr.some(u => correctArr.some(c => String(u).toLowerCase() === String(c).toLowerCase()));
+                return matchedAny ? fullScore : 0;
             }
 
             if (gradingRule === 'partial') {
@@ -559,6 +573,7 @@
         }
 
         function checkAnswerIsCorrect(q, rawUserAns, att = null, index = 0) {
+            if (isBonusAllQuestion(q)) return true;
             return getQuestionScore(q, rawUserAns, att, index) > 0;
         }
 
@@ -968,6 +983,9 @@
             const labels = allQuestions.map((q, idx) => `ข้อ ${q.question_number || (idx + 1)}`);
             const counts = allQuestions.map((q, qIdx) => {
                 if (submittedAttempts.length === 0) return 0;
+                if (isBonusAllQuestion(q)) {
+                    return metric === 'correct' ? submittedAttempts.length : 0;
+                }
                 let correctCount = 0;
 
                 submittedAttempts.forEach(att => {
@@ -1385,12 +1403,13 @@
                 const userAnsFormatted = formatAnswerText(rawUserAns, currentExam);
                 const correctAnsFormatted = getCorrectAnswer(q, currentExam);
 
+                const isBonus = isBonusAllQuestion(q);
                 const isEssay = (q.question_type || q.type || '').toLowerCase() === 'essay';
                 const isMultiple = (q.question_type || q.type || '').toLowerCase() === 'multiple' || !!q.is_multiple_answers;
                 const qEarnedScore = getQuestionScore(q, rawUserAns, att, index);
                 const qMaxScore = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
-                const isCorrect = qEarnedScore >= qMaxScore;
-                const isPartial = qEarnedScore > 0 && qEarnedScore < qMaxScore;
+                const isCorrect = isBonus || qEarnedScore >= qMaxScore;
+                const isPartial = !isBonus && qEarnedScore > 0 && qEarnedScore < qMaxScore;
 
                 const catTag = q.category_tag && q.category_tag.trim() !== '' ? q.category_tag : 'ทั่วไป';
                 if (!categoryStats[catTag]) categoryStats[catTag] = { total: 0, correct: 0 };
@@ -1398,7 +1417,8 @@
                 categoryStats[catTag].correct += qEarnedScore;
 
                 let statusText = isCorrect ? `✅ ถูกต้อง (${qEarnedScore}/${qMaxScore})` : (isPartial ? `⚠️ ถูกบางส่วน (${qEarnedScore}/${qMaxScore})` : `❌ ตอบผิด (${qEarnedScore}/${qMaxScore})`);
-                if (isEssay) statusText = `✍️ อัตนัย (${qEarnedScore}/${qMaxScore})`;
+                if (isBonus) statusText = `🎁 แจกคะแนนฟรี (${qEarnedScore}/${qMaxScore})`;
+                else if (isEssay) statusText = `✍️ อัตนัย (${qEarnedScore}/${qMaxScore})`;
 
                 return `
                     <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isEssay ? 'border-amber-500/40' : (isCorrect ? 'border-emerald-500/40' : (isPartial ? 'border-indigo-500/40' : 'border-rose-500/40'))} space-y-1.5 text-xs text-left">
