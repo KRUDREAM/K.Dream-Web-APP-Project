@@ -670,22 +670,12 @@
             const tags = getTagsForExam(examId);
             if (!tags || tags.length === 0) return '';
             return `
-                <div class="flex flex-wrap items-center gap-1 mt-1">
-                    ${tags.map(t => {
-                        const tId = String(t.id);
-                        const active = selectedStudentTagIds.has(tId);
-                        return `
-                            <button
-                                type="button"
-                                onclick="event.stopPropagation(); toggleStudentFilterTag('${tId}')"
-                                class="px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors border ${
-                                    active
-                                        ? 'bg-emerald-600 text-white border-emerald-600'
-                                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
-                                }"
-                            >#${t.name}</button>
-                        `;
-                    }).join('')}
+                <div class="flex flex-wrap items-center gap-1 mt-1 select-none">
+                    ${tags.map(t => `
+                        <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 cursor-default"
+                        >#${t.name}</span>
+                    `).join('')}
                 </div>
             `;
         }
