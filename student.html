@@ -97,7 +97,6 @@
         div:where(.swal2-container) { font-family: 'Prompt', sans-serif; }
         .dark .swal2-popup { background-color: #090d16 !important; color: #f8fafc !important; border: 1px solid #1e293b !important; }
 
-        /* สไตล์แต่ง Prose (Markdown Output) ให้สวยงามและเข้ากับ Tailwind */
         .prose h1 { font-size: 1.5rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
         .prose h2 { font-size: 1.25rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
         .prose h3 { font-size: 1.1rem; font-weight: bold; margin-top: 0.5rem; margin-bottom: 0.5rem; }
@@ -519,7 +518,21 @@
         let allCategoryTags = new Set();
         let countdownInterval = null;
 
-        // ฟังก์ชันแปลงข้อความ Markdown ให้เป็น HTML อย่างสวยงาม
+        function isAttemptSubmitted(att) {
+            return Boolean(
+                att && (
+                    att.status === 'submitted' ||
+                    att.status === 'completed' ||
+                    att.submitted_at ||
+                    att.submission_time
+                )
+            );
+        }
+
+        function hasInProgressAttempt(examId) {
+            return userAttempts.some(a => String(a.exam_id) === String(examId) && a.status === 'in_progress');
+        }
+
         function renderMarkdown(content) {
             if (!content) return '';
             if (typeof marked !== 'undefined') {
@@ -985,9 +998,9 @@
                                 <i class="fas fa-user-shield"></i> 1. บัญชีผู้ใช้งานและความปลอดภัย (Account Security)
                             </h4>
                             <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-                                - ผู้ใช้งานต้องใช้ข้อมูลจริงในการลงทะเบียนและตั้งค่าบัญชีส่วนตัว<br>
-                                - บัญชีผู้ใช้ 1 บัญชี สงวนสิทธิ์การใช้งานสำหรับนักเรียนเจ้าของบัญชีเท่านั้น <strong>ห้ามมิให้มีการแชร์ชื่อผู้ใช้ รหัสผ่าน หรือให้ผู้อื่นเข้าใช้งานร่วมกันเด็ดขาด</strong><br>
-                                - ระบบมีระบบรักษาความปลอดภัย (Single Session) หากตรวจพบการล็อกอินซ้อน ระบบอาจทำการตัดการเชื่อมต่อเพื่อความปลอดภัยของข้อมูล
+- ผู้ใช้งานต้องใช้ข้อมูลจริงในการลงทะเบียนและตั้งค่าบัญชีส่วนตัว<br>
+- บัญชีผู้ใช้ 1 บัญชี สงวนสิทธิ์การใช้งานสำหรับนักเรียนเจ้าของบัญชีเท่านั้น <strong>ห้ามมิให้มีการแชร์ชื่อผู้ใช้ รหัสผ่าน หรือให้ผู้อื่นเข้าใช้งานร่วมกันเด็ดขาด</strong><br>
+- ระบบมีระบบรักษาความปลอดภัย (Single Session) หากตรวจพบการล็อกอินซ้อน ระบบอาจทำการตัดการเชื่อมต่อเพื่อความปลอดภัยของข้อมูล
                             </p>
                         </div>
 
@@ -996,9 +1009,9 @@
                                 <i class="fas fa-file-signature"></i> 2. กฎระเบียบการทำข้อสอบ ผลลัพธ์ และสถิติการเรียนรู้ (Exam Rules & Analytics)
                             </h4>
                             <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-                                - การทำข้อสอบทุกชุดต้องอยู่ภายใต้กรอบเวลา ระยะเวลา และจำนวนครั้งที่ผู้ดูแลระบบกำหนด ห้ามทำการทุจริต คัดลอกข้อสอบ หรือบันทึกภาพหน้าจอข้อสอบ<br>
-                                - ผลคะแนน กราฟวิเคราะห์จุดแข็ง-จุดอ่อน และสถิติการสอบที่แสดงในระบบ มีไว้เพื่อให้ผู้เรียนใช้ประเมินพัฒนาการของตนเองเท่านั้น และผลคะแนนถือเป็นที่สิ้นสุด<br>
-                                - ข้อมูลประวัติการทำข้อสอบและคำตอบจะถูกจัดเก็บไว้ในฐานข้อมูลเพื่อประโยชน์ในการประมวลผลสถิติทางการศึกษาภายในระบบ
+- การทำข้อสอบทุกชุดต้องอยู่ภายใต้กรอบเวลา ระยะเวลา และจำนวนครั้งที่ผู้ดูแลระบบกำหนด ห้ามทำการทุจริต คัดลอกข้อสอบ หรือบันทึกภาพหน้าจอข้อสอบ<br>
+- ผลคะแนน กราฟวิเคราะห์จุดแข็ง-จุดอ่อน และสถิติการสอบที่แสดงในระบบ มีไว้เพื่อให้ผู้เรียนใช้ประเมินพัฒนาการของตนเองเท่านั้น และผลคะแนนถือเป็นที่สิ้นสุด<br>
+- ข้อมูลประวัติการทำข้อสอบและคำตอบจะถูกจัดเก็บไว้ในฐานข้อมูลเพื่อประโยชน์ในการประมวลผลสถิติทางการศึกษาภายในระบบ
                             </p>
                         </div>
 
@@ -1007,9 +1020,9 @@
                                 <i class="fas fa-play-circle"></i> 3. เงื่อนไขการรับชมเทปเรียนย้อนหลัง (Video Replays & Copyright)
                             </h4>
                             <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-                                - วิดีโอและเทปเรียนย้อนหลังทั้งหมดภายในระบบ ถือเป็นทรัพย์สินทางปัญญาของผู้สอนและแพลตฟอร์ม<br>
-                                - <strong>ไม่อนุญาตให้ทำการบันทึกหน้าจอ (Screen Recording) ดาวน์โหลด คัดลอก หรือนำไปเผยแพร่ต่อสาธารณะ</strong> ในทุกกรณี<br>
-                                - สิทธิ์ในการรับชมเป็นของนักเรียนเจ้าของบัญชีผู้ลงทะเบียนคอร์ส และมีกำหนดระยะเวลาสิ้นสุดตามอายุของคอร์สเรียนนั้นๆ
+- วิดีโอและเทปเรียนย้อนหลังทั้งหมดภายในระบบ ถือเป็นทรัพย์สินทางปัญญาของผู้สอนและแพลตฟอร์ม<br>
+- <strong>ไม่อนุญาตให้ทำการบันทึกหน้าจอ (Screen Recording) ดาวน์โหลด คัดลอก หรือนำไปเผยแพร่ต่อสาธารณะ</strong> ในทุกกรณี<br>
+- สิทธิ์ในการรับชมเป็นของนักเรียนเจ้าของบัญชีผู้ลงทะเบียนคอร์ส และมีกำหนดระยะเวลาสิ้นสุดตามอายุของคอร์สเรียนนั้นๆ
                             </p>
                         </div>
 
@@ -1018,7 +1031,7 @@
                                 <i class="fas fa-coins"></i> 4. ระบบสะสม Token และของรางวัล (Reward System)
                             </h4>
                             <p class="text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-                                - Token หรือคะแนนสะสมที่ได้รับจากการทำกิจกรรมหรือทำข้อสอบ มีไว้สำหรับใช้แลกสิทธิประโยชน์ในคลังของรางวัลของระบบเท่านั้น
+- Token หรือคะแนนสะสมที่ได้รับจากการทำกิจกรรมหรือทำข้อสอบ มีไว้สำหรับใช้แลกสิทธิประโยชน์ในคลังของรางวัลของระบบเท่านั้น
                             </p>
                         </div>
 
@@ -1722,7 +1735,7 @@
                 if (!exam.title.toLowerCase().includes(keyword) && (!exam.description || !exam.description.toLowerCase().includes(keyword))) return false;
 
                 const myAttemptsForExam = userAttempts.filter(a => a.exam_id === exam.id);
-                const completedCount = myAttemptsForExam.filter(a => a.status === 'completed' || a.submitted_at || a.submission_time).length;
+                const completedCount = myAttemptsForExam.filter(a => isAttemptSubmitted(a)).length;
                 
                 if (currentStatusFilter === 'pending') return completedCount === 0;
                 if (currentStatusFilter === 'completed') return completedCount > 0;
@@ -1739,7 +1752,7 @@
                 return true;
             });
 
-            const completedExamIds = new Set(userAttempts.filter(a => a.status === 'completed' || a.submitted_at || a.submission_time).map(a => a.exam_id));
+            const completedExamIds = new Set(userAttempts.filter(a => isAttemptSubmitted(a)).map(a => a.exam_id));
             const completedCountTotal = activeExams.filter(e => completedExamIds.has(e.id)).length;
             const progressPercent = activeExams.length > 0 ? Math.round((completedCountTotal / activeExams.length) * 100) : 0;
             
@@ -1748,10 +1761,12 @@
 
             const pendingExamsList = activeExams.filter(exam => {
                 const isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < now.getTime() : false;
-                if (isOverdue) return false;
+                const inProgress = hasInProgressAttempt(exam.id);
+                const allowLate = !!exam.allow_late_submission;
+                if (isOverdue && !inProgress && !allowLate) return false;
 
                 const myAttemptsForExam = userAttempts.filter(a => a.exam_id === exam.id);
-                const completedCount = myAttemptsForExam.filter(a => a.status === 'completed' || a.submitted_at || a.submission_time).length;
+                const completedCount = myAttemptsForExam.filter(a => isAttemptSubmitted(a)).length;
                 const maxAttempts = exam.max_attempts || exam.attempts_allowed || 0;
                 const isExhausted = maxAttempts > 0 && completedCount >= maxAttempts;
                 let isCountdown = exam.start_time ? new Date(exam.start_time).getTime() > Date.now() : (exam.status === 'countdown');
@@ -1767,6 +1782,7 @@
                     const questionCount = examQuestionCounts[exam.id] || 0;
                     const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
                     const isStarred = starredExams.includes(exam.id);
+                    const inProgress = hasInProgressAttempt(exam.id);
                     
                     let dueDateHtml = '';
                     if (exam.due_date) {
@@ -1788,8 +1804,8 @@
                                 ${dueDateHtml}
                             </div>
                             <div class="flex justify-between items-center pt-2.5 border-t border-slate-100 dark:border-slate-800">
-                                <span class="text-[10px] text-slate-400">ยังไม่ได้ทำ</span>
-                                <button onclick="handleExamClick('${exam.id}', 'start', null)" class="px-3.5 py-1.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl text-xs font-extrabold shadow-md shadow-sky-500/20 flex items-center gap-1"><i class="fas fa-play"></i> เริ่มสอบ</button>
+                                <span class="text-[10px] ${inProgress ? 'text-amber-600 font-bold' : 'text-slate-400'}">${inProgress ? 'ทำค้างอยู่' : 'ยังไม่ได้ทำ'}</span>
+                                <button onclick="handleExamClick('${exam.id}', 'start', null)" class="px-3.5 py-1.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl text-xs font-extrabold shadow-md shadow-sky-500/20 flex items-center gap-1"><i class="fas fa-play"></i> ${inProgress ? 'ทำต่อ' : 'เริ่มสอบ'}</button>
                             </div>
                         </div>
                     `;
@@ -1841,8 +1857,9 @@
 
             examsList.forEach(exam => {
                 const myAttemptsForExam = userAttempts.filter(a => a.exam_id === exam.id);
-                const completedAttempts = myAttemptsForExam.filter(a => a.status === 'completed' || a.submitted_at || a.submission_time);
+                const completedAttempts = myAttemptsForExam.filter(a => isAttemptSubmitted(a));
                 const completedCount = completedAttempts.length;
+                const inProgress = hasInProgressAttempt(exam.id);
                 let maxScoreAchieved = completedCount > 0 ? Math.max(...completedAttempts.map(a => a.total_score !== undefined ? a.total_score : (a.score || 0))) : 0;
                 const maxAttempts = exam.max_attempts || exam.attempts_allowed || 0;
                 const questionCount = examQuestionCounts[exam.id] || 0;
@@ -1858,6 +1875,7 @@
                 let startTimeMs = exam.start_time ? new Date(exam.start_time).getTime() : 0;
 
                 let isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < nowMs : false;
+                const allowLate = !!exam.allow_late_submission;
                 let dueTimeMs = exam.due_date ? new Date(exam.due_date).getTime() : 0;
                 let formattedDueDate = exam.due_date ? new Date(exam.due_date).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : 'ไม่จำกัดเวลา';
 
@@ -1868,7 +1886,7 @@
                     ${exam.due_date && !isOverdue ? `<div class="text-[10px] font-bold text-amber-600 dark:text-amber-400 exam-duedate-timer" data-due-time="${dueTimeMs}">กำลังคำนวณเวลา...</div>` : ''}
                 `;
 
-                if (isOverdue) {
+                if (isOverdue && !inProgress && !allowLate) {
                     cardHighlightClass = 'border-l-4 border-l-rose-500 bg-rose-50/30 dark:bg-rose-950/20';
                     statusBadge = `<span class="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-rose-500 text-white rounded-lg text-[9px] sm:text-[10px] font-extrabold"><i class="fas fa-ban mr-1"></i> เลยกำหนดส่งแล้ว</span>`;
                     actionBtnHtml = `<button onclick="handleExamClick('${exam.id}', 'start', null)" class="px-3.5 py-1.5 bg-rose-500/20 text-rose-600 rounded-xl text-xs font-bold border border-rose-500/30">หมดสิทธิ์ทำ</button>`;
@@ -1880,6 +1898,10 @@
                     cardHighlightClass = 'border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/20';
                     statusBadge = `<span class="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-amber-500 text-white rounded-lg text-[9px] sm:text-[10px] font-bold exam-countdown-timer" data-start-time="${startTimeMs}">⏳ โหลด...</span>`;
                     actionBtnHtml = `<button disabled class="px-3.5 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-400 rounded-xl text-xs font-bold cursor-not-allowed">รอเปิด</button>`;
+                } else if (inProgress) {
+                    cardHighlightClass = 'border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/20';
+                    statusBadge = `<span class="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-amber-500 text-white rounded-lg text-[9px] sm:text-[10px] font-extrabold">ทำค้างอยู่</span>`;
+                    actionBtnHtml = `<button onclick="handleExamClick('${exam.id}', 'start', null)" class="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 text-white rounded-xl text-xs font-extrabold shadow-md shadow-amber-500/20"><i class="fas fa-play"></i> ทำต่อ</button>`;
                 } else {
                     cardHighlightClass = 'border-l-4 border-l-sky-600';
                     statusBadge = `<span class="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-sky-500/15 text-sky-700 dark:text-sky-300 rounded-lg text-[9px] sm:text-[10px] font-extrabold border border-sky-300">ยังไม่ทำ</span>`;
@@ -1931,7 +1953,10 @@
             if (!exam) return;
 
             const nowMs = Date.now();
-            if (exam.due_date && new Date(exam.due_date).getTime() < nowMs) {
+            const inProgress = hasInProgressAttempt(examId);
+            const allowLate = !!exam.allow_late_submission;
+
+            if (exam.due_date && new Date(exam.due_date).getTime() < nowMs && !inProgress && !allowLate) {
                 await Swal.fire({
                     icon: 'error',
                     title: 'เลยกำหนดส่ง (Due Date)',
@@ -1996,8 +2021,7 @@
             const keyword = (document.getElementById('searchHistoryInput')?.value || '').toLowerCase();
 
             const completedAttempts = userAttempts.filter(a => {
-                const isFinished = a.status === 'completed' || a.submitted_at || a.submission_time;
-                if (!isFinished) return false;
+                if (!isAttemptSubmitted(a)) return false;
                 const exam = allExams.find(e => e.id === a.exam_id);
                 if (!exam) return false;
                 if (selectedGlobalCourseId !== 'all' && String(exam.course_id || exam.courseid) !== String(selectedGlobalCourseId)) return false;
@@ -2086,8 +2110,7 @@
             const selectedCourseFilter = document.getElementById('analyticsCourseFilter')?.value || 'all';
             
             const completedAttempts = userAttempts.filter(a => {
-                const isFinished = a.status === 'completed' || a.submitted_at || a.submission_time;
-                if (!isFinished) return false;
+                if (!isAttemptSubmitted(a)) return false;
                 const exam = allExams.find(e => e.id === a.exam_id);
                 if (!exam) return false;
                 if (selectedCourseFilter !== 'all') {
@@ -2126,8 +2149,7 @@
             
             const selectedCourseFilter = document.getElementById('analyticsCourseFilter')?.value || 'all';
             const completedAttempts = userAttempts.filter(a => {
-                const isFinished = a.status === 'completed' || a.submitted_at || a.submission_time;
-                if (!isFinished) return false;
+                if (!isAttemptSubmitted(a)) return false;
                 if (selectedCourseFilter !== 'all') {
                     const exam = allExams.find(e => e.id === a.exam_id);
                     const examCourseId = String(exam?.course_id || exam?.courseid || '');
