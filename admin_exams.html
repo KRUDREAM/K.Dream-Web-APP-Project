@@ -62,7 +62,7 @@
     </script>
     <style>
         body { font-family: 'Prompt', sans-serif; }
-        .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(186, 230, 253, 0.5); }
+        .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur: 20px; border-bottom: 1px solid rgba(186, 230, 253, 0.5); }
         .dark .glass-nav { background: rgba(2, 6, 23, 0.88); border-bottom: 1px solid rgba(30, 58, 138, 0.4); }
         .hitech-card { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(186, 230, 253, 0.8); box-shadow: 0 10px 30px -10px rgba(2, 132, 199, 0.08); transition: all 0.25s ease; }
         .dark .hitech-card { background: rgba(9, 13, 22, 0.95); border: 1px solid rgba(30, 58, 138, 0.5); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); }
@@ -96,90 +96,139 @@
         mjx-container { display: inline-block !important; }
         mjx-container[display="true"] { display: block !important; margin: 0.4rem 0 !important; text-align: center; }
 
-        /* Hidden A4 Sheet for Direct PDF Export */
+        /* Dedicated A4 Sheet for Direct PDF Export */
         #pdfExportStaging {
             position: fixed;
-            left: -10000px;
+            left: 0;
             top: 0;
             width: 794px;
             background: #ffffff;
             color: #0f172a;
-            padding: 36px 42px;
+            padding: 32px 40px;
             font-family: 'Prompt', sans-serif;
+            font-size: 14px;
             line-height: 1.65;
-            z-index: -1;
+            letter-spacing: 0;
+            word-spacing: normal;
+            z-index: -9999;
+            opacity: 0;
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+        #pdfExportStaging * {
+            font-family: 'Prompt', sans-serif !important;
+            box-sizing: border-box;
+        }
+        #pdfExportStaging code, #pdfExportStaging pre, #pdfExportStaging .pdf-code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+        }
+        #pdfExportStaging mjx-container, #pdfExportStaging mjx-container * {
+            font-family: initial !important;
+        }
+        #pdfExportStaging .pdf-section {
+            background: #ffffff;
+            padding-bottom: 6px;
         }
         #pdfExportStaging .pdf-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 2px solid #cbd5e1;
             padding-bottom: 12px;
             margin-bottom: 14px;
-            gap: 12px;
+            gap: 14px;
         }
         #pdfExportStaging .pdf-code {
-            font-family: monospace;
             font-weight: 700;
             background: #e0f2fe;
             color: #0369a1;
-            padding: 4px 10px;
-            border-radius: 6px;
+            padding: 5px 11px;
+            border-radius: 7px;
             font-size: 12px;
             white-space: nowrap;
         }
         #pdfExportStaging .pdf-copyright {
             background: #fffbeb;
-            border: 1px solid #fcd34d;
-            color: #92400e;
+            border: 1px solid #f59e0b;
+            color: #78350f;
             padding: 10px 14px;
             border-radius: 8px;
             font-size: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
         }
         #pdfExportStaging .pdf-q-block {
-            border: 1px solid #e2e8f0;
+            border: 1px solid #cbd5e1;
             border-radius: 10px;
-            padding: 12px 14px;
+            padding: 12px 15px;
             margin-bottom: 12px;
             background: #ffffff;
         }
-        #pdfExportStaging .pdf-q-title {
+        #pdfExportStaging .pdf-q-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
             font-weight: 700;
             font-size: 14px;
-            margin-bottom: 6px;
             color: #0f172a;
+            margin-bottom: 6px;
+        }
+        #pdfExportStaging .pdf-q-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 26px;
+            height: 26px;
+            padding: 0 7px;
+            border-radius: 7px;
+            background: #0284c7;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        #pdfExportStaging .pdf-q-body {
+            flex: 1;
+            min-width: 0;
         }
         #pdfExportStaging .pdf-choices {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 6px 14px;
+            gap: 8px 16px;
             font-size: 13px;
-            color: #334155;
-            margin-top: 6px;
+            color: #1e293b;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #e2e8f0;
+        }
+        #pdfExportStaging .pdf-choice-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
         }
         #pdfExportStaging .pdf-ans-line {
             border-bottom: 1px dotted #94a3b8;
-            height: 22px;
+            height: 24px;
             margin-top: 6px;
         }
         #pdfExportStaging .pdf-img {
             max-width: 100%;
-            max-height: 240px;
+            max-height: 230px;
             width: auto;
             height: auto;
             border-radius: 8px;
-            margin: 6px 0;
+            margin: 8px 0 4px 0;
             display: block;
         }
         #pdfExportStaging .pdf-footer {
-            margin-top: 18px;
+            margin-top: 14px;
             padding-top: 10px;
             border-top: 1px dashed #cbd5e1;
             display: flex;
             justify-content: space-between;
             font-size: 11px;
-            color: #64748b;
+            color: #475569;
         }
     </style>
 </head>
@@ -1605,20 +1654,6 @@
             return cleaned || fallback;
         }
 
-        function triggerBlobDownload(blob, fileName) {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = fileName;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => {
-                link.remove();
-                URL.revokeObjectURL(url);
-            }, 1500);
-        }
-
         function extractQuestionImageUrl(q) {
             if (!q || typeof q !== 'object') return '';
             const candidates = [q.image_url, q.image, q.img_url, q.picture_url, q.attachment_url];
@@ -1628,9 +1663,47 @@
             return '';
         }
 
-        async function waitForImagesLoaded(containerEl, timeoutMs = 4000) {
+        function sortQuestionsByOrder(questions = []) {
+            return [...questions].sort((a, b) => {
+                const orderA = Number(a.question_number ?? a.order_index ?? a.number ?? a.sort_order);
+                const orderB = Number(b.question_number ?? b.order_index ?? b.number ?? b.sort_order);
+                const hasNumA = Number.isFinite(orderA) && orderA > 0;
+                const hasNumB = Number.isFinite(orderB) && orderB > 0;
+
+                if (hasNumA && hasNumB && orderA !== orderB) {
+                    return orderA - orderB;
+                }
+                if (hasNumA && !hasNumB) return -1;
+                if (!hasNumA && hasNumB) return 1;
+
+                const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                if (timeA !== timeB) return timeA - timeB;
+
+                return String(a.id || '').localeCompare(String(b.id || ''), 'en', { numeric: true });
+            });
+        }
+
+        async function fetchOrderedQuestionsForExam(examId) {
+            if (!examId) return [];
+            const { data, error } = await mySupabase
+                .from('questions')
+                .select('*')
+                .eq('exam_id', examId);
+            if (error || !Array.isArray(data)) return [];
+            return sortQuestionsByOrder(data);
+        }
+
+        async function waitForFontsAndImages(containerEl, timeoutMs = 4500) {
+            if (document.fonts && document.fonts.ready) {
+                try {
+                    await document.fonts.ready;
+                } catch {}
+            }
+
             const imgs = Array.from(containerEl.querySelectorAll('img'));
             if (imgs.length === 0) return;
+
             await Promise.all(imgs.map(img => {
                 img.setAttribute('crossorigin', 'anonymous');
                 if (img.complete && img.naturalWidth > 0) return Promise.resolve();
@@ -1642,18 +1715,21 @@
             }));
         }
 
-        async function generateDirectPdfFromStaging(stagingEl, fileName) {
-            await typesetMath(stagingEl);
-            await waitForImagesLoaded(stagingEl);
-            await new Promise(r => setTimeout(r, 120));
-
-            const canvas = await window.html2canvas(stagingEl, {
+        async function captureDomSectionToCanvas(sectionEl) {
+            return await window.html2canvas(sectionEl, {
                 scale: 2,
                 useCORS: true,
                 allowTaint: true,
                 backgroundColor: '#ffffff',
-                logging: false
+                logging: false,
+                windowWidth: sectionEl.scrollWidth || 794
             });
+        }
+
+        async function generateDirectPdfFromStaging(stagingEl, fileName) {
+            await typesetMath(stagingEl);
+            await waitForFontsAndImages(stagingEl);
+            await new Promise(r => setTimeout(r, 180));
 
             const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
             if (!jsPDFCtor) {
@@ -1672,43 +1748,69 @@
             const printableWidthMm = pageWidthMm - marginMm * 2;
             const printableHeightMm = pageHeightMm - marginMm * 2;
 
-            const pxPerMm = canvas.width / printableWidthMm;
-            const sliceHeightPx = Math.floor(printableHeightMm * pxPerMm);
+            const sections = Array.from(stagingEl.querySelectorAll('.pdf-section'));
+            const blocksToRender = sections.length > 0 ? sections : [stagingEl];
 
-            let renderedY = 0;
-            let pageIndex = 0;
+            let currentPageYmm = 0;
+            let hasAddedContent = false;
 
-            while (renderedY < canvas.height) {
-                const currentSliceHeight = Math.min(sliceHeightPx, canvas.height - renderedY);
-                const sliceCanvas = document.createElement('canvas');
-                sliceCanvas.width = canvas.width;
-                sliceCanvas.height = currentSliceHeight;
+            for (const blockEl of blocksToRender) {
+                const canvas = await captureDomSectionToCanvas(blockEl);
+                if (!canvas.width || !canvas.height) continue;
 
-                const ctx = sliceCanvas.getContext('2d');
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-                ctx.drawImage(
-                    canvas,
-                    0,
-                    renderedY,
-                    canvas.width,
-                    currentSliceHeight,
-                    0,
-                    0,
-                    canvas.width,
-                    currentSliceHeight
-                );
+                const blockHeightMm = (canvas.height * printableWidthMm) / canvas.width;
 
-                const imgData = sliceCanvas.toDataURL('image/jpeg', 0.92);
-                const sliceHeightMm = currentSliceHeight / pxPerMm;
+                if (blockHeightMm <= printableHeightMm) {
+                    if (hasAddedContent && currentPageYmm + blockHeightMm > printableHeightMm + 0.1) {
+                        pdf.addPage();
+                        currentPageYmm = 0;
+                    }
+                    const imgData = canvas.toDataURL('image/jpeg', 0.94);
+                    pdf.addImage(imgData, 'JPEG', marginMm, marginMm + currentPageYmm, printableWidthMm, blockHeightMm);
+                    currentPageYmm += blockHeightMm + 2;
+                    hasAddedContent = true;
+                } else {
+                    if (hasAddedContent && currentPageYmm > 0.1) {
+                        pdf.addPage();
+                        currentPageYmm = 0;
+                    }
+                    const pxPerMm = canvas.width / printableWidthMm;
+                    const sliceHeightPx = Math.floor(printableHeightMm * pxPerMm);
+                    let renderedY = 0;
 
-                if (pageIndex > 0) {
-                    pdf.addPage();
+                    while (renderedY < canvas.height) {
+                        const currentSliceHeight = Math.min(sliceHeightPx, canvas.height - renderedY);
+                        const sliceCanvas = document.createElement('canvas');
+                        sliceCanvas.width = canvas.width;
+                        sliceCanvas.height = currentSliceHeight;
+
+                        const ctx = sliceCanvas.getContext('2d');
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+                        ctx.drawImage(
+                            canvas,
+                            0,
+                            renderedY,
+                            canvas.width,
+                            currentSliceHeight,
+                            0,
+                            0,
+                            canvas.width,
+                            currentSliceHeight
+                        );
+
+                        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.94);
+                        const sliceHeightMm = currentSliceHeight / pxPerMm;
+                        pdf.addImage(sliceData, 'JPEG', marginMm, marginMm, printableWidthMm, sliceHeightMm);
+
+                        renderedY += currentSliceHeight;
+                        hasAddedContent = true;
+                        if (renderedY < canvas.height) {
+                            pdf.addPage();
+                        }
+                    }
+                    currentPageYmm = 0;
                 }
-                pdf.addImage(imgData, 'JPEG', marginMm, marginMm, printableWidthMm, sliceHeightMm);
-
-                renderedY += currentSliceHeight;
-                pageIndex++;
             }
 
             pdf.save(fileName);
@@ -1717,19 +1819,40 @@
         function buildSamplePdfSheetHtml(titleText, codeText, deliveryType, choiceFormat, questions = []) {
             const labels = getChoiceLabels(choiceFormat);
             const isPdfMode = deliveryType === 'pdf';
+            const orderedQuestions = sortQuestionsByOrder(questions);
 
-            const questionsHtml = questions.length > 0
-                ? questions.map((q, idx) => {
-                    const qRaw = q.question_text || q.prompt || q.title || `โจทย์ข้อที่ ${idx + 1}`;
+            const headerAndCopyrightSection = `
+                <div class="pdf-section">
+                    <div class="pdf-header">
+                        <div>
+                            <div style="font-size:12px;color:#0284c7;font-weight:700;">${escapePreviewHtml(
+                                isPdfMode
+                                    ? 'ตัวอย่างไฟล์ PDF ข้อสอบ (โหมดไฟล์ PDF)'
+                                    : 'ตัวอย่างไฟล์ PDF ข้อสอบ (สร้างจากโจทย์ที่พิมพ์ลงระบบ)'
+                            )}</div>
+                            <h1 class="rich-content" style="margin:4px 0 0 0;font-size:19px;font-weight:700;color:#0f172a;">${renderRichText(titleText)}</h1>
+                        </div>
+                        <span class="pdf-code">${escapePreviewHtml(codeText)}</span>
+                    </div>
+                    <div class="pdf-copyright">
+                        <strong>ประกาศลิขสิทธิ์และเงื่อนไขการใช้งาน:</strong> เอกสารนี้จัดทำขึ้นเพื่อการเรียนการสอนและทบทวนภายในระบบ LMS เท่านั้น ห้ามทำซ้ำ ดัดแปลง เผยแพร่ หรือจำหน่ายเพื่อการพาณิชย์โดยไม่ได้รับอนุญาต
+                    </div>
+                </div>
+            `;
+
+            const questionSections = orderedQuestions.length > 0
+                ? orderedQuestions.map((q, idx) => {
+                    const questionNumber = idx + 1;
+                    const qRaw = q.question_text || q.prompt || q.title || `โจทย์ข้อที่ ${questionNumber}`;
                     const qHtml = renderRichText(qRaw);
                     const qImgUrl = extractQuestionImageUrl(q);
                     const qImgBlock = qImgUrl
-                        ? `<img class="pdf-img" src="${escapePreviewHtml(qImgUrl)}" alt="รูปประกอบข้อที่ ${idx + 1}">`
+                        ? `<img class="pdf-img" src="${escapePreviewHtml(qImgUrl)}" alt="รูปประกอบข้อที่ ${questionNumber}">`
                         : '';
 
                     const rawChoices = Array.isArray(q.choices)
                         ? q.choices
-                        : [q.choice_1, q.choice_2, q.choice_3, q.choice_4].filter(Boolean);
+                        : [q.choice_1, q.choice_2, q.choice_3, q.choice_4].filter(v => v !== undefined && v !== null && String(v).trim() !== '');
 
                     const choicesBlock = rawChoices.length > 0
                         ? `<div class="pdf-choices">${rawChoices.map((ch, cIdx) => {
@@ -1739,61 +1862,70 @@
                             const chImg = typeof ch === 'object' && ch !== null
                                 ? (ch.image_url || ch.image || '')
                                 : '';
-                            return `<div><strong>${escapePreviewHtml(labels[cIdx] || String(cIdx + 1))}.</strong> <span class="rich-inline">${renderRichText(chText, { inline: true })}</span>${chImg ? `<img class="pdf-img" src="${escapePreviewHtml(chImg)}" alt="ตัวเลือก ${cIdx + 1}">` : ''}</div>`;
+                            return `
+                                <div class="pdf-choice-item">
+                                    <strong>${escapePreviewHtml(labels[cIdx] || String(cIdx + 1))}.</strong>
+                                    <div class="rich-inline" style="flex:1;min-width:0;">${renderRichText(chText, { inline: true })}${chImg ? `<img class="pdf-img" src="${escapePreviewHtml(chImg)}" alt="ตัวเลือก ${cIdx + 1}">` : ''}</div>
+                                </div>
+                            `;
                         }).join('')}</div>`
                         : `<div class="pdf-ans-line"></div><div class="pdf-ans-line"></div>`;
 
                     return `
-                        <div class="pdf-q-block">
-                            <div class="pdf-q-title">ข้อที่ ${idx + 1}: <div class="rich-content">${qHtml}</div></div>
-                            ${qImgBlock}
-                            ${choicesBlock}
+                        <div class="pdf-section">
+                            <div class="pdf-q-block">
+                                <div class="pdf-q-header">
+                                    <span class="pdf-q-num">ข้อ ${questionNumber}</span>
+                                    <div class="pdf-q-body rich-content">${qHtml}</div>
+                                </div>
+                                ${qImgBlock}
+                                ${choicesBlock}
+                            </div>
                         </div>
                     `;
                 }).join('')
                 : `
-                    <div class="pdf-q-block">
-                        <div class="pdf-q-title">ตัวอย่างข้อที่ 1 (Markdown + สมการคณิตศาสตร์ + รูปภาพ):</div>
-                        <div class="rich-content">
-                            <p>กำหนดฟังก์ชัน **กำลังสอง** $f(x) = ax^2 + bx + c$ โดยที่ $a \\neq 0$ และสมการทั่วไป:</p>
-                            $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
-                            <p>รองรับการแสดงผลทั้งข้อความ Markdown, สมการคณิตศาสตร์ $LaTeX$ และรูปภาพในเอกสาร PDF โดยตรง</p>
-                        </div>
-                        <div class="pdf-choices">
-                            <div><strong>${escapePreviewHtml(labels[0])}.</strong> <span class="rich-inline">${renderRichText('$\\Delta > 0$', { inline: true })}</span></div>
-                            <div><strong>${escapePreviewHtml(labels[1])}.</strong> <span class="rich-inline">${renderRichText('$\\Delta = 0$', { inline: true })}</span></div>
-                            <div><strong>${escapePreviewHtml(labels[2])}.</strong> <span class="rich-inline">${renderRichText('$\\Delta < 0$', { inline: true })}</span></div>
-                            <div><strong>${escapePreviewHtml(labels[3])}.</strong> <span class="rich-inline">${renderRichText('**ไม่มีคำตอบจริง**', { inline: true })}</span></div>
+                    <div class="pdf-section">
+                        <div class="pdf-q-block">
+                            <div class="pdf-q-header">
+                                <span class="pdf-q-num">ข้อ 1</span>
+                                <div class="pdf-q-body rich-content">
+                                    <p>กำหนดฟังก์ชัน **กำลังสอง** $f(x) = ax^2 + bx + c$ โดยที่ $a \\neq 0$ และสูตรคำนวณรากสมการ:</p>
+                                    $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
+                                </div>
+                            </div>
+                            <div class="pdf-choices">
+                                <div class="pdf-choice-item"><strong>${escapePreviewHtml(labels[0])}.</strong> <span class="rich-inline">$\\Delta > 0$</span></div>
+                                <div class="pdf-choice-item"><strong>${escapePreviewHtml(labels[1])}.</strong> <span class="rich-inline">$\\Delta = 0$</span></div>
+                                <div class="pdf-choice-item"><strong>${escapePreviewHtml(labels[2])}.</strong> <span class="rich-inline">$\\Delta < 0$</span></div>
+                                <div class="pdf-choice-item"><strong>${escapePreviewHtml(labels[3])}.</strong> <span class="rich-inline"><strong>ไม่มีรากจริง</strong></span></div>
+                            </div>
                         </div>
                     </div>
-                    <div class="pdf-q-block">
-                        <div class="pdf-q-title">ตัวอย่างข้อที่ 2: ข้อสอบอัตนัย / แสดงวิธีทำ เว้นบรรทัดให้ทำคำตอบเรียบร้อย</div>
-                        <div class="pdf-ans-line"></div>
-                        <div class="pdf-ans-line"></div>
+                    <div class="pdf-section">
+                        <div class="pdf-q-block">
+                            <div class="pdf-q-header">
+                                <span class="pdf-q-num">ข้อ 2</span>
+                                <div class="pdf-q-body rich-content">
+                                    <p>ข้อสอบแสดงวิธีทำ / อัตนัย (จัดลำดับข้อชัดเจน และไม่ตัดแบ่งกล่องข้ามหน้า)</p>
+                                </div>
+                            </div>
+                            <div class="pdf-ans-line"></div>
+                            <div class="pdf-ans-line"></div>
+                        </div>
                     </div>
                 `;
 
-            const modeLabel = isPdfMode
-                ? 'ตัวอย่างไฟล์ PDF ข้อสอบ (โหมดไฟล์ PDF)'
-                : 'ตัวอย่างไฟล์ PDF ข้อสอบ (สร้างจากโจทย์ที่พิมพ์ลงระบบ)';
-
-            return `
-                <div class="pdf-header">
-                    <div>
-                        <div style="font-size:12px;color:#0284c7;font-weight:700;">${escapePreviewHtml(modeLabel)}</div>
-                        <h1 class="rich-content" style="margin:4px 0 0 0;font-size:19px;font-weight:700;color:#0f172a;">${renderRichText(titleText)}</h1>
+            const footerSection = `
+                <div class="pdf-section">
+                    <div class="pdf-footer">
+                        <span>ชุดข้อสอบ: ${escapePreviewHtml(titleText)} (${escapePreviewHtml(codeText)})</span>
+                        <span>รูปแบบตัวเลือก: ${escapePreviewHtml(labels.join(', '))}</span>
                     </div>
-                    <span class="pdf-code">${escapePreviewHtml(codeText)}</span>
-                </div>
-                <div class="pdf-copyright">
-                    <strong>ประกาศลิขสิทธิ์และเงื่อนไขการใช้งาน:</strong> เอกสารนี้จัดทำขึ้นเพื่อการเรียนการสอนและทบทวนภายในระบบ LMS เท่านั้น ห้ามทำซ้ำ ดัดแปลง เผยแพร่ หรือจำหน่ายเพื่อการพาณิชย์โดยไม่ได้รับอนุญาต
-                </div>
-                ${questionsHtml}
-                <div class="pdf-footer">
-                    <span>ชุดข้อสอบ: ${escapePreviewHtml(titleText)} (${escapePreviewHtml(codeText)})</span>
-                    <span>รูปแบบตัวเลือก: ${escapePreviewHtml(labels.join(', '))}</span>
                 </div>
             `;
+
+            return `${headerAndCopyrightSection}${questionSections}${footerSection}`;
         }
 
         window.downloadSampleExamPreview = async function(examId = '') {
@@ -1806,12 +1938,7 @@
             if (!stagingEl) return;
 
             try {
-                let questions = [];
-                if (examId) {
-                    const { data } = await mySupabase.from('questions').select('*').eq('exam_id', examId);
-                    questions = data || [];
-                }
-
+                const questions = examId ? await fetchOrderedQuestionsForExam(examId) : [];
                 stagingEl.innerHTML = buildSamplePdfSheetHtml(titleVal, codeVal, deliveryType, choiceFormat, questions);
                 await generateDirectPdfFromStaging(stagingEl, `${slug}-sample.pdf`);
                 stagingEl.innerHTML = '';
@@ -1890,7 +2017,7 @@
                 </div>
                 <div class="text-[10px] text-amber-700 dark:text-amber-300/90 flex items-start gap-1.5 leading-relaxed">
                     <i class="fas fa-copyright mt-0.5 shrink-0"></i>
-                    <span><strong>ลิขสิทธิ์และการจัดหน้า:</strong> กดปุ่มเพื่อดาวน์โหลดไฟล์ <code>.pdf</code> ตัวอย่างพร้อมประกาศลิขสิทธิ์ก่อนใช้งานจริง</span>
+                    <span><strong>ลิขสิทธิ์และการจัดหน้า:</strong> กดปุ่มเพื่อดาวน์โหลดไฟล์ <code>.pdf</code> เรียงเลขข้อชัดเจน พร้อมประกาศลิขสิทธิ์ก่อนใช้งานจริง</span>
                 </div>
             `;
             typesetMath(previewBox);
