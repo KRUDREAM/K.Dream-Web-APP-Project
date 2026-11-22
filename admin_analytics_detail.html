@@ -65,6 +65,10 @@
                     </h1>
                 </div>
                 <div class="flex items-center gap-2">
+                    <select id="attemptModeSelect" onchange="computeAndRenderStats()" class="px-2.5 py-1.5 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-sky-600 dark:text-sky-400 outline-none cursor-pointer">
+                        <option value="all_attempts" selected>📊 ทุก Attempt ที่ส่ง (All Attempts)</option>
+                        <option value="first_attempt">1️⃣ ครั้งแรกของแต่ละคน (First Attempt)</option>
+                    </select>
                     <span id="realtimeStatusBadge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] border border-emerald-500/20">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Realtime Active
                     </span>
@@ -91,6 +95,9 @@
                     <span id="examScopeBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-300 font-bold text-xs border border-slate-500/20">
                         กำลังตรวจสอบสังกัด...
                     </span>
+                    <span id="analysisModeBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold text-xs border border-sky-500/20">
+                        โหมด: ทุก Attempt ที่ส่ง
+                    </span>
                 </div>
                 <h2 id="headerExamTitle" class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white break-words">กำลังโหลดชุดข้อสอบ...</h2>
                 <p id="headerExamDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words">กำลังดึงข้อมูลสถิติ...</p>
@@ -112,7 +119,7 @@
             <div class="hitech-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-emerald-500/50" onclick="openStudentListModal('submitted')">
                 <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shrink-0"><i class="fas fa-check-circle"></i></div>
                 <div class="min-w-0">
-                    <span class="text-[11px] text-slate-400 font-bold block truncate">ส่งแล้ว (คน)</span>
+                    <span id="statSubmittedLabel" class="text-[11px] text-slate-400 font-bold block truncate">ส่งแล้ว</span>
                     <span id="statSubmittedCount" class="text-base font-extrabold text-emerald-600 dark:text-emerald-400 truncate block">-</span>
                 </div>
             </div>
@@ -166,7 +173,7 @@
                     <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2 truncate">
                         <i class="fas fa-trophy text-amber-500 shrink-0"></i> อันดับคะแนน (Ranking)
                     </h3>
-                    <span id="rankingCountBadge" class="text-[10px] font-bold px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-md shrink-0">-- คน</span>
+                    <span id="rankingCountBadge" class="text-[10px] font-bold px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-md shrink-0">-- รายการ</span>
                 </div>
                 <div class="overflow-y-auto max-h-64 hide-scrollbar flex-1">
                     <table class="w-full text-left text-xs border-collapse table-fixed">
@@ -229,7 +236,7 @@
         <div class="hitech-card p-6 rounded-3xl space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-sky-500/20">
                 <div class="min-w-0">
-                    <h3 id="tableSectionHeading" class="font-extrabold text-sm text-slate-900 dark:text-white truncate">สถานะการทำข้อสอบของนักเรียนทั้งหมดในสังกัดคอร์ส (เรียงตามวันเวลาส่งล่าสุด)</h3>
+                    <h3 id="tableSectionHeading" class="font-extrabold text-sm text-slate-900 dark:text-white truncate">รายการส่งข้อสอบและสถานะของนักเรียน</h3>
                     <p id="submissionCountLabel" class="text-xs text-slate-400">แสดง 0 รายการ</p>
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -252,7 +259,7 @@
                             <th class="p-3 w-12">ลำดับ</th>
                             <th class="p-3 w-28">รหัสนักเรียน</th>
                             <th class="p-3 w-auto">ชื่อ-นามสกุล / ชื่อเล่น</th>
-                            <th class="p-3 text-center w-28">สถานะ</th>
+                            <th class="p-3 text-center w-32">สถานะ / ครั้งที่</th>
                             <th class="p-3 text-center w-20">คะแนน</th>
                             <th class="p-3 text-center w-28">เวลาที่ใช้</th>
                             <th class="p-3 text-center w-32">เวลาที่ส่ง</th>
@@ -367,7 +374,6 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // แปลงเวลาที่ใช้ไป (หน่วยเป็นนาที) -> "MM:SS" (เช่น 10.5 นาที => "10:30") หรือ "HH:MM:SS" ถ้าเกิน 60 นาที
         function formatDurationClock(minutesVal) {
             const numMin = Number(minutesVal);
             if (isNaN(numMin) || numMin < 0) return '00:00';
@@ -383,7 +389,6 @@
             return `${pad2(mins)}:${pad2(secs)}`;
         }
 
-        // คำนวณเวลาที่ใช้ไปสด ๆ สำหรับแถวที่กำลังทำ (In Progress) จากเวลาเริ่มทำถึงปัจจุบัน
         function getLiveElapsedMinutes(row) {
             if (!row || !row.attempt) return row ? (row.minutesSpent || 0) : 0;
             const att = row.attempt;
@@ -736,7 +741,6 @@
             const start = att.started_at || att.created_at || att.start_time;
             const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at;
 
-            // ถ้ายังทำไม่เสร็จ (In Progress) และมีเวลาเริ่มทำ ให้คำนวณจากเวลาเริ่มถึงปัจจุบันเป็นหลักเพื่อความแม่นยำระหว่างทำ
             if (!isSubmitted && start) {
                 const startMs = new Date(start).getTime();
                 if (!isNaN(startMs)) {
@@ -848,7 +852,6 @@
                 try {
                     const res = await mySupabase.from(tbl).select('*').in('course_id', targetCourseIds);
                     if (!res.error && Array.isArray(res.data) && res.data.length > 0) {
-                        console.log(`[LMS Analytics] พบข้อมูลนักเรียนในตาราง "${tbl}":`, res.data.length, 'รายการ');
                         collected.push(...res.data);
                     }
                 } catch (e) {}
@@ -963,18 +966,15 @@
 
             const freeMode = isFreeExam(currentExam, activeCourseIds);
             const scopeBadge = document.getElementById('examScopeBadge');
-            const tableHeading = document.getElementById('tableSectionHeading');
 
             if (scopeBadge) {
                 if (freeMode) {
                     scopeBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-500/20';
                     scopeBadge.innerHTML = '<i class="fas fa-gift"></i> โจทย์ฟรี (เฉพาะนักเรียน)';
-                    if (tableHeading) tableHeading.textContent = 'สถานะการทำข้อสอบของนักเรียนในโจทย์ฟรี (เรียงตามวันเวลาส่งล่าสุด)';
                 } else {
                     const courseLabel = currentCourse ? (currentCourse.title || currentCourse.name || currentCourse.course_name || activeCourseIds.join(', ')) : activeCourseIds.join(', ');
                     scopeBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs border border-indigo-500/20';
                     scopeBadge.innerHTML = `<i class="fas fa-layer-group"></i> สังกัดคอร์ส: ${escapeHtml(courseLabel)}`;
-                    if (tableHeading) tableHeading.textContent = `สถานะการทำข้อสอบของนักเรียนทั้งหมดในสังกัดคอร์ส (${courseStudents.length} คน)`;
                 }
             }
 
@@ -992,8 +992,8 @@
                 if (!liveCells || liveCells.length === 0) return;
 
                 liveCells.forEach(cell => {
-                    const sid = cell.getAttribute('data-student-id');
-                    const row = combinedStudentRows.find(r => String(r.studentId) === String(sid));
+                    const rowKey = cell.getAttribute('data-row-key');
+                    const row = combinedStudentRows.find(r => String(r.rowKey) === String(rowKey));
                     if (row && row.isInProgress) {
                         const liveMin = getLiveElapsedMinutes(row);
                         row.minutesSpent = liveMin;
@@ -1028,7 +1028,14 @@
             }
         }
 
-        function pickBestAttemptPerStudent(attemptsList) {
+        function getAttemptOrderTime(att) {
+            if (!att) return 0;
+            const raw = att.started_at || att.created_at || att.start_time || att.submitted_at || att.submission_time || att.updated_at || 0;
+            const t = new Date(raw).getTime();
+            return isNaN(t) ? 0 : t;
+        }
+
+        function groupAttemptsByStudent(attemptsList) {
             const grouped = {};
             attemptsList.forEach(att => {
                 const prof = findProfileByAnyId(att);
@@ -1041,25 +1048,39 @@
                 grouped[canonicalId].push(att);
             });
 
-            const bestMap = {};
+            // เรียงลำดับ attempt ของแต่ละคนจากครั้งที่ 1 -> ครั้งล่าสุด และติดหมายเลข attemptNumber
+            const numberedByStudent = {};
             Object.entries(grouped).forEach(([sId, list]) => {
-                const sorted = [...list].sort((a, b) => {
-                    const aSub = isAttemptSubmitted(a) ? 1 : 0;
-                    const bSub = isAttemptSubmitted(b) ? 1 : 0;
-                    if (aSub !== bSub) return bSub - aSub;
-                    const aTime = new Date(a.submission_time || a.submitted_at || a.updated_at || a.created_at || 0).getTime();
-                    const bTime = new Date(b.submission_time || b.submitted_at || b.updated_at || b.created_at || 0).getTime();
-                    return bTime - aTime;
-                });
-                bestMap[sId] = sorted[0];
+                const sortedAsc = [...list].sort((a, b) => getAttemptOrderTime(a) - getAttemptOrderTime(b));
+                numberedByStudent[sId] = sortedAsc.map((att, idx) => ({
+                    attempt: att,
+                    attemptNumber: idx + 1,
+                    totalAttempts: sortedAsc.length
+                }));
             });
-            return bestMap;
+
+            return numberedByStudent;
         }
 
         function computeAndRenderStats() {
-            const attemptMap = pickBestAttemptPerStudent(allAttempts);
+            const mode = document.getElementById('attemptModeSelect')?.value || 'all_attempts';
+            const isFirstOnly = mode === 'first_attempt';
+            const numberedByStudent = groupAttemptsByStudent(allAttempts);
             const freeMode = isFreeExam(currentExam, activeCourseIds);
             const hasCourseRoster = Array.isArray(courseStudents) && courseStudents.length > 0;
+
+            const modeBadge = document.getElementById('analysisModeBadge');
+            const tableHeading = document.getElementById('tableSectionHeading');
+            const subLabel = document.getElementById('statSubmittedLabel');
+
+            if (modeBadge) {
+                modeBadge.textContent = isFirstOnly
+                    ? 'โหมด: First Attempt ของแต่ละคน'
+                    : 'โหมด: ทุก Attempt ที่ส่ง';
+            }
+            if (subLabel) {
+                subLabel.textContent = isFirstOnly ? 'ส่งแล้ว (ครั้งแรก/คน)' : 'ส่งแล้ว (ครั้งที่ส่ง)';
+            }
 
             const studentMasterList = [];
             const seenStudentIds = new Set();
@@ -1104,9 +1125,10 @@
             }
 
             if (freeMode || !hasCourseRoster) {
-                Object.entries(attemptMap).forEach(([sId, att]) => {
-                    const p = findProfileByAnyId(att) || allStudentsMap[sId];
-                    pushStudentEntry(sId, p, att);
+                Object.entries(numberedByStudent).forEach(([sId, items]) => {
+                    const firstAtt = items[0]?.attempt;
+                    const p = findProfileByAnyId(firstAtt) || allStudentsMap[sId];
+                    pushStudentEntry(sId, p, firstAtt || {});
                 });
 
                 if (freeMode) {
@@ -1117,38 +1139,61 @@
                 }
             }
 
-            combinedStudentRows = studentMasterList.map(item => {
-                let att = null;
-                for (const k of item.lookupKeys) {
-                    if (attemptMap[k]) {
-                        att = attemptMap[k];
-                        break;
-                    }
-                }
-
-                const hasAttempt = !!att;
-                const isSubmitted = hasAttempt && isAttemptSubmitted(att);
+            const buildRowFromAttempt = (studentMeta, attObj, attemptNumber, totalAttempts) => {
+                const hasAttempt = !!attObj;
+                const isSubmitted = hasAttempt && isAttemptSubmitted(attObj);
                 const isInProgress = hasAttempt && !isSubmitted;
-
-                const score = isSubmitted ? calculateAttemptTotalScore(att, allQuestions) : 0;
-                const submittedAtVal = att ? (att.submission_time || att.submitted_at || att.created_at || att.updated_at) : null;
-                const spentMin = att ? calculateTimeSpentMinutes(att) : 0;
+                const score = isSubmitted ? calculateAttemptTotalScore(attObj, allQuestions) : 0;
+                const submittedAtVal = attObj ? (attObj.submission_time || attObj.submitted_at || attObj.created_at || attObj.updated_at) : null;
+                const spentMin = attObj ? calculateTimeSpentMinutes(attObj) : 0;
 
                 return {
-                    studentId: item.studentId,
-                    studentIdCode: item.studentIdCode,
-                    fullName: item.fullName,
-                    nickname: item.nickname,
+                    rowKey: `${studentMeta.studentId}_${attObj ? attObj.id : 'none'}`,
+                    studentId: studentMeta.studentId,
+                    studentIdCode: studentMeta.studentIdCode,
+                    fullName: studentMeta.fullName,
+                    nickname: studentMeta.nickname,
                     hasAttempt: hasAttempt,
                     isSubmitted: isSubmitted,
                     isInProgress: isInProgress,
-                    attempt: att || null,
+                    attemptNumber: attemptNumber || 0,
+                    totalAttempts: totalAttempts || 0,
+                    attempt: attObj || null,
                     score: score,
                     minutesSpent: spentMin,
                     submittedAt: submittedAtVal,
                     submittedAtTime: submittedAtVal ? new Date(submittedAtVal).getTime() : 0
                 };
+            };
+
+            const rows = [];
+            studentMasterList.forEach(studentMeta => {
+                let matchedList = [];
+                for (const k of studentMeta.lookupKeys) {
+                    if (numberedByStudent[k]) {
+                        matchedList = numberedByStudent[k];
+                        break;
+                    }
+                }
+
+                if (matchedList.length === 0) {
+                    rows.push(buildRowFromAttempt(studentMeta, null, 0, 0));
+                    return;
+                }
+
+                if (isFirstOnly) {
+                    const firstItem = matchedList[0];
+                    rows.push(buildRowFromAttempt(studentMeta, firstItem.attempt, 1, matchedList.length));
+                } else {
+                    // โหมดทุก attempt: ถ้ามีหลายครั้ง ให้แสดงทุกครั้งที่ส่งแล้ว
+                    // และถ้ามีอันที่ยัง In Progress ให้แสดงด้วย (หากมีครั้งที่ส่งแล้วด้วย จะแสดงทุก attempt)
+                    matchedList.forEach(item => {
+                        rows.push(buildRowFromAttempt(studentMeta, item.attempt, item.attemptNumber, matchedList.length));
+                    });
+                }
             });
+
+            combinedStudentRows = rows;
 
             filteredRows = [...combinedStudentRows].sort((a, b) => {
                 if (a.isSubmitted && !b.isSubmitted) return -1;
@@ -1158,6 +1203,12 @@
                 if (b.submittedAtTime !== a.submittedAtTime) return b.submittedAtTime - a.submittedAtTime;
                 return String(a.studentIdCode).localeCompare(String(b.studentIdCode), 'th');
             });
+
+            if (tableHeading) {
+                tableHeading.textContent = isFirstOnly
+                    ? 'สถานะการทำข้อสอบ (วิเคราะห์เฉพาะ First Attempt ของแต่ละคน)'
+                    : 'รายการส่งข้อสอบทั้งหมด (แสดงทุก Attempt แยกตามครั้งที่ทำ)';
+            }
 
             const activeCount = combinedStudentRows.filter(r => r.isInProgress).length;
             const submittedRows = combinedStudentRows.filter(r => r.isSubmitted);
@@ -1169,7 +1220,10 @@
             };
 
             setSafeText('statActiveCountBanner', activeCount);
-            setSafeText('statSubmittedCount', `${submittedCount} / ${combinedStudentRows.length} คน`);
+            setSafeText('statSubmittedCount', isFirstOnly
+                ? `${submittedCount} / ${studentMasterList.length} คน`
+                : `${submittedCount} ครั้ง`
+            );
 
             globalScores = submittedRows.map(r => r.score);
             globalTimes = combinedStudentRows.filter(r => r.hasAttempt).map(r => r.minutesSpent);
@@ -1213,7 +1267,7 @@
 
             if (statusType === 'submitted') {
                 targetRows = combinedStudentRows.filter(r => r.isSubmitted);
-                titleText = '🟢 รายชื่อนักเรียนที่ส่งข้อสอบแล้ว';
+                titleText = '🟢 รายการที่ส่งข้อสอบแล้ว';
             } else {
                 targetRows = combinedStudentRows.filter(r => r.isInProgress);
                 titleText = '🟡 รายชื่อนักเรียนที่กำลังทำข้อสอบอยู่ (Active / In Progress)';
@@ -1224,18 +1278,19 @@
                 : targetRows.map((r, idx) => {
                     const currentSpentMin = statusType === 'in_progress' ? getLiveElapsedMinutes(r) : r.minutesSpent;
                     const clockText = formatDurationClock(currentSpentMin);
+                    const attTag = r.attemptNumber > 0 ? ` • ครั้งที่ ${r.attemptNumber}/${r.totalAttempts}` : '';
                     return `
                         <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs gap-2">
                             <div class="min-w-0">
                                 <div class="font-bold text-slate-800 dark:text-slate-100 truncate">${idx + 1}. ${escapeHtml(r.fullName)}${r.nickname ? ' (' + escapeHtml(r.nickname) + ')' : ''}</div>
-                                <div class="text-slate-500 font-mono text-[11px]">รหัส: ${escapeHtml(r.studentIdCode)}</div>
+                                <div class="text-slate-500 font-mono text-[11px]">รหัส: ${escapeHtml(r.studentIdCode)}${attTag}</div>
                             </div>
                             <div class="text-right shrink-0 space-y-0.5">
                                 <div class="font-mono font-extrabold text-amber-600 dark:text-amber-400 text-xs">
                                     <i class="fas fa-stopwatch mr-1"></i>${clockText}
                                 </div>
                                 <div class="${statusType === 'submitted' ? 'text-emerald-500' : 'text-amber-500'} font-bold text-[10px]">
-                                    ${statusType === 'submitted' ? 'ส่งแล้ว' : 'กำลังทำอยู่'}
+                                    ${statusType === 'submitted' ? `ส่งแล้ว (${r.score}/${globalMaxScore})` : 'กำลังทำอยู่'}
                                 </div>
                             </div>
                         </div>
@@ -1259,9 +1314,10 @@
             const ctx = canvasEl.getContext('2d');
             const metric = document.getElementById('diffMetricSelect')?.value || 'incorrect';
             const titleEl = document.getElementById('diffChartTitle');
+            const unitText = (document.getElementById('attemptModeSelect')?.value === 'first_attempt') ? 'คน' : 'ครั้ง';
 
             if (titleEl) {
-                titleEl.innerHTML = `<i class="fas fa-chart-bar text-sky-500 shrink-0"></i> สถิติความยาก-ง่ายรายข้อ (${metric === 'correct' ? 'จำนวนผู้ตอบถูก (คน)' : 'จำนวนผู้ตอบผิด (คน)'})`;
+                titleEl.innerHTML = `<i class="fas fa-chart-bar text-sky-500 shrink-0"></i> สถิติความยาก-ง่ายรายข้อ (${metric === 'correct' ? `จำนวนผู้ตอบถูก (${unitText})` : `จำนวนผู้ตอบผิด (${unitText})`})`;
             }
 
             const submittedAttempts = combinedStudentRows.filter(r => r.isSubmitted && r.attempt).map(r => r.attempt);
@@ -1289,7 +1345,7 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: metric === 'correct' ? 'จำนวนผู้ตอบถูก (คน)' : 'จำนวนผู้ตอบผิด (คน)',
+                        label: metric === 'correct' ? `จำนวนผู้ตอบถูก (${unitText})` : `จำนวนผู้ตอบผิด (${unitText})`,
                         data: counts,
                         backgroundColor: metric === 'correct' ? '#0284c7' : '#ef4444',
                         borderRadius: 8
@@ -1300,7 +1356,7 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { display: false },
-                        tooltip: { callbacks: { label: c => ` จำนวน: ${c.raw} คน` } }
+                        tooltip: { callbacks: { label: c => ` จำนวน: ${c.raw} ${unitText}` } }
                     },
                     scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
                 }
@@ -1310,17 +1366,19 @@
         function renderCompactRankingTable() {
             const tbody = document.getElementById('compactRankingTableBody');
             const countBadge = document.getElementById('rankingCountBadge');
+            const isFirstOnly = (document.getElementById('attemptModeSelect')?.value === 'first_attempt');
+            const unitText = isFirstOnly ? 'คน' : 'ครั้ง';
             if (!tbody) return;
 
             const activeRows = combinedStudentRows.filter(r => r.isSubmitted).sort((a, b) => b.score - a.score);
 
             if (activeRows.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-slate-400 text-xs">ยังไม่มีข้อมูลผู้สอบที่ส่งแล้ว</td></tr>`;
-                if (countBadge) countBadge.textContent = '0 คน';
+                if (countBadge) countBadge.textContent = `0 ${unitText}`;
                 return;
             }
 
-            if (countBadge) countBadge.textContent = `${activeRows.length} คน`;
+            if (countBadge) countBadge.textContent = `${activeRows.length} ${unitText}`;
 
             let currentRank = 1;
             tbody.innerHTML = activeRows.map((row, idx) => {
@@ -1332,12 +1390,15 @@
                 else if (currentRank === 2) rankBadge = `<span class="px-2 py-0.5 bg-slate-300/20 text-slate-500 dark:text-slate-400 font-extrabold rounded-md text-[11px]">🥈 2</span>`;
                 else if (currentRank === 3) rankBadge = `<span class="px-2 py-0.5 bg-amber-700/10 text-amber-600 font-extrabold rounded-md text-[11px]">🥉 3</span>`;
 
-                const displayName = escapeHtml(row.fullName) + (row.nickname ? ` (${escapeHtml(row.nickname)})` : '');
+                const attemptTag = !isFirstOnly && row.attemptNumber > 0
+                    ? ` <span class="text-[10px] text-sky-500 font-semibold">#${row.attemptNumber}</span>`
+                    : '';
+                const displayName = escapeHtml(row.fullName) + (row.nickname ? ` (${escapeHtml(row.nickname)})` : '') + attemptTag;
 
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-2 text-center">${rankBadge}</td>
-                        <td class="p-2 font-medium truncate" title="${displayName}">
+                        <td class="p-2 font-medium truncate" title="${escapeHtml(row.fullName)}${row.nickname ? ' (' + escapeHtml(row.nickname) + ')' : ''}">
                             <div class="truncate">${displayName}</div>
                         </td>
                         <td class="p-2 text-center font-mono font-bold text-indigo-600 dark:text-indigo-400">${row.score}/${globalMaxScore}</td>
@@ -1351,6 +1412,7 @@
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
             const metric = document.getElementById('spreadMetricSelect')?.value || 'raw';
+            const unitText = (document.getElementById('attemptModeSelect')?.value === 'first_attempt') ? 'คน' : 'ครั้ง';
 
             let labels = [];
             let dataValues = [];
@@ -1386,7 +1448,7 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'จำนวนนักเรียน (คน)',
+                        label: `จำนวน (${unitText})`,
                         data: dataValues,
                         backgroundColor: '#8b5cf6',
                         borderRadius: 8
@@ -1399,7 +1461,7 @@
                     plugins: {
                         legend: { display: false },
                         verticalLine: { index: avgIndex, label: `เฉลี่ย ${avgScoreVal.toFixed(1)}`, color: '#f59e0b' },
-                        tooltip: { callbacks: { label: c => ` จำนวนนักเรียน: ${c.raw} คน` } }
+                        tooltip: { callbacks: { label: c => ` จำนวน: ${c.raw} ${unitText}` } }
                     },
                     scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
                 },
@@ -1444,6 +1506,7 @@
             const canvasEl = document.getElementById('timeSpentChart');
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
+            const unitText = (document.getElementById('attemptModeSelect')?.value === 'first_attempt') ? 'คน' : 'ครั้ง';
 
             const maxDuration = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
             const binCount = Math.max(Math.ceil(maxDuration / 5), 6);
@@ -1468,7 +1531,7 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'จำนวนนักเรียน (คน)',
+                        label: `จำนวน (${unitText})`,
                         data: timeBuckets,
                         backgroundColor: '#f59e0b',
                         borderRadius: 8
@@ -1496,7 +1559,7 @@
             const scatterData = combinedStudentRows.filter(r => r.isSubmitted).map(r => ({
                 x: Number(r.minutesSpent.toFixed(1)),
                 y: r.score,
-                name: r.fullName || 'นักเรียน',
+                name: `${r.fullName || 'นักเรียน'}${r.attemptNumber > 0 ? ` (#${r.attemptNumber})` : ''}`,
                 clock: formatDurationClock(r.minutesSpent)
             }));
 
@@ -1530,9 +1593,14 @@
         function renderSubmissionsTable() {
             const tbody = document.getElementById('submissionsTableBody');
             const countLbl = document.getElementById('submissionCountLabel');
+            const isFirstOnly = (document.getElementById('attemptModeSelect')?.value === 'first_attempt');
             if (!tbody) return;
 
-            if (countLbl) countLbl.textContent = `แสดง ${filteredRows.length} รายการ (จากทั้งหมด ${combinedStudentRows.length} คน)`;
+            if (countLbl) {
+                countLbl.textContent = isFirstOnly
+                    ? `แสดง ${filteredRows.length} รายการ (First Attempt ต่อคน)`
+                    : `แสดง ${filteredRows.length} รายการ (รวมทุก Attempt)`;
+            }
 
             if (filteredRows.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">ไม่พบรายชื่อนักเรียนตามเงื่อนไข</td></tr>`;
@@ -1540,11 +1608,15 @@
             }
 
             tbody.innerHTML = filteredRows.map((row, idx) => {
+                const attemptBadge = row.attemptNumber > 0
+                    ? `<span class="ml-1 px-1.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded text-[9px] font-bold">#${row.attemptNumber}${row.totalAttempts > 1 ? `/${row.totalAttempts}` : ''}</span>`
+                    : '';
+
                 let statusBadge = '';
                 if (row.isSubmitted) {
-                    statusBadge = `<span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold rounded-full text-[10px]"><i class="fas fa-check-circle mr-1"></i> ส่งแล้ว</span>`;
+                    statusBadge = `<span class="px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold rounded-full text-[10px]"><i class="fas fa-check-circle mr-1"></i> ส่งแล้ว</span>${attemptBadge}`;
                 } else if (row.isInProgress) {
-                    statusBadge = `<span class="px-2.5 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold rounded-full text-[10px]"><i class="fas fa-spinner fa-spin mr-1"></i> In Progress</span>`;
+                    statusBadge = `<span class="px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold rounded-full text-[10px]"><i class="fas fa-spinner fa-spin mr-1"></i> In Progress</span>${attemptBadge}`;
                 } else {
                     statusBadge = `<span class="px-2.5 py-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold rounded-full text-[10px]"><i class="fas fa-clock mr-1"></i> ยังไม่ทำ</span>`;
                 }
@@ -1554,7 +1626,7 @@
                 let timeText = `<span class="text-slate-400">-</span>`;
                 if (row.isInProgress) {
                     const liveMin = getLiveElapsedMinutes(row);
-                    timeText = `<span data-live-in-progress="true" data-student-id="${escapeHtml(row.studentId)}" class="font-mono font-extrabold text-amber-600 dark:text-amber-400">${formatDurationClock(liveMin)}</span>`;
+                    timeText = `<span data-live-in-progress="true" data-row-key="${escapeHtml(row.rowKey)}" class="font-mono font-extrabold text-amber-600 dark:text-amber-400">${formatDurationClock(liveMin)}</span>`;
                 } else if (row.hasAttempt) {
                     timeText = `<span class="font-mono font-bold text-slate-700 dark:text-slate-200">${formatDurationClock(row.minutesSpent)}</span>`;
                 }
@@ -1562,7 +1634,7 @@
                 const dateText = row.isSubmitted && row.submittedAt ? new Date(row.submittedAt).toLocaleString('th-TH') : (row.isInProgress ? 'กำลังทำอยู่' : '-');
 
                 const actionBtn = row.hasAttempt && row.attempt
-                    ? `<button onclick="viewAttemptDetail('${escapeHtml(row.attempt.id)}')" class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-xl transition-all text-[11px] whitespace-nowrap"><i class="fas fa-search-plus mr-1"></i> ตรวจคำตอบ</button>`
+                    ? `<button onclick="viewAttemptDetail('${escapeHtml(row.attempt.id)}', ${row.attemptNumber})" class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-xl transition-all text-[11px] whitespace-nowrap"><i class="fas fa-search-plus mr-1"></i> ตรวจคำตอบ</button>`
                     : `<span class="text-slate-400 text-[11px]">-</span>`;
 
                 const displayName = escapeHtml(row.fullName) + (row.nickname ? ` <span class="text-sky-500 font-normal">(${escapeHtml(row.nickname)})</span>` : '');
@@ -1680,7 +1752,7 @@
             reportWin.document.close();
         }
 
-        async function viewAttemptDetail(attemptId) {
+        async function viewAttemptDetail(attemptId, attemptNumber = 0) {
             const att = allAttempts.find(a => String(a.id) === String(attemptId));
             if (!att) return;
 
@@ -1744,13 +1816,13 @@
 
             const isDark = document.documentElement.classList.contains('dark');
             Swal.fire({
-                title: '📋 ตรวจสอบผลการตอบรายข้อและวิเคราะห์รายหมวด',
+                title: `📋 ตรวจสอบผลการตอบรายข้อ${attemptNumber > 0 ? ` (ครั้งที่ ${attemptNumber})` : ''}`,
                 html: `
                     <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1 text-xs">
                         <div class="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 flex justify-between items-center gap-2">
                             <div class="min-w-0">
                                 <div class="font-extrabold text-sky-600 dark:text-sky-400 truncate">${escapeHtml(currentExam.title)}</div>
-                                <div class="text-slate-500 truncate">นักเรียน: <strong>${escapeHtml(name)} (${escapeHtml(studentIdCode)})</strong></div>
+                                <div class="text-slate-500 truncate">นักเรียน: <strong>${escapeHtml(name)} (${escapeHtml(studentIdCode)})</strong>${attemptNumber > 0 ? ` • ครั้งที่ ${attemptNumber}` : ''}</div>
                             </div>
                             <div class="text-right font-extrabold text-indigo-600 dark:text-indigo-400 text-sm shrink-0">
                                 ${score} / ${maxScore} คะแนน
