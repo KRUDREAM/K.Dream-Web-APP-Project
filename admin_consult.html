@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS | จัดการเวลา Consult</title>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -87,6 +87,9 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button onclick="window.location.href='admin_users.html'" class="px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all border border-indigo-500/20 flex items-center gap-1.5">
+                        <i class="fas fa-users-gear"></i> <span class="hidden sm:inline">จัดการบัญชีนักเรียน</span>
+                    </button>
                     <button onclick="openHistoryModal()" class="px-3 py-1.5 bg-slate-100 dark:bg-darkinput hover:bg-sky-500 hover:text-white text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
                         <i class="fas fa-history text-sky-500"></i> ประวัติ
                     </button>
@@ -345,6 +348,151 @@
         </div>
     </main>
 
+    <!-- ================= MODAL: โปรไฟล์นักเรียน + คะแนนรายคน (แบบ admin_analytics_detail) + บอร์ดประกาศรายบุคคล ================= -->
+    <div id="studentProfileModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-5 overflow-y-auto" onclick="handleStudentProfileBackdrop(event)">
+        <div class="w-full max-w-6xl hitech-card rounded-3xl overflow-hidden border border-sky-500/30 shadow-2xl my-auto max-h-[92vh] flex flex-col" onclick="event.stopPropagation()">
+            
+            <!-- Modal Header -->
+            <div class="h-18 sm:h-20 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-700 relative shrink-0 flex items-center justify-between px-5 sm:px-7 text-white">
+                <div class="flex items-center gap-2.5 z-10 min-w-0">
+                    <span class="px-3 py-1 bg-black/25 backdrop-blur-md rounded-full text-[10px] font-extrabold border border-white/20 shrink-0">
+                        <i class="fas fa-user-graduate mr-1"></i> STUDENT PROFILE & ANALYTICS
+                    </span>
+                    <h3 id="spModalTitle" class="font-extrabold text-sm sm:text-lg truncate">ข้อมูลส่วนตัว ผลการเรียน และบอร์ดประกาศนักเรียน</h3>
+                </div>
+                <div class="flex items-center gap-2 z-10 shrink-0">
+                    <a id="spOpenUsersPageLink" href="admin_users.html" class="px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-[11px] font-bold border border-white/25 transition-all hidden sm:flex items-center gap-1.5">
+                        <i class="fas fa-external-link-alt"></i> แก้ไขโปรไฟล์ในหน้าจัดการบัญชี
+                    </a>
+                    <button type="button" onclick="closeStudentProfileModal()" class="w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-all" title="ปิดหน้าต่าง">
+                        <i class="fas fa-xmark text-base"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-4 sm:p-6 overflow-y-auto flex-1">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 text-xs">
+                    
+                    <!-- Left Column (7 cols): ข้อมูลโปรไฟล์ + คอร์ส + ผลคะแนนรายชุด (คิดคะแนนแบบ admin_analytics_detail) -->
+                    <div class="lg:col-span-7 space-y-4">
+                        
+                        <!-- Student Profile & Score Summary Card -->
+                        <div class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div class="space-y-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span id="spName" class="text-sm sm:text-base font-extrabold text-sky-600 dark:text-sky-400">-</span>
+                                    <span id="spAccountBadge"></span>
+                                </div>
+                                <div id="spSchoolGrade" class="text-slate-600 dark:text-slate-300 font-medium">-</div>
+                                <div id="spContactInfo" class="text-slate-500 dark:text-slate-400 text-[11px]">-</div>
+                                <div class="flex flex-wrap gap-3 pt-1.5 font-semibold text-slate-700 dark:text-slate-200">
+                                    <span class="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800">ทำข้อสอบแล้ว: <strong id="spExamCount" class="text-sky-600 dark:text-sky-400">0 ชุด</strong></span>
+                                    <span class="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800">คะแนนรวม: <strong id="spTotalScore" class="text-indigo-600 dark:text-indigo-400">0</strong></span>
+                                    <span class="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800">เฉลี่ยต่อชุด: <strong id="spAvgScore" class="text-amber-500">0.0</strong></span>
+                                </div>
+                            </div>
+                            <button type="button" id="spPrintSummaryBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-1.5 shrink-0">
+                                <i class="fas fa-print"></i> ปริ้นท์ใบสรุป
+                            </button>
+                        </div>
+
+                        <!-- Enrolled Courses -->
+                        <div class="space-y-2">
+                            <h4 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <i class="fas fa-book-bookmark text-indigo-500"></i> คอร์สที่ลงทะเบียนเรียน (<span id="spCoursesCount">0</span>)
+                            </h4>
+                            <div id="spCoursesContainer" class="flex flex-wrap gap-2 max-h-28 overflow-y-auto pr-1">
+                                <span class="text-slate-400 italic">กำลังโหลด...</span>
+                            </div>
+                        </div>
+
+                        <!-- Exam Attempts Table (การคิดคะแนนตรงกับหน้า admin_analytics_detail) -->
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                    <i class="fas fa-clipboard-check text-sky-500"></i> ประวัติการทำข้อสอบ (เกณฑ์ตรวจเดียวกับ Analytics Detail)
+                                </h4>
+                            </div>
+                            <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl max-h-72 overflow-y-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="sticky top-0 z-10">
+                                        <tr class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold border-b border-slate-200 dark:border-slate-700 text-xs">
+                                            <th class="p-3 w-12 text-center">#</th>
+                                            <th class="p-3">ชุดข้อสอบ</th>
+                                            <th class="p-3 text-center">คะแนนที่ได้</th>
+                                            <th class="p-3 text-center">วันที่ทำ</th>
+                                            <th class="p-3 text-center">ตรวจรายข้อ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="spAttemptsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                                        <tr><td colspan="5" class="text-center py-6 text-slate-400">กำลังโหลดผลสอบ...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column (5 cols): บอร์ดประกาศ / บันทึกถึงนักเรียน (One-way Comment Feed) -->
+                    <div class="lg:col-span-5 flex flex-col">
+                        <div class="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-500/25 flex flex-col space-y-3 h-full">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-1.5 font-extrabold text-xs text-indigo-700 dark:text-indigo-300">
+                                    <i class="fas fa-bullhorn text-indigo-500"></i>
+                                    <span>บอร์ดประกาศ / บันทึกถึงนักเรียน</span>
+                                </div>
+                                <span id="spNotesCountBadge" class="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 text-[10px] font-extrabold">0 รายการ</span>
+                            </div>
+
+                            <!-- Composer Box -->
+                            <div class="p-3 rounded-xl bg-white dark:bg-darkinput border border-indigo-200/80 dark:border-slate-700 space-y-2.5 shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <span id="spComposerModeLabel" class="text-[11px] font-extrabold text-sky-600 dark:text-sky-400">
+                                        <i class="fas fa-plus-circle mr-1"></i> โพสต์ประกาศ / บันทึกใหม่
+                                    </span>
+                                    <button type="button" id="spCancelEditNoteBtn" onclick="resetSpNoteComposer()" class="hidden text-[10px] font-bold text-rose-500 hover:underline">
+                                        ยกเลิกการแก้ไข
+                                    </button>
+                                </div>
+
+                                <input type="text" id="spNoteTitleInput" class="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-extrabold text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all" placeholder="หัวข้อประกาศ / หัวข้อบันทึกหลัง Consult...">
+                                
+                                <textarea id="spNoteContentInput" rows="2" class="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:border-indigo-500 outline-none transition-all resize-none" placeholder="รายละเอียดคำแนะนำ หรือข้อความถึงนักเรียน..."></textarea>
+
+                                <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                                    <div class="flex items-center gap-1.5">
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="spNoteVisibility" value="private" class="peer sr-only" checked>
+                                            <span class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 peer-checked:border-amber-500 peer-checked:bg-amber-500/15 peer-checked:text-amber-700 dark:peer-checked:text-amber-300 text-slate-500 text-[10px] font-extrabold inline-flex items-center gap-1 transition-all">
+                                                <i class="fas fa-lock"></i> เฉพาะครู
+                                            </span>
+                                        </label>
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="spNoteVisibility" value="public" class="peer sr-only">
+                                            <span class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 peer-checked:border-emerald-500 peer-checked:bg-emerald-500/15 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 text-slate-500 text-[10px] font-extrabold inline-flex items-center gap-1 transition-all">
+                                                <i class="fas fa-eye"></i> นักเรียนเห็น
+                                            </span>
+                                        </label>
+                                    </div>
+
+                                    <button type="button" onclick="saveSpComposerNote()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-extrabold shadow-sm transition-all flex items-center gap-1">
+                                        <i class="fas fa-paper-plane"></i> <span id="spPostNoteBtnText">โพสต์</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Feed Timeline List -->
+                            <div id="spNotesFeedList" class="space-y-2 max-h-80 overflow-y-auto pr-1 flex-1">
+                                <div class="text-center py-6 text-[11px] text-slate-400">ยังไม่มีประกาศหรือบันทึกสำหรับนักเรียนคนนี้</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
 const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
@@ -364,6 +512,20 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let displayedMonth = new Date().getMonth();
         let selectedDateStr = toLocalDateKey(new Date());
         let isInitialLoaded = false;
+
+        // State สำหรับ Modal โปรไฟล์ & บอร์ดประกาศรายบุคคล
+        let activeProfileStudentId = null;
+        let activeProfileNotesList = [];
+        let activeEditingNoteId = null;
+
+        function escapeHtml(str = '') {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
         function toLocalDateKey(dateInput) {
             const d = new Date(dateInput);
@@ -726,7 +888,6 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             renderSlotsForSelectedDate();
         }
 
-        // แสดงทุก Slot และนับจองแล้วรวมของเก่า ส่วน Slot ว่างนับเฉพาะที่เหลือจากตอนนี้ไป
         function updateStatOverview() {
             const nowMs = Date.now();
             const total = allSlots.length;
@@ -843,13 +1004,13 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                                 <div>
                                     <span class="font-extrabold text-slate-900 dark:text-white"><i class="far fa-clock mr-1 text-emerald-500"></i> ${startStr} - ${endStr} น.</span>
                                     <div class="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold mt-0.5 flex items-center gap-1.5 flex-wrap">
-                                        <span>จองโดย: ${studentName}</span>
-                                        ${studentId ? `<button onclick="viewIndividualStudentProfile('${studentId}')" class="text-[10px] px-2 py-0.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white rounded-md font-bold transition-all shadow-sm"><i class="fas fa-user-circle mr-1"></i> ดูโปรไฟล์</button>` : ''}
+                                        <span>จองโดย: ${escapeHtml(studentName)}</span>
+                                        ${studentId ? `<button onclick="viewIndividualStudentProfile('${studentId}')" class="text-[10px] px-2 py-0.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white rounded-md font-bold transition-all shadow-sm"><i class="fas fa-user-circle mr-1"></i> ดูโปรไฟล์ & คะแนน</button>` : ''}
                                     </div>
                                 </div>
                             </div>
                             <div class="flex gap-1.5 shrink-0">
-                                <button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${studentName}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>
+                                <button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${escapeHtml(studentName)}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>
                                 <button onclick="deleteSlot('${s.id}')" class="px-2.5 py-1 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ลบ</button>
                             </div>
                         </div>
@@ -1169,19 +1330,251 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                     <div class="p-3 rounded-xl bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
                         <div>
                             <span class="font-extrabold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
-                                <i class="fas fa-user-graduate text-indigo-500"></i> ${studentName}${studentNickname}
-                                ${studentId ? `<button onclick="viewIndividualStudentProfile('${studentId}')" class="text-[10px] px-2.5 py-1 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white rounded-lg font-bold transition-all shadow-sm"><i class="fas fa-user-circle mr-1"></i> ดูโปรไฟล์</button>` : ''}
+                                <i class="fas fa-user-graduate text-indigo-500"></i> ${escapeHtml(studentName)}${escapeHtml(studentNickname)}
+                                ${studentId ? `<button onclick="viewIndividualStudentProfile('${studentId}')" class="text-[10px] px-2.5 py-1 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white rounded-lg font-bold transition-all shadow-sm"><i class="fas fa-user-circle mr-1"></i> ดูโปรไฟล์ & คะแนน</button>` : ''}
                             </span>
                             <div class="text-[10px] text-slate-400 mt-1">⏰ ${startStr} - ${endStr} น.</div>
                         </div>
                         <div class="flex gap-1.5 shrink-0">
-                            <button onclick="openRescheduleModal('${s.id}', '${s.student_id}', '${studentName}')" class="px-2.5 py-1 bg-sky-500/10 text-sky-500 hover:bg-sky-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ย้าย</button>
-                            <button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${studentName}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>
+                            <button onclick="openRescheduleModal('${s.id}', '${s.student_id}', '${escapeHtml(studentName)}')" class="px-2.5 py-1 bg-sky-500/10 text-sky-500 hover:bg-sky-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ย้าย</button>
+                            <button onclick="cancelStudentBooking('${s.id}', '${s.student_id}', '${escapeHtml(studentName)}')" class="px-2.5 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg font-bold transition-all text-[11px]">ยกเลิก</button>
                         </div>
                     </div>
                 `;
             }).join('');
         }
+
+        // ================= NORMALIZE TEACHER NOTES / ONE-WAY ANNOUNCEMENT FEED =================
+        function normalizeStudentNotes(studentObj) {
+            if (!studentObj) return [];
+            if (Array.isArray(studentObj.teacher_notes)) {
+                return [...studentObj.teacher_notes].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            }
+            if (typeof studentObj.teacher_notes === 'string' && studentObj.teacher_notes.trim().startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(studentObj.teacher_notes);
+                    if (Array.isArray(parsed)) {
+                        return parsed.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+                    }
+                } catch (e) {}
+            }
+            if (studentObj.teacher_note && String(studentObj.teacher_note).trim()) {
+                return [{
+                    id: 'legacy_note_1',
+                    title: 'บันทึกจากคุณครู',
+                    content: String(studentObj.teacher_note).trim(),
+                    visible: Boolean(studentObj.teacher_note_visible),
+                    created_at: studentObj.updated_at || studentObj.created_at || new Date().toISOString()
+                }];
+            }
+            return [];
+        }
+
+        function renderSpNotesFeed() {
+            const listEl = document.getElementById('spNotesFeedList');
+            const badgeEl = document.getElementById('spNotesCountBadge');
+            if (!listEl) return;
+
+            if (badgeEl) badgeEl.textContent = `${activeProfileNotesList.length} รายการ`;
+
+            if (activeProfileNotesList.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-6 px-3 rounded-xl border border-dashed border-indigo-300/60 dark:border-slate-700 text-[11px] text-slate-400">
+                        <i class="fas fa-bullhorn text-indigo-400 text-base mb-1 block"></i>
+                        ยังไม่มีประกาศหรือบันทึกสำหรับนักเรียนคนนี้<br>พิมพ์หัวข้อและรายละเอียดด้านบนแล้วกด <b>โพสต์</b> ได้เลย
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = activeProfileNotesList.map(note => {
+                const dateStr = note.created_at
+                    ? new Date(note.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
+                    : '';
+                const isPublic = Boolean(note.visible);
+                const visPill = isPublic
+                    ? `<span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[9px] font-extrabold"><i class="fas fa-eye mr-0.5"></i> นักเรียนเห็น</span>`
+                    : `<span class="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[9px] font-extrabold"><i class="fas fa-lock mr-0.5"></i> เฉพาะครู</span>`;
+
+                return `
+                    <div class="p-3 rounded-xl bg-white dark:bg-darkinput border ${isPublic ? 'border-emerald-500/30' : 'border-slate-200 dark:border-slate-700'} shadow-sm space-y-1.5 transition-all">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                    ${visPill}
+                                    <span class="text-[9px] text-slate-400 font-mono"><i class="far fa-clock mr-0.5"></i>${dateStr}</span>
+                                </div>
+                                <h5 class="font-extrabold text-xs text-slate-900 dark:text-white leading-snug break-words">${escapeHtml(note.title || 'ไม่มีหัวข้อ')}</h5>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <button type="button" onclick="toggleSpNoteVisibility('${note.id}')" class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-sky-500 hover:text-white text-slate-500 text-[10px] flex items-center justify-center transition-all" title="สลับสิทธิ์การมองเห็น">
+                                    <i class="fas ${isPublic ? 'fa-eye-slash' : 'fa-eye'}"></i>
+                                </button>
+                                <button type="button" onclick="startEditSpNote('${note.id}')" class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-white text-slate-500 text-[10px] flex items-center justify-center transition-all" title="แก้ไขโพสต์นี้">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button type="button" onclick="deleteSpNote('${note.id}')" class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-500 hover:text-white text-slate-500 text-[10px] flex items-center justify-center transition-all" title="ลบโพสต์นี้">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-600 dark:text-slate-300 font-normal whitespace-pre-line leading-relaxed break-words bg-slate-50/80 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">${escapeHtml(note.content || '')}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function resetSpNoteComposer() {
+            activeEditingNoteId = null;
+            const titleEl = document.getElementById('spNoteTitleInput');
+            const contentEl = document.getElementById('spNoteContentInput');
+            if (titleEl) titleEl.value = '';
+            if (contentEl) contentEl.value = '';
+            const privRadio = document.querySelector('input[name="spNoteVisibility"][value="private"]');
+            if (privRadio) privRadio.checked = true;
+
+            const modeLabel = document.getElementById('spComposerModeLabel');
+            const btnText = document.getElementById('spPostNoteBtnText');
+            const cancelBtn = document.getElementById('spCancelEditNoteBtn');
+            if (modeLabel) modeLabel.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> โพสต์ประกาศ / บันทึกใหม่';
+            if (btnText) btnText.textContent = 'โพสต์';
+            if (cancelBtn) cancelBtn.classList.add('hidden');
+        }
+
+        function startEditSpNote(noteId) {
+            const target = activeProfileNotesList.find(n => String(n.id) === String(noteId));
+            if (!target) return;
+
+            activeEditingNoteId = target.id;
+            document.getElementById('spNoteTitleInput').value = target.title || '';
+            document.getElementById('spNoteContentInput').value = target.content || '';
+            const radioVal = target.visible ? 'public' : 'private';
+            const rEl = document.querySelector(`input[name="spNoteVisibility"][value="${radioVal}"]`);
+            if (rEl) rEl.checked = true;
+
+            document.getElementById('spComposerModeLabel').innerHTML = '<i class="fas fa-pen text-amber-500 mr-1"></i> กำลังแก้ไขโพสต์';
+            document.getElementById('spPostNoteBtnText').textContent = 'อัปเดต';
+            document.getElementById('spCancelEditNoteBtn').classList.remove('hidden');
+            document.getElementById('spNoteTitleInput').focus();
+        }
+
+        async function persistSpNotesToDatabase(studentId, updatedNotes) {
+            if (!studentId) return false;
+            const latestNote = updatedNotes[0] || null;
+            const updatePayload = {
+                teacher_notes: updatedNotes,
+                teacher_note: latestNote ? `[${latestNote.title}] ${latestNote.content}` : '',
+                teacher_note_visible: latestNote ? Boolean(latestNote.visible) : false
+            };
+
+            const { error } = await mySupabase.from('profiles').update(updatePayload).eq('id', studentId);
+            if (error) {
+                if (/teacher_notes/i.test(error.message || '')) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'ยังไม่มีคอลัมน์ teacher_notes ในฐานข้อมูล',
+                        html: 'กรุณารันคำสั่ง SQL ด้านล่างใน Supabase SQL Editor:<br><pre class="text-left text-[11px] bg-slate-900 text-sky-300 p-3 rounded-xl mt-2 overflow-x-auto">ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS teacher_notes JSONB DEFAULT \'[]\'::jsonb;</pre>',
+                        confirmButtonColor: '#0284c7'
+                    });
+                    return false;
+                }
+                Swal.fire({ icon: 'error', title: 'บันทึกโพสต์ไม่สำเร็จ', text: error.message, confirmButtonColor: '#0284c7' });
+                return false;
+            }
+
+            if (allProfilesMap[studentId]) {
+                allProfilesMap[studentId].teacher_notes = updatedNotes;
+                allProfilesMap[studentId].teacher_note = updatePayload.teacher_note;
+                allProfilesMap[studentId].teacher_note_visible = updatePayload.teacher_note_visible;
+            }
+            return true;
+        }
+
+        async function saveSpComposerNote() {
+            if (!activeProfileStudentId) return;
+            const titleVal = document.getElementById('spNoteTitleInput').value.trim();
+            const contentVal = document.getElementById('spNoteContentInput').value.trim();
+            const visVal = document.querySelector('input[name="spNoteVisibility"]:checked')?.value || 'private';
+            const isPublic = visVal === 'public';
+
+            if (!titleVal && !contentVal) {
+                Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 })
+                    .fire({ icon: 'warning', title: 'กรุณากรอกหัวข้อหรือรายละเอียดก่อนโพสต์' });
+                return;
+            }
+
+            const finalTitle = titleVal || 'ประกาศจากคุณครู';
+            const finalContent = contentVal || '-';
+
+            let nextNotes = [...activeProfileNotesList];
+            const wasEditing = Boolean(activeEditingNoteId);
+
+            if (activeEditingNoteId) {
+                nextNotes = nextNotes.map(n => {
+                    if (String(n.id) === String(activeEditingNoteId)) {
+                        return { ...n, title: finalTitle, content: finalContent, visible: isPublic, updated_at: new Date().toISOString() };
+                    }
+                    return n;
+                });
+            } else {
+                nextNotes.unshift({
+                    id: `note_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                    title: finalTitle,
+                    content: finalContent,
+                    visible: isPublic,
+                    created_at: new Date().toISOString()
+                });
+            }
+
+            const ok = await persistSpNotesToDatabase(activeProfileStudentId, nextNotes);
+            if (!ok) return;
+
+            activeProfileNotesList = nextNotes;
+            resetSpNoteComposer();
+            renderSpNotesFeed();
+
+            Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1600 })
+                .fire({ icon: 'success', title: wasEditing ? 'อัปเดตโพสต์แล้ว' : 'โพสต์ประกาศเรียบร้อยแล้ว' });
+        }
+
+        async function toggleSpNoteVisibility(noteId) {
+            if (!activeProfileStudentId) return;
+            const nextNotes = activeProfileNotesList.map(n =>
+                String(n.id) === String(noteId) ? { ...n, visible: !n.visible } : n
+            );
+            const ok = await persistSpNotesToDatabase(activeProfileStudentId, nextNotes);
+            if (!ok) return;
+            activeProfileNotesList = nextNotes;
+            renderSpNotesFeed();
+        }
+
+        async function deleteSpNote(noteId) {
+            if (!activeProfileStudentId) return;
+            const nextNotes = activeProfileNotesList.filter(n => String(n.id) !== String(noteId));
+            if (String(activeEditingNoteId) === String(noteId)) resetSpNoteComposer();
+            const ok = await persistSpNotesToDatabase(activeProfileStudentId, nextNotes);
+            if (!ok) return;
+            activeProfileNotesList = nextNotes;
+            renderSpNotesFeed();
+        }
+
+        function closeStudentProfileModal() {
+            const modal = document.getElementById('studentProfileModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+        }
+
+        function handleStudentProfileBackdrop(event) {
+            if (event.target && event.target.id === 'studentProfileModal') {
+                closeStudentProfileModal();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeStudentProfileModal();
+        });
 
         // --- ระบบตรวจคำตอบและคำนวณคะแนนให้ตรงกับหน้า admin_analytics_detail ---
         function parseAnswerList(val) {
@@ -1385,14 +1778,15 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         async function viewIndividualStudentProfile(studentId) {
             Swal.fire({ title: 'กำลังโหลดข้อมูลโปรไฟล์นักเรียนและตรวจคะแนน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            let profile = allProfilesMap[studentId];
-            if (!profile) {
-                const { data: pData } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
-                if (pData) {
-                    profile = pData;
-                    allProfilesMap[studentId] = pData;
-                }
+            activeProfileStudentId = studentId;
+            resetSpNoteComposer();
+
+            // ดึงข้อมูลโปรไฟล์ล่าสุดเสมอเพื่อให้ teacher_notes อัปเดตตรงกับหน้า admin_users
+            const { data: freshProfile } = await mySupabase.from('profiles').select('*').eq('id', studentId).single();
+            if (freshProfile) {
+                allProfilesMap[studentId] = freshProfile;
             }
+            const profile = allProfilesMap[studentId];
 
             let studentAttempts = allAttemptsCache.filter(a => String(a.student_id || a.user_id) === String(studentId));
             if (studentAttempts.length === 0) {
@@ -1412,13 +1806,16 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 const { data: en2 } = await mySupabase.from('course_enrollments').select('*').eq('student_id', studentId);
                 if (en2) rawEnrollments = rawEnrollments.concat(en2);
 
-                enrolledCourses = rawEnrollments.map(en => {
+                const seenCourseIds = new Set();
+                enrolledCourses = rawEnrollments.filter(en => {
+                    const cId = String(en.course_id || en.class_id || '');
+                    if (!cId || seenCourseIds.has(cId)) return false;
+                    seenCourseIds.add(cId);
+                    return true;
+                }).map(en => {
                     const cId = String(en.course_id || en.class_id || '');
                     const courseInfo = coursesMap[cId] || { title: `คอร์สรหัส: ${cId}`, course_code: 'COURSE' };
-                    return {
-                        ...en,
-                        courses: courseInfo
-                    };
+                    return { ...en, courses: courseInfo };
                 });
             } catch(e) {
                 console.warn("Could not fetch enrollments for student", e);
@@ -1428,51 +1825,70 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
             const name = getStudentName(profile, studentId);
             const nickname = getStudentNickname(profile);
-            const studentIdCode = (profile && profile.student_id) ? profile.student_id : '-';
-            const emailStr = (profile && profile.email) ? profile.email : '-';
+            const usernameStr = (profile && profile.username) ? profile.username : '-';
             const schoolStr = (profile && profile.school) ? profile.school : '-';
             const gradeStr = (profile && profile.grade_level) ? profile.grade_level : '-';
+            const lineStr = (profile && profile.line_id) ? profile.line_id : '-';
+            const phoneStr = (profile && profile.phone) ? profile.phone : '-';
 
             const totalScore = studentAttempts.reduce((acc, curr) => acc + getAttemptScore(curr), 0);
             const avg = studentAttempts.length > 0 ? (totalScore / studentAttempts.length).toFixed(1) : '0.0';
 
-            let coursesHtml = '';
+            document.getElementById('spModalTitle').textContent = `โปรไฟล์ & ผลคะแนน: ${name}${nickname ? ` (น้อง${nickname})` : ''}`;
+            document.getElementById('spOpenUsersPageLink').href = `admin_users.html?student_id=${encodeURIComponent(studentId)}`;
+            document.getElementById('spName').textContent = `${name}${nickname ? ` (น้อง${nickname})` : ''}`;
+            
+            const isExt = profile && profile.account_type === 'external_student';
+            document.getElementById('spAccountBadge').innerHTML = isExt
+                ? '<span class="px-2 py-0.5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-extrabold">🌐 สมัครด้วยตนเอง</span>'
+                : '<span class="px-2 py-0.5 bg-sky-500/15 text-sky-600 dark:text-sky-400 rounded-full text-[10px] font-extrabold">🛡️ บัญชีสร้างโดยแอดมิน</span>';
+
+            document.getElementById('spSchoolGrade').textContent = `ระดับชั้น: ${gradeStr} | โรงเรียน: ${schoolStr}`;
+            document.getElementById('spContactInfo').textContent = `Username: ${usernameStr} | LINE: ${lineStr} | โทร: ${phoneStr}`;
+            document.getElementById('spExamCount').textContent = `${studentAttempts.length} ชุด`;
+            document.getElementById('spTotalScore').textContent = `${totalScore} คะแนน`;
+            document.getElementById('spAvgScore').textContent = avg;
+
+            const printBtn = document.getElementById('spPrintSummaryBtn');
+            printBtn.onclick = () => printStudentSummaryReport(studentId);
+
+            // Render Enrolled Courses
+            document.getElementById('spCoursesCount').textContent = enrolledCourses.length;
+            const coursesEl = document.getElementById('spCoursesContainer');
             if (enrolledCourses.length === 0) {
-                coursesHtml = `<div class="text-slate-400 text-xs italic py-2">ยังไม่ได้ลงทะเบียนในคอร์สใด</div>`;
+                coursesEl.innerHTML = `<span class="text-slate-400 text-xs italic">ยังไม่ได้ลงทะเบียนในคอร์สใด</span>`;
             } else {
-                coursesHtml = enrolledCourses.map((en) => {
+                coursesEl.innerHTML = enrolledCourses.map(en => {
                     const cTitle = (en.courses && en.courses.title) ? en.courses.title : 'คอร์สเรียน';
                     const cCode = (en.courses && en.courses.course_code) ? en.courses.course_code : 'COURSE';
-                    return `
-                        <div class="p-2.5 bg-slate-50 dark:bg-darkinput rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
-                            <span class="font-bold text-slate-900 dark:text-white"><i class="fas fa-book-open mr-1.5 text-indigo-500"></i> [${cCode}] ${cTitle}</span>
-                        </div>
-                    `;
+                    return `<span class="px-2.5 py-1 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 rounded-xl font-bold text-[11px]"><i class="fas fa-book-open mr-1"></i>[${escapeHtml(cCode)}] ${escapeHtml(cTitle)}</span>`;
                 }).join('');
             }
 
-            let attemptsHtml = '';
+            // Render Exam Attempts Table
+            const tbody = document.getElementById('spAttemptsTableBody');
             if (studentAttempts.length === 0) {
-                attemptsHtml = `<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">ยังไม่มีประวัติการทำข้อสอบ</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">ยังไม่มีประวัติการทำข้อสอบ</td></tr>`;
             } else {
-                attemptsHtml = studentAttempts.map((att, idx) => {
+                tbody.innerHTML = studentAttempts.map((att, idx) => {
                     const exam = allExamsCache.find(e => String(e.id) === String(att.exam_id));
                     const examTitle = exam ? exam.title : `ข้อสอบรหัส: ${att.exam_id}`;
                     const qs = questionsByExamCache[String(att.exam_id)] || [];
                     const calc = computeAttemptScoreFromQuestions(att, qs);
                     const scoreText = calc.maxScore > 0 ? `${calc.score} / ${calc.maxScore} คะแนน` : `${calc.score} คะแนน`;
+                    const pctText = calc.maxScore > 0 ? ` (${Math.round((calc.score / calc.maxScore) * 100)}%)` : '';
                     const submitTime = att.submission_time || att.submitted_at || att.created_at;
                     const dateStr = submitTime ? new Date(submitTime).toLocaleDateString('th-TH') : '-';
 
                     return `
-                        <tr class="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-xs">
-                            <td class="p-3 font-mono font-bold">${idx + 1}</td>
-                            <td class="p-3 font-bold text-slate-800 dark:text-slate-200">${examTitle}</td>
-                            <td class="p-3 text-center font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${scoreText}</td>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-xs">
+                            <td class="p-3 text-center font-mono font-bold text-slate-400">${idx + 1}</td>
+                            <td class="p-3 font-bold text-slate-800 dark:text-slate-200">${escapeHtml(examTitle)}</td>
+                            <td class="p-3 text-center font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${scoreText}<span class="text-[10px] text-slate-400 font-normal">${pctText}</span></td>
                             <td class="p-3 text-center text-slate-400 text-[11px]">${dateStr}</td>
                             <td class="p-3 text-center">
                                 <button onclick="viewStudentExamDetailInModal('${studentId}', '${att.exam_id}')" class="px-2.5 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-lg transition-all text-[11px]">
-                                    <i class="fas fa-search-plus mr-1"></i> เช็คข้อสอบชุดนี้
+                                    <i class="fas fa-search-plus mr-1"></i> เช็คข้อสอบ
                                 </button>
                             </td>
                         </tr>
@@ -1480,64 +1896,14 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 }).join('');
             }
 
-            const isDark = document.documentElement.classList.contains('dark');
+            // Render One-Way Comment / Announcement Feed
+            activeProfileNotesList = normalizeStudentNotes(profile);
+            renderSpNotesFeed();
 
-            let modalContent = `
-                <div class="text-left space-y-4 max-h-[75vh] overflow-y-auto pr-1 text-xs">
-                    <div class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                        <div class="space-y-1">
-                            <div class="text-sm font-extrabold text-sky-600 dark:text-sky-400">${name}${nickname ? ' (' + nickname + ')' : ''}</div>
-                            <div class="text-slate-500 dark:text-slate-400">รหัสนักเรียน: <span class="font-mono font-bold text-slate-800 dark:text-slate-200">${studentIdCode}</span> | โรงเรียน: <span class="font-medium text-slate-700 dark:text-slate-300">${schoolStr}</span></div>
-                            <div class="text-slate-500 dark:text-slate-400">อีเมล: <span class="font-mono">${emailStr}</span> | ระดับชั้น: <span class="font-medium">${gradeStr}</span></div>
-                            <div class="flex gap-4 pt-1 font-semibold text-slate-700 dark:text-slate-300">
-                                <span>ทำข้อสอบแล้ว: <strong>${studentAttempts.length} ชุด</strong></span>
-                                <span>คะแนนรวม: <strong class="text-indigo-600 dark:text-indigo-400">${totalScore}</strong></span>
-                                <span>เฉลี่ย: <strong class="text-amber-500">${avg}</strong></span>
-                            </div>
-                        </div>
-                        <button onclick="printStudentSummaryReport('${studentId}')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-1.5 shrink-0">
-                            <i class="fas fa-print"></i> ปริ้นท์ใบสรุป
-                        </button>
-                    </div>
-
-                    <div class="space-y-2">
-                        <h4 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5"><i class="fas fa-book-bookmark text-indigo-500"></i> คอร์สที่ลงทะเบียนเรียน (${enrolledCourses.length})</h4>
-                        <div class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                            ${coursesHtml}
-                        </div>
-                    </div>
-
-                    <div class="space-y-2">
-                        <h4 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5"><i class="fas fa-clipboard-check text-sky-500"></i> ประวัติการทำข้อสอบ (ผลสอบ)</h4>
-                        <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800 text-xs">
-                                        <th class="p-3">ลำดับ</th>
-                                        <th class="p-3">ชุดข้อสอบ</th>
-                                        <th class="p-3 text-center">คะแนน</th>
-                                        <th class="p-3 text-center">วันที่ทำ</th>
-                                        <th class="p-3 text-center">จัดการ</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${attemptsHtml}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            Swal.fire({
-                title: '👤 ข้อมูลส่วนตัวและผลการเรียนนักเรียน',
-                html: modalContent,
-                width: '750px',
-                confirmButtonColor: '#0284c7',
-                confirmButtonText: 'ปิดหน้าต่าง',
-                background: isDark ? '#090d16' : '#ffffff',
-                color: isDark ? '#f1f5f9' : '#1e293b'
-            });
+            // Open Custom Modal
+            const modal = document.getElementById('studentProfileModal');
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         }
 
         function formatChoiceDisplay(val, choicesArr) {
@@ -1600,7 +1966,7 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                             <span class="${isCorrect ? 'text-emerald-500' : 'text-rose-500'}">${isCorrect ? `✅ ถูกต้อง (+${pts})` : '❌ ตอบผิด (0)'}</span>
                         </div>
                         <div class="text-[11px] text-slate-500 dark:text-slate-400">
-                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${displayedUserAns}</span> | เฉลยที่ถูกต้อง: <span class="font-bold text-emerald-600">${displayedCorrectAns}</span>
+                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(displayedUserAns)}</span> | เฉลยที่ถูกต้อง: <span class="font-bold text-emerald-600">${escapeHtml(displayedCorrectAns)}</span>
                         </div>
                     </div>
                 `;
@@ -1612,8 +1978,8 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
                     <div class="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 flex justify-between items-center text-xs">
                         <div>
-                            <div class="font-extrabold text-sky-600 dark:text-sky-400">${exam ? exam.title : 'ชุดข้อสอบ'}</div>
-                            <div class="text-slate-500">นักเรียน: <strong>${name}</strong> (ถูก ${calc.correctCount} / ${calc.totalQuestions} ข้อ)</div>
+                            <div class="font-extrabold text-sky-600 dark:text-sky-400">${exam ? escapeHtml(exam.title) : 'ชุดข้อสอบ'}</div>
+                            <div class="text-slate-500">นักเรียน: <strong>${escapeHtml(name)}</strong> (ถูก ${calc.correctCount} / ${calc.totalQuestions} ข้อ)</div>
                         </div>
                         <div class="flex items-center gap-3">
                             <div class="text-right font-extrabold text-indigo-600 dark:text-indigo-400 text-sm">
@@ -1634,16 +2000,10 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 title: '📋 ตรวจสอบผลการตอบรายข้อ (ตรงกับ Analytics Detail)',
                 html: detailModalHtml,
                 width: '700px',
-                showCancelButton: true,
-                confirmButtonText: 'กลับไปหน้าโปรไฟล์',
-                cancelButtonText: 'ปิดหน้าต่าง',
+                confirmButtonText: 'ปิดหน้าต่างตรวจรายข้อ',
                 confirmButtonColor: '#0284c7',
                 background: isDark ? '#090d16' : '#ffffff',
                 color: isDark ? '#f1f5f9' : '#1e293b'
-            }).then((res) => {
-                if (res.isConfirmed) {
-                    viewIndividualStudentProfile(studentId);
-                }
             });
         }
 
@@ -1821,7 +2181,7 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 return `
                     <div class="text-left space-y-4">
                         <div class="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/30 border border-sky-500/30 text-xs text-sky-900 dark:text-sky-200">
-                            กำลังย้ายคิวของ: <strong class="text-sky-600 dark:text-sky-400">${studentName}</strong>
+                            กำลังย้ายคิวของ: <strong class="text-sky-600 dark:text-sky-400">${escapeHtml(studentName)}</strong>
                         </div>
                         <div class="space-y-2">
                             <div class="flex justify-between items-center px-1">
@@ -1994,7 +2354,7 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 Swal.fire({ title: 'ประวัติการแก้ไข', text: 'ยังไม่มีบันทึกประวัติการดำเนินการ', icon: 'info' });
                 return;
             }
-            let logsHtml = logs.map(l => `<div class="py-2 border-b dark:border-slate-800 text-left text-xs"><div class="font-bold text-slate-900 dark:text-white">${l.action}</div><div class="text-[10px] text-slate-400 mt-0.5">${new Date(l.created_at).toLocaleString('th-TH')}</div></div>`).join('');
+            let logsHtml = logs.map(l => `<div class="py-2 border-b dark:border-slate-800 text-left text-xs"><div class="font-bold text-slate-900 dark:text-white">${escapeHtml(l.action)}</div><div class="text-[10px] text-slate-400 mt-0.5">${new Date(l.created_at).toLocaleString('th-TH')}</div></div>`).join('');
             Swal.fire({ title: 'ประวัติการจัดการ Consult', html: `<div class="max-h-72 overflow-y-auto pr-1">${logsHtml}</div>`, width: '550px' });
         }
 
