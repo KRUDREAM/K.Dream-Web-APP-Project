@@ -308,6 +308,7 @@
         let gradingCriteriaList = [];
         let enableCriteria = false;
         let isCategoryManagerPopupOpen = false;
+        let openCategoryDropdownIndex = null;
 
         function getQuestionMetaMap() {
             try {
@@ -1213,6 +1214,7 @@
                     .sort((a, b) => (Number(a.question_number) || 0) - (Number(b.question_number) || 0));
 
                 const encodedCat = encodeURIComponent(catName);
+                const isDropdownOpen = openCategoryDropdownIndex === catIdx;
 
                 const assignedBadgesHtml = assignedQuestions.length > 0
                     ? assignedQuestions.map(q => {
@@ -1228,13 +1230,22 @@
                     }).join('')
                     : `<span class="text-[11px] text-slate-400">ยังไม่มีข้อสอบในหมวดหมู่นี้</span>`;
 
-                const dropdownOptionsHtml = unassignedToThis.map(q => {
-                    const qNum = q.question_number || '?';
-                    const currentCatNote = q.category_tag ? ` [เดิม: ${q.category_tag}]` : '';
-                    const rawSnippet = String(q.question_text || q.content || '').replace(/!\[.*?\]\(.*?\)/g, '[รูป]').replace(/\s+/g, ' ').trim();
-                    const shortSnippet = rawSnippet.length > 42 ? `${rawSnippet.slice(0, 42)}...` : rawSnippet;
-                    return `<option value="${escapeHtml(String(q.id))}">ข้อ ${qNum}${escapeHtml(currentCatNote)}${shortSnippet ? ` — ${escapeHtml(shortSnippet)}` : ''}</option>`;
-                }).join('');
+                const checkboxRowsHtml = unassignedToThis.length > 0
+                    ? unassignedToThis.map(q => {
+                        const qNum = q.question_number || '?';
+                        const currentCatNote = q.category_tag ? ` <span class="text-[10px] text-amber-600 dark:text-amber-400">[เดิม: ${escapeHtml(q.category_tag)}]</span>` : '';
+                        const rawSnippet = String(q.question_text || q.content || '').replace(/!\[.*?\]\(.*?\)/g, '[รูป]').replace(/\s+/g, ' ').trim();
+                        const shortSnippet = rawSnippet.length > 42 ? `${rawSnippet.slice(0, 42)}...` : rawSnippet;
+                        return `
+                            <label class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 cursor-pointer text-[11px]">
+                                <input type="checkbox" class="cat-assign-cb_${catIdx} mt-0.5 rounded" value="${escapeHtml(String(q.id))}">
+                                <span class="min-w-0 flex-1 break-words text-slate-800 dark:text-slate-200">
+                                    <strong>ข้อ ${qNum}</strong>${currentCatNote}${shortSnippet ? ` — <span class="text-slate-500 dark:text-slate-400">${escapeHtml(shortSnippet)}</span>` : ''}
+                                </span>
+                            </label>
+                        `;
+                    }).join('')
+                    : `<div class="text-[11px] text-slate-400 py-2 text-center">ข้อสอบทั้งหมดอยู่ในหมวดหมู่นี้แล้ว</div>`;
 
                 return `
                     <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-cyan-500/30 space-y-2.5 text-left">
@@ -1257,19 +1268,34 @@
                             ${assignedBadgesHtml}
                         </div>
 
-                        <div class="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2">
-                            <select id="catAssignSelect_${catIdx}" class="flex-1 min-w-0 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-[11px] font-bold outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- เลือกข้อสอบเข้าหมวดหมู่นี้ --</option>
-                                ${dropdownOptionsHtml}
-                            </select>
-                            <button type="button" onclick="assignSelectedQuestionToCategory(${catIdx}, decodeURIComponent('${encodedCat}'))" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-[11px] font-bold shrink-0">
-                                <i class="fas fa-plus mr-1"></i> เพิ่ม
+                        <div class="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                            <button type="button" onclick="toggleCategoryAssignDropdown(${catIdx})" class="w-full px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-300 dark:border-slate-700 rounded-xl text-[11px] font-bold flex items-center justify-between text-slate-800 dark:text-slate-200">
+                                <span><i class="fas fa-list-check text-cyan-600 dark:text-cyan-400 mr-1.5"></i> เพิ่มข้อสอบในหมวดหมู่นี้ (${unassignedToThis.length} ข้อที่เลือกได้)</span>
+                                <i class="fas fa-chevron-${isDropdownOpen ? 'up' : 'down'} text-slate-400"></i>
                             </button>
+
+                            <div id="catCheckboxDropdown_${catIdx}" class="${isDropdownOpen ? '' : 'hidden'} rounded-xl border border-cyan-500/30 bg-white dark:bg-slate-950 p-2 space-y-2">
+                                <div class="max-h-40 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
+                                    ${checkboxRowsHtml}
+                                </div>
+                                ${unassignedToThis.length > 0 ? `
+                                <div class="flex justify-end pt-1 border-t border-slate-200 dark:border-slate-800">
+                                    <button type="button" onclick="assignCheckedQuestionsToCategory(${catIdx}, decodeURIComponent('${encodedCat}'))" class="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-[11px] font-bold">
+                                        <i class="fas fa-check mr-1"></i> เพิ่มข้อที่ติ๊กเลือก
+                                    </button>
+                                </div>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
                 `;
             }).join('');
         }
+
+        window.toggleCategoryAssignDropdown = function(catIdx) {
+            openCategoryDropdownIndex = openCategoryDropdownIndex === catIdx ? null : catIdx;
+            syncCategoryManagerPopupList();
+        };
 
         function syncCategoryManagerPopupList() {
             if (!isCategoryManagerPopupOpen) return;
@@ -1287,7 +1313,7 @@
                 html: `
                     <div class="space-y-3 text-left text-xs">
                         <div class="flex justify-between items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
-                            <span class="text-[11px] text-slate-400">แก้ไขชื่อหมวดหมู่ได้ไม่จำกัดความยาว และเลือกข้อสอบเข้า/ออกแต่ละหมวดได้ทันที</span>
+                            <span class="text-[11px] text-slate-400">แก้ไขชื่อหมวดหมู่ได้ไม่จำกัดความยาว และติ๊กเลือกข้อสอบแบบหลายข้อเข้า/ออกจากหมวดหมู่ได้ทันที</span>
                             <button type="button" onclick="openCreateCategoryModal()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-[11px] rounded-xl shrink-0">
                                 <i class="fas fa-folder-plus mr-1"></i> สร้างหมวดหมู่ใหม่
                             </button>
@@ -1302,6 +1328,7 @@
                 confirmButtonColor: '#0284c7',
                 didDestroy: () => {
                     isCategoryManagerPopupOpen = false;
+                    openCategoryDropdownIndex = null;
                 }
             });
         };
@@ -1346,17 +1373,26 @@
             renderCriteriaTable();
         }
 
+        window.toggleCreateCatCheckboxDropdown = function() {
+            const box = document.getElementById('createCatCheckboxBox');
+            const icon = document.getElementById('createCatCheckboxIcon');
+            if (!box) return;
+            const willOpen = box.classList.contains('hidden');
+            box.classList.toggle('hidden', !willOpen);
+            if (icon) icon.className = `fas fa-chevron-${willOpen ? 'up' : 'down'} text-slate-400`;
+        };
+
         window.openCreateCategoryModal = async function() {
             const wasPopupOpen = isCategoryManagerPopupOpen;
             if (wasPopupOpen) isCategoryManagerPopupOpen = false;
 
             const questionCheckboxesHtml = cachedQuestions.map(q => {
                 const qNum = q.question_number || '?';
-                const tagNote = q.category_tag ? ` (เดิม: ${escapeHtml(q.category_tag)})` : '';
+                const tagNote = q.category_tag ? ` <span class="text-[10px] text-amber-600 dark:text-amber-400">[เดิม: ${escapeHtml(q.category_tag)}]</span>` : '';
                 return `
-                    <label class="flex items-start gap-2 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border border-slate-200 dark:border-slate-800">
-                        <input type="checkbox" class="new-cat-q-cb mt-0.5" value="${escapeHtml(String(q.id))}">
-                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200 break-words">ข้อ ${qNum}${tagNote}</span>
+                    <label class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 cursor-pointer text-xs">
+                        <input type="checkbox" class="new-cat-q-cb mt-0.5 rounded" value="${escapeHtml(String(q.id))}">
+                        <span class="min-w-0 flex-1 font-bold text-slate-800 dark:text-slate-200 break-words">ข้อ ${qNum}${tagNote}</span>
                     </label>
                 `;
             }).join('');
@@ -1371,9 +1407,13 @@
                             <textarea id="newCategoryNameInput" rows="2" class="w-full px-3 py-2 border rounded-xl dark:bg-slate-800 font-bold text-xs leading-relaxed" placeholder="พิมพ์ชื่อหมวดหมู่หรือตัวชี้วัดที่ต้องการ..."></textarea>
                         </div>
                         ${cachedQuestions.length > 0 ? `
-                        <div>
-                            <label class="block font-bold mb-1">เลือกข้อสอบเข้าหมวดหมู่นี้ (เลือกได้หลายข้อ หรือข้ามไว้เลือกทีหลังได้)</label>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto p-1">
+                        <div class="space-y-1.5">
+                            <label class="block font-bold">เพิ่มข้อสอบในหมวดหมู่นี้ (Dropdown Checkbox)</label>
+                            <button type="button" onclick="toggleCreateCatCheckboxDropdown()" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold flex items-center justify-between text-slate-800 dark:text-slate-200">
+                                <span><i class="fas fa-list-check text-cyan-600 dark:text-cyan-400 mr-1.5"></i> เลือกข้อสอบที่ต้องการเข้าหมวดหมู่ (${cachedQuestions.length} ข้อ)</span>
+                                <i id="createCatCheckboxIcon" class="fas fa-chevron-down text-slate-400"></i>
+                            </button>
+                            <div id="createCatCheckboxBox" class="hidden rounded-xl border border-cyan-500/30 bg-white dark:bg-slate-950 p-2 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
                                 ${questionCheckboxesHtml}
                             </div>
                         </div>
@@ -1467,16 +1507,18 @@
             if (wasPopupOpen) openCategoryManagerModal();
         };
 
-        window.assignSelectedQuestionToCategory = async function(catIdx, categoryName) {
-            const sel = document.getElementById(`catAssignSelect_${catIdx}`);
-            if (!sel || !sel.value) {
-                Swal.fire({ icon: 'info', title: 'กรุณาเลือกข้อสอบจากรายการก่อน', timer: 1200, showConfirmButton: false });
+        window.assignCheckedQuestionsToCategory = async function(catIdx, categoryName) {
+            const checkedBoxes = Array.from(document.querySelectorAll(`.cat-assign-cb_${catIdx}:checked`));
+            const qIds = checkedBoxes.map(cb => cb.value);
+            if (qIds.length === 0) {
+                Swal.fire({ icon: 'info', title: 'กรุณาติ๊กเลือกข้อสอบอย่างน้อย 1 ข้อ', timer: 1200, showConfirmButton: false });
                 return;
             }
-            const qId = sel.value;
-            await persistCategoryForQuestions([qId], categoryName);
-            const targetQ = cachedQuestions.find(q => String(q.id) === String(qId));
-            await logAdminAction('จัดหมวดหมู่โจทย์', `ย้ายข้อ ${targetQ?.question_number || qId} เข้าหมวดหมู่ "${categoryName}"`);
+            await persistCategoryForQuestions(qIds, categoryName);
+            const qNumsText = qIds
+                .map(id => cachedQuestions.find(q => String(q.id) === String(id))?.question_number || id)
+                .join(', ');
+            await logAdminAction('จัดหมวดหมู่โจทย์', `เพิ่มข้อ ${qNumsText} เข้าหมวดหมู่ "${categoryName}"`);
             refreshCategoryRelatedViews(true);
             markAsModified();
         };
@@ -2149,7 +2191,7 @@
 
                             <div id="keywordSec" class="${qData?.grading_type === 'keyword' ? '' : 'hidden'} space-y-2">
                                 <div class="flex justify-between items-center">
-                                    <label class="font-bold text-amber-500"><i class="fas fa-key mr-1"></i> คำสำคัญสำหรับตรวจอัตโนมัติ</label>
+                                    <label class="font-bold text-amber-500"><i class="fas fa-key mr-1"></i> คำสำคัญสำหรับตรวจอัตนัย</label>
                                     <button type="button" onclick="addKeywordField()" class="px-2 py-1 bg-amber-500 text-white rounded-lg text-[10px] font-bold"><i class="fas fa-plus"></i> เพิ่มคำตอบ</button>
                                 </div>
                                 <div id="keywordsContainer" class="space-y-2">
