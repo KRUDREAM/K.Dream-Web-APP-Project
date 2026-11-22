@@ -1,262 +1,253 @@
 <!DOCTYPE html>
-<html lang="th" class="dark">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CYBER-LMS // ผลการสอบและสถิติ</title>
-    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>ผลการสอบและสถิติ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Prompt', 'sans-serif'],
-                        cyber: ['Chakra Petch', 'Prompt', 'sans-serif']
+                        sans: ['Kanit', 'sans-serif']
+                    },
+                    colors: {
+                        navy950: '#051129',
+                        navy900: '#0a1e44',
+                        navy800: '#102d63',
+                        navy700: '#193f85'
                     }
                 }
             }
         }
     </script>
     <style>
-        :root {
-            --neon-cyan: #00f0ff;
-            --neon-pink: #ff0055;
-            --neon-purple: #b829ff;
-            --neon-green: #00ff9d;
-            --neon-amber: #ffb800;
-            --cyber-bg: #050711;
-            --cyber-panel: rgba(11, 16, 34, 0.88);
-        }
-
         body {
-            font-family: 'Prompt', sans-serif;
-            background-color: var(--cyber-bg);
-            color: #e2e8f0;
+            font-family: 'Kanit', sans-serif;
+            background-color: #f1f5f9;
+            color: #0a1e44;
             user-select: none;
             -webkit-user-select: none;
-            background-image:
-                linear-gradient(rgba(0, 240, 255, 0.035) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 240, 255, 0.035) 1px, transparent 1px);
-            background-size: 28px 28px;
         }
 
-        .cyber-font { font-family: 'Chakra Petch', 'Prompt', sans-serif; }
-
-        .cyber-nav {
-            background: rgba(5, 7, 17, 0.88);
-            backdrop-filter: blur(16px);
-            border-bottom: 1px solid rgba(0, 240, 255, 0.25);
-            box-shadow: 0 4px 30px rgba(0, 240, 255, 0.08);
+        .navy-nav {
+            background: #071738;
+            border-bottom: 2px solid #193f85;
+            box-shadow: 0 4px 16px rgba(7, 23, 56, 0.16);
         }
 
-        .cyber-card {
-            background: var(--cyber-panel);
-            border: 1px solid rgba(0, 240, 255, 0.24);
-            box-shadow: 0 0 24px rgba(0, 0, 0, 0.55), inset 0 0 18px rgba(0, 240, 255, 0.03);
-            clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
-            position: relative;
+        .navy-card {
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            box-shadow: 0 6px 20px rgba(7, 23, 56, 0.06);
+            border-radius: 1.25rem;
         }
 
-        .cyber-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; height: 2px;
-            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink));
-            opacity: 0.75;
-        }
-
-        .cyber-btn-cyan {
-            background: linear-gradient(135deg, rgba(0, 240, 255, 0.16), rgba(0, 153, 255, 0.22));
-            border: 1px solid var(--neon-cyan);
-            color: var(--neon-cyan);
-            box-shadow: 0 0 14px rgba(0, 240, 255, 0.22);
-            transition: all 0.2s ease;
-        }
-        .cyber-btn-cyan:hover {
-            background: var(--neon-cyan);
-            color: #050711;
-            box-shadow: 0 0 22px rgba(0, 240, 255, 0.65);
-        }
-
-        .cyber-btn-pink {
-            background: linear-gradient(135deg, rgba(255, 0, 85, 0.18), rgba(184, 41, 255, 0.22));
-            border: 1px solid var(--neon-pink);
-            color: #ff5c93;
-            box-shadow: 0 0 14px rgba(255, 0, 85, 0.24);
-            transition: all 0.2s ease;
-        }
-        .cyber-btn-pink:hover {
-            background: var(--neon-pink);
+        .navy-hero {
+            background: linear-gradient(135deg, #071738 0%, #0f295c 65%, #163a7d 100%);
             color: #ffffff;
-            box-shadow: 0 0 24px rgba(255, 0, 85, 0.68);
-        }
-
-        .cyber-btn-green {
-            background: linear-gradient(135deg, rgba(0, 255, 157, 0.16), rgba(0, 240, 255, 0.16));
-            border: 1px solid var(--neon-green);
-            color: var(--neon-green);
-            box-shadow: 0 0 14px rgba(0, 255, 157, 0.2);
-            transition: all 0.2s ease;
-        }
-        .cyber-btn-green:hover {
-            background: var(--neon-green);
-            color: #050711;
-            box-shadow: 0 0 22px rgba(0, 255, 157, 0.6);
+            border: 1.5px solid #1e468f;
+            box-shadow: 0 10px 26px rgba(7, 23, 56, 0.18);
+            border-radius: 1.25rem;
         }
 
         .result-bubble {
-            width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 11px; border: 1.5px solid rgba(148, 163, 184, 0.35);
-            background-color: rgba(15, 23, 42, 0.9); color: #94a3b8; flex-shrink: 0;
-        }
-        .result-bubble.student-choice {
-            border-color: var(--neon-cyan) !important;
-            color: var(--neon-cyan) !important;
-            background-color: rgba(0, 240, 255, 0.14) !important;
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
-        }
-        .result-bubble.correct-choice {
-            background-color: rgba(0, 255, 157, 0.2) !important;
-            color: var(--neon-green) !important;
-            border-color: var(--neon-green) !important;
-            box-shadow: 0 0 10px rgba(0, 255, 157, 0.35);
-        }
-        .result-bubble.wrong-choice {
-            background-color: rgba(255, 0, 85, 0.22) !important;
-            color: #ff6b9d !important;
-            border-color: var(--neon-pink) !important;
-            box-shadow: 0 0 10px rgba(255, 0, 85, 0.35);
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            border: 2px solid #94a3b8;
+            background-color: #ffffff;
+            color: #0a1e44;
+            flex-shrink: 0;
         }
 
-        .hide-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
-        .hide-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.35); border-radius: 9999px; }
+        .result-bubble.student-choice {
+            border-color: #0a1e44 !important;
+            color: #0a1e44 !important;
+            background-color: #dbeafe !important;
+        }
+
+        .result-bubble.correct-choice {
+            background-color: #059669 !important;
+            color: #ffffff !important;
+            border-color: #059669 !important;
+        }
+
+        .result-bubble.wrong-choice {
+            background-color: #dc2626 !important;
+            color: #ffffff !important;
+            border-color: #dc2626 !important;
+        }
+
+        .hide-scrollbar::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        .hide-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(10, 30, 68, 0.3);
+            border-radius: 9999px;
+        }
+
+        .rich-content p {
+            margin-bottom: 0.35rem;
+        }
+
+        .rich-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .rich-content img {
+            max-width: 100%;
+            max-height: 260px;
+            width: auto;
+            height: auto;
+            border-radius: 0.75rem;
+            border: 1px solid #cbd5e1;
+            margin: 0.45rem 0;
+            display: inline-block;
+            background: #ffffff;
+        }
+
+        .rich-content .katex-display {
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 0.25rem 0;
+            margin: 0.35rem 0;
+        }
+
+        .rich-content .katex {
+            font-size: 1.03em;
+        }
     </style>
 </head>
 <body class="min-h-screen pb-24">
 
-    <!-- Cyberpunk Navbar -->
-    <nav class="cyber-nav fixed w-full top-0 z-40">
+    <!-- Navbar -->
+    <nav class="navy-nav fixed w-full top-0 z-40 text-white">
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center gap-3">
             <div class="flex items-center gap-3 min-w-0">
-                <button onclick="window.location.href = 'student.html'" class="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-900/90 border border-cyan-400/40 text-cyan-300 hover:bg-cyan-400 hover:text-slate-950 transition-all cursor-pointer shrink-0" title="กลับหน้าหลัก">
+                <button onclick="window.location.href = 'student.html'" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white hover:text-navy950 text-white border border-white/20 transition-all cursor-pointer shrink-0" title="กลับหน้าหลัก">
                     <i class="fas fa-arrow-left text-xs"></i>
                 </button>
-                <div class="min-w-0">
-                    <div class="text-[10px] cyber-font tracking-widest uppercase text-pink-400">SYS.RESULT // TELEMETRY</div>
-                    <h1 class="font-bold text-sm sm:text-base text-white truncate" id="navTitle">ผลการสอบ & สถิติ</h1>
-                </div>
+                <h1 class="font-bold text-sm sm:text-base text-white truncate" id="navTitle">ผลการสอบ & สถิติ</h1>
             </div>
-
-            <div class="flex items-center gap-2 shrink-0">
-                <span class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-500/10 border border-cyan-400/30 text-[11px] cyber-font text-cyan-300">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> ONLINE
-                </span>
-            </div>
+            <span class="px-3 py-1 rounded-lg bg-white/10 border border-white/20 text-xs font-semibold text-blue-100 shrink-0">
+                ระบบผลการสอบ
+            </span>
         </div>
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 pt-24 space-y-6">
 
         <!-- Header Summary Banner -->
-        <div class="cyber-card p-6 sm:p-7 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+        <div class="navy-hero p-6 sm:p-7 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
             <div class="space-y-3 w-full">
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                    <span class="px-3 py-1 bg-emerald-500/15 text-emerald-300 font-bold text-xs rounded cyber-font tracking-wider inline-flex items-center gap-1.5 border border-emerald-400/40">
-                        <i class="fas fa-microchip"></i> GRADED // ตรวจผลคะแนนเรียบร้อย
+                    <span class="px-3.5 py-1 bg-white/15 text-white font-semibold text-xs rounded-full inline-flex items-center gap-1.5 border border-white/25">
+                        <i class="fas fa-circle-check text-emerald-300"></i> ตรวจผลคะแนนเรียบร้อย
                     </span>
 
-                    <!-- ปุ่มดาวน์โหลดข้อสอบ (.pdf) และปุ่มดาวน์โหลดเฉลย (.pdf) -->
+                    <!-- ปุ่มดาวน์โหลดไฟล์ข้อสอบ (.pdf) และปุ่มดาวน์โหลดไฟล์เฉลย (.pdf) -->
                     <div class="flex flex-wrap items-center gap-2.5">
-                        <button id="downloadExamPdfBtn" type="button" onclick="downloadExamPdf()" class="hidden px-4 py-2 rounded-lg text-xs sm:text-sm font-bold cyber-btn-cyan flex items-center gap-2 cursor-pointer">
-                            <i class="fas fa-file-pdf"></i> <span>ดาวน์โหลดข้อสอบ (.pdf)</span>
+                        <button id="downloadExamPdfBtn" type="button" onclick="downloadExamPdf()" class="hidden px-4 py-2 bg-white hover:bg-blue-50 text-navy950 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 shadow cursor-pointer">
+                            <i class="fas fa-file-pdf text-red-600"></i> <span>ดาวน์โหลดข้อสอบ (.pdf)</span>
                         </button>
-                        <button id="downloadAnswerKeyPdfBtn" type="button" onclick="downloadAnswerKeyPdf()" class="hidden px-4 py-2 rounded-lg text-xs sm:text-sm font-bold cyber-btn-pink flex items-center gap-2 cursor-pointer">
-                            <i class="fas fa-key"></i> <span>ดาวน์โหลดเฉลย (.pdf)</span>
+                        <button id="downloadAnswerKeyPdfBtn" type="button" onclick="downloadAnswerKeyPdf()" class="hidden px-4 py-2 bg-blue-950/90 hover:bg-blue-900 text-white border border-white/35 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 shadow cursor-pointer">
+                            <i class="fas fa-file-pdf text-sky-300"></i> <span>ดาวน์โหลดเฉลย (.pdf)</span>
                         </button>
                     </div>
                 </div>
 
-                <h2 class="text-xl sm:text-3xl font-extrabold text-white tracking-wide" id="examTitle">กำลังโหลดชุดข้อสอบ...</h2>
+                <h2 class="text-xl sm:text-3xl font-extrabold text-white pt-1 rich-content" id="examTitle">กำลังโหลดชุดข้อสอบ...</h2>
 
-                <div class="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-300 pt-1">
-                    <span id="subTime"><i class="fas fa-clock mr-1 text-cyan-400"></i> เวลาส่ง: --</span>
-                    <span id="timeSpentSpan"><i class="fas fa-hourglass-half mr-1 text-amber-400"></i> เวลาที่ใช้: --</span>
-                    <span id="studentName" class="text-cyan-300 font-bold"><i class="fas fa-user-astronaut mr-1"></i> ผู้สอบ: กำลังโหลด...</span>
+                <div class="flex flex-wrap items-center gap-4 text-xs sm:text-sm font-normal text-blue-100 pt-1">
+                    <span id="subTime"><i class="fas fa-clock mr-1 text-sky-300"></i> เวลาส่ง: --</span>
+                    <span id="timeSpentSpan"><i class="fas fa-hourglass-half mr-1 text-amber-300"></i> เวลาที่ใช้: --</span>
+                    <span id="studentName" class="text-white font-semibold"><i class="fas fa-user-graduate mr-1 text-sky-300"></i> ผู้สอบ: กำลังโหลด...</span>
                 </div>
             </div>
 
-            <div class="flex items-center gap-4 bg-slate-950/90 p-4 rounded-xl border border-cyan-400/35 shrink-0 w-full lg:w-auto justify-around shadow-inner">
-                <div class="text-center px-4 border-r border-cyan-500/20">
-                    <span class="text-[10px] cyber-font tracking-widest text-cyan-300 block font-bold uppercase">SCORE // คะแนนที่ได้</span>
-                    <span class="text-3xl sm:text-4xl font-extrabold cyber-font text-emerald-400" id="scoreVal">--</span>
+            <div class="flex items-center gap-4 bg-white text-navy950 p-4 rounded-2xl shrink-0 w-full lg:w-auto justify-around shadow-lg">
+                <div class="text-center px-4 border-r border-slate-200">
+                    <span class="text-[11px] text-slate-500 block font-bold uppercase">คะแนนที่ได้</span>
+                    <span class="text-3xl sm:text-4xl font-extrabold text-navy900" id="scoreVal">--</span>
                 </div>
                 <div class="text-center px-4">
-                    <span class="text-[10px] cyber-font tracking-widest text-slate-400 block font-bold uppercase">MAX // คะแนนเต็ม</span>
-                    <span class="text-3xl sm:text-4xl font-extrabold cyber-font text-white" id="totalVal">--</span>
+                    <span class="text-[11px] text-slate-500 block font-bold uppercase">คะแนนเต็ม</span>
+                    <span class="text-3xl sm:text-4xl font-extrabold text-slate-700" id="totalVal">--</span>
                 </div>
             </div>
         </div>
 
         <!-- Stats Overview Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="cyber-card p-4 flex items-center gap-3.5">
-                <div class="w-11 h-11 rounded-lg bg-amber-500/15 border border-amber-400/40 text-amber-300 flex items-center justify-center font-bold text-lg shrink-0">
+            <div class="navy-card p-4 flex items-center gap-3.5 border-l-4 border-l-navy900">
+                <div class="w-11 h-11 rounded-xl bg-navy900 text-white flex items-center justify-center font-bold text-base shrink-0">
                     <i class="fas fa-trophy"></i>
                 </div>
                 <div>
-                    <span class="text-[10px] cyber-font tracking-wider text-slate-400 block font-bold uppercase">อันดับในห้อง</span>
-                    <span class="text-base sm:text-lg font-extrabold cyber-font text-white" id="rankStat">#-- / --</span>
+                    <span class="text-[11px] text-slate-500 block font-semibold">อันดับในห้อง</span>
+                    <span class="text-base sm:text-lg font-extrabold text-navy900" id="rankStat">#-- / --</span>
                 </div>
             </div>
-            <div class="cyber-card p-4 flex items-center gap-3.5">
-                <div class="w-11 h-11 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 flex items-center justify-center font-bold text-lg shrink-0">
-                    <i class="fas fa-wave-square"></i>
+            <div class="navy-card p-4 flex items-center gap-3.5 border-l-4 border-l-navy800">
+                <div class="w-11 h-11 rounded-xl bg-blue-100 text-navy900 flex items-center justify-center font-bold text-base shrink-0">
+                    <i class="fas fa-chart-simple"></i>
                 </div>
                 <div>
-                    <span class="text-[10px] cyber-font tracking-wider text-slate-400 block font-bold uppercase">คะแนนเฉลี่ย</span>
-                    <span class="text-base sm:text-lg font-extrabold cyber-font text-white" id="avgStat">--</span>
+                    <span class="text-[11px] text-slate-500 block font-semibold">คะแนนเฉลี่ย</span>
+                    <span class="text-base sm:text-lg font-extrabold text-navy900" id="avgStat">--</span>
                 </div>
             </div>
-            <div class="cyber-card p-4 flex items-center gap-3.5">
-                <div class="w-11 h-11 rounded-lg bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 flex items-center justify-center font-bold text-lg shrink-0">
-                    <i class="fas fa-bolt"></i>
+            <div class="navy-card p-4 flex items-center gap-3.5 border-l-4 border-l-navy700">
+                <div class="w-11 h-11 rounded-xl bg-blue-100 text-navy900 flex items-center justify-center font-bold text-base shrink-0">
+                    <i class="fas fa-medal"></i>
                 </div>
                 <div>
-                    <span class="text-[10px] cyber-font tracking-wider text-slate-400 block font-bold uppercase">คะแนนสูงสุด</span>
-                    <span class="text-base sm:text-lg font-extrabold cyber-font text-white" id="maxStat">--</span>
+                    <span class="text-[11px] text-slate-500 block font-semibold">คะแนนสูงสุด</span>
+                    <span class="text-base sm:text-lg font-extrabold text-navy900" id="maxStat">--</span>
                 </div>
             </div>
-            <div class="cyber-card p-4 flex items-center gap-3.5">
-                <div class="w-11 h-11 rounded-lg bg-purple-500/15 border border-purple-400/40 text-purple-300 flex items-center justify-center font-bold text-lg shrink-0">
-                    <i class="fas fa-rocket"></i>
+            <div class="navy-card p-4 flex items-center gap-3.5 border-l-4 border-l-sky-700">
+                <div class="w-11 h-11 rounded-xl bg-navy900 text-white flex items-center justify-center font-bold text-base shrink-0">
+                    <i class="fas fa-percent"></i>
                 </div>
                 <div>
-                    <span class="text-[10px] cyber-font tracking-wider text-fuchsia-300 block font-bold uppercase">เปอร์เซ็นต์ไทล์</span>
-                    <span class="text-base sm:text-lg font-extrabold cyber-font text-fuchsia-300" id="percentileStat">--</span>
+                    <span class="text-[11px] text-slate-500 block font-semibold">เปอร์เซ็นต์ไทล์</span>
+                    <span class="text-base sm:text-lg font-extrabold text-navy900" id="percentileStat">--</span>
                 </div>
             </div>
         </div>
 
         <!-- Category Percentage Breakdown Table -->
-        <div id="categoryBreakdownCard" class="cyber-card p-6 space-y-4 hidden">
-            <div class="flex justify-between items-center pb-3 border-b border-cyan-500/20">
-                <h3 class="font-bold text-sm text-cyan-300 flex items-center gap-2 cyber-font tracking-wide" id="categoryTableTitle">
-                    <i class="fas fa-table-cells"></i> สรุปผลคะแนนรายหมวดหมู่ (%)
+        <div id="categoryBreakdownCard" class="navy-card p-6 space-y-4 hidden">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-200">
+                <h3 class="font-bold text-sm sm:text-base text-navy900 flex items-center gap-2" id="categoryTableTitle">
+                    <i class="fas fa-table-cells text-navy800"></i> สรุปผลคะแนนรายหมวดหมู่ (%)
                 </h3>
             </div>
             <div class="overflow-x-auto hide-scrollbar">
                 <table class="w-full text-left border-collapse text-xs sm:text-sm">
                     <thead>
-                        <tr class="bg-slate-900/90 text-cyan-200 cyber-font uppercase tracking-wider text-[11px] border-b border-cyan-500/25" id="categoryTableHeader">
-                            <th class="p-3">หมวดหมู่ข้อสอบ</th>
-                            <th class="p-3 text-center">ทำได้ / ทั้งหมด</th>
-                            <th class="p-3 text-center">% คะแนน</th>
+                        <tr class="bg-navy900 text-white text-xs" id="categoryTableHeader">
+                            <th class="p-3 rounded-l-xl">หมวดหมู่ข้อสอบ</th>
+                            <th class="p-3 text-center">คะแนนที่ได้ / เต็ม</th>
+                            <th class="p-3 text-center rounded-r-xl">% คะแนน</th>
                         </tr>
                     </thead>
-                    <tbody id="categoryTableBody" class="divide-y divide-slate-800/80">
+                    <tbody id="categoryTableBody" class="divide-y divide-slate-200">
                         <tr><td colspan="4" class="text-center py-6 text-slate-400 text-xs">กำลังประมวลผลหมวดหมู่...</td></tr>
                     </tbody>
                 </table>
@@ -264,42 +255,42 @@
         </div>
 
         <!-- Score Distribution Chart Section -->
-        <div class="cyber-card p-6 space-y-3">
+        <div class="navy-card p-6 space-y-3">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div>
-                    <h3 class="font-bold text-sm text-white flex items-center gap-2">
-                        <i class="fas fa-chart-bar text-cyan-400"></i> แผนภูมิการกระจายตัวของคะแนน (% ช่วงละ 10%) พร้อมเส้นค่าเฉลี่ย
+                    <h3 class="font-bold text-sm sm:text-base text-navy900 flex items-center gap-2">
+                        <i class="fas fa-chart-bar text-navy800"></i> แผนภูมิการกระจายตัวของคะแนน (% ช่วงละ 10%) พร้อมเส้นค่าเฉลี่ย
                     </h3>
-                    <p class="text-[11px] text-slate-400 mt-0.5">เปรียบเทียบสัดส่วนคะแนนของนักเรียนเทียบกับค่าเฉลี่ยในชั้นเรียน</p>
+                    <p class="text-xs text-slate-500 mt-0.5">เปรียบเทียบสัดส่วนคะแนนของนักเรียนเทียบกับค่าเฉลี่ยในชั้นเรียน</p>
                 </div>
-                <div class="flex items-center gap-3 text-xs font-semibold text-slate-300">
-                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-cyan-400 inline-block"></span> คะแนนของคุณ</span>
-                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-500/60 inline-block"></span> เพื่อนในชั้นเรียน</span>
-                    <span class="flex items-center gap-1.5"><span class="w-4 h-1 bg-amber-400 inline-block rounded"></span> ค่าเฉลี่ย</span>
+                <div class="flex items-center gap-3 text-xs font-semibold text-navy900">
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-navy900 inline-block"></span> คะแนนของคุณ</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-300 inline-block"></span> เพื่อนในชั้นเรียน</span>
+                    <span class="flex items-center gap-1.5"><span class="w-4 h-1 bg-amber-500 inline-block rounded"></span> ค่าเฉลี่ย</span>
                 </div>
             </div>
             <div class="h-64 sm:h-72 w-full relative pt-2">
                 <canvas id="scoreChart"></canvas>
             </div>
-            <div id="chartLegendInfo" class="text-center text-xs text-slate-300 pt-1 font-medium"></div>
+            <div id="chartLegendInfo" class="text-center text-xs text-slate-600 pt-1 font-medium"></div>
         </div>
 
         <!-- Detailed Questions & Answers Section -->
-        <div class="cyber-card p-6 space-y-4">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-cyan-500/20">
-                <h3 class="font-bold text-sm text-white flex items-center gap-2 cyber-font tracking-wide">
-                    <i class="fas fa-list-check text-pink-400"></i> รายละเอียดคะแนนรายข้อ
+        <div class="navy-card p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200">
+                <h3 class="font-bold text-sm sm:text-base text-navy900 flex items-center gap-2">
+                    <i class="fas fa-list-check text-navy800"></i> รายละเอียดคะแนนรายข้อ
                 </h3>
 
-                <div class="flex items-center gap-1 bg-slate-950/90 p-1 rounded-lg border border-cyan-500/30 text-xs">
-                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded font-bold bg-cyan-400 text-slate-950 transition-all cursor-pointer">ทั้งหมด (<span id="cnt-all">0</span>)</button>
-                    <button onclick="setFilter('correct')" id="filter-correct" class="px-3 py-1 rounded font-bold text-slate-300 hover:text-white transition-all cursor-pointer">ถูก (<span id="cnt-correct">0</span>)</button>
-                    <button onclick="setFilter('wrong')" id="filter-wrong" class="px-3 py-1 rounded font-bold text-slate-300 hover:text-white transition-all cursor-pointer">ผิด (<span id="cnt-wrong">0</span>)</button>
+                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-300 text-xs">
+                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg font-bold bg-navy900 text-white transition-all cursor-pointer">ทั้งหมด (<span id="cnt-all">0</span>)</button>
+                    <button onclick="setFilter('correct')" id="filter-correct" class="px-3 py-1 rounded-lg font-bold text-navy900 hover:bg-white transition-all cursor-pointer">ถูก (<span id="cnt-correct">0</span>)</button>
+                    <button onclick="setFilter('wrong')" id="filter-wrong" class="px-3 py-1 rounded-lg font-bold text-navy900 hover:bg-white transition-all cursor-pointer">ผิด (<span id="cnt-wrong">0</span>)</button>
                 </div>
             </div>
 
             <div id="resultsContainer" class="space-y-3 max-h-[70vh] overflow-y-auto pr-1 hide-scrollbar">
-                <div class="text-center py-12 text-cyan-300 text-xs flex items-center justify-center gap-2">
+                <div class="text-center py-12 text-navy900 text-xs flex items-center justify-center gap-2">
                     <i class="fas fa-spinner fa-spin"></i> กำลังประมวลผลข้อมูลผลการสอบ...
                 </div>
             </div>
@@ -312,6 +303,7 @@
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
+        const EXAM_FILES_BUCKET = 'exam_files';
         const LOCAL_EXAM_FILES_KEY = 'lms_exam_files_fallback_v1';
 
         let supabaseClient = null;
@@ -343,11 +335,81 @@
         let enableGradingCriteria = false;
         let gradingCriteriaList = [];
 
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;')
+                .replace(/`/g, '&#96;');
+        }
+
+        function renderKatexToHtml(tex, displayMode) {
+            if (typeof katex === 'undefined' || typeof katex.renderToString !== 'function') {
+                return displayMode ? `<div>$$${escapeHtml(tex)}$$</div>` : `<span>$${escapeHtml(tex)}$</span>`;
+            }
+            try {
+                return katex.renderToString(String(tex).trim(), {
+                    displayMode: !!displayMode,
+                    throwOnError: false,
+                    strict: false
+                });
+            } catch (e) {
+                return displayMode ? `<div>$$${escapeHtml(tex)}$$</div>` : `<span>$${escapeHtml(tex)}$</span>`;
+            }
+        }
+
+        // แปลงข้อความให้รองรับ Markdown รูปภาพ (![alt](url)) และสมการคณิตศาสตร์ ($...$, $$...$$, \(...\), \[...\])
+        function renderRichText(rawText) {
+            const text = String(rawText || '');
+            if (!text.trim()) return '';
+
+            const mathTokens = [];
+            const pushMath = (expr, displayMode) => {
+                const idx = mathTokens.length;
+                mathTokens.push(renderKatexToHtml(expr, displayMode));
+                return `KATEXPLACEHOLDER${idx}ENDKATEX`;
+            };
+
+            let withMathPlaceholders = text
+                .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => pushMath(expr, true))
+                .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => pushMath(expr, true))
+                .replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => pushMath(expr, false))
+                .replace(/(?<!\\)\$(?!\$)([^$\n]+?)(?<!\\)\$(?!\$)/g, (_, expr) => pushMath(expr, false));
+
+            let html = '';
+            try {
+                if (typeof marked !== 'undefined') {
+                    if (typeof marked.parse === 'function') {
+                        marked.setOptions({ breaks: true, gfm: true });
+                        html = marked.parse(withMathPlaceholders);
+                    } else if (typeof marked === 'function') {
+                        html = marked(withMathPlaceholders);
+                    }
+                }
+            } catch (e) {
+                html = '';
+            }
+
+            if (!html) {
+                html = escapeHtml(withMathPlaceholders)
+                    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => `<img src="${escapeHtml(src.trim())}" alt="${escapeHtml(alt)}" />`)
+                    .replace(/\r?\n/g, '<br>');
+            }
+
+            return html.replace(/KATEXPLACEHOLDER(\d+)ENDKATEX/g, (_, idxStr) => {
+                const i = parseInt(idxStr, 10);
+                return mathTokens[i] !== undefined ? mathTokens[i] : '';
+            });
+        }
+
         function isTruthyFlag(val) {
             return val === true || val === 'true' || val === 1 || val === '1';
         }
 
-        function isPdfUrlOrName(url, fileName) {
+        function isPdfFile(url, fileName) {
             const u = String(url || '').trim().toLowerCase();
             const n = String(fileName || '').trim().toLowerCase();
             if (!u && !n) return false;
@@ -366,6 +428,23 @@
                 }
             } catch (_) {}
             return clean;
+        }
+
+        function resolveBucketStorageUrl(value, defaultSubfolder) {
+            const clean = normalizeFileUrl(value);
+            if (!clean) return '';
+            if (/^(https?:\/\/|data:)/i.test(clean)) return clean;
+
+            const normalizedPath = clean.replace(/^\/+/, '');
+            const storagePath = normalizedPath.startsWith(`${EXAM_FILES_BUCKET}/`)
+                ? normalizedPath.slice(EXAM_FILES_BUCKET.length + 1)
+                : (normalizedPath.includes('/') ? normalizedPath : `${defaultSubfolder}/${normalizedPath}`);
+
+            if (supabaseClient && supabaseClient.storage) {
+                const pub = supabaseClient.storage.from(EXAM_FILES_BUCKET).getPublicUrl(storagePath);
+                if (pub && pub.data && pub.data.publicUrl) return pub.data.publicUrl;
+            }
+            return `${SUPABASE_URL}/storage/v1/object/public/${EXAM_FILES_BUCKET}/${encodeURI(storagePath)}`;
         }
 
         function readLocalExamFilesMetaForExam(targetExamId) {
@@ -399,15 +478,20 @@
                 isTruthyFlag(localMeta.allow_file_download)
             );
 
+            if (!isDownloadEnabled) {
+                return { canDownload: false, url: '', fileName: '' };
+            }
+
             const candidates = [
-                { url: normalizeFileUrl(examObj.exam_file_url), name: examObj.exam_file_name },
-                { url: normalizeFileUrl(examObj.question_file_url), name: examObj.question_file_name },
-                { url: normalizeFileUrl(examObj.pdf_url), name: examObj.pdf_file_name || examObj.file_name },
-                { url: normalizeFileUrl(localMeta.exam_file_url), name: localMeta.exam_file_name }
+                { url: resolveBucketStorageUrl(examObj.question_sheet_path || examObj.question_sheet_url, 'question_sheets'), name: examObj.question_sheet_name || examObj.exam_file_name },
+                { url: resolveBucketStorageUrl(examObj.exam_file_url, 'question_sheets'), name: examObj.exam_file_name },
+                { url: resolveBucketStorageUrl(examObj.question_file_url, 'question_sheets'), name: examObj.question_file_name },
+                { url: resolveBucketStorageUrl(examObj.pdf_url, 'question_sheets'), name: examObj.pdf_file_name || examObj.file_name },
+                { url: resolveBucketStorageUrl(localMeta.question_sheet_url || localMeta.exam_file_url, 'question_sheets'), name: localMeta.question_sheet_name || localMeta.exam_file_name }
             ];
 
-            const matched = candidates.find(c => c.url && isPdfUrlOrName(c.url, c.name));
-            if (!matched || !isDownloadEnabled) {
+            const matched = candidates.find(c => c.url && isPdfFile(c.url, c.name));
+            if (!matched) {
                 return { canDownload: false, url: '', fileName: '' };
             }
 
@@ -415,7 +499,7 @@
             return {
                 canDownload: true,
                 url: matched.url,
-                fileName: ensurePdfFileName(matched.name, `${baseLabel}-exam`)
+                fileName: ensurePdfFileName(matched.name, `${baseLabel}-question-sheet`)
             };
         }
 
@@ -449,24 +533,24 @@
         }
 
         function getAnswerKeyPdfInfo(examObj) {
-            if (!examObj) return { canDownload: false, url: '', fileName: '' };
-            if (!isAnswerKeyUnlocked(examObj)) {
+            if (!examObj || !isAnswerKeyUnlocked(examObj)) {
                 return { canDownload: false, url: '', fileName: '' };
             }
 
             const localMeta = readLocalExamFilesMetaForExam(examObj.id || examObj.exam_id || '');
             const candidates = [
-                { url: normalizeFileUrl(examObj.answer_key_pdf_url), name: examObj.answer_key_pdf_name },
-                { url: normalizeFileUrl(examObj.solution_pdf_url), name: examObj.solution_pdf_name },
-                { url: normalizeFileUrl(examObj.answer_pdf_url), name: examObj.answer_pdf_name },
-                { url: normalizeFileUrl(examObj.key_file_url), name: examObj.key_file_name },
+                { url: resolveBucketStorageUrl(examObj.answer_key_path || examObj.answer_key_url, 'answer_keys'), name: examObj.answer_key_name || examObj.answer_key_pdf_name },
+                { url: resolveBucketStorageUrl(examObj.answer_key_pdf_url, 'answer_keys'), name: examObj.answer_key_pdf_name },
+                { url: resolveBucketStorageUrl(examObj.solution_pdf_url || examObj.solution_url, 'answer_keys'), name: examObj.solution_pdf_name || examObj.solution_name },
+                { url: resolveBucketStorageUrl(examObj.answer_pdf_url, 'answer_keys'), name: examObj.answer_pdf_name },
+                { url: resolveBucketStorageUrl(examObj.key_file_url, 'answer_keys'), name: examObj.key_file_name },
                 {
-                    url: normalizeFileUrl(localMeta.answer_key_pdf_url || localMeta.solution_pdf_url),
-                    name: localMeta.answer_key_pdf_name || localMeta.solution_pdf_name
+                    url: resolveBucketStorageUrl(localMeta.answer_key_url || localMeta.answer_key_pdf_url || localMeta.solution_pdf_url, 'answer_keys'),
+                    name: localMeta.answer_key_name || localMeta.answer_key_pdf_name || localMeta.solution_pdf_name
                 }
             ];
 
-            const matched = candidates.find(c => c.url && isPdfUrlOrName(c.url, c.name));
+            const matched = candidates.find(c => c.url && isPdfFile(c.url, c.name));
             if (!matched) {
                 return { canDownload: false, url: '', fileName: '' };
             }
@@ -538,7 +622,7 @@
             if (examBtn) {
                 if (examPdf.canDownload) {
                     examBtn.classList.remove('hidden');
-                    examBtn.innerHTML = `<i class="fas fa-file-pdf"></i> <span>ดาวน์โหลดข้อสอบ (.pdf)</span>`;
+                    examBtn.innerHTML = `<i class="fas fa-file-pdf text-red-600"></i> <span>ดาวน์โหลดข้อสอบ (.pdf)</span>`;
                 } else {
                     examBtn.classList.add('hidden');
                 }
@@ -548,7 +632,7 @@
             if (keyBtn) {
                 if (keyPdf.canDownload) {
                     keyBtn.classList.remove('hidden');
-                    keyBtn.innerHTML = `<i class="fas fa-key"></i> <span>ดาวน์โหลดเฉลย (.pdf)</span>`;
+                    keyBtn.innerHTML = `<i class="fas fa-file-pdf text-sky-300"></i> <span>ดาวน์โหลดเฉลย (.pdf)</span>`;
                 } else {
                     keyBtn.classList.add('hidden');
                 }
@@ -620,15 +704,15 @@
                 ctx.moveTo(xCoord, chartArea.top);
                 ctx.lineTo(xCoord, chartArea.bottom);
                 ctx.lineWidth = 2;
-                ctx.strokeStyle = opt.color || '#ffb800';
+                ctx.strokeStyle = opt.color || '#f59e0b';
                 ctx.setLineDash([5, 5]);
                 ctx.stroke();
                 ctx.restore();
 
                 if (opt.label) {
                     ctx.save();
-                    ctx.font = 'bold 11px Chakra Petch, Prompt, sans-serif';
-                    ctx.fillStyle = opt.color || '#ffb800';
+                    ctx.font = 'bold 11px Kanit, sans-serif';
+                    ctx.fillStyle = opt.color || '#f59e0b';
 
                     let align = 'center';
                     let renderX = xCoord;
@@ -645,17 +729,6 @@
                 }
             }
         };
-
-        function escapeHtml(text) {
-            if (text === null || text === undefined) return '';
-            return String(text)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;')
-                .replace(/`/g, '&#96;');
-        }
 
         function parseChoiceIndex(val) {
             if (val === null || val === undefined || val === '') return null;
@@ -807,7 +880,7 @@
 
                 if (!attempt) {
                     document.getElementById('examTitle').textContent = 'ไม่พบข้อมูลการสอบ';
-                    document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-amber-400 text-xs">ไม่พบผลการสอบ กรุณาตรวจสอบลิงก์ใหม่อีกครั้ง</div>';
+                    document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-amber-600 text-xs">ไม่พบผลการสอบ กรุณาตรวจสอบลิงก์ใหม่อีกครั้ง</div>';
                     syncPdfDownloadButtons();
                     return;
                 }
@@ -850,13 +923,13 @@
                 globalQuestions = questions;
 
                 cachedExamTitle = exam ? exam.title : 'ชุดข้อสอบออนไลน์';
-                document.getElementById('examTitle').textContent = cachedExamTitle;
+                document.getElementById('examTitle').innerHTML = renderRichText(cachedExamTitle);
                 document.getElementById('navTitle').textContent = cachedExamTitle;
-                document.getElementById('subTime').innerHTML = '<i class="fas fa-clock mr-1 text-cyan-400"></i> เวลาส่ง: ' + new Date(attempt.submission_time || attempt.submitted_at || Date.now()).toLocaleString('th-TH');
+                document.getElementById('subTime').innerHTML = '<i class="fas fa-clock mr-1 text-sky-300"></i> เวลาส่ง: ' + new Date(attempt.submission_time || attempt.submitted_at || Date.now()).toLocaleString('th-TH');
 
                 const timeSpentMin = calculateTimeSpentMinutes(attempt, exam);
                 const timeSpentText = timeSpentMin > 0 ? `${timeSpentMin.toFixed(1)} นาที` : 'ไม่ระบุ';
-                document.getElementById('timeSpentSpan').innerHTML = `<i class="fas fa-hourglass-half mr-1 text-amber-400"></i> เวลาที่ใช้: ${timeSpentText}`;
+                document.getElementById('timeSpentSpan').innerHTML = `<i class="fas fa-hourglass-half mr-1 text-amber-300"></i> เวลาที่ใช้: ${timeSpentText}`;
 
                 const studentIdRef = attempt.student_id || attempt.user_id;
                 let studentName = 'นักเรียน';
@@ -868,7 +941,7 @@
                     }
                 }
                 cachedStudentName = studentName;
-                document.getElementById('studentName').innerHTML = '<i class="fas fa-user-astronaut mr-1"></i> ผู้สอบ: ' + escapeHtml(studentName);
+                document.getElementById('studentName').innerHTML = '<i class="fas fa-user-graduate mr-1 text-sky-300"></i> ผู้สอบ: ' + escapeHtml(studentName);
 
                 let rawAns = attempt.answer_saved || {};
                 if (typeof rawAns === 'string') {
@@ -909,7 +982,7 @@
                 updateCountsAndRender();
             } catch (err) {
                 console.error('App Init Error:', err);
-                document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-rose-400 text-xs">เกิดข้อผิดพลาดในการโหลดระบบ: ' + escapeHtml(err.message) + '</div>';
+                document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-red-600 text-xs">เกิดข้อผิดพลาดในการโหลดระบบ: ' + escapeHtml(err.message) + '</div>';
             }
         }
 
@@ -948,45 +1021,45 @@
             const hasActiveCriteria = enableGradingCriteria && gradingCriteriaList.length > 0;
 
             if (titleEl) {
-                titleEl.innerHTML = `<i class="fas fa-table-cells"></i> ${hasActiveCriteria ? 'สรุปผลคะแนนรายหมวดหมู่ (%) และระดับการประเมิน' : 'สรุปผลคะแนนรายหมวดหมู่ (%)'}`;
+                titleEl.innerHTML = `<i class="fas fa-table-cells text-navy800"></i> ${hasActiveCriteria ? 'สรุปผลคะแนนรายหมวดหมู่ (%) และระดับการประเมิน' : 'สรุปผลคะแนนรายหมวดหมู่ (%)'}`;
             }
 
             if (hasActiveCriteria) {
                 if (theadTr) {
                     theadTr.innerHTML = `
-                        <th class="p-3">หมวดหมู่ข้อสอบ</th>
+                        <th class="p-3 rounded-l-xl">หมวดหมู่ข้อสอบ</th>
                         <th class="p-3 text-center">คะแนนที่ได้ / เต็ม</th>
                         <th class="p-3 text-center">% คะแนน</th>
-                        <th class="p-3 text-center">ระดับผลการประเมิน</th>
+                        <th class="p-3 text-center rounded-r-xl">ระดับผลการประเมิน</th>
                     `;
                 }
                 tbody.innerHTML = entries.map(([tag, stat]) => {
                     const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
                     const levelName = findCriteriaNameForCategoryAndPct(tag, pct);
                     return `
-                        <tr class="hover:bg-cyan-500/5 transition-all">
-                            <td class="p-3 font-bold text-white">🏷️ ${escapeHtml(tag)}</td>
-                            <td class="p-3 text-center text-slate-300 cyber-font">${stat.correct} / ${stat.total}</td>
-                            <td class="p-3 text-center font-extrabold text-cyan-300 cyber-font">${pct}%</td>
-                            <td class="p-3 text-center font-bold text-fuchsia-300">${escapeHtml(levelName)}</td>
+                        <tr class="hover:bg-blue-50/60 transition-all">
+                            <td class="p-3 font-bold text-navy900 rich-content">${renderRichText(tag)}</td>
+                            <td class="p-3 text-center text-slate-700 font-semibold">${stat.correct} / ${stat.total}</td>
+                            <td class="p-3 text-center font-extrabold text-navy900">${pct}%</td>
+                            <td class="p-3 text-center font-bold text-navy800 rich-content">${renderRichText(levelName)}</td>
                         </tr>
                     `;
                 }).join('');
             } else {
                 if (theadTr) {
                     theadTr.innerHTML = `
-                        <th class="p-3">หมวดหมู่ข้อสอบ</th>
+                        <th class="p-3 rounded-l-xl">หมวดหมู่ข้อสอบ</th>
                         <th class="p-3 text-center">คะแนนที่ได้ / เต็ม</th>
-                        <th class="p-3 text-center">% คะแนน</th>
+                        <th class="p-3 text-center rounded-r-xl">% คะแนน</th>
                     `;
                 }
                 tbody.innerHTML = entries.map(([tag, stat]) => {
                     const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
                     return `
-                        <tr class="hover:bg-cyan-500/5 transition-all">
-                            <td class="p-3 font-bold text-white">🏷️ ${escapeHtml(tag)}</td>
-                            <td class="p-3 text-center text-slate-300 cyber-font">${stat.correct} / ${stat.total}</td>
-                            <td class="p-3 text-center font-extrabold text-cyan-300 cyber-font">${pct}%</td>
+                        <tr class="hover:bg-blue-50/60 transition-all">
+                            <td class="p-3 font-bold text-navy900 rich-content">${renderRichText(tag)}</td>
+                            <td class="p-3 text-center text-slate-700 font-semibold">${stat.correct} / ${stat.total}</td>
+                            <td class="p-3 text-center font-extrabold text-navy900 rounded-r-xl">${pct}%</td>
                         </tr>
                     `;
                 }).join('');
@@ -1080,8 +1153,8 @@
                 const labels = bins.map(b => b.label);
                 const dataCounts = bins.map(b => b.count);
 
-                const bgColors = bins.map((_, idx) => idx === studentBinIndex ? 'rgba(0, 240, 255, 0.85)' : 'rgba(148, 163, 184, 0.25)');
-                const borderColors = bins.map((_, idx) => idx === studentBinIndex ? '#00f0ff' : 'rgba(148, 163, 184, 0.5)');
+                const bgColors = bins.map((_, idx) => idx === studentBinIndex ? '#0a1e44' : '#cbd5e1');
+                const borderColors = bins.map((_, idx) => idx === studentBinIndex ? '#051129' : '#94a3b8');
 
                 const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
                 const avgPct = totalQ > 0 ? (avgScore / totalQ) * 100 : 0;
@@ -1098,9 +1171,9 @@
                 if (avgPct > 100) avgBinIndex = 9;
 
                 document.getElementById('chartLegendInfo').innerHTML = `
-                    <span class="text-cyan-300 font-bold">คะแนนของคุณ: ${Math.round(studentPct)}%</span>
+                    <span class="text-navy900 font-bold">คะแนนของคุณ: ${Math.round(studentPct)}%</span>
                     (อยู่ช่วง ${studentBinIndex !== -1 ? bins[studentBinIndex].label : '--'}) |
-                    <span class="text-amber-300 font-bold">ค่าเฉลี่ยชั้นเรียน: ${avgPct.toFixed(1)}%</span>
+                    <span class="text-amber-600 font-bold">ค่าเฉลี่ยชั้นเรียน: ${avgPct.toFixed(1)}%</span>
                 `;
 
                 const ctx = document.getElementById('scoreChart').getContext('2d');
@@ -1117,8 +1190,8 @@
                                 data: dataCounts,
                                 backgroundColor: bgColors,
                                 borderColor: borderColors,
-                                borderWidth: 2,
-                                borderRadius: 4
+                                borderWidth: 1.5,
+                                borderRadius: 6
                             }
                         ]
                     },
@@ -1131,7 +1204,7 @@
                             verticalLine: {
                                 index: avgBinIndex,
                                 label: `เฉลี่ย ${avgPct.toFixed(1)}%`,
-                                color: '#ffb800'
+                                color: '#d97706'
                             },
                             tooltip: {
                                 callbacks: {
@@ -1144,14 +1217,14 @@
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                ticks: { stepSize: 1, color: '#94a3b8' },
-                                grid: { color: 'rgba(0, 240, 255, 0.08)' },
-                                title: { display: true, text: 'จำนวนนักเรียน (คน)', color: '#94a3b8', font: { family: 'Prompt', size: 11 } }
+                                ticks: { stepSize: 1, color: '#334155', font: { family: 'Kanit' } },
+                                grid: { color: 'rgba(10, 30, 68, 0.08)' },
+                                title: { display: true, text: 'จำนวนนักเรียน (คน)', color: '#0a1e44', font: { family: 'Kanit', size: 12, weight: 'bold' } }
                             },
                             x: {
-                                ticks: { color: '#94a3b8' },
+                                ticks: { color: '#334155', font: { family: 'Kanit' } },
                                 grid: { display: false },
-                                title: { display: true, text: 'ช่วงคะแนน (%)', color: '#94a3b8', font: { family: 'Prompt', size: 11 } }
+                                title: { display: true, text: 'ช่วงคะแนน (%)', color: '#0a1e44', font: { family: 'Kanit', size: 12, weight: 'bold' } }
                             }
                         }
                     },
@@ -1168,8 +1241,8 @@
                 const btn = document.getElementById('filter-' + f);
                 if (btn) {
                     btn.className = f === type
-                        ? 'px-3 py-1 rounded font-bold bg-cyan-400 text-slate-950 transition-all cursor-pointer'
-                        : 'px-3 py-1 rounded font-bold text-slate-300 hover:text-white transition-all cursor-pointer';
+                        ? 'px-3 py-1 rounded-lg font-bold bg-navy900 text-white transition-all cursor-pointer'
+                        : 'px-3 py-1 rounded-lg font-bold text-navy900 hover:bg-white transition-all cursor-pointer';
                 }
             });
             renderResults();
@@ -1219,37 +1292,37 @@
                     const isRight = globalShowAnswerInstantly ? (correctIdx === optIdx) : false;
 
                     if (globalShowAnswerInstantly) {
-                        if (isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-[10px] ml-auto"></i>'; }
-                        else if (isPicked && !isRight) { bClass += ' wrong-choice'; icon = '<i class="fas fa-times text-[10px] ml-auto"></i>'; }
-                        else if (!isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-[10px] ml-auto opacity-70"></i>'; }
+                        if (isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-xs ml-auto"></i>'; }
+                        else if (isPicked && !isRight) { bClass += ' wrong-choice'; icon = '<i class="fas fa-times text-xs ml-auto"></i>'; }
+                        else if (!isPicked && isRight) { bClass += ' correct-choice'; icon = '<i class="fas fa-check text-xs ml-auto opacity-75"></i>'; }
                         else if (isPicked) { bClass += ' student-choice'; }
                     } else if (isPicked) {
                         bClass += ' student-choice';
-                        icon = '<span class="text-[10px] text-cyan-300 font-bold ml-auto">ที่คุณตอบ</span>';
+                        icon = '<span class="text-xs text-navy900 font-bold ml-auto">ที่คุณตอบ</span>';
                     }
 
                     return `
-                        <div class="flex items-center gap-2.5 p-2 rounded-lg bg-slate-950/80 border border-slate-800/90">
+                        <div class="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200">
                             <div class="${bClass}">${String.fromCharCode(65 + optIdx)}</div>
-                            <span class="text-xs text-slate-200 truncate">${escapeHtml(optText)}</span>
+                            <span class="text-xs sm:text-sm text-navy900 rich-content flex-1">${renderRichText(optText)}</span>
                             ${icon}
                         </div>
                     `;
                 }).join('');
 
                 const badge = isFull
-                    ? `<span class="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-300 border border-emerald-400/35 rounded text-[10px] font-bold cyber-font"><i class="fas fa-check-circle mr-1"></i> ถูก (+${earnedPts}/${maxPts})</span>`
-                    : `<span class="px-2.5 py-0.5 bg-rose-500/15 text-rose-300 border border-rose-400/35 rounded text-[10px] font-bold cyber-font"><i class="fas fa-times-circle mr-1"></i> ได้ ${earnedPts}/${maxPts} คะแนน</span>`;
+                    ? `<span class="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold"><i class="fas fa-check-circle mr-1"></i> ถูก (+${earnedPts}/${maxPts})</span>`
+                    : `<span class="px-2.5 py-0.5 bg-red-100 text-red-700 border border-red-300 rounded-lg text-xs font-bold"><i class="fas fa-times-circle mr-1"></i> ได้ ${earnedPts}/${maxPts} คะแนน</span>`;
 
                 return `
-                    <div class="p-4 bg-slate-900/80 rounded-xl border border-cyan-500/20 space-y-3 hover:border-cyan-400/50 transition-all">
-                        <div class="flex justify-between items-center gap-2">
-                            <span class="font-bold text-xs text-cyan-300 cyber-font">Q.${qNum} // [${escapeHtml(tag)}]</span>
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 hover:border-navy800 transition-all">
+                        <div class="flex justify-between items-center gap-2 flex-wrap">
+                            <span class="font-bold text-xs sm:text-sm text-navy900">ข้อที่ ${qNum} [${escapeHtml(tag)}]</span>
                             ${badge}
                         </div>
-                        <div class="text-xs sm:text-sm font-semibold text-white">${escapeHtml(q.question_text || q.content || '')}</div>
-                        <div class="grid grid-cols-1 gap-1.5 bg-slate-950/70 p-2 rounded-lg border border-slate-800">${bubbles}</div>
-                        ${!globalShowAnswerInstantly ? '<div class="text-[11px] text-amber-300 font-medium italic"><i class="fas fa-lock mr-1"></i>ชุดข้อสอบนี้ปิดการแสดงเฉลยคำตอบ</div>' : ''}
+                        <div class="text-xs sm:text-sm font-semibold text-navy950 rich-content">${renderRichText(q.question_text || q.content || '')}</div>
+                        <div class="grid grid-cols-1 gap-1.5 bg-white p-2.5 rounded-xl border border-slate-200">${bubbles}</div>
+                        ${!globalShowAnswerInstantly ? '<div class="text-xs text-amber-700 font-medium italic"><i class="fas fa-lock mr-1"></i>ชุดข้อสอบนี้ปิดการแสดงเฉลยคำตอบ</div>' : ''}
                     </div>
                 `;
             }).join('');
