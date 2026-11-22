@@ -1,4 +1,4 @@
-name: Deploy Static Content to Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: "pages"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -23,19 +23,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject Gemini API Key
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          sed -i "s/__GEMINI_API_KEY__/$GEMINI_API_KEY/g" student_result.html
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
+      # ถ้าเป็นโปรเจกต์ที่มี build ให้รัน build แล้วเปลี่ยน path ด้านล่างเป็นโฟลเดอร์ output เช่น ./dist
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: "."
 
       - name: Deploy to GitHub Pages
         id: deployment
