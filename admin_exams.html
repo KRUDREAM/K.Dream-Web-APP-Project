@@ -116,7 +116,7 @@
                     <h2 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
                         <i class="fas fa-layer-group text-sky-500"></i> คลังชุดข้อสอบประจำคอร์ส & ชุดแจกฟรี
                     </h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เลือกสลับมุมมองแบบการ์ด/ลิสต์ ค้นหาตามชื่อ/รหัส/Tag และจัดการหมวดหมู่หรือ Tag ได้สะดวก</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">พิมพ์เพิ่ม Tag ในแต่ละชุดข้อสอบแล้วกดบันทึก Tag ได้ทันทีโดยไม่ต้องแก้ตัวข้อสอบ</p>
                 </div>
                 
                 <div class="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto justify-between md:justify-end">
@@ -231,6 +231,7 @@
         let searchKeyword = '';
         let showAllQuickTags = false;
         let isTagBarCollapsed = localStorage.getItem(TAG_BAR_COLLAPSED_KEY) === 'true';
+        const inlineTagEditorOpenSet = new Set(); // เก็บ examId ที่กำลังเปิดช่องเพิ่ม Tag อินไลน์อยู่
 
         let allCoursesList = [];
         let coursesMap = {};
@@ -384,7 +385,7 @@
             }
 
             if (tagsList.length === 0) {
-                container.innerHTML = `<span class="text-[11px] text-slate-400">ยังไม่มี Tag — กดปุ่ม "จัดการ Tag" เพื่อเพิ่ม Tag ได้ไม่จำกัด</span>`;
+                container.innerHTML = `<span class="text-[11px] text-slate-400">ยังไม่มี Tag — พิมพ์เพิ่ม Tag ในชุดข้อสอบหรือกด "จัดการ Tag" ได้ทันที</span>`;
                 if (expandBtn) expandBtn.classList.add('hidden');
                 return;
             }
@@ -717,16 +718,123 @@
             return '1, 2, 3, 4';
         }
 
-        function getExamTagsHtml(examId) {
+        // ==================== เพิ่ม/ถอด Tag ภายในชุดข้อสอบได้ทันที (ไม่ต้องบันทึกตัวข้อสอบ) ====================
+        function toggleInlineTagBox(examId) {
+            const key = String(examId);
+            if (inlineTagEditorOpenSet.has(key)) {
+                inlineTagEditorOpenSet.delete(key);
+            } else {
+                inlineTagEditorOpenSet.add(key);
+            }
+            renderExamsContainer();
+            if (inlineTagEditorOpenSet.has(key)) {
+                setTimeout(() => {
+                    const input = document.getElementById(`inline-tag-input-${key}`);
+                    if (input) input.focus();
+                }, 30);
+            }
+        }
+
+        async function saveInlineExamTag(examId) {
+            const key = String(examId);
+            const input = document.getElementById(`inline-tag-input-${key}`);
+            if (!input) return;
+
+            const raw = input.value.trim();
+            if (!raw) {
+                input.focus();
+                return;
+            }
+
+            const names = raw.split(',').map(s => s.replace(/^#+/, '').trim()).filter(Boolean);
+            if (names.length === 0) return;
+
+            input.disabled = true;
+            const currentIds = new Set((examTagIdsMap[key] || []).map(String));
+
+            for (const name of names) {
+                const tagObj = await ensureTagExists(name);
+                if (tagObj && tagObj.id) {
+                    currentIds.add(String(tagObj.id));
+                }
+            }
+
+            await saveExamTagAssignments(examId, Array.from(currentIds));
+            input.value = '';
+            input.disabled = false;
+
+            await loadTagsAndAssignments();
+            applySearchAndTagFilter();
+
+            const toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 1100
+            });
+            toast.fire({ icon: 'success', title: 'บันทึก Tag เรียบร้อย' });
+        }
+
+        async function removeTagFromExam(examId, tagId) {
+            const eKey = String(examId);
+            const tKey = String(tagId);
+            const nextIds = (examTagIdsMap[eKey] || []).map(String).filter(id => id !== tKey);
+            await saveExamTagAssignments(examId, nextIds);
+            await loadTagsAndAssignments();
+            applySearchAndTagFilter();
+        }
+
+        function getExamTagsSectionHtml(examId) {
+            const eKey = String(examId);
             const tags = getExamTags(examId);
-            if (!tags || tags.length === 0) return '';
+            const isOpen = inlineTagEditorOpenSet.has(eKey);
+
+            const chipsHtml = tags.map(t => `
+                <span class="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px] font-semibold">
+                    <button type="button" onclick="event.stopPropagation(); toggleFilterTag('${String(t.id)}')" class="hover:underline">#${t.name}</button>
+                    <button type="button" onclick="event.stopPropagation(); removeTagFromExam('${eKey}', '${String(t.id)}')" title="ถอด Tag ออกจากชุดนี้" class="w-3.5 h-3.5 rounded-full hover:bg-rose-500 hover:text-white flex items-center justify-center text-[9px] transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </span>
+            `).join('');
+
+            const addTriggerBtn = `
+                <button
+                    type="button"
+                    onclick="event.stopPropagation(); toggleInlineTagBox('${eKey}')"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-emerald-500/50 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold transition-colors"
+                >
+                    <i class="fas ${isOpen ? 'fa-minus' : 'fa-plus'} text-[9px]"></i>
+                    <span>${isOpen ? 'ปิดช่อง Tag' : '+ เพิ่ม Tag'}</span>
+                </button>
+            `;
+
+            const inlineInputBox = isOpen ? `
+                <div onclick="event.stopPropagation();" class="mt-1.5 p-2 rounded-xl bg-emerald-500/5 border border-emerald-500/25 flex items-center gap-1.5">
+                    <input
+                        type="text"
+                        id="inline-tag-input-${eKey}"
+                        onkeydown="if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); saveInlineExamTag('${eKey}'); }"
+                        placeholder="พิมพ์ Tag แล้วกด Enter หรือปุ่มบันทึก..."
+                        class="flex-1 min-w-0 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] outline-none focus:border-emerald-500"
+                    >
+                    <button
+                        type="button"
+                        onclick="saveInlineExamTag('${eKey}')"
+                        class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold shrink-0 transition-all"
+                    >
+                        <i class="fas fa-check mr-0.5"></i>บันทึก Tag
+                    </button>
+                </div>
+            ` : '';
+
             return `
-                <div class="flex flex-wrap items-center gap-1">
-                    ${tags.map(t => `
-                        <button type="button" onclick="event.stopPropagation(); toggleFilterTag('${String(t.id)}')" class="px-2 py-0.5 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px] font-semibold transition-colors">
-                            #${t.name}
-                        </button>
-                    `).join('')}
+                <div class="space-y-1">
+                    <div class="flex flex-wrap items-center gap-1">
+                        ${chipsHtml}
+                        ${addTriggerBtn}
+                    </div>
+                    ${inlineInputBox}
                 </div>
             `;
         }
@@ -802,7 +910,7 @@
             const choiceLabel = getChoiceFormatLabel(e.choice_format);
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
             const courseTagHtml = getCourseOrFreeTagHtml(e);
-            const examTagsHtml = getExamTagsHtml(e.id);
+            const examTagsSectionHtml = getExamTagsSectionHtml(e.id);
             const safeTitle = encodeURIComponent(e.title || 'ชุดข้อสอบ');
 
             let scheduleInfo = '';
@@ -822,7 +930,7 @@
                         </div>
                         <h3 class="font-bold text-sm text-slate-900 dark:text-white leading-snug line-clamp-1">${e.title}</h3>
                         <div class="flex flex-wrap items-center gap-1.5">${courseTagHtml}</div>
-                        ${examTagsHtml}
+                        ${examTagsSectionHtml}
                         ${scheduleInfo ? `<div class="space-y-0.5">${scheduleInfo}</div>` : ''}
                         <div class="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                             ${deliveryBadge}
@@ -869,20 +977,20 @@
             const choiceLabel = getChoiceFormatLabel(e.choice_format);
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
             const courseTagHtml = getCourseOrFreeTagHtml(e);
-            const examTagsHtml = getExamTagsHtml(e.id);
+            const examTagsSectionHtml = getExamTagsSectionHtml(e.id);
             const safeTitle = encodeURIComponent(e.title || 'ชุดข้อสอบ');
 
             return `
                 <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 hover:border-sky-500/50 transition-colors">
-                    <div class="flex items-start sm:items-center gap-3 min-w-0">
+                    <div class="flex items-start sm:items-center gap-3 min-w-0 flex-1 w-full">
                         <span class="font-mono text-xs font-bold glow-badge-sky px-2.5 py-1 rounded-lg shrink-0">${e.exam_code || 'CODE'}</span>
-                        <div class="space-y-1 min-w-0">
+                        <div class="space-y-1 min-w-0 flex-1">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h4 class="font-bold text-sm text-slate-900 dark:text-white truncate">${e.title}</h4>
                                 ${statusBadge}
                                 ${courseTagHtml}
                             </div>
-                            ${examTagsHtml}
+                            ${examTagsSectionHtml}
                             <div class="flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500 dark:text-slate-400">
                                 ${deliveryBadge}
                                 <span><i class="far fa-clock text-sky-500 mr-1"></i>${e.time_limit || 60} นาที</span>
@@ -1525,7 +1633,7 @@
             document.getElementById('dueDateBox').className = checked ? 'space-y-2' : 'hidden';
         }
 
-        // ==================== ระบบจัดการ Tag (เพิ่มได้เรื่อย ๆ ทันที) ====================
+        // ==================== ระบบจัดการ Tag ส่วนกลาง ====================
         async function ensureTagExists(rawName) {
             const clean = (rawName || '').replace(/^#+/, '').trim();
             if (!clean) return null;
