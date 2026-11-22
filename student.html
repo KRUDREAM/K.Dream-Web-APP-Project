@@ -546,6 +546,23 @@
         let chartRadarInstance = null;
         let allCategoryTags = new Set();
         let countdownInterval = null;
+        let countdownExpiredExams = new Set();
+
+        function isExamInCountdown(exam, nowMs = Date.now()) {
+            if (!exam) return false;
+            const examKey = String(exam.id);
+            if (countdownExpiredExams.has(examKey)) return false;
+
+            if (exam.start_time) {
+                const startMs = new Date(exam.start_time).getTime();
+                if (!Number.isNaN(startMs)) {
+                    if (startMs > nowMs) return true;
+                    countdownExpiredExams.add(examKey);
+                    return false;
+                }
+            }
+            return exam.status === 'countdown';
+        }
 
         async function loadStudentExamTags() {
             tagsCatalogList = [];
@@ -1748,6 +1765,7 @@
 
             const { data: exams } = await mySupabase.from('exams').select('*').order('created_at', { ascending: false });
             allExams = exams || [];
+            countdownExpiredExams.clear();
 
             const { data: questionsData } = await mySupabase.from('exam_questions').select('exam_id');
             if (questionsData && questionsData.length > 0) {
@@ -1796,7 +1814,10 @@
                 .channel('student-live-exams')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, async (payload) => {
                     const { data: exams } = await mySupabase.from('exams').select('*').order('created_at', { ascending: false });
-                    if (exams) allExams = exams;
+                    if (exams) {
+                        allExams = exams;
+                        countdownExpiredExams.clear();
+                    }
                     await loadStudentExamTags();
 
                     renderStudentTagFilterChips();
@@ -1819,12 +1840,15 @@
 
         function updateCountdownsLive() {
             const now = Date.now();
+            let shouldRefreshCatalog = false;
 
             document.querySelectorAll('.exam-countdown-timer').forEach(el => {
                 const startTime = parseInt(el.getAttribute('data-start-time'));
+                const examIdAttr = el.getAttribute('data-exam-id');
                 const diff = startTime - now;
                 if (diff <= 0) {
-                    el.textContent = 'ถึงเวลาเปิดสอบแล้ว!';
+                    if (examIdAttr) countdownExpiredExams.add(String(examIdAttr));
+                    shouldRefreshCatalog = true;
                     return;
                 }
                 const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -1832,6 +1856,10 @@
                 const seconds = Math.floor((diff % (1000 * 60)) / 1000);
                 el.textContent = `⏳ เปิดใน: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             });
+
+            if (shouldRefreshCatalog) {
+                renderExamCatalog();
+            }
 
             document.querySelectorAll('.exam-duedate-timer').forEach(el => {
                 const dueTime = parseInt(el.getAttribute('data-due-time'));
@@ -1912,6 +1940,7 @@
             const quickPendingSection = document.getElementById('quickPendingSection');
             const keyword = document.getElementById('searchExamInput').value.toLowerCase().replace(/^#/, '');
             const now = new Date();
+            const nowMs = now.getTime();
 
             const accessibleExams = allExams.filter(exam => isExamAccessibleToStudent(exam));
             const activeExams = accessibleExams.filter(exam => matchesCourseFilter(exam));
@@ -1945,7 +1974,7 @@
             document.getElementById('examCountBadge').textContent = `${availableExams.length} ชุด`;
 
             const pendingExamsList = activeExams.filter(exam => {
-                const isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < now.getTime() : false;
+                const isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < nowMs : false;
                 const inProgress = hasInProgressAttempt(exam.id);
                 const allowLate = !!exam.allow_late_submission;
                 if (isOverdue && !inProgress && !allowLate) return false;
@@ -1954,7 +1983,7 @@
                 const completedCount = myAttemptsForExam.filter(a => isAttemptSubmitted(a)).length;
                 const maxAttempts = exam.max_attempts || exam.attempts_allowed || 0;
                 const isExhausted = maxAttempts > 0 && completedCount >= maxAttempts;
-                let isCountdown = exam.start_time ? new Date(exam.start_time).getTime() > Date.now() : (exam.status === 'countdown');
+                const isCountdown = isExamInCountdown(exam, nowMs);
                 return completedCount === 0 && !isExhausted && !isCountdown;
             });
 
@@ -2089,8 +2118,8 @@
                 let cardHighlightClass = '';
 
                 const nowMs = Date.now();
-                let isCountdown = exam.start_time ? new Date(exam.start_time).getTime() > nowMs : (exam.status === 'countdown');
-                let startTimeMs = exam.start_time ? new Date(exam.start_time).getTime() : 0;
+                const isCountdown = isExamInCountdown(exam, nowMs);
+                const startTimeMs = exam.start_time ? new Date(exam.start_time).getTime() : 0;
 
                 let isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < nowMs : false;
                 const allowLate = !!exam.allow_late_submission;
@@ -2114,7 +2143,7 @@
                     actionBtnHtml = maxAttempts > 0 && completedCount >= maxAttempts ? `<button disabled class="px-3.5 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-400 rounded-xl text-xs font-bold cursor-not-allowed">เต็มโควต้า</button>` : `<button onclick="handleExamClick('${exam.id}', 'start', null)" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20"><i class="fas fa-redo"></i> ทำซ้ำ</button>`;
                 } else if (isCountdown) {
                     cardHighlightClass = 'border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/20';
-                    statusBadge = `<span class="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-amber-500 text-white rounded-lg text-[9px] sm:text-[10px] font-bold exam-countdown-timer" data-start-time="${startTimeMs}">⏳ โหลด...</span>`;
+                    statusBadge = `<span class="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-amber-500 text-white rounded-lg text-[9px] sm:text-[10px] font-bold exam-countdown-timer" data-exam-id="${exam.id}" data-start-time="${startTimeMs}">⏳ โหลด...</span>`;
                     actionBtnHtml = `<button disabled class="px-3.5 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-400 rounded-xl text-xs font-bold cursor-not-allowed">รอเปิด</button>`;
                 } else if (inProgress) {
                     cardHighlightClass = 'border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/20';
@@ -2175,6 +2204,16 @@
             const nowMs = Date.now();
             const inProgress = hasInProgressAttempt(examId);
             const allowLate = !!exam.allow_late_submission;
+
+            if (isExamInCountdown(exam, nowMs)) {
+                await Swal.fire({
+                    icon: 'info',
+                    title: 'ยังไม่ถึงเวลาเปิดสอบ',
+                    text: 'กรุณารอให้เวลานับถอยหลังครบกำหนดก่อนครับ',
+                    confirmButtonColor: '#0284c7'
+                });
+                return;
+            }
 
             if (exam.due_date && new Date(exam.due_date).getTime() < nowMs && !inProgress && !allowLate) {
                 await Swal.fire({
