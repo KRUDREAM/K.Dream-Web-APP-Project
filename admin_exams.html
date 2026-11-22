@@ -264,6 +264,7 @@
         let modalSelectedTagIds = new Set();
         let modalTagDropdownOpen = false;
         let modalTagSearchText = '';
+        let storageUploadWarning = '';
 
         let allCoursesList = [];
         let coursesMap = {};
@@ -368,6 +369,33 @@
             };
         }
 
+        window.openStoredExamFile = function(fileUrl, fileName = 'file') {
+            if (!fileUrl) return;
+            if (String(fileUrl).startsWith('data:')) {
+                const win = window.open('', '_blank', 'noopener');
+                if (win) {
+                    const isPdf = String(fileUrl).startsWith('data:application/pdf');
+                    const isImg = String(fileUrl).startsWith('data:image/');
+                    win.document.write(`
+                        <html><head><title>${escapePreviewHtml(fileName)}</title><style>body{margin:0;background:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;color:#fff;}iframe,img{max-width:100%;max-height:100vh;border:0;}a{color:#38bdf8;}</style></head>
+                        <body>${isPdf ? `<iframe src="${fileUrl}" style="width:100vw;height:100vh;"></iframe>` : isImg ? `<img src="${fileUrl}" alt="${escapePreviewHtml(fileName)}">` : `<div style="text-align:center;padding:24px;"><p>ไฟล์: <strong>${escapePreviewHtml(fileName)}</strong></p><a href="${fileUrl}" download="${escapePreviewHtml(fileName)}">คลิกที่นี่เพื่อดาวน์โหลดไฟล์</a></div>`}</body></html>
+                    `);
+                    win.document.close();
+                }
+                return;
+            }
+            window.open(fileUrl, '_blank', 'noopener');
+        };
+
+        window.clearAttachedExamFile = function(kind) {
+            const urlInput = document.getElementById(kind === 'answer' ? 'swalExistingAnswerKeyUrl' : 'swalExistingExamFileUrl');
+            const nameInput = document.getElementById(kind === 'answer' ? 'swalExistingAnswerKeyName' : 'swalExistingExamFileName');
+            const boxEl = document.getElementById(kind === 'answer' ? 'swalExistingAnswerKeyBox' : 'swalExistingExamFileBox');
+            if (urlInput) urlInput.value = '';
+            if (nameInput) nameInput.value = '';
+            if (boxEl) boxEl.classList.add('hidden');
+        };
+
         async function uploadExamAssetFile(file, folderName, examCode) {
             if (!file) return null;
             const safeCode = (examCode || 'EXAM').replace(/[^a-zA-Z0-9_-]+/g, '-');
@@ -389,9 +417,12 @@
                             name: file.name
                         };
                     }
+                } else {
+                    storageUploadWarning = `อัปโหลดขึ้น Storage (${EXAM_STORAGE_BUCKET}) ไม่สำเร็จ: ${upErr.message} (ระบบสำรองไว้ในเบราว์เซอร์ชั่วคราว)`;
                 }
             } catch (err) {
                 console.warn('Supabase Storage upload fallback:', err);
+                storageUploadWarning = `เชื่อมต่อ Storage ไม่สำเร็จ (${err.message || 'ตรวจสอบ bucket exam-files และ Policy'})`;
             }
 
             const dataUrl = await new Promise((resolve, reject) => {
@@ -985,13 +1016,12 @@
             }
 
             const fileIndicators = [];
-            if (fileCfg.allow_file_download && fileCfg.exam_file_url) {
-                fileIndicators.push(`<a href="${fileCfg.exam_file_url}" target="_blank" rel="noopener" class="px-1.5 py-0.5 rounded bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 text-[10px] font-semibold"><i class="fas fa-download mr-0.5"></i>โหลดโจทย์ได้</a>`);
-            } else if (fileCfg.exam_file_url) {
-                fileIndicators.push(`<span class="px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-600 dark:text-slate-300 text-[10px] font-semibold"><i class="fas fa-file mr-0.5"></i>มีไฟล์โจทย์</span>`);
+            if (fileCfg.exam_file_url) {
+                const qLabel = fileCfg.allow_file_download ? 'เปิด/โหลดไฟล์โจทย์' : 'ดูไฟล์โจทย์';
+                fileIndicators.push(`<button type="button" onclick="openStoredExamFile('${encodeURIComponent(fileCfg.exam_file_url)}', decodeURIComponent('${encodeURIComponent(fileCfg.exam_file_name || 'exam-file')}'))" class="px-1.5 py-0.5 rounded bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 text-[10px] font-semibold"><i class="fas fa-file-arrow-down mr-0.5"></i>${qLabel}</button>`);
             }
             if (fileCfg.answer_key_file_url) {
-                fileIndicators.push(`<a href="${fileCfg.answer_key_file_url}" target="_blank" rel="noopener" class="px-1.5 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 text-[10px] font-semibold"><i class="fas fa-file-circle-check mr-0.5"></i>ไฟล์เฉลย</a>`);
+                fileIndicators.push(`<button type="button" onclick="openStoredExamFile('${encodeURIComponent(fileCfg.answer_key_file_url)}', decodeURIComponent('${encodeURIComponent(fileCfg.answer_key_file_name || 'answer-key')}'))" class="px-1.5 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 text-[10px] font-semibold"><i class="fas fa-file-circle-check mr-0.5"></i>เปิดไฟล์เฉลย</button>`);
             }
             if (e.show_answer_instantly) {
                 fileIndicators.push(`<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 text-[10px] font-semibold"><i class="fas fa-bolt mr-0.5"></i>เฉลยทันที</span>`);
@@ -1055,6 +1085,7 @@
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
             const courseTagHtml = getCourseOrFreeTagHtml(e);
             const examTagsHtml = getExamTagsHtml(e.id);
+            const fileCfg = getExamFileConfig(e);
             const safeTitle = encodeURIComponent(e.title || 'ชุดข้อสอบ');
 
             return `
@@ -1073,6 +1104,8 @@
                                 <span><i class="far fa-clock text-sky-500 mr-1"></i>${e.time_limit || 60} นาที</span>
                                 <span class="text-indigo-600 dark:text-indigo-400 font-bold">เฉลี่ย: ${avgScore} (${submittedCount})</span>
                                 <span class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[10px]">${choiceLabel}</span>
+                                ${fileCfg.exam_file_url ? `<button type="button" onclick="openStoredExamFile('${encodeURIComponent(fileCfg.exam_file_url)}', decodeURIComponent('${encodeURIComponent(fileCfg.exam_file_name || 'exam-file')}'))" class="text-sky-600 dark:text-sky-400 font-bold hover:underline"><i class="fas fa-file-arrow-down mr-0.5"></i>ไฟล์โจทย์</button>` : ''}
+                                ${fileCfg.answer_key_file_url ? `<button type="button" onclick="openStoredExamFile('${encodeURIComponent(fileCfg.answer_key_file_url)}', decodeURIComponent('${encodeURIComponent(fileCfg.answer_key_file_name || 'answer-key')}'))" class="text-emerald-600 dark:text-emerald-400 font-bold hover:underline"><i class="fas fa-file-circle-check mr-0.5"></i>ไฟล์เฉลย</button>` : ''}
                             </div>
                         </div>
                     </div>
@@ -1595,11 +1628,7 @@
             } else {
                 if (onlineToggleWrap) onlineToggleWrap.classList.remove('hidden');
                 if (pdfDirectWrap) pdfDirectWrap.classList.add('hidden');
-                if (allowDownloadCheck.checked) {
-                    uploadBox.classList.remove('hidden');
-                } else {
-                    uploadBox.classList.add('hidden');
-                }
+                uploadBox.classList.remove('hidden');
             }
         };
 
@@ -1653,6 +1682,11 @@
                 width: '640px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
+                        <input type="hidden" id="swalExistingExamFileUrl" value="${escapePreviewHtml(fileCfg.exam_file_url)}">
+                        <input type="hidden" id="swalExistingExamFileName" value="${escapePreviewHtml(fileCfg.exam_file_name)}">
+                        <input type="hidden" id="swalExistingAnswerKeyUrl" value="${escapePreviewHtml(fileCfg.answer_key_file_url)}">
+                        <input type="hidden" id="swalExistingAnswerKeyName" value="${escapePreviewHtml(fileCfg.answer_key_file_name)}">
+
                         <div class="p-3 rounded-xl bg-teal-500/10 border border-teal-500/30 space-y-2">
                             <label class="flex items-center gap-2 cursor-pointer font-bold text-teal-700 dark:text-teal-300">
                                 <input type="checkbox" id="swalFreeUnassignedCheck" onchange="toggleFreeCourseSelect(this.checked)" ${isFreeDefault ? 'checked' : ''} class="w-4 h-4 rounded text-teal-600">
@@ -1707,7 +1741,15 @@
                                     <i class="fas fa-cloud-arrow-up mr-1"></i> อัปโหลดไฟล์ข้อสอบขึ้นระบบ
                                 </label>
                                 <input type="file" id="swalExamFileInput" accept=".pdf,.doc,.docx,.zip,.png,.jpg,.jpeg" onchange="handleExamFileChosen(this)" class="block w-full text-[11px] text-slate-600 dark:text-slate-300 file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-sky-600 file:text-white hover:file:bg-sky-700 cursor-pointer">
-                                ${fileCfg.exam_file_name ? `<div class="text-[10px] text-slate-500 dark:text-slate-400">ไฟล์ข้อสอบปัจจุบัน: <strong>${escapePreviewHtml(fileCfg.exam_file_name)}</strong> ${fileCfg.exam_file_url ? `<a href="${fileCfg.exam_file_url}" target="_blank" rel="noopener" class="text-sky-500 underline ml-1">เปิดดู</a>` : ''}</div>` : ''}
+                                ${(fileCfg.exam_file_name || fileCfg.exam_file_url) ? `
+                                    <div id="swalExistingExamFileBox" class="flex items-center justify-between gap-2 p-2 rounded-lg bg-sky-500/10 border border-sky-500/20 text-[10px]">
+                                        <span class="truncate text-slate-700 dark:text-slate-200">ไฟล์ปัจจุบัน: <strong>${escapePreviewHtml(fileCfg.exam_file_name || 'ไฟล์ข้อสอบ')}</strong></span>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            ${fileCfg.exam_file_url ? `<button type="button" onclick="openStoredExamFile('${encodeURIComponent(fileCfg.exam_file_url)}', decodeURIComponent('${encodeURIComponent(fileCfg.exam_file_name || 'exam-file')}'))" class="px-2 py-0.5 rounded bg-sky-600 text-white font-bold hover:bg-sky-700"><i class="fas fa-external-link-alt mr-1"></i>เปิดดู</button>` : ''}
+                                            <button type="button" onclick="clearAttachedExamFile('exam')" class="text-rose-500 hover:underline font-bold">ถอดไฟล์</button>
+                                        </div>
+                                    </div>
+                                ` : ''}
                                 <div id="swalExamFileChosenName" class="hidden text-[10px] text-sky-600 dark:text-sky-400 font-semibold"></div>
                             </div>
                         </div>
@@ -1717,7 +1759,15 @@
                                 <i class="fas fa-file-circle-check mr-1"></i> อัปโหลดไฟล์เฉลยข้อสอบขึ้นระบบ
                             </label>
                             <input type="file" id="swalAnswerKeyFileInput" accept=".pdf,.doc,.docx,.zip,.png,.jpg,.jpeg" onchange="handleAnswerKeyFileChosen(this)" class="block w-full text-[11px] text-slate-600 dark:text-slate-300 file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer">
-                            ${fileCfg.answer_key_file_name ? `<div class="text-[10px] text-slate-500 dark:text-slate-400">ไฟล์เฉลยปัจจุบัน: <strong>${escapePreviewHtml(fileCfg.answer_key_file_name)}</strong> ${fileCfg.answer_key_file_url ? `<a href="${fileCfg.answer_key_file_url}" target="_blank" rel="noopener" class="text-emerald-500 underline ml-1">เปิดดู</a>` : ''}</div>` : ''}
+                            ${(fileCfg.answer_key_file_name || fileCfg.answer_key_file_url) ? `
+                                <div id="swalExistingAnswerKeyBox" class="flex items-center justify-between gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px]">
+                                    <span class="truncate text-slate-700 dark:text-slate-200">ไฟล์เฉลยปัจจุบัน: <strong>${escapePreviewHtml(fileCfg.answer_key_file_name || 'ไฟล์เฉลย')}</strong></span>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        ${fileCfg.answer_key_file_url ? `<button type="button" onclick="openStoredExamFile('${encodeURIComponent(fileCfg.answer_key_file_url)}', decodeURIComponent('${encodeURIComponent(fileCfg.answer_key_file_name || 'answer-key')}'))" class="px-2 py-0.5 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700"><i class="fas fa-external-link-alt mr-1"></i>เปิดดู</button>` : ''}
+                                        <button type="button" onclick="clearAttachedExamFile('answer')" class="text-rose-500 hover:underline font-bold">ถอดไฟล์</button>
+                                    </div>
+                                </div>
+                            ` : ''}
                             <div id="swalAnswerKeyFileChosenName" class="hidden text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold"></div>
                         </div>
 
@@ -1851,6 +1901,10 @@
                         : Boolean(document.getElementById('swalAllowFileDownload')?.checked);
                     const exam_file = document.getElementById('swalExamFileInput')?.files?.[0] || null;
                     const answer_key_file = document.getElementById('swalAnswerKeyFileInput')?.files?.[0] || null;
+                    const existing_exam_file_url = document.getElementById('swalExistingExamFileUrl')?.value || '';
+                    const existing_exam_file_name = document.getElementById('swalExistingExamFileName')?.value || '';
+                    const existing_answer_key_url = document.getElementById('swalExistingAnswerKeyUrl')?.value || '';
+                    const existing_answer_key_name = document.getElementById('swalExistingAnswerKeyName')?.value || '';
                     const choice_format = document.getElementById('swalChoiceFormat').value;
                     const status = document.getElementById('swalStatus').value;
                     const hasDueDate = document.getElementById('hasDueDateCheck').checked;
@@ -1872,10 +1926,10 @@
                             delivery_type,
                             exam_type: delivery_type,
                             allow_file_download,
-                            exam_file_url: fileCfg.exam_file_url,
-                            exam_file_name: fileCfg.exam_file_name,
-                            answer_key_file_url: fileCfg.answer_key_file_url,
-                            answer_key_file_name: fileCfg.answer_key_file_name,
+                            exam_file_url: existing_exam_file_url,
+                            exam_file_name: existing_exam_file_name,
+                            answer_key_file_url: existing_answer_key_url,
+                            answer_key_file_name: existing_answer_key_name,
                             choice_format,
                             category_id: catVal ? catVal : null,
                             course_id: courseIdPayload,
@@ -1897,6 +1951,7 @@
             });
 
             if (formValues) {
+                storageUploadWarning = '';
                 Swal.fire({ title: 'กำลังอัปโหลดไฟล์และบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
                 const { payload, exam_file, answer_key_file, selectedTagIds } = formValues;
@@ -1976,7 +2031,11 @@
                 }
 
                 if (!resError) {
-                    Swal.fire({ icon: 'success', title: 'บันทึกชุดข้อสอบสำเร็จ!', timer: 1200, showConfirmButton: false });
+                    if (storageUploadWarning) {
+                        Swal.fire({ icon: 'warning', title: 'บันทึกแล้ว แต่ Storage มีแจ้งเตือน', text: storageUploadWarning });
+                    } else {
+                        Swal.fire({ icon: 'success', title: 'บันทึกชุดข้อสอบสำเร็จ!', timer: 1200, showConfirmButton: false });
+                    }
                     loadExams();
                 } else {
                     Swal.fire('บันทึกล้มเหลว', `เกิดข้อผิดพลาดจาก Supabase Database:<br><code class="text-xs text-red-400 font-mono mt-2 block">${resError.message}</code>`, 'error');
