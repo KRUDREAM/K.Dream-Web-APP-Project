@@ -299,9 +299,14 @@
             </div>
 
             <div class="lg:col-span-7 hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-3">
-                <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <i class="fas fa-tags text-sky-600"></i> สรุปผลรายหมวดหมู่ / หัวข้อ (Topic Breakdown)
-                </h3>
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-tags text-sky-600"></i> สรุปผลรายหมวดหมู่ / หัวข้อ (Topic Breakdown)
+                    </h3>
+                    <span id="criteriaModeBadge" class="hidden px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/25 text-[10px] font-bold">
+                        <i class="fas fa-award mr-1"></i> ใช้เกณฑ์การประเมินรายหมวดหมู่
+                    </span>
+                </div>
                 <div id="categoryBreakdownList" class="space-y-2.5 max-h-72 overflow-y-auto pr-1 hide-scrollbar">
                     <div class="text-slate-400 text-xs py-8 text-center">กำลังประมวลผลรายหมวดหมู่...</div>
                 </div>
@@ -381,6 +386,8 @@
         let computedMaxScore = 0;
         let computedCorrectCount = 0;
         let computedWrongCount = 0;
+        let activeGradingCriteria = [];
+        let isGradingCriteriaEnabled = false;
 
         // ช่วงเปอร์เซ็นต์ 0-10, 11-20, ..., 91-100
         const PERCENT_BUCKETS = [
@@ -395,6 +402,128 @@
             { label: '81-90', min: 80.0001, max: 90 },
             { label: '91-100', min: 90.0001, max: 100 }
         ];
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function resolveGradingCriteriaState(exObj, targetExamId) {
+            let criteriaList = [];
+            let enabled = false;
+
+            if (exObj && Array.isArray(exObj.grading_criteria) && exObj.grading_criteria.length > 0) {
+                criteriaList = exObj.grading_criteria;
+            } else if (targetExamId) {
+                try {
+                    const localCrit = localStorage.getItem(`grading_criteria_${targetExamId}`);
+                    if (localCrit) {
+                        const parsed = JSON.parse(localCrit);
+                        if (Array.isArray(parsed)) criteriaList = parsed;
+                    }
+                } catch (e) {}
+            }
+
+            if (exObj && exObj.enable_grading_criteria !== undefined && exObj.enable_grading_criteria !== null) {
+                enabled = Boolean(exObj.enable_grading_criteria);
+            } else if (targetExamId) {
+                const localEn = localStorage.getItem(`enable_criteria_${targetExamId}`);
+                enabled = (localEn === 'true') || (criteriaList.length > 0);
+            } else {
+                enabled = criteriaList.length > 0;
+            }
+
+            isGradingCriteriaEnabled = enabled && criteriaList.length > 0;
+            activeGradingCriteria = isGradingCriteriaEnabled ? criteriaList : [];
+
+            const modeBadge = document.getElementById('criteriaModeBadge');
+            if (modeBadge) {
+                if (isGradingCriteriaEnabled) modeBadge.classList.remove('hidden');
+                else modeBadge.classList.add('hidden');
+            }
+        }
+
+        function evaluateCategoryCriterion(categoryName, pctValue) {
+            const cleanCat = String(categoryName || '').trim();
+            const pct = Number(pctValue) || 0;
+
+            if (isGradingCriteriaEnabled && activeGradingCriteria.length > 0) {
+                // ค้นหาเกณฑ์ที่ตรงกับหมวดหมู่นี้ก่อน หากไม่มีให้ใช้เกณฑ์ที่ไม่ได้ระบุหมวดหมู่ (ใช้ได้กับทุกหมวด)
+                const exactMatches = activeGradingCriteria.filter(c => c && String(c.category || '').trim() === cleanCat);
+                const fallbackMatches = activeGradingCriteria.filter(c => c && String(c.category || '').trim() === '');
+                const candidateCriteria = exactMatches.length > 0 ? exactMatches : fallbackMatches;
+
+                if (candidateCriteria.length > 0) {
+                    for (const crit of candidateCriteria) {
+                        const minP = crit.min_pct !== undefined && crit.min_pct !== null && crit.min_pct !== '' ? Number(crit.min_pct) : 0;
+                        const maxP = crit.max_pct !== undefined && crit.max_pct !== null && crit.max_pct !== '' ? Number(crit.max_pct) : 100;
+                        if (pct >= minP && pct <= maxP) {
+                            const levelName = String(crit.name || '').trim() || 'ผ่านเกณฑ์';
+                            let badgeCls = 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-500/25';
+                            let barCls = 'from-purple-500 to-indigo-600';
+                            if (pct >= 80) {
+                                badgeCls = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border-emerald-500/25';
+                                barCls = 'from-emerald-500 to-teal-600';
+                            } else if (pct < 50) {
+                                badgeCls = 'bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-500/25';
+                                barCls = 'from-rose-500 to-amber-500';
+                            } else if (pct < 70) {
+                                badgeCls = 'bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/25';
+                                barCls = 'from-amber-500 to-orange-500';
+                            }
+                            return {
+                                label: levelName,
+                                badgeCls,
+                                barCls,
+                                isCustom: true,
+                                rangeText: `${minP}% - ${maxP}%`
+                            };
+                        }
+                    }
+
+                    // กรณีมีเกณฑ์ในหมวดนี้แต่เปอร์เซ็นต์ไม่อยู่ในช่วงใดเลย
+                    return {
+                        label: 'ไม่ผ่านเกณฑ์ที่กำหนด',
+                        badgeCls: 'bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-500/25',
+                        barCls: 'from-rose-500 to-red-600',
+                        isCustom: true,
+                        rangeText: ''
+                    };
+                }
+            }
+
+            // เกณฑ์ปกติ (Default)
+            if (pct >= 80) {
+                return {
+                    label: 'จุดแข็ง',
+                    badgeCls: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+                    barCls: 'from-emerald-500 to-sky-600',
+                    isCustom: false,
+                    rangeText: ''
+                };
+            }
+            if (pct < 60) {
+                return {
+                    label: 'ควรทบทวน',
+                    badgeCls: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+                    barCls: 'from-amber-500 to-orange-500',
+                    isCustom: false,
+                    rangeText: ''
+                };
+            }
+            return {
+                label: 'ปานกลาง',
+                badgeCls: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+                barCls: 'from-sky-500 to-blue-600',
+                isCustom: false,
+                rangeText: ''
+            };
+        }
 
         function getPercentBucketIndex(pct) {
             const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
@@ -707,6 +836,8 @@
                 questionsData = qs || [];
             }
 
+            resolveGradingCriteriaState(examData, targetExamId);
+
             let rawAns = attemptData?.answer_saved || attemptData?.answers || attemptData?.user_answers || {};
             if (typeof rawAns === 'string') {
                 try { rawAns = JSON.parse(rawAns); } catch (e) { rawAns = {}; }
@@ -760,10 +891,15 @@
             latestComparisonMetrics = peerMetrics;
             renderPeerComparison(peerMetrics);
 
-            latestCategoryStats = Object.values(catMap).map(c => ({
-                ...c,
-                pct: c.total > 0 ? Math.round((c.correct / c.total) * 100) : 0
-            })).sort((a, b) => b.pct - a.pct);
+            latestCategoryStats = Object.values(catMap).map(c => {
+                const catPct = c.total > 0 ? Math.round((c.correct / c.total) * 100) : 0;
+                const evalResult = evaluateCategoryCriterion(c.tag, catPct);
+                return {
+                    ...c,
+                    pct: catPct,
+                    evalResult
+                };
+            }).sort((a, b) => b.pct - a.pct);
 
             populateCategorySelect(latestCategoryStats);
             renderCategoryBreakdown(latestCategoryStats);
@@ -907,7 +1043,8 @@
             stats.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.tag;
-                opt.textContent = `${s.tag} (${s.correct}/${s.total})`;
+                const evalSuffix = s.evalResult && s.evalResult.isCustom ? ` • ${s.evalResult.label}` : '';
+                opt.textContent = `${s.tag} (${s.correct}/${s.total}${evalSuffix})`;
                 sel.appendChild(opt);
             });
         }
@@ -921,27 +1058,21 @@
             }
 
             box.innerHTML = stats.map(s => {
-                let badgeCls = 'bg-sky-500/10 text-sky-600 border-sky-500/20';
-                let labelTxt = 'ปานกลาง';
-                if (s.pct >= 80) {
-                    badgeCls = 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
-                    labelTxt = 'จุดแข็ง';
-                } else if (s.pct < 60) {
-                    badgeCls = 'bg-amber-500/10 text-amber-600 border-amber-500/20';
-                    labelTxt = 'ควรทบทวน';
-                }
+                const ev = s.evalResult || evaluateCategoryCriterion(s.tag, s.pct);
+                const customIcon = ev.isCustom ? '<i class="fas fa-award mr-1"></i>' : '';
+                const rangeTitle = ev.rangeText ? ` title="ช่วงเกณฑ์การประเมิน: ${escapeHtml(ev.rangeText)}"` : '';
 
                 return `
                     <div class="p-3 rounded-xl bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 space-y-1.5">
                         <div class="flex justify-between items-center gap-2 text-xs">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="font-extrabold text-slate-900 dark:text-white truncate">🏷️ ${s.tag}</span>
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeCls} shrink-0">${labelTxt}</span>
+                            <div class="flex items-center gap-2 min-w-0 flex-wrap">
+                                <span class="font-extrabold text-slate-900 dark:text-white break-words">🏷️ ${escapeHtml(s.tag)}</span>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${ev.badgeCls} shrink-0"${rangeTitle}>${customIcon}${escapeHtml(ev.label)}</span>
                             </div>
                             <span class="font-extrabold text-sky-600 dark:text-sky-400 shrink-0">${s.correct}/${s.total} (${s.pct}%)</span>
                         </div>
                         <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                            <div class="bg-gradient-to-r from-sky-500 to-blue-600 h-1.5 rounded-full" style="width: ${s.pct}%"></div>
+                            <div class="bg-gradient-to-r ${ev.barCls} h-1.5 rounded-full" style="width: ${s.pct}%"></div>
                         </div>
                     </div>
                 `;
@@ -975,7 +1106,16 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false }
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const stat = stats[ctx.dataIndex];
+                                    const evalSuffix = stat && stat.evalResult ? ` (${stat.evalResult.label})` : '';
+                                    return `ความแม่นยำ: ${ctx.parsed.y}%${evalSuffix}`;
+                                }
+                            }
+                        }
                     },
                     scales: {
                         y: {
@@ -1052,7 +1192,7 @@
                                     ข้อที่ ${qNum}
                                 </span>
                                 <span class="px-2 py-0.5 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 rounded-full text-[10px] font-bold">
-                                    #${catName}
+                                    #${escapeHtml(catName)}
                                 </span>
                             </div>
                             ${ok
@@ -1160,7 +1300,7 @@
                     <div class="card">
                         <div class="head">
                             <strong>ข้อที่ ${qNum}</strong>
-                            <span class="cat">#${catName}</span>
+                            <span class="cat">#${escapeHtml(catName)}</span>
                         </div>
                         <div class="q-text">${renderMarkdownAndMath(q.question_text || q.question || '')}</div>
                         ${choices.length > 0 ? `<div class="choices">${choices.map((c, i) => `<div class="choice-item"><strong>${['ก','ข','ค','ง','จ'][i] || (i+1)}.</strong> ${renderMarkdownAndMath(c)}</div>`).join('')}</div>` : `<div class="blank-box">คำตอบ: ________________________________________</div>`}
@@ -1176,7 +1316,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>ข้อสอบ - ${title}</title>
+<title>ข้อสอบ - ${escapeHtml(title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 <script>
 window.MathJax = {
@@ -1200,8 +1340,8 @@ window.MathJax = {
 <body>
 <div class="wrap">
   <div class="banner">
-    <h1 style="margin:0 0 6px;font-size:20px;">ข้อสอบ: ${title}</h1>
-    <div style="font-size:13px;">จำนวน ${questionsData.length} ข้อ • ดาวน์โหลดโดย: ${studentName}</div>
+    <h1 style="margin:0 0 6px;font-size:20px;">ข้อสอบ: ${escapeHtml(title)}</h1>
+    <div style="font-size:13px;">จำนวน ${questionsData.length} ข้อ • ดาวน์โหลดโดย: ${escapeHtml(studentName)}</div>
   </div>
   ${attachedNotice}
   ${rowsHtml}
@@ -1233,6 +1373,35 @@ window.MathJax = {
                 participantCount: 1
             };
 
+            const categoryTableHtml = latestCategoryStats.length > 0 ? `
+                <div class="cat-box">
+                    <div style="font-weight:700;margin-bottom:8px;color:#0284c7;">สรุปผลคะแนน${isGradingCriteriaEnabled ? 'และเกณฑ์การประเมิน' : ''}รายหมวดหมู่</div>
+                    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                        <thead>
+                            <tr style="background:#f1f5f9;text-align:left;">
+                                <th style="padding:8px;border:1px solid #e2e8f0;">หมวดหมู่</th>
+                                <th style="padding:8px;border:1px solid #e2e8f0;text-align:center;">คะแนน</th>
+                                <th style="padding:8px;border:1px solid #e2e8f0;text-align:center;">ร้อยละ</th>
+                                <th style="padding:8px;border:1px solid #e2e8f0;text-align:center;">ผลการประเมิน</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${latestCategoryStats.map(s => {
+                                const ev = s.evalResult || evaluateCategoryCriterion(s.tag, s.pct);
+                                return `
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">${escapeHtml(s.tag)}</td>
+                                        <td style="padding:8px;border:1px solid #e2e8f0;text-align:center;">${s.correct} / ${s.total}</td>
+                                        <td style="padding:8px;border:1px solid #e2e8f0;text-align:center;font-weight:700;color:#0284c7;">${s.pct}%</td>
+                                        <td style="padding:8px;border:1px solid #e2e8f0;text-align:center;font-weight:700;color:#7c3aed;">${escapeHtml(ev.label)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            ` : '';
+
             const rowsHtml = questionsData.map((q, idx) => {
                 const qNum = q.question_number || (idx + 1);
                 const choices = getChoices(q);
@@ -1263,7 +1432,7 @@ window.MathJax = {
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>เฉลย - ${title}</title>
+<title>เฉลย - ${escapeHtml(title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 <script>
 window.MathJax = {
@@ -1275,7 +1444,8 @@ window.MathJax = {
   body { font-family: 'Prompt', sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 24px; }
   .wrap { max-width: 840px; margin: 0 auto; }
   .banner { background: linear-gradient(135deg, #0284c7, #4338ca); color: #fff; padding: 20px 24px; border-radius: 16px; margin-bottom: 20px; }
-  .stats { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 18px; margin-bottom: 18px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 16px; }
+  .stats, .cat-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 18px; margin-bottom: 18px; font-size: 13px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 16px; }
   .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 20px; margin-bottom: 14px; }
   .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .tag { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
@@ -1290,8 +1460,8 @@ window.MathJax = {
 <body>
 <div class="wrap">
   <div class="banner">
-    <h1 style="margin:0 0 6px;font-size:20px;">เฉลยและวิเคราะห์ผล: ${title}</h1>
-    <div style="font-size:13px;">ผู้เข้าสอบ: ${studentName} • คะแนน: ${computedScore} / ${computedMaxScore} • ถูก ${computedCorrectCount} / ${questionsData.length} ข้อ</div>
+    <h1 style="margin:0 0 6px;font-size:20px;">เฉลยและวิเคราะห์ผล: ${escapeHtml(title)}</h1>
+    <div style="font-size:13px;">ผู้เข้าสอบ: ${escapeHtml(studentName)} • คะแนน: ${computedScore} / ${computedMaxScore} • ถูก ${computedCorrectCount} / ${questionsData.length} ข้อ</div>
   </div>
   <div class="stats">
     <div><strong>ค่าเฉลี่ย:</strong> ${peer.meanScore} (${peer.meanPct}%)</div>
@@ -1300,6 +1470,7 @@ window.MathJax = {
     <div><strong>ลำดับที่:</strong> ${peer.rank} / ${peer.participantCount}</div>
     <div><strong>Percentile ที่:</strong> ${peer.percentile}</div>
   </div>
+  ${categoryTableHtml}
   ${rowsHtml}
 </div>
 </body>
