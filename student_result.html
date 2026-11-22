@@ -230,18 +230,24 @@
             </div>
         </div>
 
-        <!-- Peer Comparison Section: Stats + Chart -->
+        <!-- Peer Comparison Section: Stats + Percentile Distribution Chart with Vertical Mean Dashed Line -->
         <div class="hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div>
                     <h3 class="font-extrabold text-xs sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
-                        <i class="fas fa-users text-sky-600"></i> เปรียบเทียบคะแนนกับผู้เข้าสอบทั้งหมด
+                        <i class="fas fa-users text-sky-600"></i> การกระจายคะแนนตามช่วงเปอร์เซ็นต์ & เส้นประค่าเฉลี่ย
                     </h3>
-                    <p id="peerSampleNote" class="text-[11px] text-slate-500 dark:text-slate-400">กำลังคำนวณสถิติจากผู้เข้าสอบทั้งหมดในชุดนี้...</p>
+                    <p id="peerSampleNote" class="text-[11px] text-slate-500 dark:text-slate-400">แสดงจำนวนผู้สอบในแต่ละช่วงเปอร์เซ็นต์ (0-10, 11-20, ...) พร้อมเส้นประแนวดิ่งแสดงตำแหน่งค่าเฉลี่ยจริง</p>
                 </div>
-                <span id="peerCountPill" class="px-3 py-1 bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 rounded-full text-xs font-extrabold">
-                    ผู้สอบ -- คน
-                </span>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-2.5 py-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 rounded-full text-[11px] font-bold flex items-center gap-1.5">
+                        <span class="inline-block w-3 border-t-2 border-dashed border-rose-500"></span>
+                        <span id="meanLegendLabel">ค่าเฉลี่ย --%</span>
+                    </span>
+                    <span id="peerCountPill" class="px-3 py-1 bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 rounded-full text-xs font-extrabold">
+                        ผู้สอบ -- คน
+                    </span>
+                </div>
             </div>
 
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
@@ -367,6 +373,40 @@
         let computedCorrectCount = 0;
         let computedWrongCount = 0;
 
+        // ช่วงเปอร์เซ็นต์ 0-10, 11-20, ..., 91-100
+        const PERCENT_BUCKETS = [
+            { label: '0-10', min: 0, max: 10 },
+            { label: '11-20', min: 10.0001, max: 20 },
+            { label: '21-30', min: 20.0001, max: 30 },
+            { label: '31-40', min: 30.0001, max: 40 },
+            { label: '41-50', min: 40.0001, max: 50 },
+            { label: '51-60', min: 50.0001, max: 60 },
+            { label: '61-70', min: 60.0001, max: 70 },
+            { label: '71-80', min: 70.0001, max: 80 },
+            { label: '81-90', min: 80.0001, max: 90 },
+            { label: '91-100', min: 90.0001, max: 100 }
+        ];
+
+        function getPercentBucketIndex(pct) {
+            const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+            if (clamped <= 10) return 0;
+            const idx = Math.ceil(clamped / 10) - 1;
+            return Math.max(0, Math.min(PERCENT_BUCKETS.length - 1, idx));
+        }
+
+        // คำนวณตำแหน่ง x (หน่วย index ของแกนหมวดหมู่ 0..9) ตามค่าเปอร์เซ็นต์จริง (0..100%)
+        // โดยให้จุดกึ่งกลางของแต่ละช่วงอยู่ใกล้จุดกึ่งกลางของค่าเปอร์เซ็นต์ในช่วงนั้น
+        function getContinuousBucketPosition(pct) {
+            const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+            if (clamped <= 10) {
+                // ช่วง 0-10% กว้าง 10 หน่วย อยู่ที่ index 0 (กึ่งกลางคือ 5%)
+                return (clamped / 10) * 0.5;
+            }
+            // สำหรับ > 10% ช่วง 11-20 คือ index 1 (กึ่งกลาง 15.5), 21-30 คือ index 2 (กึ่งกลาง 25.5) ...
+            const approxBucket = (clamped - 5.5) / 9.9;
+            return Math.max(0, Math.min(PERCENT_BUCKETS.length - 1, approxBucket));
+        }
+
         function getParam(keys) {
             const p = new URLSearchParams(window.location.search);
             for (const k of keys) {
@@ -381,7 +421,6 @@
             window.location.href = sid ? `student_portal.html?student_id=${sid}` : 'student_portal.html';
         }
 
-        // ปกป้องสมการ LaTeX ($...$ และ $$...$$) ไม่ให้ Marked.js แปลง _ หรือ * เสียรูป ก่อนให้ MathJax render
         function renderMarkdownAndMath(content) {
             if (!content) return '';
             const rawStr = String(content);
@@ -532,7 +571,7 @@
             );
         }
 
-        function extractRowScore(row, fallbackMax) {
+        function extractRowScore(row) {
             if (!row) return 0;
             const raw = row.total_score !== undefined && row.total_score !== null
                 ? Number(row.total_score)
@@ -548,11 +587,10 @@
                 .then(({ data: rows }) => {
                     const submittedRows = (rows || []).filter(isSubmittedRow);
 
-                    // เก็บคะแนนสูงสุดของแต่ละคน (ถ้าไม่มี student_id ให้นับราย attempt)
                     const bestByParticipant = new Map();
                     submittedRows.forEach((r, i) => {
                         const key = r.student_id ? String(r.student_id) : `att_${r.id || i}`;
-                        const sc = extractRowScore(r, maxScoreVal);
+                        const sc = extractRowScore(r);
                         if (!bestByParticipant.has(key) || sc > bestByParticipant.get(key)) {
                             bestByParticipant.set(key, sc);
                         }
@@ -573,16 +611,28 @@
                     const maxPeerScore = participantCount > 0 ? Math.max(...allScores) : myScoreVal;
                     const minPeerScore = participantCount > 0 ? Math.min(...allScores) : myScoreVal;
 
-                    // ลำดับที่แบบ Standard Competition Ranking (คะแนนเท่ากันได้ลำดับเดียวกัน)
                     const sortedDesc = [...allScores].sort((a, b) => b - a);
                     const firstIndex = sortedDesc.findIndex(v => v <= myScoreVal);
                     const rank = firstIndex >= 0 ? firstIndex + 1 : 1;
 
-                    // Percentile Rank (สัดส่วนผู้เข้าสอบที่มีคะแนนน้อยกว่าหรือเท่ากับเรา)
                     const lessOrEqualCount = allScores.filter(v => v <= myScoreVal).length;
                     const percentile = participantCount > 0
                         ? Math.round((lessOrEqualCount / participantCount) * 100)
                         : 100;
+
+                    const safeMax = maxScoreVal > 0 ? maxScoreVal : 1;
+                    const myPct = Math.round((myScoreVal / safeMax) * 1000) / 10;
+                    const meanPct = Math.round(((meanScore / safeMax) * 100) * 10) / 10;
+
+                    const bucketCounts = new Array(PERCENT_BUCKETS.length).fill(0);
+                    allScores.forEach(sc => {
+                        const p = (sc / safeMax) * 100;
+                        const bIdx = getPercentBucketIndex(p);
+                        bucketCounts[bIdx]++;
+                    });
+
+                    const myBucketIdx = getPercentBucketIndex(myPct);
+                    const meanBucketIdx = getPercentBucketIndex(meanPct);
 
                     return {
                         participantCount,
@@ -592,19 +642,36 @@
                         minScore: minPeerScore,
                         rank,
                         percentile,
-                        fullScore: maxScoreVal
+                        fullScore: maxScoreVal,
+                        myPct,
+                        meanPct,
+                        bucketCounts,
+                        myBucketIdx,
+                        meanBucketIdx
                     };
                 })
-                .catch(() => ({
-                    participantCount: 1,
-                    myScore: myScoreVal,
-                    meanScore: myScoreVal,
-                    maxScore: myScoreVal,
-                    minScore: myScoreVal,
-                    rank: 1,
-                    percentile: 100,
-                    fullScore: maxScoreVal
-                }));
+                .catch(() => {
+                    const safeMax = maxScoreVal > 0 ? maxScoreVal : 1;
+                    const myPct = Math.round((myScoreVal / safeMax) * 1000) / 10;
+                    const bucketCounts = new Array(PERCENT_BUCKETS.length).fill(0);
+                    const idx = getPercentBucketIndex(myPct);
+                    bucketCounts[idx] = 1;
+                    return {
+                        participantCount: 1,
+                        myScore: myScoreVal,
+                        meanScore: myScoreVal,
+                        maxScore: myScoreVal,
+                        minScore: myScoreVal,
+                        rank: 1,
+                        percentile: 100,
+                        fullScore: maxScoreVal,
+                        myPct,
+                        meanPct: myPct,
+                        bucketCounts,
+                        myBucketIdx: idx,
+                        meanBucketIdx: idx
+                    };
+                });
         }
 
         async function initResultAnalytics() {
@@ -684,7 +751,6 @@
             document.getElementById('metricWrongCount').textContent = `${computedWrongCount} ข้อ`;
             document.getElementById('metricDuration').textContent = formatDurationText(attemptData);
 
-            // คำนวณสถิติเปรียบเทียบกับผู้สอบคนอื่น
             const peerMetrics = await computePeerComparison(targetExamId, studentId || attemptData?.student_id, computedScore, computedMaxScore);
             latestComparisonMetrics = peerMetrics;
             renderPeerComparison(peerMetrics);
@@ -701,13 +767,15 @@
         }
 
         function renderPeerComparison(m) {
+            const meanBucketLabel = PERCENT_BUCKETS[m.meanBucketIdx]?.label || '0-10';
             document.getElementById('rankSummaryBadge').textContent = `#${m.rank} / ${m.participantCount}`;
             document.getElementById('percentileSummaryBadge').textContent = `P${m.percentile}`;
             document.getElementById('peerCountPill').textContent = `ผู้สอบ ${m.participantCount} คน`;
-            document.getElementById('peerSampleNote').textContent = `อ้างอิงจากคะแนนสูงสุดของผู้เข้าสอบแต่ละคนที่ส่งข้อสอบชุดนี้แล้ว`;
+            document.getElementById('meanLegendLabel').textContent = `ค่าเฉลี่ย ${m.meanPct}% (ช่วง ${meanBucketLabel}%)`;
+            document.getElementById('peerSampleNote').textContent = `คะแนนของคุณอยู่ช่วง ${PERCENT_BUCKETS[m.myBucketIdx]?.label || '0-10'}% (${m.myPct}%) • เส้นประแนวดิ่งแสดงค่าเฉลี่ย ${m.meanPct}% ที่ตำแหน่งจริง`;
 
-            document.getElementById('statMyScore').textContent = `${m.myScore}`;
-            document.getElementById('statMeanScore').textContent = `${m.meanScore}`;
+            document.getElementById('statMyScore').textContent = `${m.myScore} (${m.myPct}%)`;
+            document.getElementById('statMeanScore').textContent = `${m.meanScore} (${m.meanPct}%)`;
             document.getElementById('statMaxScore').textContent = `${m.maxScore}`;
             document.getElementById('statMinScore').textContent = `${m.minScore}`;
             document.getElementById('statRankValue').textContent = `ลำดับที่ ${m.rank} / ${m.participantCount}`;
@@ -723,30 +791,70 @@
             if (comparisonChartInstance) comparisonChartInstance.destroy();
 
             const isDark = document.documentElement.classList.contains('dark');
-            const yMax = Math.max(m.fullScore || 0, m.maxScore || 0, m.myScore || 0, 1);
+            const labels = PERCENT_BUCKETS.map(b => `${b.label}%`);
+            const meanLinePos = getContinuousBucketPosition(m.meanPct);
+
+            const bgColors = PERCENT_BUCKETS.map((_, idx) => {
+                if (idx === m.myBucketIdx) return 'rgba(2, 132, 199, 0.88)';
+                return isDark ? 'rgba(51, 65, 85, 0.65)' : 'rgba(148, 163, 184, 0.45)';
+            });
+
+            const borderColors = PERCENT_BUCKETS.map((_, idx) => {
+                if (idx === m.myBucketIdx) return '#0284c7';
+                return isDark ? '#64748b' : '#94a3b8';
+            });
+
+            const verticalMeanLinePlugin = {
+                id: 'verticalMeanDashedLine',
+                afterDatasetsDraw(chart) {
+                    const { ctx: c, chartArea, scales } = chart;
+                    if (!chartArea || !scales.x) return;
+
+                    const xPixel = scales.x.getPixelForValue(meanLinePos);
+                    if (xPixel < chartArea.left || xPixel > chartArea.right) return;
+
+                    c.save();
+                    c.beginPath();
+                    c.setLineDash([6, 5]);
+                    c.lineWidth = 2.2;
+                    c.strokeStyle = '#f43f5e';
+                    c.moveTo(xPixel, chartArea.top);
+                    c.lineTo(xPixel, chartArea.bottom);
+                    c.stroke();
+
+                    const badgeText = `ค่าเฉลี่ย ${m.meanPct}%`;
+                    c.font = 'bold 11px Prompt, sans-serif';
+                    const textWidth = c.measureText(badgeText).width;
+                    const boxW = textWidth + 14;
+                    const boxH = 20;
+                    const clampedX = Math.max(chartArea.left + boxW / 2, Math.min(chartArea.right - boxW / 2, xPixel));
+                    const boxY = chartArea.top + 4;
+
+                    c.setLineDash([]);
+                    c.fillStyle = '#f43f5e';
+                    c.beginPath();
+                    c.roundRect(clampedX - boxW / 2, boxY, boxW, boxH, 6);
+                    c.fill();
+
+                    c.fillStyle = '#ffffff';
+                    c.textAlign = 'center';
+                    c.textBaseline = 'middle';
+                    c.fillText(badgeText, clampedX, boxY + boxH / 2 + 0.5);
+                    c.restore();
+                }
+            };
 
             comparisonChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['คะแนนของคุณ', 'ค่าเฉลี่ย (Mean)', 'คะแนนสูงสุด (Max)', 'คะแนนต่ำสุด (Min)'],
+                    labels,
                     datasets: [{
-                        label: 'คะแนน',
-                        data: [m.myScore, m.meanScore, m.maxScore, m.minScore],
-                        backgroundColor: [
-                            'rgba(2, 132, 199, 0.85)',
-                            'rgba(99, 102, 241, 0.75)',
-                            'rgba(16, 185, 129, 0.8)',
-                            'rgba(244, 63, 94, 0.75)'
-                        ],
-                        borderColor: [
-                            '#0284c7',
-                            '#6366f1',
-                            '#10b981',
-                            '#f43f5e'
-                        ],
+                        label: 'จำนวนผู้สอบ (คน)',
+                        data: m.bucketCounts,
+                        backgroundColor: bgColors,
+                        borderColor: borderColors,
                         borderWidth: 1.5,
-                        borderRadius: 10,
-                        maxBarThickness: 64
+                        borderRadius: 8
                     }]
                 },
                 options: {
@@ -756,23 +864,34 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: (ctx) => `คะแนน: ${ctx.parsed.y} (จากเต็ม ${m.fullScore})`
+                                label: (ctx) => {
+                                    const cnt = ctx.parsed.y || 0;
+                                    const isMine = ctx.dataIndex === m.myBucketIdx;
+                                    return `จำนวนผู้สอบ: ${cnt} คน${isMine ? ' (ช่วงคะแนนของคุณ)' : ''}`;
+                                }
                             }
                         }
                     },
                     scales: {
                         y: {
                             beginAtZero: true,
-                            suggestedMax: yMax,
-                            ticks: { color: isDark ? '#94a3b8' : '#475569', font: { family: 'Prompt', size: 11 } },
+                            ticks: {
+                                precision: 0,
+                                color: isDark ? '#94a3b8' : '#475569',
+                                font: { family: 'Prompt', size: 11 }
+                            },
                             grid: { color: isDark ? 'rgba(148,163,184,0.12)' : 'rgba(15,23,42,0.08)' }
                         },
                         x: {
-                            ticks: { color: isDark ? '#cbd5e1' : '#334155', font: { family: 'Prompt', size: 11, weight: 'bold' } },
+                            ticks: {
+                                color: isDark ? '#cbd5e1' : '#334155',
+                                font: { family: 'Prompt', size: 10, weight: 'bold' }
+                            },
                             grid: { display: false }
                         }
                     }
-                }
+                },
+                plugins: [verticalMeanLinePlugin]
             });
         }
 
@@ -993,6 +1112,7 @@
             const title = examData?.title || 'เฉลยข้อสอบ';
             const peer = latestComparisonMetrics || {
                 meanScore: computedScore,
+                meanPct: computedMaxScore > 0 ? Math.round((computedScore / computedMaxScore) * 100) : 0,
                 maxScore: computedScore,
                 minScore: computedScore,
                 rank: 1,
@@ -1061,7 +1181,7 @@ window.MathJax = {
     <div style="font-size:13px;">ผู้เข้าสอบ: ${studentName} • คะแนน: ${computedScore} / ${computedMaxScore} • ถูก ${computedCorrectCount} / ${questionsData.length} ข้อ</div>
   </div>
   <div class="stats">
-    <div><strong>ค่าเฉลี่ย:</strong> ${peer.meanScore}</div>
+    <div><strong>ค่าเฉลี่ย:</strong> ${peer.meanScore} (${peer.meanPct}%)</div>
     <div><strong>สูงสุด:</strong> ${peer.maxScore}</div>
     <div><strong>ต่ำสุด:</strong> ${peer.minScore}</div>
     <div><strong>ลำดับที่:</strong> ${peer.rank} / ${peer.participantCount}</div>
