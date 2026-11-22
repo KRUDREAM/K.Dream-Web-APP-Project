@@ -229,7 +229,7 @@
         <div class="hitech-card p-6 rounded-3xl space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-sky-500/20">
                 <div class="min-w-0">
-                    <h3 class="font-extrabold text-sm text-slate-900 dark:text-white truncate">สถานะการทำข้อสอบของนักเรียนในสังกัดคอร์ส (เรียงตามวันเวลาส่งล่าสุด)</h3>
+                    <h3 id="tableSectionHeading" class="font-extrabold text-sm text-slate-900 dark:text-white truncate">สถานะการทำข้อสอบของนักเรียนทั้งหมดในสังกัดคอร์ส (เรียงตามวันเวลาส่งล่าสุด)</h3>
                     <p id="submissionCountLabel" class="text-xs text-slate-400">แสดง 0 รายการ</p>
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -275,10 +275,12 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const examId = urlParams.get('exam_id');
-        const courseId = urlParams.get('course_id');
+        const rawCourseParam = urlParams.get('course_id');
+        const courseId = (rawCourseParam && rawCourseParam !== 'null' && rawCourseParam !== 'undefined') ? rawCourseParam.trim() : null;
 
         let currentExam = null;
-        let activeCourseId = null;
+        let currentCourse = null;
+        let activeCourseIds = [];
         let allQuestions = [];
         let allAttempts = [];
         let allProfiles = [];
@@ -346,8 +348,9 @@
         });
 
         function goBack() {
-            if (courseId) {
-                window.location.href = `admin_analytics.html?course_id=${encodeURIComponent(courseId)}`;
+            const targetCid = courseId || (activeCourseIds[0] || '');
+            if (targetCid) {
+                window.location.href = `admin_analytics.html?course_id=${encodeURIComponent(targetCid)}`;
             } else {
                 window.location.href = 'admin_analytics.html';
             }
@@ -363,28 +366,69 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // ตรวจว่าเป็นบัญชี admin / ครู / ผู้ดูแลหรือไม่ (เพื่อกรองออกให้เหลือเฉพาะ นร.)
+        // ดึง list ของ course_id ทั้งหมดที่ชุดข้อสอบนี้สังกัดอยู่ (รองรับทั้ง string, number, array, JSON string)
+        function extractExamCourseIds(examObj, urlCid) {
+            const ids = new Set();
+            const addVal = (v) => {
+                if (v === undefined || v === null) return;
+                if (Array.isArray(v)) {
+                    v.forEach(addVal);
+                    return;
+                }
+                const str = String(v).trim();
+                if (!str || str === 'null' || str === 'undefined' || str === '[]') return;
+                if (str.startsWith('[') && str.endsWith(']')) {
+                    try {
+                        const parsed = JSON.parse(str);
+                        if (Array.isArray(parsed)) {
+                            parsed.forEach(addVal);
+                            return;
+                        }
+                    } catch (e) {}
+                }
+                if (str.includes(',')) {
+                    str.split(',').forEach(s => {
+                        const t = s.trim();
+                        if (t) ids.add(t);
+                    });
+                    return;
+                }
+                ids.add(str);
+            };
+
+            if (urlCid) addVal(urlCid);
+            if (examObj) {
+                addVal(examObj.course_id);
+                addVal(examObj.course_ids);
+                addVal(examObj.target_course_id);
+                addVal(examObj.target_courses);
+            }
+            return Array.from(ids);
+        }
+
+        // ตรวจว่าเป็นบัญชี admin / ครู / ผู้ดูแลหรือไม่
         function isAdminAccount(obj) {
             if (!obj || typeof obj !== 'object') return false;
-            if (obj.is_admin === true || obj.admin === true) return true;
+            if (obj.is_admin === true || obj.admin === true || obj.is_staff === true) return true;
 
             const roleCandidates = [
                 obj.role,
                 obj.user_role,
                 obj.account_type,
                 obj.member_role,
+                obj.user_type,
                 obj.type
             ]
                 .filter(v => v !== undefined && v !== null)
                 .map(v => String(v).toLowerCase().trim());
 
-            if (roleCandidates.some(r => ['admin', 'administrator', 'super_admin', 'superadmin', 'teacher', 'ta', 'staff', 'moderator'].includes(r))) {
+            if (roleCandidates.some(r => ['admin', 'administrator', 'super_admin', 'superadmin', 'teacher', 'tutor', 'ta', 'staff', 'moderator', 'instructor'].includes(r))) {
                 return true;
             }
 
             const nameStr = String(obj.full_name || obj.name || obj.first_name || '').toLowerCase().trim();
             const emailStr = String(obj.email || '').toLowerCase().trim();
-            if (nameStr === 'admin' || emailStr.startsWith('admin@')) {
+            if (nameStr === 'admin' || nameStr === 'แอดมิน' || emailStr.startsWith('admin@')) {
                 return true;
             }
 
@@ -392,18 +436,21 @@
         }
 
         // ตรวจว่าชุดข้อสอบ / โจทย์เป็นแบบ "ฟรี" หรือไม่
-        function isFreeExam(exam) {
+        function isFreeExam(exam, cIds = []) {
             if (!exam) return false;
-            if (exam.is_free === true || exam.free === true) return true;
-            if (exam.price !== undefined && exam.price !== null && Number(exam.price) === 0) return true;
+            if (exam.is_free === true || exam.free === true || exam.is_public === true) return true;
+            if (exam.price !== undefined && exam.price !== null && exam.price !== '' && Number(exam.price) === 0) return true;
 
             const accessStr = String(exam.access_type || exam.exam_type || exam.category || exam.type || '').toLowerCase().trim();
-            if (accessStr === 'free' || accessStr.includes('ฟรี')) return true;
+            if (accessStr === 'free' || accessStr === 'public' || accessStr.includes('ฟรี')) return true;
 
             const titleStr = String(exam.title || '').toLowerCase();
             if (titleStr.includes('โจทย์ฟรี') || titleStr.includes('ข้อสอบฟรี') || titleStr.includes('[free]') || titleStr.includes('(ฟรี)')) {
                 return true;
             }
+
+            // ถ้าไม่ได้ผูกกับคอร์สใด ๆ เลย ถือว่าเป็นโจทย์ฟรี/สาธารณะ
+            if (!cIds || cIds.length === 0) return true;
 
             return false;
         }
@@ -727,21 +774,108 @@
             }
         }
 
-        async function loadCourseEnrollments(targetCourseId) {
-            if (!targetCourseId) return [];
-            const tablesToTry = ['course_enrollments', 'course_members', 'enrollments'];
+        // ดึงข้อมูลคอร์ส (เพื่อเอาชื่อคอร์ส หรือ array รายชื่อนักเรียนที่อาจเก็บอยู่ในคอร์สโดยตรง)
+        async function loadCourseInfo(targetCourseIds) {
+            if (!targetCourseIds || targetCourseIds.length === 0) return null;
+            try {
+                const res = await mySupabase.from('courses').select('*').in('id', targetCourseIds);
+                if (!res.error && Array.isArray(res.data) && res.data.length > 0) {
+                    return res.data;
+                }
+            } catch (e) {
+                console.warn('courses lookup failed:', e);
+            }
+            return null;
+        }
+
+        // ดึงรายชื่อนักเรียนที่ลงทะเบียนในคอร์ส รองรับหลายชื่อตารางและหลายรูปแบบคอลัมน์
+        async function loadCourseEnrollments(targetCourseIds, coursesData = []) {
+            if (!targetCourseIds || targetCourseIds.length === 0) return [];
+
+            const collected = [];
+            const tablesToTry = [
+                'course_enrollments',
+                'course_members',
+                'enrollments',
+                'student_courses',
+                'user_courses'
+            ];
 
             for (const tbl of tablesToTry) {
                 try {
-                    const res = await mySupabase.from(tbl).select('*').eq('course_id', targetCourseId);
+                    const res = await mySupabase.from(tbl).select('*').in('course_id', targetCourseIds);
                     if (!res.error && Array.isArray(res.data) && res.data.length > 0) {
-                        return res.data;
+                        console.log(`[LMS Analytics] พบข้อมูลนักเรียนในตาราง "${tbl}":`, res.data.length, 'รายการ');
+                        collected.push(...res.data);
                     }
-                } catch (e) {
-                    console.warn(`${tbl} query failed`, e);
+                } catch (e) {}
+            }
+
+            // กรณีเก็บ student_ids เป็น array ในตาราง courses เอง
+            if (Array.isArray(coursesData)) {
+                coursesData.forEach(c => {
+                    const list = c.student_ids || c.enrolled_students || c.students || c.members;
+                    if (Array.isArray(list)) {
+                        list.forEach(sid => {
+                            if (sid) collected.push({ student_id: sid, course_id: c.id });
+                        });
+                    }
+                });
+            }
+
+            // กรณีเก็บ enrolled_courses / course_ids เป็น array ในตาราง profiles เอง
+            if (Array.isArray(allProfiles) && allProfiles.length > 0) {
+                const targetSet = new Set(targetCourseIds.map(String));
+                allProfiles.forEach(p => {
+                    const pCourses = p.enrolled_courses || p.course_ids || p.courses;
+                    if (Array.isArray(pCourses) && pCourses.some(cid => targetSet.has(String(cid)))) {
+                        collected.push({ student_id: p.id || p.user_id, profiles: p });
+                    }
+                });
+            }
+
+            // กรองสถานะการลงทะเบียนที่ถูกปฏิเสธ/ยกเลิกออก (ถ้ามีคอลัมน์ status)
+            return collected.filter(row => {
+                if (!row.status) return true;
+                const st = String(row.status).toLowerCase().trim();
+                return !['rejected', 'cancelled', 'canceled', 'banned', 'dropped'].includes(st);
+            });
+        }
+
+        function registerProfileToMap(p) {
+            if (!p || typeof p !== 'object') return;
+            const possibleKeys = [
+                p.id,
+                p.user_id,
+                p.auth_id,
+                p.uid,
+                p.student_id,
+                p.profile_id
+            ];
+            possibleKeys.forEach(k => {
+                if (k !== undefined && k !== null && String(k).trim() !== '') {
+                    allStudentsMap[String(k).trim()] = p;
+                }
+            });
+        }
+
+        function findProfileByAnyId(row) {
+            if (!row) return null;
+            if (row.profiles && typeof row.profiles === 'object') return row.profiles;
+            const keysToTry = [
+                row.student_id,
+                row.user_id,
+                row.auth_id,
+                row.profile_id,
+                row.id
+            ];
+            for (const k of keysToTry) {
+                if (k !== undefined && k !== null) {
+                    const found = allStudentsMap[String(k).trim()];
+                    if (found) return found;
                 }
             }
-            return [];
+            return null;
         }
 
         async function initAnalytics() {
@@ -759,29 +893,34 @@
                     return;
                 }
                 currentExam = examRes.data;
-                activeCourseId = courseId || currentExam.course_id || null;
+                activeCourseIds = extractExamCourseIds(currentExam, courseId);
 
-                const [qRes, attRes, profRes, enrolledRows] = await Promise.all([
+                const [qRes, attRes, profRes, coursesData] = await Promise.all([
                     mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true }),
                     mySupabase.from('exam_attempts').select('*').eq('exam_id', examId),
                     mySupabase.from('profiles').select('*'),
-                    loadCourseEnrollments(activeCourseId)
+                    loadCourseInfo(activeCourseIds)
                 ]);
 
                 allQuestions = qRes.data || [];
                 allAttempts = attRes.data || [];
                 allProfiles = profRes.data || [];
-
-                await checkAndAutoSubmitExpiredAttempts();
+                currentCourse = Array.isArray(coursesData) && coursesData.length > 0 ? coursesData[0] : null;
 
                 allStudentsMap = {};
-                allProfiles.forEach(p => {
-                    const sId = String(p.id || p.user_id || p.student_id || '');
-                    if (sId) allStudentsMap[sId] = p;
+                allProfiles.forEach(registerProfileToMap);
+
+                courseStudents = await loadCourseEnrollments(activeCourseIds, coursesData || []);
+
+                console.log('[LMS Analytics Debug]', {
+                    examId,
+                    activeCourseIds,
+                    totalProfiles: allProfiles.length,
+                    courseStudentsCount: courseStudents.length,
+                    attemptsCount: allAttempts.length
                 });
 
-                courseStudents = enrolledRows || [];
-
+                await checkAndAutoSubmitExpiredAttempts();
                 setupRealtimeSubscription();
             } catch (err) {
                 console.error("Analytics Load Error:", err);
@@ -789,18 +928,20 @@
                 Swal.close();
             }
 
-            const freeMode = isFreeExam(currentExam);
+            const freeMode = isFreeExam(currentExam, activeCourseIds);
             const scopeBadge = document.getElementById('examScopeBadge');
+            const tableHeading = document.getElementById('tableSectionHeading');
+
             if (scopeBadge) {
                 if (freeMode) {
                     scopeBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-500/20';
                     scopeBadge.innerHTML = '<i class="fas fa-gift"></i> โจทย์ฟรี (เฉพาะนักเรียน)';
-                } else if (activeCourseId) {
-                    scopeBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs border border-indigo-500/20';
-                    scopeBadge.innerHTML = `<i class="fas fa-layer-group"></i> สังกัดคอร์ส (${escapeHtml(activeCourseId)})`;
+                    if (tableHeading) tableHeading.textContent = 'สถานะการทำข้อสอบของนักเรียนในโจทย์ฟรี (เรียงตามวันเวลาส่งล่าสุด)';
                 } else {
-                    scopeBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-300 font-bold text-xs border border-slate-500/20';
-                    scopeBadge.innerHTML = '<i class="fas fa-users"></i> เฉพาะนักเรียน';
+                    const courseLabel = currentCourse ? (currentCourse.title || currentCourse.name || currentCourse.course_name || activeCourseIds.join(', ')) : activeCourseIds.join(', ');
+                    scopeBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs border border-indigo-500/20';
+                    scopeBadge.innerHTML = `<i class="fas fa-layer-group"></i> สังกัดคอร์ส: ${escapeHtml(courseLabel)}`;
+                    if (tableHeading) tableHeading.textContent = `สถานะการทำข้อสอบของนักเรียนทั้งหมดในสังกัดคอร์ส (${courseStudents.length} คน)`;
                 }
             }
 
@@ -839,10 +980,15 @@
         function pickBestAttemptPerStudent(attemptsList) {
             const grouped = {};
             attemptsList.forEach(att => {
-                const sId = String(att.student_id || att.user_id || '');
-                if (!sId) return;
-                if (!grouped[sId]) grouped[sId] = [];
-                grouped[sId].push(att);
+                // map ให้ตรงกับ canonical id ของ profile ถ้าหาเจอ เพื่อไม่ให้ key ไม่ตรงกันระหว่าง student_id กับ user_id
+                const prof = findProfileByAnyId(att);
+                const canonicalId = prof
+                    ? String(prof.id || prof.user_id || att.student_id || att.user_id || '').trim()
+                    : String(att.student_id || att.user_id || '').trim();
+
+                if (!canonicalId) return;
+                if (!grouped[canonicalId]) grouped[canonicalId] = [];
+                grouped[canonicalId].push(att);
             });
 
             const bestMap = {};
@@ -862,75 +1008,81 @@
 
         function computeAndRenderStats() {
             const attemptMap = pickBestAttemptPerStudent(allAttempts);
-            const freeMode = isFreeExam(currentExam);
+            const freeMode = isFreeExam(currentExam, activeCourseIds);
             const hasCourseRoster = Array.isArray(courseStudents) && courseStudents.length > 0;
 
             const studentMasterList = [];
             const seenStudentIds = new Set();
 
-            // 1. ดึงนักเรียนในสังกัดคอร์สของชุดข้อสอบ (และกรอง admin ออกเสมอ)
+            const pushStudentEntry = (rawId, profileObj, fallbackObj = {}) => {
+                const p = profileObj || {};
+                const canonicalId = String(p.id || p.user_id || rawId || '').trim();
+                if (!canonicalId || seenStudentIds.has(canonicalId)) return;
+
+                // กรอง admin ออกเสมอ
+                if (isAdminAccount(p) || isAdminAccount(fallbackObj)) return;
+
+                seenStudentIds.add(canonicalId);
+                // จดจำทุก key ที่อาจใช้แมตช์กับ attemptMap ด้วย
+                [rawId, p.id, p.user_id, p.student_id].forEach(k => {
+                    if (k !== undefined && k !== null && String(k).trim() !== '') {
+                        seenStudentIds.add(String(k).trim());
+                    }
+                });
+
+                const nickname = (p.nickname || p.nick_name || fallbackObj.nickname || '').trim();
+                const fullName = (
+                    ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() ||
+                    ((fallbackObj.first_name || fallbackObj.name || fallbackObj.full_name || fallbackObj.student_name || '').trim() + (fallbackObj.last_name ? ' ' + fallbackObj.last_name : '')).trim() ||
+                    'ไม่ระบุชื่อ'
+                );
+
+                studentMasterList.push({
+                    studentId: canonicalId,
+                    lookupKeys: [canonicalId, String(rawId || ''), String(p.id || ''), String(p.user_id || ''), String(p.student_id || '')].filter(Boolean),
+                    profile: p,
+                    fullName: fullName,
+                    nickname: nickname,
+                    studentIdCode: p.student_id || p.code || fallbackObj.student_id_code || fallbackObj.student_code || '-'
+                });
+            };
+
+            // กรณีที่ 1: ชุดข้อสอบสังกัดคอร์ส และพบรายชื่อนักเรียนในคอร์สนั้น -> แสดงนักเรียนในสังกัดคอร์สทั้งหมด (ทั้งที่ทำแล้วและยังไม่ทำ)
             if (hasCourseRoster) {
                 courseStudents.forEach(cs => {
-                    const sId = String(cs.student_id || cs.user_id || cs.id || '');
-                    if (!sId || seenStudentIds.has(sId)) return;
-
-                    const p = cs.profiles || allStudentsMap[sId] || cs;
-                    if (isAdminAccount(p) || isAdminAccount(cs)) return;
-
-                    seenStudentIds.add(sId);
-                    const nickname = (p.nickname || p.nick_name || '').trim();
-                    studentMasterList.push({
-                        studentId: sId,
-                        profile: p,
-                        fullName: ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() || 'ไม่ระบุชื่อ',
-                        nickname: nickname,
-                        studentIdCode: p.student_id || p.code || '-'
-                    });
+                    const rawId = cs.student_id || cs.user_id || cs.profile_id || cs.id;
+                    const p = findProfileByAnyId(cs);
+                    pushStudentEntry(rawId, p, cs);
                 });
             }
 
-            // 2. ถ้าเป็น "โจทย์ฟรี" หรือไม่ได้มีรายชื่อคอร์สล็อกไว้:
-            // เพิ่มเฉพาะนักเรียนที่ไม่ใช่ admin ที่มี attempt ในโจทย์ฟรีนี้ (หรือกรณีเป็นโจทย์ฟรีสาธารณะที่ไม่มี course_id ให้ดูเฉพาะนักเรียนที่ไม่ใช่ admin)
+            // กรณีที่ 2: โจทย์ฟรี หรือ ยังไม่มีรายชื่อในตาราง enrollment
             if (freeMode || !hasCourseRoster) {
-                Object.keys(attemptMap).forEach(sId => {
-                    if (seenStudentIds.has(sId)) return;
-
-                    const att = attemptMap[sId];
-                    const p = allStudentsMap[sId] || {};
-                    if (isAdminAccount(p) || isAdminAccount(att)) return;
-
-                    seenStudentIds.add(sId);
-                    const nickname = (p.nickname || p.nick_name || '').trim();
-                    studentMasterList.push({
-                        studentId: sId,
-                        profile: p,
-                        fullName: ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() || att.student_name || 'ไม่ระบุชื่อ',
-                        nickname: nickname,
-                        studentIdCode: p.student_id || p.code || att.student_id_code || '-'
-                    });
+                // ดึงนักเรียนที่ไม่ใช่ admin ที่เข้ามาทำโจทย์ชุดนี้
+                Object.entries(attemptMap).forEach(([sId, att]) => {
+                    const p = findProfileByAnyId(att) || allStudentsMap[sId];
+                    pushStudentEntry(sId, p, att);
                 });
 
-                // ถ้าเป็นโจทย์ฟรีที่เปิดให้ทุกคนทำและยังไม่มีคนทำเลย แต่มีโปรไฟล์นักเรียน (ไม่ใช่ admin) ในระบบ
-                if (freeMode && !activeCourseId && studentMasterList.length === 0) {
+                // ถ้าเป็นโจทย์ฟรีที่เปิดให้ นร. ทุกคนทำ และอยากเห็น นร. ทั้งหมดในระบบ (เฉพาะที่ไม่ใช่ admin)
+                if (freeMode) {
                     allProfiles.forEach(p => {
-                        if (isAdminAccount(p)) return;
-                        const sId = String(p.id || p.user_id || p.student_id || '');
-                        if (!sId || seenStudentIds.has(sId)) return;
-                        seenStudentIds.add(sId);
-                        const nickname = (p.nickname || p.nick_name || '').trim();
-                        studentMasterList.push({
-                            studentId: sId,
-                            profile: p,
-                            fullName: ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() || 'ไม่ระบุชื่อ',
-                            nickname: nickname,
-                            studentIdCode: p.student_id || p.code || '-'
-                        });
+                        const rawId = p.id || p.user_id || p.student_id;
+                        pushStudentEntry(rawId, p, p);
                     });
                 }
             }
 
             combinedStudentRows = studentMasterList.map(item => {
-                const att = attemptMap[item.studentId];
+                // หา attempt จากทุก key ที่เป็นไปได้ของนักเรียนคนนี้
+                let att = null;
+                for (const k of item.lookupKeys) {
+                    if (attemptMap[k]) {
+                        att = attemptMap[k];
+                        break;
+                    }
+                }
+
                 const hasAttempt = !!att;
                 const isSubmitted = hasAttempt && isAttemptSubmitted(att);
                 const isInProgress = hasAttempt && !isSubmitted;
@@ -957,7 +1109,10 @@
             filteredRows = [...combinedStudentRows].sort((a, b) => {
                 if (a.isSubmitted && !b.isSubmitted) return -1;
                 if (!a.isSubmitted && b.isSubmitted) return 1;
-                return b.submittedAtTime - a.submittedAtTime;
+                if (a.isInProgress && !b.isInProgress) return -1;
+                if (!a.isInProgress && b.isInProgress) return 1;
+                if (b.submittedAtTime !== a.submittedAtTime) return b.submittedAtTime - a.submittedAtTime;
+                return String(a.studentIdCode).localeCompare(String(b.studentIdCode), 'th');
             });
 
             const activeCount = combinedStudentRows.filter(r => r.isInProgress).length;
@@ -970,7 +1125,7 @@
             };
 
             setSafeText('statActiveCountBanner', activeCount);
-            setSafeText('statSubmittedCount', `${submittedCount} คน`);
+            setSafeText('statSubmittedCount', `${submittedCount} / ${combinedStudentRows.length} คน`);
 
             globalScores = submittedRows.map(r => r.score);
             globalTimes = combinedStudentRows.filter(r => r.hasAttempt).map(r => r.minutesSpent);
@@ -1323,7 +1478,7 @@
             const countLbl = document.getElementById('submissionCountLabel');
             if (!tbody) return;
 
-            if (countLbl) countLbl.textContent = `แสดง ${filteredRows.length} รายการ`;
+            if (countLbl) countLbl.textContent = `แสดง ${filteredRows.length} รายการ (จากทั้งหมด ${combinedStudentRows.length} คน)`;
 
             if (filteredRows.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">ไม่พบรายชื่อนักเรียนตามเงื่อนไข</td></tr>`;
@@ -1467,8 +1622,7 @@
             const att = allAttempts.find(a => String(a.id) === String(attemptId));
             if (!att) return;
 
-            const sId = att.student_id || att.user_id;
-            const profile = allStudentsMap[String(sId)] || {};
+            const profile = findProfileByAnyId(att) || {};
             const name = ((profile.first_name || profile.name || profile.full_name || '').trim() +
                 (profile.last_name ? ' ' + profile.last_name : '')).trim() || att.student_name || 'นักเรียน';
             const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
