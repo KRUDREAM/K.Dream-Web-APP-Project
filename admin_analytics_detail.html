@@ -254,7 +254,7 @@
                             <th class="p-3 w-auto">ชื่อ-นามสกุล / ชื่อเล่น</th>
                             <th class="p-3 text-center w-28">สถานะ</th>
                             <th class="p-3 text-center w-20">คะแนน</th>
-                            <th class="p-3 text-center w-24">เวลาที่ใช้</th>
+                            <th class="p-3 text-center w-28">เวลาที่ใช้</th>
                             <th class="p-3 text-center w-32">เวลาที่ส่ง</th>
                             <th class="p-3 text-center w-24">จัดการ</th>
                         </tr>
@@ -298,6 +298,7 @@
         let timeSpentChartInstance = null;
         let scatterChartInstance = null;
         let analyticsRealtimeChannel = null;
+        let liveTimerInterval = null;
 
         const verticalLinePlugin = {
             id: 'verticalLine',
@@ -366,7 +367,43 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // ดึง list ของ course_id ทั้งหมดที่ชุดข้อสอบนี้สังกัดอยู่ (รองรับทั้ง string, number, array, JSON string)
+        // แปลงเวลาที่ใช้ไป (หน่วยเป็นนาที) -> "MM:SS" (เช่น 10.5 นาที => "10:30") หรือ "HH:MM:SS" ถ้าเกิน 60 นาที
+        function formatDurationClock(minutesVal) {
+            const numMin = Number(minutesVal);
+            if (isNaN(numMin) || numMin < 0) return '00:00';
+            const totalSeconds = Math.round(numMin * 60);
+            const hours = Math.floor(totalSeconds / 3600);
+            const mins = Math.floor((totalSeconds % 3600) / 60);
+            const secs = totalSeconds % 60;
+
+            const pad2 = (n) => String(n).padStart(2, '0');
+            if (hours > 0) {
+                return `${pad2(hours)}:${pad2(mins)}:${pad2(secs)}`;
+            }
+            return `${pad2(mins)}:${pad2(secs)}`;
+        }
+
+        // คำนวณเวลาที่ใช้ไปสด ๆ สำหรับแถวที่กำลังทำ (In Progress) จากเวลาเริ่มทำถึงปัจจุบัน
+        function getLiveElapsedMinutes(row) {
+            if (!row || !row.attempt) return row ? (row.minutesSpent || 0) : 0;
+            const att = row.attempt;
+            const examDurationMinutes = Number(
+                currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration)
+                    ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration)
+                    : 30
+            );
+
+            const startStr = att.started_at || att.created_at || att.start_time;
+            if (startStr) {
+                const startMs = new Date(startStr).getTime();
+                if (!isNaN(startMs)) {
+                    const elapsedMin = Math.max(0, (Date.now() - startMs) / (1000 * 60));
+                    return Math.min(elapsedMin, examDurationMinutes);
+                }
+            }
+            return calculateTimeSpentMinutes(att);
+        }
+
         function extractExamCourseIds(examObj, urlCid) {
             const ids = new Set();
             const addVal = (v) => {
@@ -406,7 +443,6 @@
             return Array.from(ids);
         }
 
-        // ตรวจว่าเป็นบัญชี admin / ครู / ผู้ดูแลหรือไม่
         function isAdminAccount(obj) {
             if (!obj || typeof obj !== 'object') return false;
             if (obj.is_admin === true || obj.admin === true || obj.is_staff === true) return true;
@@ -435,7 +471,6 @@
             return false;
         }
 
-        // ตรวจว่าชุดข้อสอบ / โจทย์เป็นแบบ "ฟรี" หรือไม่
         function isFreeExam(exam, cIds = []) {
             if (!exam) return false;
             if (exam.is_free === true || exam.free === true || exam.is_public === true) return true;
@@ -449,7 +484,6 @@
                 return true;
             }
 
-            // ถ้าไม่ได้ผูกกับคอร์สใด ๆ เลย ถือว่าเป็นโจทย์ฟรี/สาธารณะ
             if (!cIds || cIds.length === 0) return true;
 
             return false;
@@ -698,6 +732,19 @@
             const examDurationMinutes = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
             const totalExamSeconds = examDurationMinutes * 60;
 
+            const isSubmitted = isAttemptSubmitted(att);
+            const start = att.started_at || att.created_at || att.start_time;
+            const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at;
+
+            // ถ้ายังทำไม่เสร็จ (In Progress) และมีเวลาเริ่มทำ ให้คำนวณจากเวลาเริ่มถึงปัจจุบันเป็นหลักเพื่อความแม่นยำระหว่างทำ
+            if (!isSubmitted && start) {
+                const startMs = new Date(start).getTime();
+                if (!isNaN(startMs)) {
+                    const mins = Math.max(0, (Date.now() - startMs) / (1000 * 60));
+                    return Math.min(mins, examDurationMinutes);
+                }
+            }
+
             if (att.remaining_time !== undefined && att.remaining_time !== null && !isNaN(att.remaining_time)) {
                 let remSeconds = Number(att.remaining_time);
                 if (remSeconds < 0) remSeconds = 0;
@@ -715,8 +762,6 @@
                 return val > 120 ? val / 60 : val;
             }
 
-            const start = att.started_at || att.created_at || att.start_time;
-            const end = att.submitted_at || att.submission_time || att.completed_at || att.updated_at;
             if (start) {
                 const diffMs = new Date(end || new Date()) - new Date(start);
                 if (diffMs > 0) {
@@ -774,7 +819,6 @@
             }
         }
 
-        // ดึงข้อมูลคอร์ส (เพื่อเอาชื่อคอร์ส หรือ array รายชื่อนักเรียนที่อาจเก็บอยู่ในคอร์สโดยตรง)
         async function loadCourseInfo(targetCourseIds) {
             if (!targetCourseIds || targetCourseIds.length === 0) return null;
             try {
@@ -788,7 +832,6 @@
             return null;
         }
 
-        // ดึงรายชื่อนักเรียนที่ลงทะเบียนในคอร์ส รองรับหลายชื่อตารางและหลายรูปแบบคอลัมน์
         async function loadCourseEnrollments(targetCourseIds, coursesData = []) {
             if (!targetCourseIds || targetCourseIds.length === 0) return [];
 
@@ -811,7 +854,6 @@
                 } catch (e) {}
             }
 
-            // กรณีเก็บ student_ids เป็น array ในตาราง courses เอง
             if (Array.isArray(coursesData)) {
                 coursesData.forEach(c => {
                     const list = c.student_ids || c.enrolled_students || c.students || c.members;
@@ -823,7 +865,6 @@
                 });
             }
 
-            // กรณีเก็บ enrolled_courses / course_ids เป็น array ในตาราง profiles เอง
             if (Array.isArray(allProfiles) && allProfiles.length > 0) {
                 const targetSet = new Set(targetCourseIds.map(String));
                 allProfiles.forEach(p => {
@@ -834,7 +875,6 @@
                 });
             }
 
-            // กรองสถานะการลงทะเบียนที่ถูกปฏิเสธ/ยกเลิกออก (ถ้ามีคอลัมน์ status)
             return collected.filter(row => {
                 if (!row.status) return true;
                 const st = String(row.status).toLowerCase().trim();
@@ -912,16 +952,9 @@
 
                 courseStudents = await loadCourseEnrollments(activeCourseIds, coursesData || []);
 
-                console.log('[LMS Analytics Debug]', {
-                    examId,
-                    activeCourseIds,
-                    totalProfiles: allProfiles.length,
-                    courseStudentsCount: courseStudents.length,
-                    attemptsCount: allAttempts.length
-                });
-
                 await checkAndAutoSubmitExpiredAttempts();
                 setupRealtimeSubscription();
+                startLiveInProgressClock();
             } catch (err) {
                 console.error("Analytics Load Error:", err);
             } finally {
@@ -952,6 +985,24 @@
             computeAndRenderStats();
         }
 
+        function startLiveInProgressClock() {
+            if (liveTimerInterval) clearInterval(liveTimerInterval);
+            liveTimerInterval = setInterval(() => {
+                const liveCells = document.querySelectorAll('[data-live-in-progress="true"]');
+                if (!liveCells || liveCells.length === 0) return;
+
+                liveCells.forEach(cell => {
+                    const sid = cell.getAttribute('data-student-id');
+                    const row = combinedStudentRows.find(r => String(r.studentId) === String(sid));
+                    if (row && row.isInProgress) {
+                        const liveMin = getLiveElapsedMinutes(row);
+                        row.minutesSpent = liveMin;
+                        cell.textContent = formatDurationClock(liveMin);
+                    }
+                });
+            }, 1000);
+        }
+
         function setupRealtimeSubscription() {
             try {
                 if (analyticsRealtimeChannel) {
@@ -980,7 +1031,6 @@
         function pickBestAttemptPerStudent(attemptsList) {
             const grouped = {};
             attemptsList.forEach(att => {
-                // map ให้ตรงกับ canonical id ของ profile ถ้าหาเจอ เพื่อไม่ให้ key ไม่ตรงกันระหว่าง student_id กับ user_id
                 const prof = findProfileByAnyId(att);
                 const canonicalId = prof
                     ? String(prof.id || prof.user_id || att.student_id || att.user_id || '').trim()
@@ -1019,11 +1069,9 @@
                 const canonicalId = String(p.id || p.user_id || rawId || '').trim();
                 if (!canonicalId || seenStudentIds.has(canonicalId)) return;
 
-                // กรอง admin ออกเสมอ
                 if (isAdminAccount(p) || isAdminAccount(fallbackObj)) return;
 
                 seenStudentIds.add(canonicalId);
-                // จดจำทุก key ที่อาจใช้แมตช์กับ attemptMap ด้วย
                 [rawId, p.id, p.user_id, p.student_id].forEach(k => {
                     if (k !== undefined && k !== null && String(k).trim() !== '') {
                         seenStudentIds.add(String(k).trim());
@@ -1047,7 +1095,6 @@
                 });
             };
 
-            // กรณีที่ 1: ชุดข้อสอบสังกัดคอร์ส และพบรายชื่อนักเรียนในคอร์สนั้น -> แสดงนักเรียนในสังกัดคอร์สทั้งหมด (ทั้งที่ทำแล้วและยังไม่ทำ)
             if (hasCourseRoster) {
                 courseStudents.forEach(cs => {
                     const rawId = cs.student_id || cs.user_id || cs.profile_id || cs.id;
@@ -1056,15 +1103,12 @@
                 });
             }
 
-            // กรณีที่ 2: โจทย์ฟรี หรือ ยังไม่มีรายชื่อในตาราง enrollment
             if (freeMode || !hasCourseRoster) {
-                // ดึงนักเรียนที่ไม่ใช่ admin ที่เข้ามาทำโจทย์ชุดนี้
                 Object.entries(attemptMap).forEach(([sId, att]) => {
                     const p = findProfileByAnyId(att) || allStudentsMap[sId];
                     pushStudentEntry(sId, p, att);
                 });
 
-                // ถ้าเป็นโจทย์ฟรีที่เปิดให้ นร. ทุกคนทำ และอยากเห็น นร. ทั้งหมดในระบบ (เฉพาะที่ไม่ใช่ admin)
                 if (freeMode) {
                     allProfiles.forEach(p => {
                         const rawId = p.id || p.user_id || p.student_id;
@@ -1074,7 +1118,6 @@
             }
 
             combinedStudentRows = studentMasterList.map(item => {
-                // หา attempt จากทุก key ที่เป็นไปได้ของนักเรียนคนนี้
                 let att = null;
                 for (const k of item.lookupKeys) {
                     if (attemptMap[k]) {
@@ -1089,6 +1132,7 @@
 
                 const score = isSubmitted ? calculateAttemptTotalScore(att, allQuestions) : 0;
                 const submittedAtVal = att ? (att.submission_time || att.submitted_at || att.created_at || att.updated_at) : null;
+                const spentMin = att ? calculateTimeSpentMinutes(att) : 0;
 
                 return {
                     studentId: item.studentId,
@@ -1100,7 +1144,7 @@
                     isInProgress: isInProgress,
                     attempt: att || null,
                     score: score,
-                    minutesSpent: att ? calculateTimeSpentMinutes(att) : 0,
+                    minutesSpent: spentMin,
                     submittedAt: submittedAtVal,
                     submittedAtTime: submittedAtVal ? new Date(submittedAtVal).getTime() : 0
                 };
@@ -1177,17 +1221,26 @@
 
             const listHtml = targetRows.length === 0
                 ? `<div class="text-center py-6 text-slate-400">ไม่มีรายชื่อนักเรียนในสถานะนี้</div>`
-                : targetRows.map((r, idx) => `
-                    <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs">
-                        <div>
-                            <div class="font-bold text-slate-800 dark:text-slate-100">${idx + 1}. ${escapeHtml(r.fullName)}${r.nickname ? ' (' + escapeHtml(r.nickname) + ')' : ''}</div>
-                            <div class="text-slate-500 font-mono text-[11px]">รหัส: ${escapeHtml(r.studentIdCode)}</div>
+                : targetRows.map((r, idx) => {
+                    const currentSpentMin = statusType === 'in_progress' ? getLiveElapsedMinutes(r) : r.minutesSpent;
+                    const clockText = formatDurationClock(currentSpentMin);
+                    return `
+                        <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs gap-2">
+                            <div class="min-w-0">
+                                <div class="font-bold text-slate-800 dark:text-slate-100 truncate">${idx + 1}. ${escapeHtml(r.fullName)}${r.nickname ? ' (' + escapeHtml(r.nickname) + ')' : ''}</div>
+                                <div class="text-slate-500 font-mono text-[11px]">รหัส: ${escapeHtml(r.studentIdCode)}</div>
+                            </div>
+                            <div class="text-right shrink-0 space-y-0.5">
+                                <div class="font-mono font-extrabold text-amber-600 dark:text-amber-400 text-xs">
+                                    <i class="fas fa-stopwatch mr-1"></i>${clockText}
+                                </div>
+                                <div class="${statusType === 'submitted' ? 'text-emerald-500' : 'text-amber-500'} font-bold text-[10px]">
+                                    ${statusType === 'submitted' ? 'ส่งแล้ว' : 'กำลังทำอยู่'}
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <span class="${statusType === 'submitted' ? 'text-emerald-500' : 'text-amber-500'} font-bold">${statusType === 'submitted' ? 'ส่งแล้ว' : 'In Progress'}</span>
-                        </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
 
             Swal.fire({
                 title: titleText,
@@ -1427,7 +1480,7 @@
                     layout: { padding: { top: 25 } },
                     plugins: {
                         legend: { display: false },
-                        verticalLine: { index: avgTimeBucketIdx, label: `เวลาเฉลี่ย ${avgTimeVal.toFixed(1)} นาที`, color: '#0284c7' }
+                        verticalLine: { index: avgTimeBucketIdx, label: `เวลาเฉลี่ย ${formatDurationClock(avgTimeVal)}`, color: '#0284c7' }
                     },
                     scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
                 },
@@ -1443,7 +1496,8 @@
             const scatterData = combinedStudentRows.filter(r => r.isSubmitted).map(r => ({
                 x: Number(r.minutesSpent.toFixed(1)),
                 y: r.score,
-                name: r.fullName || 'นักเรียน'
+                name: r.fullName || 'นักเรียน',
+                clock: formatDurationClock(r.minutesSpent)
             }));
 
             if (scatterChartInstance) scatterChartInstance.destroy();
@@ -1463,7 +1517,7 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { display: false },
-                        tooltip: { callbacks: { label: c => ` ${c.raw.name}: ใช้เวลา ${c.raw.x} นาที, ได้ ${c.raw.y} คะแนน` } }
+                        tooltip: { callbacks: { label: c => ` ${c.raw.name}: ใช้เวลา ${c.raw.clock}, ได้ ${c.raw.y} คะแนน` } }
                     },
                     scales: {
                         x: { title: { display: true, text: 'เวลาที่ใช้ (นาที)', font: { family: 'Prompt', size: 11 } }, beginAtZero: true },
@@ -1496,8 +1550,16 @@
                 }
 
                 const scoreText = row.isSubmitted ? `<span class="font-mono font-extrabold text-indigo-600 dark:text-indigo-400">${row.score} / ${globalMaxScore}</span>` : `<span class="text-slate-400">-</span>`;
-                const timeText = row.hasAttempt ? `<span class="font-mono text-amber-600 dark:text-amber-400">${row.minutesSpent.toFixed(1)} นาที</span>` : `<span class="text-slate-400">-</span>`;
-                const dateText = row.isSubmitted && row.submittedAt ? new Date(row.submittedAt).toLocaleString('th-TH') : '-';
+
+                let timeText = `<span class="text-slate-400">-</span>`;
+                if (row.isInProgress) {
+                    const liveMin = getLiveElapsedMinutes(row);
+                    timeText = `<span data-live-in-progress="true" data-student-id="${escapeHtml(row.studentId)}" class="font-mono font-extrabold text-amber-600 dark:text-amber-400">${formatDurationClock(liveMin)}</span>`;
+                } else if (row.hasAttempt) {
+                    timeText = `<span class="font-mono font-bold text-slate-700 dark:text-slate-200">${formatDurationClock(row.minutesSpent)}</span>`;
+                }
+
+                const dateText = row.isSubmitted && row.submittedAt ? new Date(row.submittedAt).toLocaleString('th-TH') : (row.isInProgress ? 'กำลังทำอยู่' : '-');
 
                 const actionBtn = row.hasAttempt && row.attempt
                     ? `<button onclick="viewAttemptDetail('${escapeHtml(row.attempt.id)}')" class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-xl transition-all text-[11px] whitespace-nowrap"><i class="fas fa-search-plus mr-1"></i> ตรวจคำตอบ</button>`
