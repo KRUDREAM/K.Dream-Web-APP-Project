@@ -6,10 +6,12 @@
     <title>LMS | เครื่องมือจัดการโจทย์และเฉลย OMR + Audit Log</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
     
     <script>
         (function() {
@@ -75,6 +77,8 @@
         .prose pre { background: #0f172a; color: #e2e8f0; padding: 0.75rem; border-radius: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
         .prose img { border-radius: 0.75rem; max-height: 320px; object-fit: contain; margin: 0.5rem auto; cursor: pointer; transition: transform 0.2s; }
         .prose img:hover { transform: scale(1.01); }
+        .prose .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.25rem 0; margin: 0.4rem 0; }
+        .prose .katex { font-size: 1.02em; }
 
         .bottom-floating-banner {
             position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(120%); z-index: 50;
@@ -362,20 +366,74 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function renderKatexSafe(tex, displayMode) {
+            if (typeof katex === 'undefined' || typeof katex.renderToString !== 'function') {
+                return displayMode
+                    ? `<div>$$${escapeHtml(tex)}$$</div>`
+                    : `<span>$${escapeHtml(tex)}$</span>`;
+            }
+            try {
+                return katex.renderToString(tex.trim(), {
+                    displayMode: !!displayMode,
+                    throwOnError: false,
+                    strict: false
+                });
+            } catch (e) {
+                return displayMode
+                    ? `<div>$$${escapeHtml(tex)}$$</div>`
+                    : `<span>$${escapeHtml(tex)}$</span>`;
+            }
+        }
+
         function renderMarkdownSafe(rawText) {
-            const text = rawText || '';
+            const text = String(rawText || '');
+            if (!text.trim()) return '';
+
+            const mathTokens = [];
+            const storeMath = (tex, displayMode) => {
+                const idx = mathTokens.length;
+                mathTokens.push(renderKatexSafe(tex, displayMode));
+                // ใช้ตัวอักษรล้วนเป็น placeholder เพื่อไม่ให้ marked แปลง _ หรือ * ข้างใน
+                return `MATHTOKENBLOCK${idx}ENDMATHTOKEN`;
+            };
+
+            // 1. แยก block math: $$...$$ และ \[...\]
+            let protectedText = text
+                .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => storeMath(expr, true))
+                .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => storeMath(expr, true));
+
+            // 2. แยก inline math: \(...\) และ $...$ (หลีกเลี่ยง $$ และ currency เช่น $5)
+            protectedText = protectedText
+                .replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => storeMath(expr, false))
+                .replace(/(?<!\$)\$(?!\$|\s)([^$\n]*?[^\s$])\$(?!\$)/g, (match, expr) => {
+                    // ถ้าเป็นตัวเลขล้วนติดกัน เช่น $100 ให้ถือเป็นสกุลเงินตามปกติ เว้นแต่มีสัญลักษณ์คณิตศาสตร์
+                    if (/^\d+(\.\d+)?$/.test(expr.trim())) return match;
+                    return storeMath(expr, false);
+                });
+
+            let htmlOutput = '';
             try {
                 if (typeof marked !== 'undefined') {
                     if (typeof marked.parse === 'function') {
                         marked.setOptions({ breaks: true, gfm: true });
-                        return marked.parse(text);
+                        htmlOutput = marked.parse(protectedText);
+                    } else if (typeof marked === 'function') {
+                        htmlOutput = marked(protectedText);
                     }
-                    if (typeof marked === 'function') return marked(text);
                 }
             } catch (e) {
                 console.warn('Markdown parse warning:', e);
             }
-            return escapeHtml(text).replace(/\r?\n/g, '<br>');
+
+            if (!htmlOutput) {
+                htmlOutput = escapeHtml(protectedText).replace(/\r?\n/g, '<br>');
+            }
+
+            // 3. คืนค่าสมการ KaTeX ที่เรนเดอร์แล้วกลับเข้าไป
+            return htmlOutput.replace(/MATHTOKENBLOCK(\d+)ENDMATHTOKEN/g, (_, idxStr) => {
+                const tokenIdx = parseInt(idxStr, 10);
+                return mathTokens[tokenIdx] !== undefined ? mathTokens[tokenIdx] : '';
+            });
         }
 
         function openEditorImageModal(src) {
@@ -537,6 +595,15 @@
             }
         };
 
+        window.insertMathSnippetIntoTextarea = function(textareaId, previewId = null, snippet = '$x^2$') {
+            insertTextAtTextareaCursor(textareaId, snippet);
+            if (previewId) {
+                const prev = document.getElementById(previewId);
+                if (prev) prev.classList.remove('hidden');
+                refreshMarkdownPreview(textareaId, previewId);
+            }
+        };
+
         window.refreshMarkdownPreview = function(textareaId, previewId) {
             const ta = document.getElementById(textareaId);
             const prev = document.getElementById(previewId);
@@ -550,13 +617,19 @@
             prev.classList.toggle('hidden');
         };
 
-        function buildMarkdownTextareaBlock({ id, label, value, rows = 4, previewId, placeholder = 'พิมพ์ข้อความ (รองรับ Markdown และวาง/ลากรูปภาพได้)...' }) {
-            const hasExistingImage = /!\[.*?\]\(.*?\)/.test(value || '');
+        function buildMarkdownTextareaBlock({ id, label, value, rows = 4, previewId, placeholder = 'พิมพ์ข้อความ รองรับ Markdown และสูตรคณิตศาสตร์ $...$ หรือ $$...$$...' }) {
+            const hasPreviewContent = /(\$|\\\(|\\\[|!\[.*?\]\(.*?\))/.test(value || '');
             return `
                 <div class="space-y-1.5" ondragover="event.preventDefault()" ondrop="handleEditorDropImage(event, '${id}', '${previewId}')">
                     <div class="flex justify-between items-center flex-wrap gap-2">
-                        <label class="block text-xs font-bold">${escapeHtml(label)} <span class="text-[10px] text-sky-500 font-semibold">(แทรกรูป / ลากวาง / Ctrl+V ได้)</span></label>
+                        <label class="block text-xs font-bold">${escapeHtml(label)} <span class="text-[10px] text-sky-500 font-semibold">(Markdown + คณิตศาสตร์ $...$ / $$...$$ + รูปภาพ)</span></label>
                         <div class="flex items-center gap-1.5 flex-wrap">
+                            <button type="button" onclick="insertMathSnippetIntoTextarea('${id}', '${previewId}', '$x^2$')" class="px-2 py-1 bg-purple-600/15 hover:bg-purple-600/25 text-purple-600 dark:text-purple-300 border border-purple-500/30 rounded-lg text-[10px] font-bold" title="แทรกสูตร Inline">
+                                $x^2$
+                            </button>
+                            <button type="button" onclick="insertMathSnippetIntoTextarea('${id}', '${previewId}', '\\n$$\\\\frac{a}{b}$$\\n')" class="px-2 py-1 bg-purple-600/15 hover:bg-purple-600/25 text-purple-600 dark:text-purple-300 border border-purple-500/30 rounded-lg text-[10px] font-bold" title="แทรกสมการแยกบรรทัด">
+                                $$\\frac{a}{b}$$
+                            </button>
                             <label class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[10px] font-bold cursor-pointer flex items-center gap-1">
                                 <i class="fas fa-image"></i> แทรกรูป/ไฟล์
                                 <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="handleEditorFileInsert(this, '${id}', '${previewId}')">
@@ -570,7 +643,7 @@
                         </div>
                     </div>
                     <textarea id="${id}" rows="${rows}" oninput="refreshMarkdownPreview('${id}', '${previewId}')" onpaste="handleEditorPasteImage(event, '${id}', '${previewId}')" class="w-full px-3 py-2 border rounded-xl dark:bg-slate-800 font-mono text-xs leading-relaxed" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value || '')}</textarea>
-                    <div id="${previewId}" onclick="handleMarkdownBodyClick(event)" class="${hasExistingImage ? '' : 'hidden'} p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-sky-500/30 prose dark:prose-invert max-w-none text-xs max-h-56 overflow-y-auto">${renderMarkdownSafe(value || '')}</div>
+                    <div id="${previewId}" onclick="handleMarkdownBodyClick(event)" class="${hasPreviewContent ? '' : 'hidden'} p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-sky-500/30 prose dark:prose-invert max-w-none text-xs max-h-56 overflow-y-auto">${renderMarkdownSafe(value || '')}</div>
                 </div>
             `;
         }
@@ -846,7 +919,7 @@
                             value: contentVal,
                             rows: 6,
                             previewId: 'spContentPreview',
-                            placeholder: 'พิมพ์เนื้อหาโจทย์ร่วมด้วย Markdown หรือวาง/ลากรูปภาพแทรกตรงไหนก็ได้...'
+                            placeholder: 'พิมพ์เนื้อหาโจทย์ร่วมด้วย Markdown / สูตรคณิตศาสตร์ $...$ หรือวาง/ลากรูปภาพแทรกตรงไหนก็ได้...'
                         })}
                     </div>
                 `,
@@ -917,7 +990,7 @@
 
                 const isOnline = isOnlineExamMode();
                 document.getElementById('examTitleHeader').textContent = `${data.title}`;
-                document.getElementById('examSubHeader').textContent = `CODE: ${data.exam_code || 'ไม่มี'} | โหมด: ${isOnline ? 'พิมพ์โจทย์ลงระบบ (Markdown)' : 'ไฟล์ PDF'} | รูปแบบตัวเลือก: ${getChoiceFormatLabelText(data.choice_format)}`;
+                document.getElementById('examSubHeader').textContent = `CODE: ${data.exam_code || 'ไม่มี'} | โหมด: ${isOnline ? 'พิมพ์โจทย์ลงระบบ (Markdown + Math)' : 'ไฟล์ PDF'} | รูปแบบตัวเลือก: ${getChoiceFormatLabelText(data.choice_format)}`;
                 
                 const subtitle = document.getElementById('choiceFormatSubtitle');
                 if (subtitle) {
@@ -926,7 +999,7 @@
 
                 const accSub = document.getElementById('accordionSubtitle');
                 if (accSub) {
-                    accSub.textContent = 'ขยายดูโจทย์ พิมพ์ Markdown แทรกรูปภาพตรงไหนก็ได้ ผูกโจทย์ร่วม และตั้งค่าการให้คะแนนได้';
+                    accSub.textContent = 'ขยายดูโจทย์ พิมพ์ Markdown + สูตรคณิตศาสตร์ ($...$) แทรกรูปภาพ ผูกโจทย์ร่วม และตั้งค่าการให้คะแนนได้';
                 }
 
                 const pdfUploadCard = document.getElementById('pdfUploadCard');
@@ -1419,7 +1492,8 @@
             const optInputHtml = `
                 <div class="flex-1 space-y-1">
                     <input id="${optId}" class="opt-text-input w-full px-3 py-1 border rounded-xl dark:bg-slate-800 text-xs" value="${escapeHtml(label)}" oninput="refreshMarkdownPreview('${optId}', '${prevId}')">
-                    <div class="flex items-center gap-2 text-[10px]">
+                    <div class="flex items-center gap-2 text-[10px] flex-wrap">
+                        <button type="button" onclick="insertMathSnippetIntoTextarea('${optId}', '${prevId}', '$x^2$')" class="text-purple-600 dark:text-purple-400 font-bold">$x^2$</button>
                         <label class="text-sky-600 dark:text-sky-400 font-bold cursor-pointer"><i class="fas fa-image"></i> แทรกรูป<input type="file" accept="image/*" class="hidden" onchange="handleEditorFileInsert(this, '${optId}', '${prevId}')"></label>
                         <button type="button" onclick="insertImageUrlPromptIntoTextarea('${optId}', '${prevId}')" class="text-indigo-500 font-bold">URL รูป</button>
                         <button type="button" onclick="toggleMarkdownPreviewPane('${prevId}'); refreshMarkdownPreview('${optId}', '${prevId}');" class="text-slate-500 underline">Preview</button>
@@ -1526,7 +1600,6 @@
 
         async function openQuestionModal(qData = null) {
             const isEdit = !!qData;
-            const isOnline = isOnlineExamMode();
             const formatType = currentExamData?.choice_format || 'num';
             const standardLabels = getChoiceLabels(formatType, qData?.options ? qData.options.length : 4);
 
@@ -1573,17 +1646,18 @@
                 const deleteBtn = i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1 mt-1"><i class="fas fa-times"></i></button>` : '';
                 const optInputId = `optField_${i}`;
                 const optPrevId = `optPrev_${i}`;
-                const hasOptImg = /!\[.*?\]\(.*?\)/.test(opt || '');
+                const hasOptPreview = /(\$|\\\(|\\\[|!\[.*?\]\(.*?\))/.test(opt || '');
 
                 const optFieldHtml = `
                     <div class="flex-1 space-y-1">
                         <input id="${optInputId}" class="opt-text-input w-full px-3 py-1 border rounded-xl dark:bg-slate-800 text-xs" value="${escapeHtml(opt)}" oninput="refreshMarkdownPreview('${optInputId}', '${optPrevId}')">
-                        <div class="flex items-center gap-2 text-[10px]">
+                        <div class="flex items-center gap-2 text-[10px] flex-wrap">
+                            <button type="button" onclick="insertMathSnippetIntoTextarea('${optInputId}', '${optPrevId}', '$x^2$')" class="text-purple-600 dark:text-purple-400 font-bold">$x^2$</button>
                             <label class="text-sky-600 dark:text-sky-400 font-bold cursor-pointer"><i class="fas fa-image"></i> แทรกรูป<input type="file" accept="image/*" class="hidden" onchange="handleEditorFileInsert(this, '${optInputId}', '${optPrevId}')"></label>
                             <button type="button" onclick="insertImageUrlPromptIntoTextarea('${optInputId}', '${optPrevId}')" class="text-indigo-500 font-bold">URL รูป</button>
                             <button type="button" onclick="toggleMarkdownPreviewPane('${optPrevId}'); refreshMarkdownPreview('${optInputId}', '${optPrevId}');" class="text-slate-500 underline">Preview</button>
                         </div>
-                        <div id="${optPrevId}" onclick="handleMarkdownBodyClick(event)" class="${hasOptImg ? '' : 'hidden'} p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border prose dark:prose-invert max-w-none text-[11px]">${renderMarkdownSafe(opt)}</div>
+                        <div id="${optPrevId}" onclick="handleMarkdownBodyClick(event)" class="${hasOptPreview ? '' : 'hidden'} p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border prose dark:prose-invert max-w-none text-[11px]">${renderMarkdownSafe(opt)}</div>
                     </div>
                 `;
 
@@ -1612,7 +1686,7 @@
                 value: qData?.question_text || qData?.content || '',
                 rows: 4,
                 previewId: 'qTextMarkdownPreview',
-                placeholder: 'พิมพ์โจทย์ด้วย Markdown หรือกดปุ่ม "แทรกรูป/ไฟล์" / วางรูป (Ctrl+V) ตรงไหนก็ได้...'
+                placeholder: 'พิมพ์โจทย์ด้วย Markdown / สูตรคณิตศาสตร์ $...$ หรือ $$...$$ หรือวาง/ลากรูปภาพแทรกตรงไหนก็ได้...'
             });
 
             const existingMainImgUrl = qData?.image_url || '';
@@ -1727,7 +1801,7 @@
 
                             <div id="keywordSec" class="${qData?.grading_type === 'keyword' ? '' : 'hidden'} space-y-2">
                                 <div class="flex justify-between items-center">
-                                    <label class="font-bold text-amber-500"><i class="fas fa-key mr-1"></i> คำสำคัญสำหรับตรวจอัตโนมัติ</label>
+                                    <label class="font-bold text-amber-500"><i class="fas fa-key mr-1"></i> คำสำคัญสำหรับตรวจอัตนัย</label>
                                     <button type="button" onclick="addKeywordField()" class="px-2 py-1 bg-amber-500 text-white rounded-lg text-[10px] font-bold"><i class="fas fa-plus"></i> เพิ่มคำตอบ</button>
                                 </div>
                                 <div id="keywordsContainer" class="space-y-2">
