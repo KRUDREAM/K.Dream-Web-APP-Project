@@ -164,6 +164,17 @@
         let currentViewMode = localStorage.getItem('exam_view_mode') || 'grid';
         let isAllCollapsed = false;
 
+        function isAttemptSubmitted(att) {
+            return Boolean(
+                att && (
+                    att.status === 'submitted' ||
+                    att.status === 'completed' ||
+                    att.submitted_at ||
+                    att.submission_time
+                )
+            );
+        }
+
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
         if (localStorage.getItem('theme') === 'dark') {
@@ -284,7 +295,7 @@
             const { data: attempts } = await mySupabase.from('exam_attempts').select('*');
             allAttemptsMap = {};
             if (attempts) {
-                attempts.forEach(att => {
+                attempts.filter(att => isAttemptSubmitted(att)).forEach(att => {
                     const eId = String(att.exam_id);
                     if (!allAttemptsMap[eId]) allAttemptsMap[eId] = [];
                     const score = att.total_score !== undefined && att.total_score !== null ? Number(att.total_score) : (Number(att.score) || 0);
@@ -438,7 +449,7 @@
                 scheduleInfo = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold"><i class="fas fa-clock mr-1"></i>เปิด: ${new Date(e.start_time).toLocaleString('th-TH')}</div>`;
             }
             if (e.due_date) {
-                scheduleInfo += `<div class="text-[10px] text-rose-600 dark:text-rose-400 font-semibold"><i class="fas fa-hourglass-end mr-1"></i>ปิด: ${new Date(e.due_date).toLocaleString('th-TH')}</div>`;
+                scheduleInfo += `<div class="text-[10px] text-rose-600 dark:text-rose-400 font-semibold"><i class="fas fa-hourglass-end mr-1"></i>ปิด: ${new Date(e.due_date).toLocaleString('th-TH')}${e.allow_late_submission ? ' <span class="text-amber-600 dark:text-amber-400">(ส่งช้าได้)</span>' : ''}</div>`;
             }
 
             return `
@@ -458,7 +469,7 @@
                         </div>
                         <div class="flex justify-between items-center bg-indigo-50/50 dark:bg-indigo-950/20 px-3 py-1.5 rounded-xl border border-indigo-100 dark:border-indigo-900/40 text-xs">
                             <span class="text-slate-500">คะแนนเฉลี่ยคลาส:</span>
-                            <span class="font-extrabold text-indigo-600 dark:text-indigo-400">${avgScore} คะแนน <span class="text-[10px] font-normal text-slate-400">(${submittedCount} คน)</span></span>
+                            <span class="font-extrabold text-indigo-600 dark:text-indigo-400">${avgScore} คะแนน <span class="text-[10px] font-normal text-slate-400">(ส่งแล้ว ${submittedCount} คน)</span></span>
                         </div>
                     </div>
 
@@ -509,7 +520,7 @@
                             <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
                                 ${deliveryBadge}
                                 <span><i class="far fa-clock text-sky-500 mr-1"></i>${e.time_limit || 60} นาที</span>
-                                <span class="text-indigo-600 dark:text-indigo-400 font-bold">🎯 คะแนนเฉลี่ย: ${avgScore} (${submittedCount} คน)</span>
+                                <span class="text-indigo-600 dark:text-indigo-400 font-bold">🎯 คะแนนเฉลี่ย: ${avgScore} (ส่งแล้ว ${submittedCount} คน)</span>
                                 <span class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[10px]">ตัวเลือก: ${choiceLabel}</span>
                             </div>
                         </div>
@@ -528,7 +539,6 @@
             `;
         }
 
-        // 🌟 ฟังก์ชันระบบ Duplicate ชุดข้อสอบและโจทย์ทั้งหมด
         async function duplicateExam(sourceExamId) {
             const confirmResult = await Swal.fire({
                 title: 'ยืนยันการคัดลอกชุดข้อสอบ?',
@@ -544,11 +554,9 @@
             try {
                 Swal.fire({ title: 'กำลังคัดลอกชุดข้อสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-                // 1. ดึงข้อมูลชุดข้อสอบต้นฉบับ
                 const { data: sourceExam, error: fetchErr } = await mySupabase.from('exams').select('*').eq('id', sourceExamId).single();
                 if (fetchErr || !sourceExam) throw new Error('ไม่พบข้อมูลชุดข้อสอบต้นฉบับ');
 
-                // 2. สร้างข้อมูลชุดข้อสอบใหม่ (Template)
                 const newExamPayload = {
                     title: `${sourceExam.title} (สำเนา)`,
                     exam_code: `EXAM-${Math.floor(Math.random() * 9000 + 1000)}`,
@@ -559,8 +567,9 @@
                     course_id: sourceExam.course_id,
                     time_limit: sourceExam.time_limit,
                     max_attempts: sourceExam.max_attempts,
-                    status: 'draft', // ตั้งเป็น draft เสมอเพื่อความปลอดภัย
+                    status: 'draft',
                     show_answer_instantly: sourceExam.show_answer_instantly,
+                    allow_late_submission: !!sourceExam.allow_late_submission,
                     start_time: sourceExam.start_time,
                     due_date: sourceExam.due_date,
                     created_at: new Date().toISOString()
@@ -571,18 +580,13 @@
 
                 const newExamId = insertedExam.id;
 
-                // 3. ดึงโจทย์ทั้งหมดของข้อสอบต้นฉบับ
                 const { data: sourceQuestions, error: qFetchErr } = await mySupabase.from('questions').select('*').eq('exam_id', sourceExamId);
                 
                 if (!qFetchErr && sourceQuestions && sourceQuestions.length > 0) {
                     for (const q of sourceQuestions) {
                         const { id: oldQId, exam_id, created_at, ...qData } = q;
                         qData.exam_id = newExamId;
-
-                        const { data: insertedQ, error: insQErr } = await mySupabase.from('questions').insert([qData]).select().single();
-                        if (!insQErr && insertedQ) {
-                            // ถ้ามีตารางตัวเลือกย่อยหรือข้อมูลสัมพันธ์กัน สามารถคัดลอกต่อได้ที่นี่
-                        }
+                        await mySupabase.from('questions').insert([qData]);
                     }
                 }
 
@@ -626,7 +630,7 @@
                         <div class="grid grid-cols-3 gap-2 text-center">
                             <div class="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl">
                                 <div class="text-lg font-extrabold text-sky-600">${totalStudents}</div>
-                                <div class="text-[10px] text-slate-400">นักเรียนที่ส่งสอบ</div>
+                                <div class="text-[10px] text-slate-400">นักเรียนที่ส่งสอบแล้ว</div>
                             </div>
                             <div class="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl">
                                 <div class="text-lg font-extrabold text-emerald-600">${avgScore}</div>
@@ -661,15 +665,22 @@
 
             const renderAttemptRows = (list) => {
                 if (list.length === 0) return `<div class="text-center py-4 text-slate-400 text-xs">ไม่พบรายชื่อนักเรียนที่ค้นหา</div>`;
-                return list.map(att => `
-                    <div class="flex justify-between items-center p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs attempt-row" data-name="${(att.profiles?.full_name || '').toLowerCase()}">
-                        <div>
-                            <div class="font-bold text-slate-900 dark:text-white">${att.profiles?.full_name || 'ไม่ระบุชื่อ'}</div>
-                            <div class="text-[10px] text-slate-400">คะแนน: ${att.score ?? '-'} | ส่งเมื่อ: ${att.submission_time ? new Date(att.submission_time).toLocaleString('th-TH') : '-'}</div>
+                return list.map(att => {
+                    const submitted = isAttemptSubmitted(att);
+                    const scoreVal = att.total_score !== undefined && att.total_score !== null ? att.total_score : (att.score ?? '-');
+                    const statusLabel = submitted
+                        ? `<span class="text-emerald-600 font-bold">ส่งแล้ว</span> (${att.submission_time || att.submitted_at ? new Date(att.submission_time || att.submitted_at).toLocaleString('th-TH') : '-'})`
+                        : `<span class="text-amber-600 font-bold">ทำค้างอยู่</span>`;
+                    return `
+                        <div class="flex justify-between items-center p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs attempt-row" data-name="${(att.profiles?.full_name || '').toLowerCase()}">
+                            <div>
+                                <div class="font-bold text-slate-900 dark:text-white">${att.profiles?.full_name || 'ไม่ระบุชื่อ'}</div>
+                                <div class="text-[10px] text-slate-400">คะแนน: ${submitted ? scoreVal : '-'} | สถานะ: ${statusLabel}</div>
+                            </div>
+                            <button onclick="deleteAttemptRecord('${att.id}', '${examId}', '${examTitle}')" class="px-2.5 py-1 bg-red-500 text-white rounded-lg font-bold text-[10px] hover:bg-red-600"><i class="fas fa-trash mr-1"></i> ลบสิทธิ์/ให้สอบใหม่</button>
                         </div>
-                        <button onclick="deleteAttemptRecord('${att.id}', '${examId}', '${examTitle}')" class="px-2.5 py-1 bg-red-500 text-white rounded-lg font-bold text-[10px] hover:bg-red-600"><i class="fas fa-trash mr-1"></i> ลบสิทธิ์/ให้สอบใหม่</button>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             };
 
             Swal.fire({
@@ -861,6 +872,10 @@
                             </label>
                             <div id="dueDateBox" class="${examData?.due_date ? '' : 'hidden'} space-y-2">
                                 <input type="datetime-local" id="swalDueDate" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" value="${examData?.due_date ? new Date(new Date(examData.due_date).getTime() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16) : ''}">
+                                <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700 dark:text-slate-300">
+                                    <input type="checkbox" id="swalAllowLateSubmission" ${examData?.allow_late_submission ? 'checked' : ''} class="w-4 h-4 rounded text-amber-600">
+                                    <span>อนุญาตให้ส่งข้อสอบหรือทำต่อได้เมื่อเลย Due Date แล้ว</span>
+                                </label>
                             </div>
                         </div>
 
@@ -882,9 +897,9 @@
                     const choice_format = document.getElementById('swalChoiceFormat').value;
                     const status = document.getElementById('swalStatus').value;
                     const hasDueDate = document.getElementById('hasDueDateCheck').checked;
+                    const allow_late_submission = hasDueDate ? document.getElementById('swalAllowLateSubmission').checked : false;
                     const catVal = document.getElementById('swalCategory').value;
                     const selectedCourseId = document.getElementById('swalCourseSelect').value;
-                    
                     const show_answer_instantly = document.getElementById('swalShowAnswerInstantly').checked;
 
                     if (!title) { Swal.showValidationMessage('กรุณากรอกชื่อชุดข้อสอบ'); return false; }
@@ -903,6 +918,7 @@
                         max_attempts: parseInt(document.getElementById('swalMaxAttempts').value) || 0,
                         status: status,
                         show_answer_instantly: show_answer_instantly,
+                        allow_late_submission,
                         start_time: (status === 'countdown' && document.getElementById('swalStartTime').value) ? new Date(document.getElementById('swalStartTime').value).toISOString() : null,
                         due_date: (hasDueDate && document.getElementById('swalDueDate').value) ? new Date(document.getElementById('swalDueDate').value).toISOString() : null
                     };
