@@ -161,6 +161,7 @@
         let coursesMap = {};
         let profilesNameMap = {};
         let currentExamsData = [];
+        let allExamsRawData = [];
         let allAttemptsMap = {};
         let currentViewMode = localStorage.getItem('exam_view_mode') || 'grid';
         let isAllCollapsed = false;
@@ -335,8 +336,11 @@
                 }
             }
 
+            allExamsRawData = allExams;
+
+            let filteredExams = allExams;
             if (filterCourseId) {
-                allExams = allExams.filter(e => {
+                filteredExams = allExams.filter(e => {
                     if (!e.course_id) return false;
                     if (Array.isArray(e.course_id)) {
                         return e.course_id.includes(filterCourseId);
@@ -345,7 +349,7 @@
                 });
             }
 
-            currentExamsData = allExams;
+            currentExamsData = filteredExams;
             
             if (error || currentExamsData.length === 0) {
                 document.getElementById('classroomExamsContainer').innerHTML = `<div class="hitech-card p-8 rounded-2xl text-center text-slate-400 text-xs">ยังไม่มีชุดข้อสอบในระบบ${filterCourseId ? 'ของคอร์สนี้' : ''}</div>`;
@@ -1103,36 +1107,203 @@
         }
 
         async function openCategoryManagerModal() {
-            let catHtml = categoriesList.map(c => `
-                <div class="flex justify-between items-center p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs">
-                    <span class="font-bold">${c.name}</span>
-                    <button onclick="deleteCategory('${c.id}')" class="text-red-500 px-2 py-1"><i class="fas fa-trash"></i></button>
-                </div>
-            `).join('');
+            const countByCat = {};
+            allExamsRawData.forEach(e => {
+                if (e.category_id) {
+                    const k = String(e.category_id);
+                    countByCat[k] = (countByCat[k] || 0) + 1;
+                }
+            });
+
+            const catHtml = categoriesList.map(c => {
+                const cnt = countByCat[String(c.id)] || 0;
+                const safeName = encodeURIComponent(c.name || '');
+                return `
+                    <div class="flex justify-between items-center gap-2 p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs border border-slate-200/70 dark:border-slate-700/70">
+                        <div class="min-w-0">
+                            <span class="font-bold text-slate-900 dark:text-white block truncate">${c.name}</span>
+                            <span class="text-[10px] text-slate-500 dark:text-slate-400">${cnt} ชุดข้อสอบในหมวดนี้</span>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button onclick="openCategoryExamsEditor('${c.id}', decodeURIComponent('${safeName}'))" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[11px] transition-all" title="ติ๊กเลือกชุดข้อสอบในหมวดนี้">
+                                <i class="fas fa-check-square mr-1"></i>ชุดสอบ
+                            </button>
+                            <button onclick="renameCategory('${c.id}', decodeURIComponent('${safeName}'))" class="px-2 py-1 bg-sky-500/15 hover:bg-sky-500 text-sky-600 dark:text-sky-400 hover:text-white rounded-lg text-[11px] font-bold transition-all" title="แก้ไขชื่อหมวดหมู่">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button onclick="deleteCategory('${c.id}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg text-[11px] transition-all" title="ลบหมวดหมู่">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
 
             const { value: newCatName } = await Swal.fire({
-                title: 'จัดการหมวดหมู่',
+                title: 'จัดการหมวดหมู่ชุดข้อสอบ',
+                width: '560px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
-                        <div class="space-y-1.5 max-h-40 overflow-y-auto">${catHtml || '<div class="text-center text-slate-400">ยังไม่มีหมวดหมู่</div>'}</div>
-                        <input id="newCatInput" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่...">
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">
+                            กด <strong>ชุดสอบ</strong> เพื่อติ๊กเพิ่ม/ถอดชุดข้อสอบในหมวดนั้น (1 ชุดอยู่ได้ 1 หมวดหมู่ และดึงได้เฉพาะชุดที่ยังไม่มีหมวดหมู่)
+                        </div>
+                        <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1">${catHtml || '<div class="text-center text-slate-400 py-4">ยังไม่มีหมวดหมู่</div>'}</div>
+                        <div class="pt-2 border-t dark:border-slate-800">
+                            <label class="block font-bold mb-1">สร้างหมวดหมู่ใหม่</label>
+                            <input id="newCatInput" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่...">
+                        </div>
                     </div>
                 `,
                 showCancelButton: true,
-                confirmButtonText: 'เพิ่มหมวดหมู่',
-                preConfirm: () => document.getElementById('newCatInput').value
+                confirmButtonText: '<i class="fas fa-plus mr-1"></i>เพิ่มหมวดหมู่',
+                cancelButtonText: 'ปิด',
+                preConfirm: () => document.getElementById('newCatInput').value.trim()
             });
 
             if (newCatName) {
-                await mySupabase.from('exam_categories').insert([{ name: newCatName }]);
+                const { error } = await mySupabase.from('exam_categories').insert([{ name: newCatName }]);
+                if (error) {
+                    Swal.fire('เพิ่มหมวดหมู่ไม่สำเร็จ', error.message, 'error');
+                    return;
+                }
                 await loadCategories();
                 openCategoryManagerModal();
             }
         }
 
+        async function renameCategory(catId, oldName) {
+            const { value: updatedName } = await Swal.fire({
+                title: 'แก้ไขชื่อหมวดหมู่',
+                input: 'text',
+                inputValue: oldName,
+                inputPlaceholder: 'กรอกชื่อหมวดหมู่ใหม่',
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกชื่อ',
+                cancelButtonText: 'ยกเลิก',
+                inputValidator: (val) => {
+                    if (!val || !val.trim()) return 'กรุณากรอกชื่อหมวดหมู่';
+                }
+            });
+
+            if (updatedName && updatedName.trim() !== oldName) {
+                const cleanName = updatedName.trim();
+                const { error } = await mySupabase.from('exam_categories').update({ name: cleanName }).eq('id', catId);
+                if (error) {
+                    Swal.fire('แก้ไขชื่อไม่สำเร็จ', error.message, 'error');
+                    return;
+                }
+                await loadCategories();
+                await loadExams();
+                openCategoryManagerModal();
+            }
+        }
+
+        async function openCategoryExamsEditor(catId, catName) {
+            const inThisCat = allExamsRawData.filter(e => String(e.category_id || '') === String(catId));
+            const unassignedExams = allExamsRawData.filter(e => !e.category_id);
+
+            const inCatRows = inThisCat.length > 0
+                ? inThisCat.map(e => `
+                    <label class="flex items-center justify-between gap-2 p-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl cursor-pointer hover:bg-emerald-500/15 transition-all">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <input type="checkbox" name="catExamCheckbox" value="${e.id}" checked class="w-4 h-4 rounded text-indigo-600 shrink-0">
+                            <div class="min-w-0">
+                                <div class="font-bold text-slate-900 dark:text-white truncate">${e.title}</div>
+                                <div class="text-[10px] text-slate-500 font-mono">${e.exam_code || 'CODE'}</div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded text-[10px] font-bold shrink-0">อยู่ในหมวดนี้</span>
+                    </label>
+                `).join('')
+                : `<div class="text-center py-3 text-slate-400 text-[11px] bg-slate-50 dark:bg-slate-900/50 rounded-xl">ยังไม่มีชุดข้อสอบในหมวดหมู่นี้</div>`;
+
+            const unassignedRows = unassignedExams.length > 0
+                ? unassignedExams.map(e => `
+                    <label class="flex items-center justify-between gap-2 p-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 rounded-xl cursor-pointer hover:border-indigo-400 transition-all">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <input type="checkbox" name="catExamCheckbox" value="${e.id}" class="w-4 h-4 rounded text-indigo-600 shrink-0">
+                            <div class="min-w-0">
+                                <div class="font-bold text-slate-900 dark:text-white truncate">${e.title}</div>
+                                <div class="text-[10px] text-slate-500 font-mono">${e.exam_code || 'CODE'}</div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded text-[10px] font-bold shrink-0">ยังไม่สังกัดหมวด</span>
+                    </label>
+                `).join('')
+                : `<div class="text-center py-3 text-slate-400 text-[11px] bg-slate-50 dark:bg-slate-900/50 rounded-xl">ไม่มีชุดข้อสอบที่ว่าง (ชุดอื่นสังกัดหมวดหมู่อื่นอยู่แล้ว)</div>`;
+
+            const { value: selectedIds } = await Swal.fire({
+                title: `ชุดข้อสอบในหมวด: ${catName}`,
+                width: '620px',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-800 dark:text-amber-300">
+                            <strong>เงื่อนไข:</strong> 1 ชุดข้อสอบอยู่ได้เพียง 1 หมวดหมู่เท่านั้น — แสดงเฉพาะชุดที่อยู่ในหมวดนี้แล้ว และชุดที่ยังไม่มีหมวดหมู่ (หากติ๊กออก ชุดนั้นจะกลายเป็น "ยังไม่สังกัดหมวด")
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="font-bold text-emerald-700 dark:text-emerald-400">ชุดที่อยู่ในหมวดหมู่นี้ (${inThisCat.length})</div>
+                            <div class="space-y-1.5 max-h-40 overflow-y-auto pr-1">${inCatRows}</div>
+                        </div>
+                        <div class="space-y-1.5 pt-2 border-t dark:border-slate-800">
+                            <div class="font-bold text-slate-700 dark:text-slate-300">ชุดที่ยังไม่มีหมวดหมู่ — ติ๊กเพื่อเพิ่มเข้าหมวดนี้ (${unassignedExams.length})</div>
+                            <div class="space-y-1.5 max-h-44 overflow-y-auto pr-1">${unassignedRows}</div>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกการจัดหมวดหมู่',
+                cancelButtonText: 'ย้อนกลับ',
+                preConfirm: () => {
+                    return Array.from(document.querySelectorAll('input[name="catExamCheckbox"]:checked')).map(cb => String(cb.value));
+                }
+            });
+
+            if (Array.isArray(selectedIds)) {
+                Swal.fire({ title: 'กำลังอัปเดตหมวดหมู่ชุดข้อสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                const idsToAdd = selectedIds.filter(id => !inThisCat.some(e => String(e.id) === String(id)));
+                const idsToRemove = inThisCat.filter(e => !selectedIds.includes(String(e.id))).map(e => e.id);
+
+                if (idsToAdd.length > 0) {
+                    const { error: addErr } = await mySupabase.from('exams').update({ category_id: catId }).in('id', idsToAdd);
+                    if (addErr) {
+                        Swal.fire('บันทึกไม่สำเร็จ', addErr.message, 'error');
+                        return;
+                    }
+                }
+
+                if (idsToRemove.length > 0) {
+                    const { error: remErr } = await mySupabase.from('exams').update({ category_id: null }).in('id', idsToRemove);
+                    if (remErr) {
+                        Swal.fire('บันทึกไม่สำเร็จ', remErr.message, 'error');
+                        return;
+                    }
+                }
+
+                await loadExams();
+                Swal.fire({ icon: 'success', title: 'อัปเดตหมวดหมู่เรียบร้อยแล้ว', timer: 1100, showConfirmButton: false });
+                setTimeout(() => openCategoryManagerModal(), 300);
+            } else {
+                openCategoryManagerModal();
+            }
+        }
+
         async function deleteCategory(id) {
+            const res = await Swal.fire({
+                title: 'ยืนยันลบหมวดหมู่นี้?',
+                text: 'ชุดข้อสอบที่เคยอยู่ในหมวดหมู่นี้จะเปลี่ยนเป็น "ยังไม่สังกัดหมวดหมู่"',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ลบหมวดหมู่',
+                cancelButtonText: 'ยกเลิก'
+            });
+            if (!res.isConfirmed) return;
+
+            await mySupabase.from('exams').update({ category_id: null }).eq('category_id', id);
             await mySupabase.from('exam_categories').delete().eq('id', id);
             await loadCategories();
+            await loadExams();
             openCategoryManagerModal();
         }
 
