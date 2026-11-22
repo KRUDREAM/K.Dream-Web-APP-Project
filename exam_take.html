@@ -357,6 +357,14 @@
             return true;
         }
 
+        function hasAnyAnswered() {
+            return Object.values(studentAnswers).some(ans => {
+                if (ans === undefined || ans === null) return false;
+                if (Array.isArray(ans)) return ans.length > 0;
+                return String(ans).trim() !== '';
+            });
+        }
+
         async function initPage() {
             if (!checkStudentAuth()) return;
             if (!examId) {
@@ -369,6 +377,17 @@
                 document.getElementById('previewBanner').classList.remove('hidden');
             }
 
+            const { data: exam, error: examError } = await mySupabase.from('exams').select('*').eq('id', examId).single();
+            if (examError || !exam) {
+                Swal.fire('ไม่พบชุดข้อสอบนี้ หรือติดปัญหาการเชื่อมต่อ', '', 'error').then(() => window.location.replace('student.html'));
+                return;
+            }
+
+            currentExam = exam;
+            document.getElementById('examTitleNav').textContent = exam.title;
+            document.getElementById('examSubNav').textContent = `รหัส: ${exam.exam_code || 'ไม่มี'} | เวลาทำ: ${exam.time_limit || 60} นาที`;
+
+            let inProgressAttempt = null;
             if (!isPreview && currentStudentId) {
                 try {
                     const { data: existingAttempts } = await mySupabase
@@ -391,44 +410,24 @@
                         return;
                     }
 
-                    const inProgressAttempt = existingAttempts?.find(a => a.status === 'in_progress');
+                    inProgressAttempt = existingAttempts?.find(a => a.status === 'in_progress') || null;
                     if (inProgressAttempt) {
                         activeAttemptRecordId = inProgressAttempt.id;
-                    } else {
-                        const { data: newIns, error: insErr } = await mySupabase
-                            .from('exam_attempts')
-                            .insert([{
-                                exam_id: examId,
-                                student_id: currentStudentId,
-                                status: 'in_progress'
-                            }])
-                            .select()
-                            .single();
-
-                        if (!insErr && newIns) {
-                            activeAttemptRecordId = newIns.id;
-                        }
                     }
                 } catch(err) {
-                    console.error("Error managing exam attempt status:", err);
+                    console.error("Error checking exam attempt status:", err);
                 }
             }
 
-            const { data: exam, error: examError } = await mySupabase.from('exams').select('*').eq('id', examId).single();
-            if (examError || !exam) {
-                Swal.fire('ไม่พบชุดข้อสอบนี้ หรือติดปัญหาการเชื่อมต่อ', '', 'error').then(() => window.location.replace('student.html'));
-                return;
-            }
+            const isPastDueDate = !!(exam.due_date && Date.now() > new Date(exam.due_date).getTime());
+            const allowLate = !!exam.allow_late_submission;
 
-            currentExam = exam;
-            document.getElementById('examTitleNav').textContent = exam.title;
-            document.getElementById('examSubNav').textContent = `รหัส: ${exam.exam_code || 'ไม่มี'} | เวลาทำ: ${exam.time_limit || 60} นาที`;
-
-            if (!isPreview && exam.due_date && new Date() > new Date(exam.due_date)) {
+            // คนที่ยังไม่เคยทำเลย เมื่อเลย due_date และครูไม่อนุญาตให้ทำช้า -> เข้าทำไม่ได้ และไม่สร้าง attempt
+            if (!isPreview && isPastDueDate && !inProgressAttempt && !allowLate) {
                 Swal.fire({
                     icon: 'error',
-                    title: 'หมดเขตส่งข้อสอบแล้ว!',
-                    text: 'เลยกำหนดเวลาส่ง (Due Date) ของชุดข้อสอบนี้แล้ว ระบบไม่อนุญาตให้เข้าทำข้อสอบ',
+                    title: 'หมดเขตทำข้อสอบแล้ว!',
+                    text: 'เลยกำหนดส่ง (Due Date) แล้ว และระบบปิดรับการทำข้อสอบเพิ่มเติมสำหรับผู้ที่ยังไม่ส่ง',
                     confirmButtonText: 'กลับหน้าหลัก',
                     allowOutsideClick: false
                 }).then(() => {
@@ -445,17 +444,18 @@
             if (!isPreview) {
                 try {
                     const savedAnswers = localStorage.getItem(`exam_answers_${examId}_${currentStudentId}`);
-                    if (savedAnswers) studentAnswers = JSON.parse(savedAnswers);
+                    if (savedAnswers) studentAnswers = JSON.parse(savedAnswers) || {};
                     const savedFlags = localStorage.getItem(`exam_flags_${examId}_${currentStudentId}`);
-                    if (savedFlags) flaggedQuestions = JSON.parse(savedFlags);
+                    if (savedFlags) flaggedQuestions = JSON.parse(savedFlags) || {};
                 } catch(e) {}
             }
 
+            const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
+
             if (!isPreview) {
-                const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
                 const existingStartTime = localStorage.getItem(timerKey);
 
-                if (!existingStartTime) {
+                if (!inProgressAttempt && !existingStartTime) {
                     const confirmStart = await Swal.fire({
                         title: `พร้อมเริ่มทำข้อสอบ "${exam.title}" หรือยัง?`,
                         text: `เวลาในการทำข้อสอบ: ${exam.time_limit || 60} นาที เมื่อกดเริ่มเวลานับถอยหลังทันที`,
@@ -469,6 +469,25 @@
                     if (!confirmStart.isConfirmed) {
                         window.location.replace('student.html');
                         return;
+                    }
+
+                    // สร้างแถว in_progress หลังกดยืนยันเริ่มทำจริงเท่านั้น
+                    try {
+                        const { data: newIns, error: insErr } = await mySupabase
+                            .from('exam_attempts')
+                            .insert([{
+                                exam_id: examId,
+                                student_id: currentStudentId,
+                                status: 'in_progress'
+                            }])
+                            .select()
+                            .single();
+
+                        if (!insErr && newIns) {
+                            activeAttemptRecordId = newIns.id;
+                        }
+                    } catch(err) {
+                        console.error("Error creating in_progress attempt:", err);
                     }
                 }
             }
@@ -497,21 +516,20 @@
 
             await loadQuestions();
 
-            const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
             let startTime = localStorage.getItem(timerKey);
             if (!startTime || isPreview) {
                 startTime = Date.now();
-                localStorage.setItem(timerKey, startTime);
+                if (!isPreview) localStorage.setItem(timerKey, startTime);
             }
 
             totalExamSeconds = (currentExam.time_limit || 60) * 60;
 
-            if (currentExam.due_date && !isPreview) {
+            if (currentExam.due_date && !isPreview && !allowLate) {
                 const dueDateTime = new Date(currentExam.due_date).getTime();
                 const secondsUntilDueDate = Math.floor((dueDateTime - parseInt(startTime, 10)) / 1000);
                 
                 if (secondsUntilDueDate < totalExamSeconds) {
-                    totalExamSeconds = secondsUntilDueDate > 0 ? secondsUntilDueDate : 0;
+                    totalExamSeconds = secondsUntilDueDate;
                 }
             }
 
@@ -1175,6 +1193,7 @@
         }
         
         function checkTimerAlerts(timeLeftSeconds, totalDurationSeconds) {
+            if (totalDurationSeconds <= 0) return;
             if (!halfTimeTriggered && timeLeftSeconds === Math.floor(totalDurationSeconds / 2)) {
                 halfTimeTriggered = true;
                 playSoftAlertSound('half');
@@ -1198,24 +1217,32 @@
             const display = document.getElementById('timerDisplay');
             if (timerInterval) clearInterval(timerInterval);
 
-            timerInterval = setInterval(() => {
-                const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-                const remainingSeconds = totalDurationSeconds - elapsedSeconds;
-                currentRemainingSeconds = remainingSeconds > 0 ? remainingSeconds : 0;
+            const tick = () => {
+                const nowMs = Date.now();
+                const elapsedSeconds = Math.floor((nowMs - startTime) / 1000);
+                let remainingSeconds = totalDurationSeconds - elapsedSeconds;
 
+                const allowLate = !!currentExam?.allow_late_submission;
+                if (currentExam?.due_date && !isPreview && !allowLate) {
+                    const dueSecondsLeft = Math.floor((new Date(currentExam.due_date).getTime() - nowMs) / 1000);
+                    if (dueSecondsLeft < remainingSeconds) {
+                        remainingSeconds = dueSecondsLeft;
+                    }
+                }
+
+                currentRemainingSeconds = remainingSeconds > 0 ? remainingSeconds : 0;
                 checkTimerAlerts(currentRemainingSeconds, totalDurationSeconds);
 
                 if (remainingSeconds <= 0) {
                     clearInterval(timerInterval);
+                    display.textContent = '00:00';
                     localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
-                    localStorage.removeItem(`exam_answers_${examId}_${currentStudentId}`);
-                    localStorage.removeItem(`exam_flags_${examId}_${currentStudentId}`);
                     Swal.fire({
                         icon: 'warning',
                         title: 'หมดเวลาทำข้อสอบ!',
                         text: 'ระบบกำลังส่งคำตอบของคุณโดยอัตโนมัติ',
                         allowOutsideClick: false,
-                        timer: 2000,
+                        timer: 1800,
                         showConfirmButton: false
                     }).then(() => submitExam(true));
                     return;
@@ -1224,11 +1251,13 @@
                 const minutes = parseInt(remainingSeconds / 60, 10);
                 const seconds = parseInt(remainingSeconds % 60, 10);
                 display.textContent = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-            }, 1000);
+            };
+
+            tick();
+            timerInterval = setInterval(tick, 1000);
         }
 
         async function confirmSubmitExam() {
-            // ป้องกันการกดซ้ำซ้อนผ่านปุ่มยืนยัน
             if (isSubmitting) return;
 
             let unanswered = [];
@@ -1290,25 +1319,32 @@
         }
 
         async function submitExam(isTimeout = false) {
-            // ป้องกันการส่งซ้ำซ้อนระดับเด็ดขาด (Double Submission Prevention)
             if (isSubmitting) return;
             isSubmitting = true;
 
             if (timerInterval) clearInterval(timerInterval);
             if (examRealtimeChannel) mySupabase.removeChannel(examRealtimeChannel);
-            
-            localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
-            localStorage.removeItem(`exam_answers_${examId}_${currentStudentId}`);
-            localStorage.removeItem(`exam_flags_${examId}_${currentStudentId}`);
-
-            try {
-                let progress = JSON.parse(localStorage.getItem('student_in_progress_exams') || '{}');
-                delete progress[examId];
-                localStorage.setItem('student_in_progress_exams', JSON.stringify(progress));
-            } catch(e) {}
 
             if (isPreview) {
+                localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
+                localStorage.removeItem(`exam_answers_${examId}_${currentStudentId}`);
+                localStorage.removeItem(`exam_flags_${examId}_${currentStudentId}`);
                 Swal.fire('ส่งข้อสอบจำลองสำเร็จ', 'นี่คือโหมด Preview คะแนนไม่ถูกบันทึก', 'success').then(() => window.close());
+                return;
+            }
+
+            // หากหมดเวลาและไม่ได้ตอบอะไรเลย และไม่มีแถว in_progress ค้างไว้ ไม่ต้องสร้าง attempt เปล่า
+            if (isTimeout && !hasAnyAnswered() && !activeAttemptRecordId) {
+                localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
+                localStorage.removeItem(`exam_answers_${examId}_${currentStudentId}`);
+                localStorage.removeItem(`exam_flags_${examId}_${currentStudentId}`);
+                Swal.fire({
+                    icon: 'info',
+                    title: 'หมดเวลาทำข้อสอบ',
+                    text: 'คุณยังไม่ได้ทำคำตอบใด ๆ ระบบจะนำกลับสู่หน้าหลัก',
+                    confirmButtonText: 'รับทราบ',
+                    allowOutsideClick: false
+                }).then(() => window.location.replace('student.html'));
                 return;
             }
 
@@ -1422,6 +1458,16 @@
                 return;
             }
 
+            localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
+            localStorage.removeItem(`exam_answers_${examId}_${currentStudentId}`);
+            localStorage.removeItem(`exam_flags_${examId}_${currentStudentId}`);
+
+            try {
+                let progress = JSON.parse(localStorage.getItem('student_in_progress_exams') || '{}');
+                delete progress[examId];
+                localStorage.setItem('student_in_progress_exams', JSON.stringify(progress));
+            } catch(e) {}
+
             const answersPayloads = currentQuestions.map(q => {
                 const studentAns = studentAnswers[q.id];
                 const isEssay = q.question_type === 'essay';
@@ -1480,7 +1526,7 @@
             
             Swal.fire({
                 icon: 'success',
-                title: 'ส่งข้อสอบสำเร็จ!',
+                title: isTimeout ? 'หมดเวลาและส่งข้อสอบอัตโนมัติแล้ว!' : 'ส่งข้อสอบสำเร็จ!',
                 text: `คะแนนของคุณ: ${Math.round(totalScore * 100) / 100} / ${currentQuestions.length}`,
                 confirmButtonText: 'ดูผลการสอบและเฉลย',
                 allowOutsideClick: false
