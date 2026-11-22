@@ -9,6 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <script>
         (function() {
@@ -61,6 +62,20 @@
             box-shadow: 0 0 12px rgba(2, 132, 199, 0.5);
         }
 
+        .prose h1 { font-size: 1.35rem; font-weight: 800; margin-top: 0.4rem; margin-bottom: 0.4rem; }
+        .prose h2 { font-size: 1.15rem; font-weight: 700; margin-top: 0.4rem; margin-bottom: 0.4rem; }
+        .prose h3 { font-size: 1rem; font-weight: 700; margin-top: 0.4rem; margin-bottom: 0.4rem; }
+        .prose strong { font-weight: 700; }
+        .prose em { font-style: italic; }
+        .prose blockquote { border-left: 4px solid #0284c7; padding-left: 0.85rem; color: #64748b; margin: 0.5rem 0; background: rgba(2, 132, 199, 0.05); padding-top: 0.25rem; padding-bottom: 0.25rem; border-radius: 0 8px 8px 0; }
+        .prose ul { list-style-type: disc; padding-left: 1.4rem; margin: 0.4rem 0; }
+        .prose ol { list-style-type: decimal; padding-left: 1.4rem; margin: 0.4rem 0; }
+        .prose p { margin-bottom: 0.45rem; }
+        .prose code { background: rgba(148, 163, 184, 0.18); padding: 0.1rem 0.35rem; border-radius: 0.35rem; font-size: 0.85em; }
+        .prose pre { background: #0f172a; color: #e2e8f0; padding: 0.75rem; border-radius: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+        .prose img { border-radius: 0.75rem; max-height: 320px; object-fit: contain; margin: 0.5rem auto; cursor: pointer; transition: transform 0.2s; }
+        .prose img:hover { transform: scale(1.01); }
+
         .bottom-floating-banner {
             position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(120%); z-index: 50;
             opacity: 0; pointer-events: none; transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -79,15 +94,15 @@
 
     <nav class="glass-nav fixed w-full top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <button onclick="handleNavigate('admin_exams.html')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all"><i class="fas fa-arrow-left text-sm"></i></button>
-                <div>
-                    <h1 id="examTitleHeader" class="font-extrabold text-base text-slate-900 dark:text-white">จัดการโจทย์และเฉลย</h1>
-                    <p id="examSubHeader" class="text-[11px] text-slate-500">กำลังโหลด...</p>
+            <div class="flex items-center gap-3 min-w-0">
+                <button onclick="handleNavigate('admin_exams.html')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 hover:bg-sky-600 hover:text-white transition-all shrink-0"><i class="fas fa-arrow-left text-sm"></i></button>
+                <div class="min-w-0">
+                    <h1 id="examTitleHeader" class="font-extrabold text-base text-slate-900 dark:text-white truncate">จัดการโจทย์และเฉลย</h1>
+                    <p id="examSubHeader" class="text-[11px] text-slate-500 truncate">กำลังโหลด...</p>
                 </div>
             </div>
             
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 shrink-0">
                 <button onclick="openAuditLogModal()" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
                     <i class="fas fa-history"></i> Audit Log
                 </button>
@@ -123,6 +138,25 @@
                     </label>
                     <button onclick="savePdfUrl()" class="px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold rounded-xl text-xs transition-all hover:bg-slate-800">บันทึก URL</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Shared Passage / Stimulus Panel (Online Mode) -->
+        <div id="sharedPassagesCard" class="hitech-card p-6 rounded-2xl space-y-4 border-l-4 border-l-teal-500 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div>
+                    <h3 class="font-bold text-base flex items-center gap-2 text-teal-600 dark:text-teal-400">
+                        <i class="fas fa-layer-group"></i> ระบบโจทย์ร่วม (Shared Stimulus / บทความหรือรูปภาพใช้ร่วมกันหลายข้อ)
+                    </h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">สร้างชุดโจทย์ร่วม (เช่น บทอ่าน ตาราง หรือรูปภาพประกอบ) แล้วผูกเข้ากับข้อสอบย่อยในหน้าต่างแก้ไขโจทย์</p>
+                </div>
+                <button type="button" onclick="openSharedPassageModal()" class="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 shrink-0">
+                    <i class="fas fa-plus"></i> สร้างชุดโจทย์ร่วม
+                </button>
+            </div>
+
+            <div id="sharedPassagesList" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="text-xs text-slate-400 py-2">ยังไม่มีชุดโจทย์ร่วมในชุดข้อสอบนี้</div>
             </div>
         </div>
 
@@ -195,7 +229,7 @@
         <div id="omrSectionCard" class="hitech-card p-6 rounded-2xl space-y-4">
             <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
                 <h3 class="font-bold text-base flex items-center gap-2"><i class="fas fa-check-double text-sky-500"></i> กระดาษทำเฉลย OMR</h3>
-                <span class="text-xs text-slate-400">จัดวาง 4 ข้อต่อแถว (รองรับคลิกเลือกหลายตัวเลือกสำหรับข้อหลายคำตอบ)</span>
+                <span class="text-xs text-slate-400">จัดวาง 4 ข้อต่อแถว (รองรับคลิกเลือกหลายตัวเลือกสำหรับข้อหลายคำตอบ/หลายเฉลย)</span>
             </div>
             <div id="omrGridContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="col-span-full text-center py-6 text-slate-400 text-xs">กำลังโหลดเฉลย OMR...</div>
@@ -207,10 +241,10 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div>
                     <h3 class="font-bold text-base flex items-center gap-2"><i class="fas fa-list-ul text-purple-500"></i> เนื้อหาคำถาม & รายการตัวเลือก (Accordion View)</h3>
-                    <p class="text-xs text-slate-400 mt-0.5">ขยายดูโจทย์ แนบรูปภาพ เพิ่มตัวเลือก และตั้งค่าคำถามแบบหลายคำตอบได้</p>
+                    <p id="accordionSubtitle" class="text-xs text-slate-400 mt-0.5">ขยายดูโจทย์ แนบรูปภาพ เพิ่มตัวเลือก และตั้งค่าคำถามได้</p>
                 </div>
                 
-                <div class="flex items-center gap-2 w-full md:w-auto">
+                <div class="flex items-center gap-2 w-full md:w-auto flex-wrap">
                     <select id="categoryFilterDropdown" onchange="renderQuestionAccordions()" class="px-4 py-2 bg-slate-100 dark:bg-slate-800 font-bold text-xs rounded-xl border border-slate-300 dark:border-slate-700 outline-none text-sky-600 dark:text-sky-400">
                         <option value="ALL">📂 แสดงหมวดหมู่โจทย์ทั้งหมด</option>
                     </select>
@@ -237,6 +271,14 @@
         </div>
     </div>
 
+    <!-- Fullscreen Image Modal -->
+    <div id="editorImageModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden flex items-center justify-center p-4" onclick="closeEditorImageModal()">
+        <div class="relative max-w-6xl max-h-[92vh] w-full h-full flex items-center justify-center" onclick="event.stopPropagation()">
+            <button class="absolute top-3 right-3 w-10 h-10 bg-white/15 hover:bg-white/25 text-white rounded-full flex items-center justify-center text-xl transition-all z-10" onclick="closeEditorImageModal()"><i class="fas fa-xmark"></i></button>
+            <img id="editorModalImg" src="" class="max-w-full max-h-[88vh] rounded-2xl shadow-2xl object-contain">
+        </div>
+    </div>
+
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
@@ -252,9 +294,237 @@
 
         let hasUnsavedChanges = false;
         let cachedQuestions = [];
+        let sharedPassages = [];
         let currentExamData = null;
         let gradingCriteriaList = [];
         let enableCriteria = false;
+
+        function isOnlineExamMode() {
+            return currentExamData && currentExamData.delivery_type === 'online';
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderMarkdownSafe(rawText) {
+            const text = rawText || '';
+            if (!isOnlineExamMode()) {
+                return escapeHtml(text).replace(/\r?\n/g, '<br>');
+            }
+            try {
+                if (typeof marked !== 'undefined') {
+                    if (typeof marked.parse === 'function') return marked.parse(text);
+                    if (typeof marked === 'function') return marked(text);
+                }
+            } catch (e) {
+                console.warn('Markdown parse warning:', e);
+            }
+            return escapeHtml(text).replace(/\r?\n/g, '<br>');
+        }
+
+        function openEditorImageModal(src) {
+            const img = document.getElementById('editorModalImg');
+            const modal = document.getElementById('editorImageModal');
+            if (img && modal && src) {
+                img.src = src;
+                modal.classList.remove('hidden');
+            }
+        }
+
+        function closeEditorImageModal() {
+            const modal = document.getElementById('editorImageModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function handleMarkdownBodyClick(e) {
+            if (e.target && e.target.tagName === 'IMG' && e.target.src) {
+                openEditorImageModal(e.target.src);
+            }
+        }
+
+        async function uploadFilesToExamStorage(fileList) {
+            const uploadedItems = [];
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i];
+                const cleanFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+                const fileName = `exam_inline_${Date.now()}_${i}_${cleanFileName}`;
+                const { error } = await mySupabase.storage.from('exam_images').upload(fileName, file);
+                if (error) {
+                    throw new Error(error.message || 'อัปโหลดไฟล์ไม่สำเร็จ');
+                }
+                const { data } = mySupabase.storage.from('exam_images').getPublicUrl(fileName);
+                if (data && data.publicUrl) {
+                    const isImg = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(file.name) || (file.type && file.type.startsWith('image/'));
+                    uploadedItems.push({
+                        name: file.name,
+                        url: data.publicUrl,
+                        isImage: isImg
+                    });
+                }
+            }
+            return uploadedItems;
+        }
+
+        function insertTextAtTextareaCursor(textareaId, textToInsert) {
+            const ta = document.getElementById(textareaId);
+            if (!ta) return;
+            const start = ta.selectionStart !== undefined ? ta.selectionStart : ta.value.length;
+            const end = ta.selectionEnd !== undefined ? ta.selectionEnd : ta.value.length;
+            ta.value = ta.value.substring(0, start) + textToInsert + ta.value.substring(end);
+            const newPos = start + textToInsert.length;
+            ta.focus();
+            ta.setSelectionRange(newPos, newPos);
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        window.handleEditorFileInsert = async function(inputEl, textareaId, previewId = null) {
+            if (!inputEl || !inputEl.files || inputEl.files.length === 0) return;
+            const files = Array.from(inputEl.files);
+            inputEl.value = '';
+            await processAndInsertFilesIntoTextarea(files, textareaId, previewId);
+        };
+
+        window.handleEditorDropImage = async function(event, textareaId, previewId = null) {
+            if (!isOnlineExamMode()) return;
+            event.preventDefault();
+            const dtFiles = event.dataTransfer && event.dataTransfer.files ? Array.from(event.dataTransfer.files) : [];
+            const validFiles = dtFiles.filter(f => (f.type && f.type.startsWith('image/')) || /\.(jpg|jpeg|png|gif|webp|pdf|doc|docx|xls|xlsx)$/i.test(f.name));
+            if (validFiles.length > 0) {
+                await processAndInsertFilesIntoTextarea(validFiles, textareaId, previewId);
+            }
+        };
+
+        window.handleEditorPasteImage = async function(event, textareaId, previewId = null) {
+            if (!isOnlineExamMode()) return;
+            const cbItems = event.clipboardData && event.clipboardData.items ? Array.from(event.clipboardData.items) : [];
+            const imageFiles = cbItems
+                .filter(item => item.kind === 'file' && item.type && item.type.startsWith('image/'))
+                .map((item, idx) => {
+                    const blob = item.getAsFile();
+                    const ext = (item.type.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '');
+                    return blob ? new File([blob], `pasted_image_${Date.now()}_${idx}.${ext}`, { type: item.type }) : null;
+                })
+                .filter(Boolean);
+
+            if (imageFiles.length > 0) {
+                event.preventDefault();
+                await processAndInsertFilesIntoTextarea(imageFiles, textareaId, previewId);
+            }
+        };
+
+        async function processAndInsertFilesIntoTextarea(files, textareaId, previewId = null) {
+            const ta = document.getElementById(textareaId);
+            if (!ta) return;
+
+            const prevHtml = Swal.getHtmlContainer()?.innerHTML;
+            const prevTitle = Swal.getTitle()?.textContent;
+
+            Swal.fire({
+                title: 'กำลังอัปโหลดรูปภาพ...',
+                html: '<div class="text-xs text-slate-400">กำลังแทรกลงตำแหน่งเคอร์เซอร์...</div>',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            try {
+                const uploaded = await uploadFilesToExamStorage(files);
+                const mdSnippet = uploaded.map(item =>
+                    item.isImage
+                        ? `\n![${item.name}](${item.url})\n`
+                        : `\n[📥 ${item.name}](${item.url})\n`
+                ).join('');
+
+                insertTextAtTextareaCursor(textareaId, mdSnippet);
+                if (previewId) {
+                    refreshMarkdownPreview(textareaId, previewId);
+                }
+
+                Swal.close();
+                if (prevTitle) {
+                    Swal.fire({
+                        title: prevTitle,
+                        width: '720px',
+                        html: prevHtml,
+                        showCancelButton: true,
+                        confirmButtonText: 'บันทึกข้อมูล',
+                        didOpen: () => {
+                            const restoredTa = document.getElementById(textareaId);
+                            if (restoredTa) {
+                                restoredTa.value = ta.value;
+                                if (previewId) refreshMarkdownPreview(textareaId, previewId);
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                Swal.fire('อัปโหลดล้มเหลว', err.message || 'ไม่สามารถอัปโหลดไฟล์ได้', 'error');
+            }
+        }
+
+        window.refreshMarkdownPreview = function(textareaId, previewId) {
+            const ta = document.getElementById(textareaId);
+            const prev = document.getElementById(previewId);
+            if (!ta || !prev) return;
+            prev.innerHTML = renderMarkdownSafe(ta.value);
+        };
+
+        window.toggleMarkdownPreviewPane = function(previewId) {
+            const prev = document.getElementById(previewId);
+            if (!prev) return;
+            prev.classList.toggle('hidden');
+        };
+
+        function buildMarkdownTextareaBlock({ id, label, value, rows = 4, previewId, placeholder = 'พิมพ์ข้อความ (รองรับ Markdown)...' }) {
+            if (!isOnlineExamMode()) {
+                return `
+                    <div>
+                        <label class="block text-xs font-bold mb-1">${escapeHtml(label)}</label>
+                        <textarea id="${id}" rows="${rows}" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value || '')}</textarea>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="space-y-1.5" ondragover="event.preventDefault()" ondrop="handleEditorDropImage(event, '${id}', '${previewId}')">
+                    <div class="flex justify-between items-center flex-wrap gap-2">
+                        <label class="block text-xs font-bold">${escapeHtml(label)} <span class="text-[10px] text-sky-500 font-semibold">(Markdown + วาง/ลากรูปได้)</span></label>
+                        <div class="flex items-center gap-1.5">
+                            <label class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[10px] font-bold cursor-pointer flex items-center gap-1">
+                                <i class="fas fa-image"></i> แทรกรูป/ไฟล์
+                                <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="handleEditorFileInsert(this, '${id}', '${previewId}')">
+                            </label>
+                            <button type="button" onclick="toggleMarkdownPreviewPane('${previewId}'); refreshMarkdownPreview('${id}', '${previewId}');" class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[10px] font-bold">
+                                <i class="fas fa-eye"></i> Preview
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="${id}" rows="${rows}" oninput="refreshMarkdownPreview('${id}', '${previewId}')" onpaste="handleEditorPasteImage(event, '${id}', '${previewId}')" class="w-full px-3 py-2 border rounded-xl dark:bg-slate-800 font-mono text-xs leading-relaxed" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value || '')}</textarea>
+                    <div id="${previewId}" onclick="handleMarkdownBodyClick(event)" class="hidden p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-sky-500/30 prose dark:prose-invert max-w-none text-xs max-h-56 overflow-y-auto">${renderMarkdownSafe(value || '')}</div>
+                </div>
+            `;
+        }
+
+        function normalizeCorrectAnswerList(rawVal) {
+            if (Array.isArray(rawVal)) {
+                return rawVal.map(v => String(v).trim()).filter(v => v !== '');
+            }
+            if (rawVal === undefined || rawVal === null || rawVal === '') return [];
+            const str = String(rawVal).trim();
+            if (str.startsWith('[') && str.endsWith(']')) {
+                try {
+                    const parsed = JSON.parse(str);
+                    if (Array.isArray(parsed)) return parsed.map(v => String(v).trim()).filter(v => v !== '');
+                } catch (e) {}
+            }
+            return str.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
 
         async function logAdminAction(actionTitle, detailDesc) {
             try {
@@ -343,16 +613,6 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        function escapeHtml(str) {
-            if (str === null || str === undefined) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
         function markAsModified() {
             hasUnsavedChanges = true;
             const banner = document.getElementById('floatingSaveBanner');
@@ -440,6 +700,143 @@
             return '1, 2, 3, 4';
         }
 
+        function loadSharedPassagesState(examData) {
+            const localKey = `shared_passages_${examId}`;
+            let parsed = [];
+            if (Array.isArray(examData?.shared_passages) && examData.shared_passages.length > 0) {
+                parsed = examData.shared_passages;
+            } else {
+                try {
+                    const rawLocal = localStorage.getItem(localKey);
+                    if (rawLocal) parsed = JSON.parse(rawLocal);
+                } catch (e) {}
+            }
+            sharedPassages = Array.isArray(parsed) ? parsed : [];
+        }
+
+        async function persistSharedPassages(silent = true) {
+            localStorage.setItem(`shared_passages_${examId}`, JSON.stringify(sharedPassages));
+            try {
+                await mySupabase.from('exams').update({ shared_passages: sharedPassages }).eq('id', examId);
+            } catch (err) {
+                console.warn('Shared passages column fallback to localStorage:', err);
+            }
+            renderSharedPassagesPanel();
+            renderQuestionAccordions();
+            if (!silent) {
+                markAsModified();
+            }
+        }
+
+        function renderSharedPassagesPanel() {
+            const card = document.getElementById('sharedPassagesCard');
+            const listEl = document.getElementById('sharedPassagesList');
+            if (!card || !listEl) return;
+
+            if (!isOnlineExamMode()) {
+                card.classList.add('hidden');
+                return;
+            }
+            card.classList.remove('hidden');
+
+            if (sharedPassages.length === 0) {
+                listEl.innerHTML = `<div class="col-span-full text-xs text-slate-400 py-2">ยังไม่มีชุดโจทย์ร่วม กดปุ่ม "สร้างชุดโจทย์ร่วม" เพื่อสร้างบทอ่าน/ตาราง/รูปภาพสำหรับใช้ร่วมกันหลายข้อ</div>`;
+                return;
+            }
+
+            listEl.innerHTML = sharedPassages.map(sp => {
+                const linkedCount = cachedQuestions.filter(q => String(q.shared_passage_id || '') === String(sp.id)).length;
+                return `
+                    <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-teal-500/30 space-y-2">
+                        <div class="flex justify-between items-start gap-2">
+                            <div class="min-w-0">
+                                <div class="font-extrabold text-xs text-teal-600 dark:text-teal-400 truncate">${escapeHtml(sp.title || 'ชุดโจทย์ร่วม')}</div>
+                                <div class="text-[10px] text-slate-400">ผูกกับข้อสอบ ${linkedCount} ข้อ</div>
+                            </div>
+                            <div class="flex gap-1 shrink-0">
+                                <button type="button" onclick="openSharedPassageModal('${escapeHtml(String(sp.id))}')" class="px-2 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg text-[10px] font-bold"><i class="fas fa-pen"></i></button>
+                                <button type="button" onclick="deleteSharedPassage('${escapeHtml(String(sp.id))}')" class="px-2 py-1 bg-red-100 dark:bg-red-950/50 text-red-600 rounded-lg text-[10px] font-bold"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <div onclick="handleMarkdownBodyClick(event)" class="prose dark:prose-invert max-w-none text-xs bg-white dark:bg-slate-950/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 max-h-36 overflow-y-auto">${renderMarkdownSafe(sp.content || '')}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function openSharedPassageModal(passageId = null) {
+            if (!isOnlineExamMode()) return;
+            const existing = passageId ? sharedPassages.find(p => String(p.id) === String(passageId)) : null;
+            const pId = existing ? existing.id : `sp_${Date.now()}`;
+            const titleVal = existing ? (existing.title || '') : '';
+            const contentVal = existing ? (existing.content || '') : '';
+
+            const { value: result } = await Swal.fire({
+                title: existing ? 'แก้ไขชุดโจทย์ร่วม' : 'สร้างชุดโจทย์ร่วมใหม่',
+                width: '720px',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <div>
+                            <label class="block font-bold mb-1">ชื่อหัวข้อโจทย์ร่วม (เช่น บทความที่ 1 / ข้อมูลสำหรับข้อ 5-8)</label>
+                            <input id="spTitleInput" class="w-full px-3 py-2 border rounded-xl dark:bg-slate-800 font-bold" value="${escapeHtml(titleVal)}" placeholder="เช่น ใช้ข้อมูลต่อไปนี้ตอบคำถาม...">
+                        </div>
+                        ${buildMarkdownTextareaBlock({
+                            id: 'spContentInput',
+                            label: 'เนื้อหาโจทย์ร่วม',
+                            value: contentVal,
+                            rows: 6,
+                            previewId: 'spContentPreview',
+                            placeholder: 'พิมพ์เนื้อหาโจทย์ร่วมด้วย Markdown หรือวาง/ลากรูปภาพแทรกตรงไหนก็ได้...'
+                        })}
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกชุดโจทย์ร่วม',
+                preConfirm: () => {
+                    const t = document.getElementById('spTitleInput').value.trim();
+                    const c = document.getElementById('spContentInput').value;
+                    if (!t && !c.trim()) {
+                        Swal.showValidationMessage('กรุณากรอกชื่อหรือเนื้อหาชุดโจทย์ร่วม');
+                        return false;
+                    }
+                    return { id: pId, title: t || 'ชุดโจทย์ร่วม', content: c };
+                }
+            });
+
+            if (result) {
+                if (existing) {
+                    sharedPassages = sharedPassages.map(p => String(p.id) === String(result.id) ? result : p);
+                    await logAdminAction('แก้ไขชุดโจทย์ร่วม', `แก้ไขชุดโจทย์ร่วม: ${result.title}`);
+                } else {
+                    sharedPassages.push(result);
+                    await logAdminAction('สร้างชุดโจทย์ร่วม', `สร้างชุดโจทย์ร่วม: ${result.title}`);
+                }
+                await persistSharedPassages(false);
+            }
+        }
+
+        async function deleteSharedPassage(passageId) {
+            const res = await Swal.fire({
+                title: 'ลบชุดโจทย์ร่วมนี้?',
+                text: 'ข้อสอบย่อยที่ผูกอยู่จะถูกปลดการเชื่อมโยง แต่ตัวข้อสอบจะไม่ถูกลบ',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ยืนยันลบ',
+                cancelButtonText: 'ยกเลิก'
+            });
+            if (!res.isConfirmed) return;
+
+            sharedPassages = sharedPassages.filter(p => String(p.id) !== String(passageId));
+            cachedQuestions.forEach(q => {
+                if (String(q.shared_passage_id || '') === String(passageId)) {
+                    q.shared_passage_id = null;
+                }
+            });
+            await persistSharedPassages(false);
+            await logAdminAction('ลบชุดโจทย์ร่วม', `ลบชุดโจทย์ร่วม ID: ${passageId}`);
+        }
+
         async function loadExamHeader() {
             const { data } = await mySupabase.from('exams').select('*').eq('id', examId).single();
             if (data) {
@@ -457,19 +854,27 @@
                     }
                 }
 
+                const isOnline = isOnlineExamMode();
                 document.getElementById('examTitleHeader').textContent = `${data.title}`;
-                document.getElementById('examSubHeader').textContent = `CODE: ${data.exam_code || 'ไม่มี'} | โหมด: ${data.delivery_type === 'online' ? 'พิมพ์โจทย์ลงระบบ' : 'ไฟล์ PDF'} | รูปแบบตัวเลือก: ${getChoiceFormatLabelText(data.choice_format)}`;
+                document.getElementById('examSubHeader').textContent = `CODE: ${data.exam_code || 'ไม่มี'} | โหมด: ${isOnline ? 'พิมพ์โจทย์ลงระบบ (Markdown)' : 'ไฟล์ PDF'} | รูปแบบตัวเลือก: ${getChoiceFormatLabelText(data.choice_format)}`;
                 
                 const subtitle = document.getElementById('choiceFormatSubtitle');
                 if (subtitle) {
                     subtitle.textContent = `ฝนเฉลย OMR | รูปแบบตัวเลือก: ${getChoiceFormatLabelText(data.choice_format)}`;
                 }
 
+                const accSub = document.getElementById('accordionSubtitle');
+                if (accSub) {
+                    accSub.textContent = isOnline
+                        ? 'ขยายดูโจทย์ พิมพ์ Markdown แทรกรูปภาพตรงไหนก็ได้ ผูกโจทย์ร่วม และตั้งค่าการให้คะแนนได้'
+                        : 'ขยายดูโจทย์ แนบรูปภาพ เพิ่มตัวเลือก และตั้งค่าการให้คะแนนได้';
+                }
+
                 const pdfUploadCard = document.getElementById('pdfUploadCard');
                 const omrHeaderCard = document.getElementById('omrHeaderCard');
                 const omrSectionCard = document.getElementById('omrSectionCard');
 
-                if (data.delivery_type === 'online') {
+                if (isOnline) {
                     if (pdfUploadCard) pdfUploadCard.classList.add('hidden');
                     if (omrHeaderCard) omrHeaderCard.classList.add('hidden');
                     if (omrSectionCard) omrSectionCard.classList.add('hidden');
@@ -504,6 +909,9 @@
                     toggleCriteriaSection(enableCriteria, false);
                 }
                 renderCriteriaTable();
+
+                loadSharedPassagesState(data);
+                renderSharedPassagesPanel();
             }
         }
 
@@ -635,6 +1043,7 @@
                 dd.innerHTML = '<option value="ALL">📂 แสดงหมวดหมู่โจทย์ทั้งหมด</option>' + tags.map(t => `<option value="${escapeHtml(t)}">🏷️ หมวดหมู่: ${escapeHtml(t)}</option>`).join('');
             }
 
+            renderSharedPassagesPanel();
             renderOmrGrid();
             renderQuestionAccordions();
             renderCriteriaTable();
@@ -668,24 +1077,26 @@
                     `;
                 }
 
+                const isBonusAll = !!q.is_bonus_all;
                 const isMultiple = !!q.is_multiple_answers;
-                let correctArr = [];
-                if (Array.isArray(q.correct_answer)) {
-                    correctArr = q.correct_answer.map(String);
-                } else if (q.correct_answer !== undefined && q.correct_answer !== null) {
-                    correctArr = String(q.correct_answer).split(',').map(s => s.trim());
-                }
+                const isSingleMultiKey = !isMultiple && !!q.allow_multi_correct_keys;
+                const correctArr = normalizeCorrectAnswerList(q.correct_answer);
 
                 const bubblesHtml = opts.map((cLabel, cIdx) => {
-                    const isSelected = correctArr.includes(String(cIdx));
+                    const isSelected = !isBonusAll && correctArr.includes(String(cIdx));
                     return `<div onclick="selectOmrChoice('${qId}', '${cIdx}')" class="omr-bubble-lg ${isSelected ? 'active' : ''}">${escapeHtml(cLabel)}</div>`;
                 }).join('');
+
+                let modeNote = '';
+                if (isBonusAll) modeNote = '<span class="text-[9px] text-emerald-500 font-bold">แจกคะแนนฟรี</span>';
+                else if (isMultiple) modeNote = '<span class="text-[9px] text-purple-500 font-bold">หลายคำตอบ</span>';
+                else if (isSingleMultiKey) modeNote = '<span class="text-[9px] text-sky-500 font-bold">1 ตัวเลือก / ถูกหลายข้อ</span>';
 
                 return `
                     <div class="p-3 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
                         <div class="flex flex-col">
                             <span class="font-extrabold text-sm text-slate-800 dark:text-slate-200">ข้อ ${qNum}</span>
-                            ${isMultiple ? '<span class="text-[9px] text-purple-500 font-bold">หลายคำตอบ</span>' : ''}
+                            ${modeNote}
                         </div>
                         <div class="flex gap-1.5 overflow-x-auto py-1">${bubblesHtml}</div>
                         <button onclick="toggleQuestionType('${qId}', 'essay')" class="text-xs text-slate-400 hover:text-amber-500 px-1" title="เปลี่ยนเป็นข้ออัตนัย"><i class="fas fa-file-signature"></i></button>
@@ -716,6 +1127,12 @@
                 const isEssay = q.question_type === 'essay';
                 const standardLabels = getChoiceLabels(formatType, q.options ? q.options.length : 4);
                 const opts = (q.options && q.options.length > 0) ? q.options : standardLabels;
+                const qScore = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
+                const isBonusAll = !!q.is_bonus_all;
+
+                const linkedPassage = q.shared_passage_id
+                    ? sharedPassages.find(sp => String(sp.id) === String(q.shared_passage_id))
+                    : null;
 
                 let optionsListHtml = '';
                 if (isEssay) {
@@ -725,36 +1142,38 @@
                     }
                     const keywordsTag = kwBadges ? `<div class="text-[11px] text-slate-500">คำสำคัญ: ${kwBadges}</div>` : '';
                     optionsListHtml = `<div class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl text-xs text-amber-600 dark:text-amber-300 font-bold space-y-1">
-                        <div><i class="fas fa-pen-nib mr-1"></i> โหมดตรวจอัตนัย: ${q.grading_type === 'keyword' ? 'ตรวจด้วย Keyword อัตโนมัติ' : 'คุณครูตรวจเอง'}</div>
+                        <div><i class="fas fa-pen-nib mr-1"></i> โหมดตรวจอัตนัย: ${q.grading_type === 'keyword' ? 'ตรวจด้วย Keyword อัตโนมัติ' : 'คุณครูตรวจเอง'} (${qScore} คะแนน)</div>
                         ${keywordsTag}
                        </div>`;
                 } else {
-                    let correctArr = [];
-                    if (Array.isArray(q.correct_answer)) {
-                        correctArr = q.correct_answer.map(String);
-                    } else if (q.correct_answer !== undefined && q.correct_answer !== null) {
-                        correctArr = String(q.correct_answer).split(',').map(s => s.trim());
-                    }
-
+                    const correctArr = normalizeCorrectAnswerList(q.correct_answer);
                     const isMultiple = !!q.is_multiple_answers;
-                    let modeText = 'คำตอบเดียว';
-                    if (isMultiple) {
+                    const isSingleMultiKey = !isMultiple && !!q.allow_multi_correct_keys;
+
+                    let modeText = 'ปรนัยเลือก 1 ตัวเลือก (เฉลย 1 ข้อ)';
+                    if (isBonusAll) {
+                        modeText = 'แจกคะแนนฟรี / ยกเลิกข้อ (ได้เต็มทุกคน)';
+                    } else if (isMultiple) {
                         const mMode = q.multiple_grading_mode || 'all';
-                        if (mMode === 'partial') modeText = 'หลายคำตอบ (ให้คะแนนบางส่วน)';
-                        else if (mMode === 'at_least_one') modeText = 'หลายคำตอบ (ตอบถูกอย่างน้อย 1 ข้อก็ได้เต็ม)';
-                        else modeText = 'หลายคำตอบ (ต้องตอบถูกทั้งหมดเท่านั้น)';
+                        if (mMode === 'partial') modeText = 'ปรนัยเลือกได้หลายข้อ (ให้คะแนนบางส่วน)';
+                        else if (mMode === 'at_least_one') modeText = 'ปรนัยเลือกได้หลายข้อ (ถูกอย่างน้อย 1 ข้อก็ได้เต็ม)';
+                        else modeText = 'ปรนัยเลือกได้หลายข้อ (ต้องตอบถูกครบทุกข้อ)';
+                    } else if (isSingleMultiKey) {
+                        modeText = 'ปรนัยเลือก 1 ตัวเลือก แต่เฉลยถูกหลายข้อ (เลือกข้อใดข้อหนึ่งในเฉลยก็ได้เต็ม)';
                     }
 
                     optionsListHtml = `
                         <div class="mb-2 text-[11px] font-bold text-purple-600 dark:text-purple-400">
-                            <i class="fas fa-info-circle mr-1"></i> รูปแบบ: ${modeText}
+                            <i class="fas fa-info-circle mr-1"></i> รูปแบบ: ${modeText} | คะแนนข้อนี้: ${qScore} คะแนน
                         </div>
                     ` + opts.map((opt, i) => {
-                        const isCorrect = correctArr.includes(String(i));
+                        const isCorrect = isBonusAll || correctArr.includes(String(i));
                         const displayLabel = standardLabels[i] || String.fromCharCode(65+i);
-                        const correctBadge = isCorrect ? '<span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] rounded-md font-bold"><i class="fas fa-check mr-1"></i>เฉลยถูกต้อง</span>' : '';
+                        const correctBadge = isBonusAll
+                            ? '<span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] rounded-md font-bold"><i class="fas fa-gift mr-1"></i>แจกฟรี</span>'
+                            : (isCorrect ? '<span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] rounded-md font-bold"><i class="fas fa-check mr-1"></i>เฉลยถูกต้อง</span>' : '');
                         return `<div class="px-3 py-2 rounded-xl border text-xs flex items-center justify-between ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 font-bold text-emerald-700 dark:text-emerald-300' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}">
-                            <span><strong class="mr-1">${displayLabel}:</strong> ${escapeHtml(opt)}</span>
+                            <div class="prose dark:prose-invert max-w-none text-xs flex-1 pr-2" onclick="handleMarkdownBodyClick(event)"><strong>${escapeHtml(displayLabel)}:</strong> ${renderMarkdownSafe(opt)}</div>
                             ${correctBadge}
                         </div>`;
                     }).join('');
@@ -762,9 +1181,19 @@
 
                 const qNum = q.question_number || (idx+1);
                 const categoryBadge = q.category_tag ? `<span class="px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-600 font-bold text-[10px]">${escapeHtml(q.category_tag)}</span>` : '';
-                const imgTag = q.image_url ? `<div class="mb-2"><img src="${escapeHtml(q.image_url)}" class="max-h-48 rounded-xl border border-slate-300 shadow-sm"></div>` : '';
-                const qText = escapeHtml(q.question_text || q.content || 'คำถามในระบบ');
+                const passageBadge = linkedPassage ? `<span class="px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-600 dark:text-teal-300 font-bold text-[10px]">🔗 ${escapeHtml(linkedPassage.title || 'โจทย์ร่วม')}</span>` : '';
+                const scoreBadge = `<span class="px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 font-bold text-[10px]">${qScore} คะแนน</span>`;
+                const imgTag = q.image_url ? `<div class="mb-2"><img src="${escapeHtml(q.image_url)}" onclick="openEditorImageModal(this.src)" class="max-h-48 rounded-xl border border-slate-300 shadow-sm cursor-pointer"></div>` : '';
+                const rawQText = q.question_text || q.content || 'คำถามในระบบ';
+                const qTextPlain = escapeHtml(rawQText);
                 const qId = q.id;
+
+                const passageBlockHtml = linkedPassage ? `
+                    <div class="p-3 rounded-xl bg-teal-500/5 border border-teal-500/25 space-y-1">
+                        <div class="text-[11px] font-bold text-teal-600 dark:text-teal-400">โจทย์ร่วม: ${escapeHtml(linkedPassage.title || 'ชุดโจทย์ร่วม')}</div>
+                        <div onclick="handleMarkdownBodyClick(event)" class="prose dark:prose-invert max-w-none text-xs">${renderMarkdownSafe(linkedPassage.content || '')}</div>
+                    </div>
+                ` : '';
 
                 return `
                     <div class="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
@@ -772,8 +1201,10 @@
                             <div class="flex items-center gap-2 font-bold text-xs truncate pr-2">
                                 <i class="fas fa-chevron-down text-slate-400 transition-transform" id="icon-acc-${qId}"></i>
                                 <span class="text-sky-600 dark:text-sky-400">ข้อ ${qNum}:</span>
+                                ${scoreBadge}
                                 ${categoryBadge}
-                                <span class="text-slate-800 dark:text-slate-200 truncate">${qText}</span>
+                                ${passageBadge}
+                                <span class="text-slate-800 dark:text-slate-200 truncate">${qTextPlain}</span>
                             </div>
                             <div class="flex gap-1 shrink-0" onclick="event.stopPropagation()">
                                 <button onclick="openQuestionModalById('${qId}')" class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-bold"><i class="fas fa-pen mr-1"></i> แก้ไข</button>
@@ -782,9 +1213,11 @@
                         </div>
 
                         <div id="acc-${qId}" class="hidden p-4 space-y-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                            ${passageBlockHtml}
                             ${imgTag}
-                            <div class="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                                <strong>คำถาม:</strong> ${qText}
+                            <div class="text-xs font-semibold text-slate-700 dark:text-slate-300 space-y-1">
+                                <strong class="block text-slate-500">คำถาม:</strong>
+                                <div onclick="handleMarkdownBodyClick(event)" class="prose dark:prose-invert max-w-none text-sm">${renderMarkdownSafe(rawQText)}</div>
                             </div>
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-bold text-slate-500">ตัวเลือก & เฉลยคำตอบ:</label>
@@ -813,15 +1246,12 @@
         function selectOmrChoice(qId, choiceIdx) {
             const item = cachedQuestions.find(q => q.id === qId);
             if (item) {
+                item.is_bonus_all = false;
                 const isMultiple = !!item.is_multiple_answers;
-                let correctArr = [];
-                if (Array.isArray(item.correct_answer)) {
-                    correctArr = item.correct_answer.map(String);
-                } else if (item.correct_answer !== undefined && item.correct_answer !== null) {
-                    correctArr = String(item.correct_answer).split(',').map(s => s.trim());
-                }
+                const isSingleMultiKey = !isMultiple && !!item.allow_multi_correct_keys;
+                let correctArr = normalizeCorrectAnswerList(item.correct_answer);
 
-                if (isMultiple) {
+                if (isMultiple || isSingleMultiKey) {
                     const idxStr = String(choiceIdx);
                     if (correctArr.includes(idxStr)) {
                         correctArr = correctArr.filter(x => x !== idxStr);
@@ -856,12 +1286,26 @@
             if (esSec) esSec.className = val === 'essay' ? 'space-y-3 pt-2 border-t dark:border-slate-800' : 'hidden';
         };
 
-        window.toggleMultipleAnswersSec = function(isMultiple) {
+        window.syncAnswerChoiceMode = function() {
+            const modeSelect = document.getElementById('mcAnswerModeSelect');
+            const modeVal = modeSelect ? modeSelect.value : 'single_one';
             const modeSec = document.getElementById('multipleModeSection');
+            const bonusNote = document.getElementById('bonusAllNote');
+
+            const isMultiple = modeVal === 'multiple_select';
+            const isSingleMultiKey = modeVal === 'single_one_multi_key';
+            const isBonusAll = modeVal === 'bonus_all';
+
             if (modeSec) {
                 if (isMultiple) modeSec.classList.remove('hidden');
                 else modeSec.classList.add('hidden');
             }
+            if (bonusNote) {
+                if (isBonusAll) bonusNote.classList.remove('hidden');
+                else bonusNote.classList.add('hidden');
+            }
+
+            const allowMultiSelectInputs = isMultiple || isSingleMultiKey;
             const container = document.getElementById('optionsInputsContainer');
             if (!container) return;
             const rows = container.querySelectorAll('.option-row');
@@ -869,10 +1313,11 @@
                 const oldInput = row.querySelector('input[type="radio"], input[type="checkbox"]');
                 if (oldInput) {
                     const newInput = document.createElement('input');
-                    newInput.type = isMultiple ? 'checkbox' : 'radio';
+                    newInput.type = allowMultiSelectInputs ? 'checkbox' : 'radio';
                     newInput.name = 'swalCorrectChoice';
                     newInput.value = idx;
                     newInput.checked = oldInput.checked;
+                    newInput.disabled = isBonusAll;
                     oldInput.replaceWith(newInput);
                 }
             });
@@ -892,15 +1337,30 @@
             const formatType = currentExamData?.choice_format || 'num';
             const standardLabels = getChoiceLabels(formatType, 5);
             const label = standardLabels[currentCount] || String.fromCharCode(65 + currentCount);
-            const isMultiple = document.getElementById('isMultipleToggle')?.checked;
+            const modeVal = document.getElementById('mcAnswerModeSelect')?.value || 'single_one';
+            const allowMultiSelectInputs = modeVal === 'multiple_select' || modeVal === 'single_one_multi_key';
+            const isBonusAll = modeVal === 'bonus_all';
+            const optId = `qOptText_${Date.now()}_${currentCount}`;
+            const prevId = `qOptPrev_${Date.now()}_${currentCount}`;
+
+            const optInputHtml = isOnlineExamMode()
+                ? `<div class="flex-1 space-y-1">
+                        <input id="${optId}" class="opt-text-input w-full px-3 py-1 border rounded-xl dark:bg-slate-800 text-xs" value="${escapeHtml(label)}" oninput="refreshMarkdownPreview('${optId}', '${prevId}')">
+                        <div class="flex items-center gap-2 text-[10px]">
+                            <label class="text-sky-600 dark:text-sky-400 font-bold cursor-pointer"><i class="fas fa-image"></i> แทรกรูป<input type="file" accept="image/*" class="hidden" onchange="handleEditorFileInsert(this, '${optId}', '${prevId}')"></label>
+                            <button type="button" onclick="toggleMarkdownPreviewPane('${prevId}'); refreshMarkdownPreview('${optId}', '${prevId}');" class="text-slate-500 underline">Preview</button>
+                        </div>
+                        <div id="${prevId}" onclick="handleMarkdownBodyClick(event)" class="hidden p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border prose dark:prose-invert max-w-none text-[11px]">${renderMarkdownSafe(label)}</div>
+                   </div>`
+                : `<input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(label)}">`;
 
             const div = document.createElement('div');
-            div.className = 'flex items-center gap-2 option-row';
+            div.className = 'flex items-start gap-2 option-row pt-1';
             div.innerHTML = `
-                <input type="${isMultiple ? 'checkbox' : 'radio'}" name="swalCorrectChoice" value="${currentCount}">
-                <span class="font-bold w-6">${label}:</span>
-                <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(label)}">
-                <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>
+                <input type="${allowMultiSelectInputs ? 'checkbox' : 'radio'}" name="swalCorrectChoice" value="${currentCount}" ${isBonusAll ? 'disabled' : ''} class="mt-2">
+                <span class="font-bold w-6 mt-1">${escapeHtml(label)}:</span>
+                ${optInputHtml}
+                <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1 mt-1"><i class="fas fa-times"></i></button>
             `;
             container.appendChild(div);
         };
@@ -955,20 +1415,25 @@
 
         async function openQuestionModal(qData = null) {
             const isEdit = !!qData;
+            const isOnline = isOnlineExamMode();
             const formatType = currentExamData?.choice_format || 'num';
             const standardLabels = getChoiceLabels(formatType, qData?.options ? qData.options.length : 4);
 
             let currentOpts = (qData?.options && qData.options.length > 0) ? qData.options : standardLabels;
             let currentKeywords = qData?.keywords || [];
-            const isMultiple = !!qData?.is_multiple_answers;
+            const isBonusAll = !!qData?.is_bonus_all;
+            const isMultiple = !isBonusAll && !!qData?.is_multiple_answers;
+            const isSingleMultiKey = !isBonusAll && !isMultiple && !!qData?.allow_multi_correct_keys;
             const gradingMode = qData?.multiple_grading_mode || 'all';
+            const qScoreVal = qData?.score !== undefined && qData?.score !== null ? Number(qData.score) : 1;
 
-            let correctArr = [];
-            if (Array.isArray(qData?.correct_answer)) {
-                correctArr = qData.correct_answer.map(String);
-            } else if (qData?.correct_answer !== undefined && qData?.correct_answer !== null) {
-                correctArr = String(qData.correct_answer).split(',').map(s => s.trim());
-            }
+            let selectedMode = 'single_one';
+            if (isBonusAll) selectedMode = 'bonus_all';
+            else if (isMultiple) selectedMode = 'multiple_select';
+            else if (isSingleMultiKey) selectedMode = 'single_one_multi_key';
+
+            const allowMultiSelectInputs = isMultiple || isSingleMultiKey;
+            const correctArr = normalizeCorrectAnswerList(qData?.correct_answer);
 
             const existingTags = Array.from(new Set(cachedQuestions.map(q => q.category_tag).filter(Boolean)));
             const currentTag = qData?.category_tag || '';
@@ -981,14 +1446,36 @@
             });
             categoryOptionsHtml += `<option value="__NEW__" ${(!isTagInList && currentTag) ? 'selected' : ''}>➕ สร้างหมวดหมู่ใหม่...</option>`;
 
+            let sharedPassageOptionsHtml = `<option value="">-- ไม่ผูกกับโจทย์ร่วม --</option>`;
+            sharedPassages.forEach(sp => {
+                const sel = String(qData?.shared_passage_id || '') === String(sp.id) ? 'selected' : '';
+                sharedPassageOptionsHtml += `<option value="${escapeHtml(String(sp.id))}" ${sel}>🔗 ${escapeHtml(sp.title || 'ชุดโจทย์ร่วม')}</option>`;
+            });
+
             let optionsHtml = currentOpts.map((opt, i) => {
-                const isChecked = isMultiple ? correctArr.includes(String(i)) : (String(qData?.correct_answer) === String(i) || (!qData && i === 0));
+                const isChecked = allowMultiSelectInputs
+                    ? correctArr.includes(String(i))
+                    : (String(qData?.correct_answer) === String(i) || (!qData && i === 0));
                 const label = standardLabels[i] || String.fromCharCode(65+i);
-                const deleteBtn = i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1"><i class="fas fa-times"></i></button>` : '';
-                return `<div class="flex items-center gap-2 option-row">
-                    <input type="${isMultiple ? 'checkbox' : 'radio'}" name="swalCorrectChoice" value="${i}" ${isChecked ? 'checked' : ''}>
-                    <span class="font-bold w-6">${escapeHtml(label)}:</span>
-                    <input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(opt)}">
+                const deleteBtn = i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1 mt-1"><i class="fas fa-times"></i></button>` : '';
+                const optInputId = `optField_${i}`;
+                const optPrevId = `optPrev_${i}`;
+
+                const optFieldHtml = isOnline
+                    ? `<div class="flex-1 space-y-1">
+                            <input id="${optInputId}" class="opt-text-input w-full px-3 py-1 border rounded-xl dark:bg-slate-800 text-xs" value="${escapeHtml(opt)}" oninput="refreshMarkdownPreview('${optInputId}', '${optPrevId}')">
+                            <div class="flex items-center gap-2 text-[10px]">
+                                <label class="text-sky-600 dark:text-sky-400 font-bold cursor-pointer"><i class="fas fa-image"></i> แทรกรูป<input type="file" accept="image/*" class="hidden" onchange="handleEditorFileInsert(this, '${optInputId}', '${optPrevId}')"></label>
+                                <button type="button" onclick="toggleMarkdownPreviewPane('${optPrevId}'); refreshMarkdownPreview('${optInputId}', '${optPrevId}');" class="text-slate-500 underline">Preview</button>
+                            </div>
+                            <div id="${optPrevId}" onclick="handleMarkdownBodyClick(event)" class="hidden p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border prose dark:prose-invert max-w-none text-[11px]">${renderMarkdownSafe(opt)}</div>
+                       </div>`
+                    : `<input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(opt)}">`;
+
+                return `<div class="flex items-start gap-2 option-row pt-1">
+                    <input type="${allowMultiSelectInputs ? 'checkbox' : 'radio'}" name="swalCorrectChoice" value="${i}" ${isChecked ? 'checked' : ''} ${isBonusAll ? 'disabled' : ''} class="mt-2">
+                    <span class="font-bold w-6 mt-1">${escapeHtml(label)}:</span>
+                    ${optFieldHtml}
                     ${deleteBtn}
                 </div>`;
             }).join('');
@@ -1004,15 +1491,60 @@
                 </div>`;
             }).join('');
 
+            const questionTextBlock = buildMarkdownTextareaBlock({
+                id: 'qText',
+                label: 'คำถาม / ข้อความโจทย์',
+                value: qData?.question_text || qData?.content || '',
+                rows: 4,
+                previewId: 'qTextMarkdownPreview',
+                placeholder: isOnline ? 'พิมพ์โจทย์ด้วย Markdown และวาง/ลากรูปภาพแทรกตรงไหนก็ได้...' : 'พิมพ์ข้อความโจทย์...'
+            });
+
+            const imageUploadBlock = isOnline
+                ? `<div class="text-[11px] text-teal-600 dark:text-teal-400 bg-teal-500/5 border border-teal-500/20 p-2.5 rounded-xl">
+                        <i class="fas fa-info-circle mr-1"></i> โหมดพิมพ์โจทย์ลงระบบรองรับการแทรกรูปภาพตรงตำแหน่งที่ต้องการในช่องโจทย์/ตัวเลือก/โจทย์ร่วมได้ทันที (หรือใส่ลิงก์ URL รูปภาพเพิ่มเติมด้านล่างได้)
+                        <input type="hidden" id="qImageUrl" value="${escapeHtml(qData?.image_url || '')}">
+                   </div>`
+                : `<div>
+                        <label class="block font-bold mb-1">รูปภาพประกอบโจทย์ (ถ้ามี)</label>
+                        <div class="flex gap-2 items-center">
+                            <input id="qImageUrl" class="flex-1 px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-[11px]" value="${escapeHtml(qData?.image_url || '')}" placeholder="URL รูปภาพหรืออัปโหลดจากปุ่มขวา...">
+                            <label class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold text-xs cursor-pointer">
+                                <i class="fas fa-upload mr-1"></i> อัปรูป
+                                <input type="file" accept="image/*" class="hidden" onchange="uploadQuestionImage(this)">
+                            </label>
+                        </div>
+                   </div>`;
+
+            const sharedPassageField = isOnline
+                ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold mb-1">ผูกกับชุดโจทย์ร่วม (ถ้ามี)</label>
+                            <select id="qSharedPassageId" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-teal-600 dark:text-teal-400">
+                                ${sharedPassageOptionsHtml}
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" onclick="Swal.close(); openSharedPassageModal();" class="w-full px-3 py-1.5 bg-teal-600/10 hover:bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/30 rounded-xl font-bold text-xs">
+                                <i class="fas fa-plus mr-1"></i> สร้างชุดโจทย์ร่วมใหม่
+                            </button>
+                        </div>
+                   </div>`
+                : `<input type="hidden" id="qSharedPassageId" value="${escapeHtml(String(qData?.shared_passage_id || ''))}">`;
+
             const { value: formValues } = await Swal.fire({
                 title: isEdit ? `แก้ไขโจทย์ ข้อที่ ${qData.question_number}` : 'เพิ่มข้อสอบใหม่',
-                width: '680px',
+                width: '720px',
                 html: `
-                    <div class="space-y-3 text-left text-xs">
-                        <div class="grid grid-cols-3 gap-2">
+                    <div class="space-y-3 text-left text-xs max-h-[75vh] overflow-y-auto pr-1">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             <div>
                                 <label class="block font-bold mb-1">ข้อที่</label>
                                 <input type="number" id="qNum" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" value="${qData?.question_number || (cachedQuestions.length + 1)}">
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1">คะแนนข้อนี้</label>
+                                <input type="number" step="0.5" min="0" id="qScore" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-mono font-bold text-indigo-600 dark:text-indigo-400" value="${qScoreVal}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">หมวดหมู่ย่อยโจทย์</label>
@@ -1030,37 +1562,31 @@
                             </div>
                         </div>
 
-                        <div>
-                            <label class="block font-bold mb-1">คำถาม / ข้อความโจทย์</label>
-                            <textarea id="qText" rows="3" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800">${escapeHtml(qData?.question_text || qData?.content || '')}</textarea>
-                        </div>
-
-                        <div>
-                            <label class="block font-bold mb-1">รูปภาพประกอบโจทย์ (ถ้ามี)</label>
-                            <div class="flex gap-2 items-center">
-                                <input id="qImageUrl" class="flex-1 px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-[11px]" value="${escapeHtml(qData?.image_url || '')}" placeholder="URL รูปภาพหรืออัปโหลดจากปุ่มขวา...">
-                                <label class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold text-xs cursor-pointer">
-                                    <i class="fas fa-upload mr-1"></i> อัปรูป
-                                    <input type="file" accept="image/*" class="hidden" onchange="uploadQuestionImage(this)">
-                                </label>
-                            </div>
-                        </div>
+                        ${sharedPassageField}
+                        ${questionTextBlock}
+                        ${imageUploadBlock}
 
                         <div id="mcSection" class="${qData?.question_type === 'essay' ? 'hidden' : ''} space-y-2 pt-2 border-t dark:border-slate-800">
-                            <!-- ตั้งค่าหลายคำตอบ -->
                             <div class="p-3 bg-purple-500/10 rounded-xl border border-purple-500/30 space-y-2">
-                                <label class="flex items-center gap-2 cursor-pointer font-bold text-purple-600 dark:text-purple-400">
-                                    <input type="checkbox" id="isMultipleToggle" onchange="toggleMultipleAnswersSec(this.checked)" ${isMultiple ? 'checked' : ''} class="w-4 h-4 rounded">
-                                    <span>ข้อนี้เป็น "ปรนัยหลายคำตอบ" (เลือกตอบได้มากกว่า 1 ข้อ)</span>
-                                </label>
+                                <label class="block font-bold text-purple-600 dark:text-purple-400">รูปแบบการตอบและเฉลยปรนัย:</label>
+                                <select id="mcAnswerModeSelect" onchange="syncAnswerChoiceMode()" class="w-full px-3 py-1.5 border rounded-lg dark:bg-slate-800 font-bold text-xs">
+                                    <option value="single_one" ${selectedMode === 'single_one' ? 'selected' : ''}>ปรนัยเลือก 1 ตัวเลือก (เฉลยถูก 1 ข้อ)</option>
+                                    <option value="single_one_multi_key" ${selectedMode === 'single_one_multi_key' ? 'selected' : ''}>ปรนัยเลือก 1 ตัวเลือก แต่เฉลยถูกหลายข้อ (เลือกข้อใดข้อหนึ่งในเฉลยก็ได้เต็ม)</option>
+                                    <option value="multiple_select" ${selectedMode === 'multiple_select' ? 'selected' : ''}>ปรนัยเลือกได้หลายคำตอบ (Checkbox)</option>
+                                    <option value="bonus_all" ${selectedMode === 'bonus_all' ? 'selected' : ''}>แจกคะแนนฟรี / ยกเลิกข้อ (ได้เต็มทุกคน)</option>
+                                </select>
                                 
-                                <div id="multipleModeSection" class="${isMultiple ? '' : 'hidden'} pl-6 space-y-1">
+                                <div id="multipleModeSection" class="${isMultiple ? '' : 'hidden'} pt-1 space-y-1">
                                     <label class="block font-bold text-slate-700 dark:text-slate-300">เงื่อนไขการให้คะแนนหลายคำตอบ:</label>
                                     <select id="multipleGradingMode" class="w-full px-3 py-1 border rounded-lg dark:bg-slate-800 font-bold text-xs">
                                         <option value="all" ${gradingMode === 'all' ? 'selected' : ''}>ตอบถูกครบทุกข้อที่ถูกต้องเท่านั้น (All-or-Nothing)</option>
                                         <option value="partial" ${gradingMode === 'partial' ? 'selected' : ''}>ให้คะแนนบางส่วน (Partial Credit ตามสัดส่วนที่ตอบถูก)</option>
                                         <option value="at_least_one" ${gradingMode === 'at_least_one' ? 'selected' : ''}>ตอบถูกอย่างน้อย 1 ข้อที่ถูก (ก็ได้เต็ม)</option>
                                     </select>
+                                </div>
+
+                                <div id="bonusAllNote" class="${isBonusAll ? '' : 'hidden'} text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                    <i class="fas fa-gift mr-1"></i> ข้อนี้จะให้คะแนนเต็มตามคะแนนของข้อโดยอัตโนมัติสำหรับผู้สอบทุกคน
                                 </div>
                             </div>
 
@@ -1097,6 +1623,7 @@
                 preConfirm: () => {
                     const qType = document.getElementById('qType').value;
                     const txt = document.getElementById('qText').value;
+                    const scoreNum = Math.max(0, parseFloat(document.getElementById('qScore').value) || 0);
 
                     const selectVal = document.getElementById('qCategorySelect').value;
                     const customVal = document.getElementById('qCategoryTagCustom').value.trim();
@@ -1105,11 +1632,15 @@
                     const optInputs = document.querySelectorAll('.opt-text-input');
                     const optsParsed = Array.from(optInputs).map(inp => inp.value.trim()).filter(Boolean);
                     
-                    const isMultiple = document.getElementById('isMultipleToggle')?.checked || false;
-                    let correctAnsValue = isMultiple ? [] : '0';
+                    const mcMode = document.getElementById('mcAnswerModeSelect')?.value || 'single_one';
+                    const isBonusAll = mcMode === 'bonus_all';
+                    const isMultiple = mcMode === 'multiple_select';
+                    const isSingleMultiKey = mcMode === 'single_one_multi_key';
+                    const allowMultiSelectInputs = isMultiple || isSingleMultiKey;
 
+                    let correctAnsValue = isMultiple || isSingleMultiKey ? [] : '0';
                     const checkedElements = document.querySelectorAll('input[name="swalCorrectChoice"]:checked');
-                    if (isMultiple) {
+                    if (allowMultiSelectInputs) {
                         correctAnsValue = Array.from(checkedElements).map(el => el.value);
                     } else {
                         correctAnsValue = checkedElements.length > 0 ? checkedElements[0].value : '0';
@@ -1121,17 +1652,23 @@
                         mode: row.querySelector('.kw-mode').value
                     })).filter(k => k.word !== '');
 
+                    const sharedPassageVal = document.getElementById('qSharedPassageId')?.value || null;
+
                     return {
                         exam_id: examId,
                         question_number: parseInt(document.getElementById('qNum').value) || 1,
+                        score: scoreNum,
                         category_tag: finalCategoryTag,
+                        shared_passage_id: sharedPassageVal || null,
                         question_type: qType,
                         question_text: txt,
                         content: txt,
-                        image_url: document.getElementById('qImageUrl').value.trim() || null,
+                        image_url: document.getElementById('qImageUrl')?.value.trim() || null,
                         options: optsParsed.length > 0 ? optsParsed : standardLabels,
                         correct_answer: correctAnsValue,
                         is_multiple_answers: isMultiple,
+                        allow_multi_correct_keys: isSingleMultiKey,
+                        is_bonus_all: isBonusAll,
                         multiple_grading_mode: isMultiple ? document.getElementById('multipleGradingMode').value : 'all',
                         grading_type: document.getElementById('qGradingType').value,
                         keywords: kwParsed
@@ -1140,15 +1677,38 @@
             });
 
             if (formValues) {
+                const fullPayload = { ...formValues };
+                const corePayload = {
+                    exam_id: formValues.exam_id,
+                    question_number: formValues.question_number,
+                    category_tag: formValues.category_tag,
+                    question_type: formValues.question_type,
+                    question_text: formValues.question_text,
+                    content: formValues.content,
+                    image_url: formValues.image_url,
+                    options: formValues.options,
+                    correct_answer: formValues.correct_answer,
+                    is_multiple_answers: formValues.is_multiple_answers,
+                    multiple_grading_mode: formValues.multiple_grading_mode,
+                    grading_type: formValues.grading_type,
+                    keywords: formValues.keywords
+                };
+
                 if (isEdit) {
-                    await mySupabase.from('questions').update(formValues).eq('id', qData.id);
+                    const { error } = await mySupabase.from('questions').update(fullPayload).eq('id', qData.id);
+                    if (error) {
+                        await mySupabase.from('questions').update(corePayload).eq('id', qData.id);
+                    }
                     await logAdminAction('แก้ไขโจทย์', `แก้ไขข้อสอบข้อที่ ${formValues.question_number}`);
                 } else {
-                    await mySupabase.from('questions').insert([formValues]);
+                    const { error } = await mySupabase.from('questions').insert([fullPayload]);
+                    if (error) {
+                        await mySupabase.from('questions').insert([corePayload]);
+                    }
                     await logAdminAction('เพิ่มโจทย์ใหม่', `เพิ่มข้อสอบข้อที่ ${formValues.question_number}`);
                 }
                 markAsModified();
-                loadQuestions();
+                await loadQuestions();
             }
         }
 
@@ -1323,6 +1883,7 @@
                     newItems.push({
                         exam_id: examId,
                         question_number: i,
+                        score: 1,
                         question_text: `ข้อที่ ${i}`,
                         content: `ข้อที่ ${i}`,
                         category_tag: formValues.tag || '',
@@ -1330,6 +1891,8 @@
                         options: standardLabels,
                         correct_answer: '0',
                         is_multiple_answers: false,
+                        allow_multi_correct_keys: false,
+                        is_bonus_all: false,
                         multiple_grading_mode: 'all'
                     });
                 }
@@ -1345,26 +1908,97 @@
             window.open(`exam_take.html?id=${examId}&preview=true`, '_blank');
         }
 
+        function computeQuestionRegradeScore(q, userAns) {
+            const qMaxScore = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
+            if ((q.question_type || '').toLowerCase() === 'essay') {
+                return 0;
+            }
+            if (q.is_bonus_all) {
+                return qMaxScore;
+            }
+            if (userAns === null || userAns === undefined || userAns === '') {
+                return 0;
+            }
+
+            const correctArr = normalizeCorrectAnswerList(q.correct_answer);
+            if (correctArr.length === 0) return 0;
+
+            const isMultiple = !!q.is_multiple_answers;
+            const isSingleMultiKey = !isMultiple && !!q.allow_multi_correct_keys;
+            const userArr = normalizeCorrectAnswerList(userAns);
+            if (userArr.length === 0) return 0;
+
+            if (isSingleMultiKey) {
+                const matchedAny = userArr.some(ans => correctArr.includes(ans));
+                return matchedAny ? qMaxScore : 0;
+            }
+
+            if (isMultiple) {
+                const gradingMode = q.multiple_grading_mode || 'all';
+                if (gradingMode === 'at_least_one') {
+                    return userArr.some(ans => correctArr.includes(ans)) ? qMaxScore : 0;
+                }
+                if (gradingMode === 'partial') {
+                    let matchedCount = 0;
+                    userArr.forEach(ans => {
+                        if (correctArr.includes(ans)) matchedCount++;
+                    });
+                    const rawPart = matchedCount / correctArr.length;
+                    const penalty = userArr.length > correctArr.length ? (userArr.length - correctArr.length) * 0.2 : 0;
+                    return Number((qMaxScore * Math.max(0, rawPart - penalty)).toFixed(2));
+                }
+                const isExactMatch = userArr.length === correctArr.length && userArr.every(val => correctArr.includes(val));
+                return isExactMatch ? qMaxScore : 0;
+            }
+
+            const userStr = String(userArr[0] || '').trim().toLowerCase();
+            const correctStr = String(correctArr[0] || '').trim().toLowerCase();
+            return userStr === correctStr ? qMaxScore : 0;
+        }
+
         async function saveAllChangesSticky() {
             Swal.fire({
                 title: 'กำลังบันทึกและ Regrade คะแนน...',
-                html: '<div class="text-xs text-slate-400 mt-1">กำลังคำนวณและอัปเดตลงช่อง total_score (รองรับระบบหลายคำตอบ 3 รูปแบบ)...</div>',
+                html: '<div class="text-xs text-slate-400 mt-1">กำลังคำนวณและอัปเดตลงช่อง total_score...</div>',
                 allowOutsideClick: false,
                 didOpen: () => Swal.showLoading()
             });
+
+            if (isOnlineExamMode()) {
+                try {
+                    await mySupabase.from('exams').update({ shared_passages: sharedPassages }).eq('id', examId);
+                } catch (e) {}
+            }
             
             for (const q of cachedQuestions) {
-                await mySupabase.from('questions').update({
+                const qScoreVal = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
+                const fullUpdate = {
                     correct_answer: q.correct_answer,
                     question_type: q.question_type,
                     options: q.options,
                     category_tag: q.category_tag,
-                    is_multiple_answers: q.is_multiple_answers,
-                    multiple_grading_mode: q.multiple_grading_mode
-                }).eq('id', q.id);
+                    score: qScoreVal,
+                    shared_passage_id: q.shared_passage_id || null,
+                    is_multiple_answers: !!q.is_multiple_answers,
+                    allow_multi_correct_keys: !!q.allow_multi_correct_keys,
+                    is_bonus_all: !!q.is_bonus_all,
+                    multiple_grading_mode: q.multiple_grading_mode || 'all'
+                };
+                const { error } = await mySupabase.from('questions').update(fullUpdate).eq('id', q.id);
+                if (error) {
+                    await mySupabase.from('questions').update({
+                        correct_answer: q.correct_answer,
+                        question_type: q.question_type,
+                        options: q.options,
+                        category_tag: q.category_tag,
+                        is_multiple_answers: !!q.is_multiple_answers,
+                        multiple_grading_mode: q.multiple_grading_mode || 'all'
+                    }).eq('id', q.id);
+                }
             }
 
             const { data: latestQuestions } = await mySupabase.from('questions').select('*').eq('exam_id', examId);
+            const questionsForGrade = (latestQuestions && latestQuestions.length > 0) ? latestQuestions : cachedQuestions;
 
             let { data: attempts } = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examId);
             if (!attempts || attempts.length === 0) {
@@ -1377,7 +2011,7 @@
             let successCount = 0;
             let errorLogs = [];
 
-            if (attempts && attempts.length > 0 && latestQuestions) {
+            if (attempts && attempts.length > 0 && questionsForGrade) {
                 for (const att of attempts) {
                     let rawAnswers = att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses || att.submitted_answers;
                     if (typeof rawAnswers === 'string') {
@@ -1386,7 +2020,18 @@
 
                     let recalculatedScore = 0;
 
-                    latestQuestions.forEach((q, index) => {
+                    questionsForGrade.forEach((q, index) => {
+                        const localQ = cachedQuestions.find(cq => String(cq.id) === String(q.id));
+                        const mergedQ = {
+                            ...q,
+                            score: q.score !== undefined && q.score !== null ? q.score : (localQ?.score ?? 1),
+                            is_multiple_answers: q.is_multiple_answers !== undefined ? q.is_multiple_answers : !!localQ?.is_multiple_answers,
+                            allow_multi_correct_keys: q.allow_multi_correct_keys !== undefined ? q.allow_multi_correct_keys : !!localQ?.allow_multi_correct_keys,
+                            is_bonus_all: q.is_bonus_all !== undefined ? q.is_bonus_all : !!localQ?.is_bonus_all,
+                            multiple_grading_mode: q.multiple_grading_mode || localQ?.multiple_grading_mode || 'all',
+                            correct_answer: q.correct_answer !== undefined && q.correct_answer !== null ? q.correct_answer : localQ?.correct_answer
+                        };
+
                         let userAns = null;
                         if (typeof rawAnswers === 'object' && rawAnswers !== null) {
                             if (rawAnswers[q.id] !== undefined) userAns = rawAnswers[q.id];
@@ -1404,56 +2049,7 @@
                             }
                         }
 
-                        if (userAns !== null && userAns !== undefined && userAns !== '') {
-                            const isMultiple = !!q.is_multiple_answers;
-                            let correctArr = [];
-                            if (Array.isArray(q.correct_answer)) {
-                                correctArr = q.correct_answer.map(String);
-                            } else {
-                                correctArr = String(q.correct_answer).split(',').map(s => s.trim());
-                            }
-
-                            if (isMultiple) {
-                                let userArr = [];
-                                if (Array.isArray(userAns)) {
-                                    userArr = userAns.map(String);
-                                } else {
-                                    userArr = String(userAns).split(',').map(s => s.trim());
-                                }
-
-                                const gradingMode = q.multiple_grading_mode || 'all';
-
-                                if (gradingMode === 'at_least_one') {
-                                    const hasAtLeastOneCorrect = userArr.some(ans => correctArr.includes(ans));
-                                    if (hasAtLeastOneCorrect) {
-                                        recalculatedScore += 1;
-                                    }
-                                } else if (gradingMode === 'partial') {
-                                    let matchedCount = 0;
-                                    userArr.forEach(ans => {
-                                        if (correctArr.includes(ans)) matchedCount++;
-                                    });
-                                    let questionScore = 0;
-                                    if (correctArr.length > 0) {
-                                        const rawPart = matchedCount / correctArr.length;
-                                        const penalty = userArr.length > correctArr.length ? (userArr.length - correctArr.length) * 0.2 : 0;
-                                        questionScore = Math.max(0, rawPart - penalty);
-                                    }
-                                    recalculatedScore += questionScore;
-                                } else {
-                                    const isExactMatch = userArr.length === correctArr.length && userArr.every(val => correctArr.includes(val));
-                                    if (isExactMatch) {
-                                        recalculatedScore += 1;
-                                    }
-                                }
-                            } else {
-                                const userStr = String(userAns).trim().toLowerCase();
-                                const correctStr = String(correctArr[0] || '').trim().toLowerCase();
-                                if (userStr === correctStr) {
-                                    recalculatedScore += 1;
-                                }
-                            }
-                        }
+                        recalculatedScore += computeQuestionRegradeScore(mergedQ, userAns);
                     });
 
                     const targetId = att.id || att.attempt_id || att.uuid;
