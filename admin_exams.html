@@ -217,6 +217,7 @@
 
         const LOCAL_TAGS_KEY = 'lms_exam_tags_fallback_v1';
         const LOCAL_ASSIGN_KEY = 'lms_exam_tag_assignments_fallback_v1';
+        const LOCAL_DOWNLOAD_FLAGS_KEY = 'lms_exam_allow_download_fallback_v1';
         const TAG_BAR_COLLAPSED_KEY = 'lms_tag_bar_collapsed_v1';
         const QUICK_TAG_LIMIT = 10;
 
@@ -225,14 +226,13 @@
 
         let categoriesList = [];
         let tagsList = [];
-        let examTagIdsMap = {}; // { [examId]: [tagId, ...] }
+        let examTagIdsMap = {};
         let tagTableAvailable = true;
         let selectedFilterTagIds = new Set();
         let searchKeyword = '';
         let showAllQuickTags = false;
         let isTagBarCollapsed = localStorage.getItem(TAG_BAR_COLLAPSED_KEY) === 'true';
 
-        // State สำหรับ Dropdown เลือกหลาย Tag ใน Modal สร้าง/แก้ไขชุดข้อสอบ
         let modalSelectedTagIds = new Set();
         let modalTagDropdownOpen = false;
         let modalTagSearchText = '';
@@ -245,6 +245,31 @@
         let allAttemptsMap = {};
         let currentViewMode = localStorage.getItem('exam_view_mode') || 'grid';
         let isAllCollapsed = false;
+
+        function readLocalDownloadFlags() {
+            try {
+                return JSON.parse(localStorage.getItem(LOCAL_DOWNLOAD_FLAGS_KEY) || '{}');
+            } catch {
+                return {};
+            }
+        }
+
+        function writeLocalDownloadFlag(examId, allowed) {
+            if (!examId) return;
+            const mapObj = readLocalDownloadFlags();
+            mapObj[String(examId)] = Boolean(allowed);
+            localStorage.setItem(LOCAL_DOWNLOAD_FLAGS_KEY, JSON.stringify(mapObj));
+        }
+
+        function getExamAllowDownload(examObj) {
+            if (!examObj) return false;
+            if (typeof examObj.allow_file_download === 'boolean') return examObj.allow_file_download;
+            if (examObj.id) {
+                const localMap = readLocalDownloadFlags();
+                if (typeof localMap[String(examObj.id)] === 'boolean') return localMap[String(examObj.id)];
+            }
+            return false;
+        }
 
         function isAttemptSubmitted(att) {
             return Boolean(
@@ -722,7 +747,6 @@
             return '1, 2, 3, 4';
         }
 
-        // แสดงป้าย Tag บนการ์ด/ลิสต์ตามปกติ (คลิกเพื่อกรอง Tag ได้)
         function getExamTagsHtml(examId) {
             const tags = getExamTags(examId);
             if (!tags || tags.length === 0) return '';
@@ -930,6 +954,7 @@
                 if (fetchErr || !sourceExam) throw new Error('ไม่พบข้อมูลชุดข้อสอบต้นฉบับ');
 
                 const isFree = isFreeUnassignedExam(sourceExam);
+                const allowDl = getExamAllowDownload(sourceExam);
                 const newExamPayload = {
                     title: `${sourceExam.title} (สำเนา)`,
                     exam_code: `EXAM-${Math.floor(Math.random() * 9000 + 1000)}`,
@@ -940,6 +965,7 @@
                     course_id: isFree ? null : sourceExam.course_id,
                     is_free_public: isFree,
                     free_access: isFree,
+                    allow_file_download: allowDl,
                     time_limit: sourceExam.time_limit,
                     max_attempts: sourceExam.max_attempts,
                     status: 'draft',
@@ -952,7 +978,7 @@
 
                 let { data: insertedExam, error: insertExamErr } = await mySupabase.from('exams').insert([newExamPayload]).select().single();
                 if (insertExamErr) {
-                    const { is_free_public, free_access, ...fallbackPayload } = newExamPayload;
+                    const { is_free_public, free_access, allow_file_download, ...fallbackPayload } = newExamPayload;
                     const fallbackRes = await mySupabase.from('exams').insert([fallbackPayload]).select().single();
                     insertedExam = fallbackRes.data;
                     insertExamErr = fallbackRes.error;
@@ -960,6 +986,7 @@
                 if (insertExamErr || !insertedExam) throw new Error(insertExamErr?.message || 'ไม่สามารถสร้างชุดข้อสอบใหม่ได้');
 
                 const newExamId = insertedExam.id;
+                writeLocalDownloadFlag(newExamId, allowDl);
 
                 const { data: sourceQuestions, error: qFetchErr } = await mySupabase.from('questions').select('*').eq('exam_id', sourceExamId);
                 
@@ -1250,7 +1277,6 @@
             }
         }
 
-        // ==================== Dropdown เลือกหลาย Tag + เพิ่ม Tag ใหม่ในหน้าต่างแก้ไข/สร้างชุดข้อสอบ ====================
         function renderModalMultiTagPicker() {
             const summaryBtnText = document.getElementById('swalMultiTagSummaryText');
             const selectedChipsBox = document.getElementById('swalSelectedTagChipsBox');
@@ -1376,6 +1402,85 @@
             input.focus();
         };
 
+        function escapePreviewHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        window.updateStudentDownloadPreview = function() {
+            const previewBox = document.getElementById('swalStudentDownloadPreview');
+            if (!previewBox) return;
+
+            const allowDownload = Boolean(document.getElementById('swalAllowFileDownload')?.checked);
+            const deliveryType = document.querySelector('input[name="swalDeliveryType"]:checked')?.value || 'pdf';
+            const titleVal = (document.getElementById('swalTitle')?.value || '').trim() || 'ชื่อชุดข้อสอบตัวอย่าง';
+            const codeVal = (document.getElementById('swalExamCode')?.value || '').trim().toUpperCase() || 'EXAM-CODE';
+
+            const isPdfMode = deliveryType === 'pdf';
+            const sourceDesc = isPdfMode
+                ? 'ไฟล์ PDF ที่แอดมินอัปโหลดลงระบบ'
+                : 'สร้างไฟล์เอกสารใหม่จากโจทย์ที่พิมพ์ลงระบบ (จัดหน้าอ่านง่าย)';
+
+            const fileBadge = isPdfMode
+                ? `<span class="px-2 py-0.5 rounded bg-red-500/15 text-red-600 dark:text-red-400 font-bold text-[10px]"><i class="fas fa-file-pdf mr-1"></i>ต้นฉบับ PDF</span>`
+                : `<span class="px-2 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300 font-bold text-[10px]"><i class="fas fa-file-export mr-1"></i>สร้างไฟล์ใหม่จากระบบ</span>`;
+
+            if (!allowDownload) {
+                previewBox.className = 'p-3 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 space-y-2 transition-all';
+                previewBox.innerHTML = `
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <span class="font-bold text-[11px] text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                            <i class="fas fa-eye text-sky-500"></i> ตัวอย่างมุมมองที่นักเรียนจะเห็น (exam_take.html &amp; student_result.html)
+                        </span>
+                        <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-[10px]">
+                            <i class="fas fa-ban mr-1"></i>ปิดการดาวน์โหลด
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-2">
+                        <div class="min-w-0">
+                            <div class="font-bold text-xs text-slate-800 dark:text-slate-100 truncate">${escapePreviewHtml(titleVal)} <span class="font-mono text-[10px] text-slate-400">(${escapePreviewHtml(codeVal)})</span></div>
+                            <div class="text-[10px] text-slate-500 dark:text-slate-400">นักเรียนจะไม่เห็นปุ่มดาวน์โหลดไฟล์ — อ่าน/ทำข้อสอบบนหน้าเว็บเท่านั้น</div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-lg bg-slate-200/80 dark:bg-slate-800 text-slate-400 text-[10px] font-bold shrink-0 cursor-not-allowed">
+                            <i class="fas fa-lock mr-1"></i>ไม่เปิดให้โหลด
+                        </span>
+                    </div>
+                `;
+                return;
+            }
+
+            previewBox.className = 'p-3 rounded-xl bg-sky-500/10 dark:bg-sky-950/30 border border-sky-500/35 space-y-2 transition-all';
+            previewBox.innerHTML = `
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <span class="font-bold text-[11px] text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                        <i class="fas fa-eye text-sky-500"></i> ตัวอย่างมุมมองที่นักเรียนจะเห็น (exam_take.html &amp; student_result.html)
+                    </span>
+                    <div class="flex items-center gap-1.5">
+                        ${fileBadge}
+                        <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-[10px]">
+                            <i class="fas fa-check-circle mr-1"></i>เปิดให้ดาวน์โหลด
+                        </span>
+                    </div>
+                </div>
+                <div class="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-sky-500/25 flex items-center justify-between gap-2 shadow-sm">
+                    <div class="min-w-0 space-y-0.5">
+                        <div class="font-bold text-xs text-slate-900 dark:text-white truncate">${escapePreviewHtml(titleVal)} <span class="font-mono text-[10px] text-sky-600 dark:text-sky-400">(${escapePreviewHtml(codeVal)})</span></div>
+                        <div class="text-[10px] text-slate-600 dark:text-slate-300">แหล่งไฟล์: <strong>${sourceDesc}</strong></div>
+                    </div>
+                    <button type="button" onclick="event.preventDefault()" class="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-[11px] font-bold shrink-0 shadow-sm flex items-center gap-1.5 cursor-default">
+                        <i class="fas fa-download"></i> ดาวน์โหลดข้อสอบ
+                    </button>
+                </div>
+                <div class="text-[10px] text-amber-700 dark:text-amber-300/90 flex items-start gap-1.5 leading-relaxed">
+                    <i class="fas fa-copyright mt-0.5 shrink-0"></i>
+                    <span><strong>ลิขสิทธิ์และการจัดหน้า:</strong> กรุณาตรวจสอบสิทธิ์/ลิขสิทธิ์ก่อนเปิดดาวน์โหลด โดยระบบจะแสดงข้อมูลที่มา/ลิขสิทธิ์และจัดหน้าเอกสารให้เรียบร้อยก่อนสร้างไฟล์</span>
+                </div>
+            `;
+        };
+
         async function openExamModal(examData = null) {
             const isEdit = !!examData;
             const categoryOptions = categoriesList.map(c => `<option value="${c.id}" ${examData?.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
@@ -1391,6 +1496,7 @@
 
             const currentDelivery = examData?.delivery_type || examData?.exam_type || 'pdf';
             const currentChoiceFormat = examData?.choice_format || 'num';
+            const currentAllowDownload = examData ? getExamAllowDownload(examData) : false;
 
             modalSelectedTagIds = new Set(examData ? (examTagIdsMap[String(examData.id)] || []).map(String) : []);
             modalTagDropdownOpen = false;
@@ -1419,20 +1525,29 @@
                             <label class="block font-bold mb-1">ประเภทรูปแบบข้อสอบ <span class="text-red-500">*</span></label>
                             <div class="grid grid-cols-2 gap-2">
                                 <label class="p-2.5 border rounded-xl dark:border-slate-700 flex items-center gap-2 cursor-pointer hover:border-sky-500">
-                                    <input type="radio" name="swalDeliveryType" value="pdf" ${(!examData || currentDelivery === 'pdf') ? 'checked' : ''}>
+                                    <input type="radio" name="swalDeliveryType" value="pdf" onchange="updateStudentDownloadPreview()" ${(!examData || currentDelivery === 'pdf') ? 'checked' : ''}>
                                     <div>
                                         <div class="font-bold"><i class="fas fa-file-pdf text-red-500 mr-1"></i>ใช้ไฟล์ PDF</div>
                                         <div class="text-[10px] text-slate-400">อ่านโจทย์จาก PDF + OMR</div>
                                     </div>
                                 </label>
                                 <label class="p-2.5 border rounded-xl dark:border-slate-700 flex items-center gap-2 cursor-pointer hover:border-sky-500">
-                                    <input type="radio" name="swalDeliveryType" value="online" ${currentDelivery === 'online' ? 'checked' : ''}>
+                                    <input type="radio" name="swalDeliveryType" value="online" onchange="updateStudentDownloadPreview()" ${currentDelivery === 'online' ? 'checked' : ''}>
                                     <div>
                                         <div class="font-bold"><i class="fas fa-keyboard text-purple-500 mr-1"></i>พิมพ์ลงระบบ</div>
                                         <div class="text-[10px] text-slate-400">พิมพ์โจทย์ลงระบบออนไลน์</div>
                                     </div>
                                 </label>
                             </div>
+                        </div>
+
+                        <!-- Checkbox สิทธิ์การดาวน์โหลดไฟล์ข้อสอบ + ตัวอย่างที่นักเรียนจะเห็น -->
+                        <div class="p-3 rounded-xl bg-sky-500/5 border border-sky-500/25 space-y-2.5">
+                            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-100">
+                                <input type="checkbox" id="swalAllowFileDownload" onchange="updateStudentDownloadPreview()" ${currentAllowDownload ? 'checked' : ''} class="w-4 h-4 rounded text-sky-600">
+                                <span><i class="fas fa-download text-sky-500 mr-1"></i>อนุญาตให้นักเรียนดาวน์โหลดไฟล์ข้อสอบ (ในหน้าทำข้อสอบ &amp; หน้าตรวจผลสอบ)</span>
+                            </label>
+                            <div id="swalStudentDownloadPreview"></div>
                         </div>
 
                         <div>
@@ -1448,11 +1563,11 @@
                         <div class="grid grid-cols-3 gap-2">
                             <div class="col-span-2">
                                 <label class="block font-bold mb-1">ชื่อชุดข้อสอบ <span class="text-red-500">*</span></label>
-                                <input id="swalTitle" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" value="${examData?.title || ''}">
+                                <input id="swalTitle" oninput="updateStudentDownloadPreview()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" value="${examData?.title || ''}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">รหัสข้อสอบ (Code)</label>
-                                <input id="swalExamCode" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl font-mono uppercase outline-none" value="${examData?.exam_code || ''}">
+                                <input id="swalExamCode" oninput="updateStudentDownloadPreview()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl font-mono uppercase outline-none" value="${examData?.exam_code || ''}">
                             </div>
                         </div>
 
@@ -1552,6 +1667,7 @@
                 `,
                 didOpen: () => {
                     renderModalMultiTagPicker();
+                    updateStudentDownloadPreview();
                 },
                 showCancelButton: true,
                 confirmButtonText: 'บันทึกข้อมูล',
@@ -1560,6 +1676,7 @@
                     const title = document.getElementById('swalTitle').value.trim();
                     const exam_code = document.getElementById('swalExamCode').value.trim().toUpperCase();
                     const delivery_type = document.querySelector('input[name="swalDeliveryType"]:checked')?.value || 'pdf';
+                    const allow_file_download = Boolean(document.getElementById('swalAllowFileDownload')?.checked);
                     const choice_format = document.getElementById('swalChoiceFormat').value;
                     const status = document.getElementById('swalStatus').value;
                     const hasDueDate = document.getElementById('hasDueDateCheck').checked;
@@ -1580,6 +1697,7 @@
                             exam_code: exam_code || `EXAM-${Math.floor(Math.random()*9000+1000)}`,
                             delivery_type,
                             exam_type: delivery_type,
+                            allow_file_download,
                             choice_format,
                             category_id: catVal ? catVal : null,
                             course_id: courseIdPayload,
@@ -1609,6 +1727,7 @@
                 const coreExamPayload = { ...payload };
                 delete coreExamPayload.is_free_public;
                 delete coreExamPayload.free_access;
+                delete coreExamPayload.allow_file_download;
 
                 if (isEdit) {
                     const { error } = await mySupabase.from('exams').update(payload).eq('id', examData.id);
@@ -1633,6 +1752,7 @@
                 }
 
                 if (!resError && savedExamId) {
+                    writeLocalDownloadFlag(savedExamId, payload.allow_file_download);
                     await saveExamTagAssignments(savedExamId, selectedTagIds);
                     await loadTagsAndAssignments();
                 }
@@ -1675,7 +1795,6 @@
             document.getElementById('dueDateBox').className = checked ? 'space-y-2' : 'hidden';
         }
 
-        // ==================== ระบบจัดการ Tag ส่วนกลาง ====================
         async function ensureTagExists(rawName) {
             const clean = (rawName || '').replace(/^#+/, '').trim();
             if (!clean) return null;
@@ -1937,7 +2056,6 @@
             openTagManagerModal();
         }
 
-        // ==================== ระบบจัดการหมวดหมู่ ====================
         async function openCategoryManagerModal() {
             const countByCat = {};
             allExamsRawData.forEach(e => {
