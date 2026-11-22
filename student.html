@@ -113,7 +113,7 @@
     <!-- Navbar -->
     <nav class="glass-nav fixed w-full top-0 z-50">
         <div class="max-w-7xl mx-auto px-2.5 sm:px-6 h-16 sm:h-18 flex justify-between items-center gap-1.5">
-            <div onclick="switchTab('profile')" class="flex items-center gap-2.5 min-w-0 cursor-pointer group" title="คลิกเพื่อเปิดโปรไฟล์ของฉัน">
+            <div onclick="openProfilePopupModal()" class="flex items-center gap-2.5 min-w-0 cursor-pointer group" title="คลิกเพื่อเปิด Pop-up โปรไฟล์ของฉัน">
                 <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full overflow-hidden shadow-md shadow-sky-500/30 shrink-0 border-2 border-sky-400 group-hover:border-sky-300 bg-sky-950 flex items-center justify-center p-0.5 transition-all">
                     <img id="studentNavAvatar" src="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg" alt="Student Avatar" class="w-full h-full object-cover rounded-full">
                 </div>
@@ -135,6 +135,11 @@
 
                 <button onclick="openEnrolledCoursesModal()" class="p-2 sm:px-3 sm:py-2 bg-sky-500/10 hover:bg-sky-500 hover:text-white text-sky-600 dark:text-sky-400 rounded-xl text-xs font-bold transition-all flex items-center gap-1 border border-sky-500/20 shadow-sm" title="คอร์สของฉัน">
                     <i class="fas fa-book-reader"></i> <span class="hidden md:inline">คอร์ส</span>
+                </button>
+
+                <!-- ปุ่มเปิด Pop-up โปรไฟล์ของฉันบน Navbar -->
+                <button onclick="openProfilePopupModal()" class="p-2 sm:px-3 sm:py-2 bg-indigo-500/10 hover:bg-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-indigo-500/25 shadow-sm" title="โปรไฟล์ของฉัน">
+                    <i class="fas fa-user-circle"></i> <span class="hidden sm:inline">โปรไฟล์ของฉัน</span>
                 </button>
 
                 <!-- Notification Button & Dropdown -->
@@ -177,8 +182,8 @@
                     
                     <div id="userDropdownMenu" class="hidden absolute right-0 mt-2 w-52 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl py-2 z-50 text-xs font-semibold">
                         <div class="px-4 py-2 border-b border-slate-100 dark:border-slate-800 text-slate-400 text-[10px]">เมนูจัดการ</div>
-                        <button onclick="switchTab('profile'); document.getElementById('userDropdownMenu').classList.add('hidden');" class="w-full text-left px-4 py-2.5 hover:bg-sky-50 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                            <i class="fas fa-id-card text-sky-500 w-4"></i> หน้าโปรไฟล์ของฉัน
+                        <button onclick="openProfilePopupModal(); document.getElementById('userDropdownMenu').classList.add('hidden');" class="w-full text-left px-4 py-2.5 hover:bg-sky-50 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                            <i class="fas fa-id-card text-sky-500 w-4"></i> โปรไฟล์ของฉัน (Pop-up)
                         </button>
                         <button onclick="openTermsModal()" class="w-full text-left px-4 py-2.5 hover:bg-sky-50 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
                             <i class="fas fa-file-contract text-sky-500 w-4"></i> ข้อกำหนดและเงื่อนไข
@@ -206,18 +211,16 @@
                 <div class="space-y-1 sm:space-y-2">
                     <span class="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-extrabold tracking-wide uppercase">KRUDREAM LAND - ศูนย์การเรียนรู้ออนไลน์อัจฉริยะ</span>
                     <h2 class="text-base sm:text-2xl font-extrabold tracking-tight truncate max-w-xs sm:max-w-none" id="studentWelcomeBanner">ยินดีต้อนรับ</h2>
-                    <p class="text-xs sm:text-sm text-sky-100 max-w-xl font-light">เลือกทำชุดข้อสอบตามรายวิชาหรือโจทย์แจกฟรี ทบทวนเทปเรียนย้อนหลัง หรือจัดการโปรไฟล์ของตนเองได้จากเมนูด้านล่างนี้</p>
+                    <p class="text-xs sm:text-sm text-sky-100 max-w-xl font-light">เลือกทำชุดข้อสอบตามรายวิชาหรือโจทย์แจกฟรี ทบทวนเทปเรียนย้อนหลัง หรือตรวจสอบผลการเรียนได้จากเมนูด้านล่างนี้</p>
                 </div>
 
+                <!-- แยก "โปรไฟล์ของฉัน" ออกไปแล้ว เหลือเฉพาะ Tab หลักของการเรียนรู้ -->
                 <div class="flex items-center gap-1 bg-black/30 backdrop-blur-md p-1.5 rounded-2xl border border-white/20 shrink-0 w-full lg:w-auto">
-                    <button onclick="switchTab('exam')" id="tabBtnExam" class="flex-1 lg:flex-none px-3.5 sm:px-4 py-2 rounded-xl font-extrabold text-xs transition-all bg-white text-blue-900 shadow-md flex items-center justify-center gap-1.5">
+                    <button onclick="switchTab('exam')" id="tabBtnExam" class="flex-1 lg:flex-none px-4 py-2 rounded-xl font-extrabold text-xs transition-all bg-white text-blue-900 shadow-md flex items-center justify-center gap-1.5">
                         <i class="fas fa-file-signature text-sky-600"></i> ทำข้อสอบ
                     </button>
-                    <button onclick="switchTab('analytics')" id="tabBtnAnalytics" class="flex-1 lg:flex-none px-3.5 sm:px-4 py-2 rounded-xl font-bold text-xs transition-all text-white/90 hover:text-white hover:bg-white/10 flex items-center justify-center gap-1.5">
+                    <button onclick="switchTab('analytics')" id="tabBtnAnalytics" class="flex-1 lg:flex-none px-4 py-2 rounded-xl font-bold text-xs transition-all text-white/90 hover:text-white hover:bg-white/10 flex items-center justify-center gap-1.5">
                         <i class="fas fa-chart-line"></i> วิเคราะห์ & ประวัติ
-                    </button>
-                    <button onclick="switchTab('profile')" id="tabBtnProfile" class="flex-1 lg:flex-none px-3.5 sm:px-4 py-2 rounded-xl font-bold text-xs transition-all text-white/90 hover:text-white hover:bg-white/10 flex items-center justify-center gap-1.5">
-                        <i class="fas fa-user-circle"></i> โปรไฟล์ของฉัน
                     </button>
                 </div>
             </div>
@@ -479,48 +482,52 @@
             </div>
         </div>
 
-        <!-- ================= FEATURE 3: STUDENT PROFILE DASHBOARD ================= -->
-        <div id="sectionProfile" class="space-y-4 sm:space-y-6 hidden">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-                
-                <!-- Left Column: Profile Card, Avatar Upload & Account Credentials -->
-                <div class="lg:col-span-4 space-y-4">
-                    <div class="hitech-card rounded-3xl overflow-hidden border-sky-500/30 shadow-lg">
-                        <!-- Profile Cover Gradient -->
-                        <div class="h-28 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-700 relative">
-                            <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:14px_14px]"></div>
-                            <span class="absolute top-3 right-3 px-2.5 py-1 bg-black/30 backdrop-blur-md text-white rounded-full text-[10px] font-extrabold border border-white/20">
-                                <i class="fas fa-graduation-cap mr-1"></i> STUDENT PROFILE
-                            </span>
-                        </div>
+    </main>
 
-                        <!-- Avatar & Quick Info -->
-                        <div class="px-5 pb-6 -mt-14 text-center relative z-10 space-y-3">
+    <!-- ================= POP-UP MODAL: โปรไฟล์ของฉัน ================= -->
+    <div id="profilePopupModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-5 overflow-y-auto" onclick="handleProfileBackdropClick(event)">
+        <div class="w-full max-w-4xl hitech-card rounded-3xl overflow-hidden border border-sky-500/30 shadow-2xl my-auto max-h-[92vh] flex flex-col" onclick="event.stopPropagation()">
+            <!-- Modal Header -->
+            <div class="h-24 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-700 relative shrink-0 flex items-center justify-between px-5 sm:px-7 text-white">
+                <div class="flex items-center gap-2.5 z-10">
+                    <span class="px-3 py-1 bg-black/25 backdrop-blur-md rounded-full text-[10px] font-extrabold border border-white/20">
+                        <i class="fas fa-user-circle mr-1"></i> STUDENT PROFILE POP-UP
+                    </span>
+                    <h3 class="font-extrabold text-sm sm:text-lg">โปรไฟล์ของฉัน</h3>
+                </div>
+                <button type="button" onclick="closeProfilePopupModal()" class="w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-all z-10" title="ปิดหน้าต่างโปรไฟล์">
+                    <i class="fas fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                    <!-- Left Column: Avatar & Account Info -->
+                    <div class="lg:col-span-5 space-y-4">
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 text-center space-y-3">
                             <div class="relative inline-block group">
-                                <div class="w-28 h-28 rounded-full overflow-hidden border-4 border-white dark:border-darkbox shadow-xl bg-sky-950 mx-auto">
+                                <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-white dark:border-darkbox shadow-xl bg-sky-950 mx-auto">
                                     <img id="profileDashboardAvatar" src="ChatGPT Image 18 ต.ค. 2569 22_41_55.jpg" alt="Profile Picture" class="w-full h-full object-cover">
                                 </div>
-                                <button type="button" onclick="triggerProfileAvatarInput()" class="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-sky-600 hover:bg-sky-500 text-white shadow-lg border-2 border-white dark:border-darkbox flex items-center justify-center transition-transform hover:scale-110" title="เปลี่ยนรูปโปรไฟล์">
+                                <button type="button" onclick="triggerProfileAvatarInput()" class="absolute bottom-0.5 right-0.5 w-9 h-9 rounded-full bg-sky-600 hover:bg-sky-500 text-white shadow-lg border-2 border-white dark:border-darkbox flex items-center justify-center transition-transform hover:scale-110" title="เปลี่ยนรูปโปรไฟล์">
                                     <i class="fas fa-camera text-xs"></i>
                                 </button>
                                 <input type="file" id="profileAvatarFileInput" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" onchange="handleProfileAvatarChange(event)">
                             </div>
 
                             <div>
-                                <h3 id="profileCardDisplayName" class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">กำลังโหลด...</h3>
+                                <h4 id="profileCardDisplayName" class="text-base font-extrabold text-slate-900 dark:text-white">กำลังโหลด...</h4>
                                 <p id="profileCardSubtitle" class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">-</p>
                             </div>
 
-                            <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
-                                <button type="button" onclick="triggerProfileAvatarInput()" class="px-3.5 py-1.5 bg-sky-500/10 hover:bg-sky-500 hover:text-white text-sky-600 dark:text-sky-400 border border-sky-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
-                                    <i class="fas fa-cloud-upload-alt"></i> อัปโหลดรูปโปรไฟล์ใหม่
-                                </button>
-                            </div>
-                            <p class="text-[10px] text-slate-400 font-light">รองรับไฟล์ JPG, PNG, WEBP ขนาดไม่เกิน 5MB</p>
+                            <button type="button" onclick="triggerProfileAvatarInput()" class="px-3.5 py-1.5 bg-sky-500/10 hover:bg-sky-500 hover:text-white text-sky-600 dark:text-sky-400 border border-sky-500/30 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5">
+                                <i class="fas fa-cloud-upload-alt"></i> อัปโหลดรูปโปรไฟล์ใหม่
+                            </button>
+                            <p class="text-[10px] text-slate-400 font-light">รองรับไฟล์ JPG, PNG, WEBP, GIF ขนาดไม่เกิน 5MB</p>
                         </div>
 
-                        <!-- Account Credentials & Stats -->
-                        <div class="px-5 pb-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3 text-left">
+                        <div class="space-y-2.5 text-left">
                             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
                                 <div class="min-w-0">
                                     <span class="text-[10px] font-bold text-slate-400 uppercase block">Username เข้าสู่ระบบ</span>
@@ -541,7 +548,7 @@
                                 </span>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-2.5 pt-1">
+                            <div class="grid grid-cols-2 gap-2.5">
                                 <div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
                                     <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 block">Token สะสม</span>
                                     <span id="profileCardTokenCount" class="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-300">0</span>
@@ -553,83 +560,72 @@
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Right Column: Edit Personal Information Form -->
-                <div class="lg:col-span-8">
-                    <div class="hitech-card p-5 sm:p-7 rounded-3xl space-y-5 border-sky-500/30">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4 border-b border-slate-200 dark:border-slate-800">
-                            <div>
-                                <span class="text-[10px] font-extrabold text-sky-600 dark:text-sky-400 uppercase tracking-wider">Personal Information</span>
-                                <h3 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                                    <i class="fas fa-user-pen text-sky-600"></i> แก้ไขข้อมูลส่วนตัวของนักเรียน
-                                </h3>
-                            </div>
-                            <span class="text-[11px] text-slate-400 font-medium">กรุณากรอกข้อมูลให้ครบถ้วนและเป็นปัจจุบัน</span>
-                        </div>
-
-                        <form id="profileDashboardForm" onsubmit="saveProfileFromDashboard(event)" class="space-y-4 text-xs sm:text-sm">
-                            <!-- Read-only Username & Email Row -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                    <!-- Right Column: Edit Personal Information Form -->
+                    <div class="lg:col-span-7">
+                        <form id="profileDashboardForm" onsubmit="saveProfileFromDashboard(event)" class="space-y-3.5 text-xs sm:text-sm">
+                            <!-- Username & Conditional Email Row -->
+                            <div id="profUsernameEmailGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                <div id="profUsernameFieldWrapper" class="sm:col-span-2">
+                                    <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                                         <i class="fas fa-at text-sky-500 mr-1"></i> Username (ชื่อผู้ใช้สำหรับเข้าสู่ระบบ)
                                     </label>
-                                    <input type="text" id="profInputUsername" readonly class="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed outline-none" title="Username ไม่สามารถแก้ไขได้">
+                                    <input type="text" id="profInputUsername" readonly class="w-full px-3.5 py-2 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed outline-none" title="Username ไม่สามารถแก้ไขได้">
                                 </div>
-                                <div>
-                                    <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                                <!-- แสดงเฉพาะเมื่อผู้ใช้สร้างบัญชีเอง (หากสร้างโดย admin จะซ่อนบล็อกนี้) -->
+                                <div id="profEmailFieldWrapper" class="hidden">
+                                    <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                                         <i class="fas fa-envelope text-sky-500 mr-1"></i> อีเมล (Email)
                                     </label>
-                                    <input type="text" id="profInputEmail" readonly class="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl font-medium text-slate-500 dark:text-slate-400 cursor-not-allowed outline-none" placeholder="ไม่มีข้อมูลอีเมล">
+                                    <input type="text" id="profInputEmail" readonly class="w-full px-3.5 py-2 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl font-medium text-slate-500 dark:text-slate-400 cursor-not-allowed outline-none" placeholder="ไม่มีข้อมูลอีเมล">
                                 </div>
                             </div>
 
                             <!-- Full Name & Nickname -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                                 <div>
-                                    <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                                    <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                                         ชื่อ - นามสกุล <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="text" id="profInputFullName" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น นายสมชาย ใจดี">
+                                    <input type="text" id="profInputFullName" required class="w-full px-3.5 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น นายสมชาย ใจดี">
                                 </div>
                                 <div>
-                                    <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                                    <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                                         ชื่อเล่น <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="text" id="profInputNickname" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น ดรีม">
+                                    <input type="text" id="profInputNickname" required class="w-full px-3.5 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น ดรีม">
                                 </div>
                             </div>
 
                             <!-- Grade Level & School -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                                 <div>
-                                    <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                                    <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                                         ระดับชั้น <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="text" id="profInputGradeLevel" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น ม.3/1">
+                                    <input type="text" id="profInputGradeLevel" required class="w-full px-3.5 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น ม.3/1">
                                 </div>
                                 <div>
-                                    <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                                    <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                                         โรงเรียน <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="text" id="profInputSchool" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น สวนกุหลาบวิทยาลัย">
+                                    <input type="text" id="profInputSchool" required class="w-full px-3.5 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น สวนกุหลาบวิทยาลัย">
                                 </div>
                             </div>
 
                             <!-- LINE ID, Gender & Phone -->
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                                 <div>
-                                    <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                                    <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                                         LINE ID <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="text" id="profInputLineId" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น @line_id">
+                                    <input type="text" id="profInputLineId" required class="w-full px-3.5 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น @line_id">
                                 </div>
                                 <div>
-                                    <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                                    <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                                         เพศ <span class="text-red-500">*</span>
                                     </label>
-                                    <select id="profInputGender" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all cursor-pointer">
+                                    <select id="profInputGender" required class="w-full px-3.5 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all cursor-pointer">
                                         <option value="">-- เลือกเพศ --</option>
                                         <option value="ชาย">ชาย</option>
                                         <option value="หญิง">หญิง</option>
@@ -637,30 +633,28 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                                    <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                                         เบอร์โทรศัพท์ <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="tel" id="profInputPhone" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น 0812345678">
+                                    <input type="tel" id="profInputPhone" required class="w-full px-3.5 py-2 bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" placeholder="เช่น 0812345678">
                                 </div>
                             </div>
 
                             <!-- Form Action Buttons -->
-                            <div class="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-end items-center gap-3">
-                                <button type="button" onclick="populateProfileDashboard()" class="w-full sm:w-auto px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all">
+                            <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-end items-center gap-2.5">
+                                <button type="button" onclick="populateProfileDashboard()" class="w-full sm:w-auto px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all">
                                     <i class="fas fa-rotate-left mr-1"></i> คืนค่าเดิม
                                 </button>
-                                <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-sky-500/25 transition-all flex items-center justify-center gap-2">
+                                <button type="submit" class="w-full sm:w-auto px-5 py-2 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-sky-500/25 transition-all flex items-center justify-center gap-2">
                                     <i class="fas fa-save"></i> บันทึกข้อมูลโปรไฟล์
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
-
             </div>
         </div>
-
-    </main>
+    </div>
 
     <!-- Footer ส่วนท้ายเว็บไซต์ที่มีลิงก์ข้อกำหนดและนโยบาย -->
     <footer class="max-w-7xl mx-auto px-3 sm:px-6 py-6 mt-12 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500 gap-2">
@@ -721,6 +715,92 @@
         let allCategoryTags = new Set();
         let countdownInterval = null;
         let countdownExpiredExams = new Set();
+
+        // ================= PROFILE POP-UP & ADMIN-CREATED EMAIL LOGIC =================
+        function openProfilePopupModal() {
+            populateProfileDashboard();
+            const modal = document.getElementById('profilePopupModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeProfilePopupModal() {
+            const modal = document.getElementById('profilePopupModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+        }
+
+        function handleProfileBackdropClick(event) {
+            if (event.target && event.target.id === 'profilePopupModal') {
+                closeProfilePopupModal();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeProfilePopupModal();
+            }
+        });
+
+        /**
+         * ตรวจสอบว่าบัญชีถูกสร้างโดย admin หรือไม่
+         * - ถ้าสร้างโดย admin -> ไม่แสดงอีเมล (return true)
+         * - ถ้าผู้ใช้สร้างบัญชีเอง -> แสดงอีเมล (return false)
+         */
+        function isAccountCreatedByAdmin(data = {}) {
+            if (!data || typeof data !== 'object') return false;
+
+            if (data.created_by_admin === true || data.is_admin_created === true || data.admin_created === true) {
+                return true;
+            }
+
+            const creatorFields = [
+                data.created_by,
+                data.created_by_role,
+                data.creation_source,
+                data.registration_type,
+                data.signup_method,
+                data.source,
+                data.role
+            ]
+                .filter(Boolean)
+                .map(v => String(v).toLowerCase().trim());
+
+            if (creatorFields.some(val => val.includes('admin') || val === 'teacher' || val === 'staff')) {
+                return true;
+            }
+
+            const selfSignupFields = [
+                data.self_registered,
+                data.is_self_signup,
+                data.registered_by_user
+            ];
+            if (selfSignupFields.some(v => v === true)) {
+                return false;
+            }
+
+            return false;
+        }
+
+        function updateEmailFieldVisibility(data = {}) {
+            const createdByAdmin = isAccountCreatedByAdmin(data);
+            const emailWrapper = document.getElementById('profEmailFieldWrapper');
+            const usernameWrapper = document.getElementById('profUsernameFieldWrapper');
+
+            if (!emailWrapper || !usernameWrapper) return;
+
+            if (createdByAdmin) {
+                emailWrapper.classList.add('hidden');
+                usernameWrapper.classList.add('sm:col-span-2');
+            } else {
+                emailWrapper.classList.remove('hidden');
+                usernameWrapper.classList.remove('sm:col-span-2');
+            }
+        }
 
         function isExamInCountdown(exam, nowMs = Date.now()) {
             if (!exam) return false;
@@ -1232,7 +1312,7 @@
             window.location.replace('index.html');
         }
 
-        // ================= STUDENT PROFILE DASHBOARD LOGIC =================
+        // ================= STUDENT PROFILE POP-UP LOGIC =================
         function populateProfileDashboard() {
             const data = currentStudentData || {};
             const resolvedUsername = data.username || data.user_name || data.login_username || localStorage.getItem('username') || '-';
@@ -1247,6 +1327,7 @@
 
             const avatarUrl = getResolvedStudentAvatarUrl();
             applyStudentAvatarToUI(avatarUrl);
+            updateEmailFieldVisibility(data);
 
             const displayNameEl = document.getElementById('profileCardDisplayName');
             const subtitleEl = document.getElementById('profileCardSubtitle');
@@ -1358,7 +1439,7 @@
             if (!file) return;
 
             if (!file.type.startsWith('image/')) {
-                Swal.fire({ icon: 'warning', title: 'ไฟล์ไม่ถูกต้อง', text: 'กรุณาเลือกไฟล์รูปภาพ (JPG, PNG, WEBP) เท่านั้น', confirmButtonColor: '#0284c7' });
+                Swal.fire({ icon: 'warning', title: 'ไฟล์ไม่ถูกต้อง', text: 'กรุณาเลือกไฟล์รูปภาพ (JPG, PNG, WEBP, GIF) เท่านั้น', confirmButtonColor: '#0284c7' });
                 event.target.value = '';
                 return;
             }
@@ -1381,7 +1462,6 @@
                 const filePath = `student_${currentStudentId}_${Date.now()}.${fileExt}`;
                 const candidateBuckets = ['avatars', 'profiles', 'public'];
 
-                // 1. พยายามอัปโหลดขึ้น Supabase Storage ก่อน
                 for (const bucketName of candidateBuckets) {
                     const { error: uploadErr } = await mySupabase.storage
                         .from(bucketName)
@@ -1396,7 +1476,6 @@
                     }
                 }
 
-                // 2. หากยังไม่มี Storage Bucket ให้ย่อขนาดภาพเป็น Base64 Data URL เพื่อบันทึกลงฐานข้อมูลได้ทันที
                 if (!finalAvatarUrl) {
                     finalAvatarUrl = await compressImageToDataUrl(file, 360, 0.82);
                 }
@@ -1961,27 +2040,21 @@
         function switchTab(tab) {
             const isExam = tab === 'exam';
             const isAnalytics = tab === 'analytics';
-            const isProfile = tab === 'profile';
 
             document.getElementById('sectionExam').classList.toggle('hidden', !isExam);
             document.getElementById('sectionAnalytics').classList.toggle('hidden', !isAnalytics);
-            document.getElementById('sectionProfile').classList.toggle('hidden', !isProfile);
 
-            const activeBtnClass = 'flex-1 lg:flex-none px-3.5 sm:px-4 py-2 rounded-xl font-extrabold text-xs transition-all bg-white text-blue-900 shadow-md flex items-center justify-center gap-1.5';
-            const inactiveBtnClass = 'flex-1 lg:flex-none px-3.5 sm:px-4 py-2 rounded-xl font-bold text-xs transition-all text-white/90 hover:text-white hover:bg-white/10 flex items-center justify-center gap-1.5';
+            const activeBtnClass = 'flex-1 lg:flex-none px-4 py-2 rounded-xl font-extrabold text-xs transition-all bg-white text-blue-900 shadow-md flex items-center justify-center gap-1.5';
+            const inactiveBtnClass = 'flex-1 lg:flex-none px-4 py-2 rounded-xl font-bold text-xs transition-all text-white/90 hover:text-white hover:bg-white/10 flex items-center justify-center gap-1.5';
 
             const btnExam = document.getElementById('tabBtnExam');
             const btnAnalytics = document.getElementById('tabBtnAnalytics');
-            const btnProfile = document.getElementById('tabBtnProfile');
 
             if (btnExam) btnExam.className = isExam ? activeBtnClass : inactiveBtnClass;
             if (btnAnalytics) btnAnalytics.className = isAnalytics ? activeBtnClass : inactiveBtnClass;
-            if (btnProfile) btnProfile.className = isProfile ? activeBtnClass : inactiveBtnClass;
 
             if (isAnalytics) {
                 try { updateAnalyticsDashboard(); } catch (err) { console.warn(err); }
-            } else if (isProfile) {
-                populateProfileDashboard();
             }
         }
 
