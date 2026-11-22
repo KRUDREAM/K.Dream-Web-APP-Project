@@ -309,16 +309,6 @@
                 </div>
             </div>
 
-            <div id="quickPendingSection" class="hidden hitech-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl border-sky-400/50 bg-gradient-to-br from-sky-500/5 via-transparent to-blue-500/5 space-y-3">
-                <div class="flex justify-between items-center px-1">
-                    <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                        <i class="fas fa-fire text-amber-500 animate-bounce"></i> ข้อสอบที่ยังไม่ได้ทำ (<span id="quickPendingCountText">0</span>)
-                    </h3>
-                    <span class="text-[10px] sm:text-[11px] text-sky-600 dark:text-sky-400 font-bold"><i class="fas fa-arrows-alt-h mr-1"></i> เลื่อนขวา</span>
-                </div>
-                <div id="quickPendingContainer" class="flex overflow-x-auto gap-3.5 pb-2 pt-1 hide-scrollbar snap-x snap-mandatory"></div>
-            </div>
-
             <div class="hitech-card p-4 sm:p-5 rounded-2xl space-y-3">
                 <div class="flex flex-col md:flex-row justify-between items-center gap-3">
                     <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
@@ -538,7 +528,6 @@
         let examViewMode = 'grid';
         let historyViewMode = 'list';
         let collapsedCategories = {};
-        let quickPendingCount = 0;
         let studentTokenBalance = 0;
         let notificationsDataCache = [];
 
@@ -1936,11 +1925,7 @@
 
         function renderExamCatalog() {
             const container = document.getElementById('examCategoriesGroupContainer');
-            const quickPendingContainer = document.getElementById('quickPendingContainer');
-            const quickPendingSection = document.getElementById('quickPendingSection');
             const keyword = document.getElementById('searchExamInput').value.toLowerCase().replace(/^#/, '');
-            const now = new Date();
-            const nowMs = now.getTime();
 
             const accessibleExams = allExams.filter(exam => isExamAccessibleToStudent(exam));
             const activeExams = accessibleExams.filter(exam => matchesCourseFilter(exam));
@@ -1972,69 +1957,6 @@
             });
 
             document.getElementById('examCountBadge').textContent = `${availableExams.length} ชุด`;
-
-            const pendingExamsList = activeExams.filter(exam => {
-                const isOverdue = exam.due_date ? new Date(exam.due_date).getTime() < nowMs : false;
-                const inProgress = hasInProgressAttempt(exam.id);
-                const allowLate = !!exam.allow_late_submission;
-                if (isOverdue && !inProgress && !allowLate) return false;
-
-                const myAttemptsForExam = userAttempts.filter(a => a.exam_id === exam.id);
-                const completedCount = myAttemptsForExam.filter(a => isAttemptSubmitted(a)).length;
-                const maxAttempts = exam.max_attempts || exam.attempts_allowed || 0;
-                const isExhausted = maxAttempts > 0 && completedCount >= maxAttempts;
-                const isCountdown = isExamInCountdown(exam, nowMs);
-                return completedCount === 0 && !isExhausted && !isCountdown;
-            });
-
-            quickPendingCount = pendingExamsList.length;
-            document.getElementById('quickPendingCountText').textContent = quickPendingCount;
-
-            if (quickPendingCount > 0 && currentStatusFilter === 'all' && !keyword && selectedStudentTagIds.size === 0) {
-                quickPendingSection.classList.remove('hidden');
-                quickPendingContainer.innerHTML = pendingExamsList.map(exam => {
-                    const questionCount = examQuestionCounts[exam.id] || 0;
-                    const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
-                    const isStarred = starredExams.includes(exam.id);
-                    const inProgress = hasInProgressAttempt(exam.id);
-                    const freeTag = isFreeUnassignedExam(exam)
-                        ? `<span class="px-1.5 py-0.5 bg-teal-500/15 text-teal-600 dark:text-teal-300 border border-teal-500/30 rounded text-[9px] font-bold">🆓 แจกฟรี</span>`
-                        : '';
-                    const tagBadgesHtml = getExamTagBadgesHtml(exam.id);
-                    
-                    let dueDateHtml = '';
-                    if (exam.due_date) {
-                        const formattedDue = new Date(exam.due_date).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
-                        dueDateHtml = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1"><i class="fas fa-hourglass-end"></i> กำหนดส่ง: ${formattedDue}</div>`;
-                    }
-
-                    const renderedDesc = renderMarkdown(exam.description || 'ไม่มีคำอธิบาย');
-
-                    return `
-                        <div class="hitech-card exam-card-hover border-l-4 border-l-sky-500 p-4 rounded-2xl flex flex-col justify-between space-y-3 shrink-0 w-64 sm:w-72 snap-start">
-                            <div class="space-y-1.5">
-                                <div class="flex justify-between items-center gap-2">
-                                    <div class="flex items-center gap-1.5 flex-wrap">
-                                        <span class="text-[10px] sm:text-[11px] text-slate-500 font-bold"><i class="fas fa-list-ol mr-1 text-sky-500"></i> ${questionCount} ข้อ | ${durationMins} นาที</span>
-                                        ${freeTag}
-                                    </div>
-                                    <button onclick="toggleStarExam('${exam.id}', event)" class="w-7 h-7 rounded-xl flex items-center justify-center transition-all ${isStarred ? 'text-amber-500 bg-amber-500/20' : 'text-slate-400 hover:text-amber-400 bg-sky-50 dark:bg-slate-800'}"><i class="${isStarred ? 'fas' : 'far'} fa-star text-xs"></i></button>
-                                </div>
-                                <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-1">${exam.title}</h3>
-                                ${tagBadgesHtml}
-                                <div class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 font-light prose dark:prose-invert">${renderedDesc}</div>
-                                ${dueDateHtml}
-                            </div>
-                            <div class="flex justify-between items-center pt-2.5 border-t border-slate-100 dark:border-slate-800">
-                                <span class="text-[10px] ${inProgress ? 'text-amber-600 font-bold' : 'text-slate-400'}">${inProgress ? 'ทำค้างอยู่' : 'ยังไม่ได้ทำ'}</span>
-                                <button onclick="handleExamClick('${exam.id}', 'start', null)" class="px-3.5 py-1.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl text-xs font-extrabold shadow-md shadow-sky-500/20 flex items-center gap-1"><i class="fas fa-play"></i> ${inProgress ? 'ทำต่อ' : 'เริ่มสอบ'}</button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                quickPendingSection.classList.add('hidden');
-            }
 
             if (availableExams.length === 0) {
                 if (selectedStudentTagIds.size > 0 || keyword) {
