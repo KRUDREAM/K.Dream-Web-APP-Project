@@ -116,7 +116,7 @@
                     <h2 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
                         <i class="fas fa-layer-group text-sky-500"></i> คลังชุดข้อสอบประจำคอร์ส & ชุดแจกฟรี
                     </h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เปิด Dropdown เลือกหลาย Tag ได้ในชุดข้อสอบ และเพิ่ม Tag ใหม่ลงระบบได้ทันที</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เลือกสลับมุมมองแบบการ์ด/ลิสต์ ค้นหาตามชื่อ/รหัส/Tag และเลือก/เพิ่ม Tag ได้ตอนกดแก้ไขชุดข้อสอบ</p>
                 </div>
                 
                 <div class="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto justify-between md:justify-end">
@@ -231,8 +231,11 @@
         let searchKeyword = '';
         let showAllQuickTags = false;
         let isTagBarCollapsed = localStorage.getItem(TAG_BAR_COLLAPSED_KEY) === 'true';
-        const openTagDropdownExamIds = new Set(); // เก็บ examId ที่กำลังเปิด Dropdown เลือกหลาย Tag อยู่
-        const dropdownSearchMap = {}; // { [examId]: searchText }
+
+        // State สำหรับ Dropdown เลือกหลาย Tag ใน Modal สร้าง/แก้ไขชุดข้อสอบ
+        let modalSelectedTagIds = new Set();
+        let modalTagDropdownOpen = false;
+        let modalTagSearchText = '';
 
         let allCoursesList = [];
         let coursesMap = {};
@@ -242,15 +245,6 @@
         let allAttemptsMap = {};
         let currentViewMode = localStorage.getItem('exam_view_mode') || 'grid';
         let isAllCollapsed = false;
-
-        // ปิด Dropdown เมื่อคลิกนอกพื้นที่ Dropdown
-        document.addEventListener('click', (e) => {
-            if (openTagDropdownExamIds.size === 0) return;
-            if (!e.target.closest('[data-tag-dropdown-wrapper]')) {
-                openTagDropdownExamIds.clear();
-                renderExamsContainer();
-            }
-        });
 
         function isAttemptSubmitted(att) {
             return Boolean(
@@ -395,7 +389,7 @@
             }
 
             if (tagsList.length === 0) {
-                container.innerHTML = `<span class="text-[11px] text-slate-400">ยังไม่มี Tag — เปิด Dropdown ในชุดข้อสอบเพื่อเพิ่ม Tag ใหม่ลงระบบได้ทันที</span>`;
+                container.innerHTML = `<span class="text-[11px] text-slate-400">ยังไม่มี Tag — กดปุ่ม "จัดการ Tag" หรือเพิ่มในหน้าแก้ไขชุดข้อสอบได้</span>`;
                 if (expandBtn) expandBtn.classList.add('hidden');
                 return;
             }
@@ -728,192 +722,17 @@
             return '1, 2, 3, 4';
         }
 
-        // ==================== Dropdown เลือกหลาย Tag + เพิ่ม Tag ใหม่ลงระบบทันที ====================
-        function toggleExamTagDropdown(examId) {
-            const key = String(examId);
-            if (openTagDropdownExamIds.has(key)) {
-                openTagDropdownExamIds.delete(key);
-            } else {
-                openTagDropdownExamIds.clear();
-                openTagDropdownExamIds.add(key);
-            }
-            renderExamsContainer();
-            if (openTagDropdownExamIds.has(key)) {
-                setTimeout(() => {
-                    const input = document.getElementById(`new-tag-dropdown-input-${key}`);
-                    if (input) input.focus();
-                }, 30);
-            }
-        }
-
-        function updateDropdownSearch(examId, val) {
-            dropdownSearchMap[String(examId)] = (val || '').trim().toLowerCase();
-            renderExamsContainer();
-        }
-
-        async function toggleTagOnExamImmediate(examId, tagId) {
-            const eKey = String(examId);
-            const tKey = String(tagId);
-            const currentSet = new Set((examTagIdsMap[eKey] || []).map(String));
-            if (currentSet.has(tKey)) {
-                currentSet.delete(tKey);
-            } else {
-                currentSet.add(tKey);
-            }
-            await saveExamTagAssignments(examId, Array.from(currentSet));
-            renderQuickTagChips();
-            applySearchAndTagFilter();
-        }
-
-        async function createAndAttachTagImmediate(examId) {
-            const eKey = String(examId);
-            const input = document.getElementById(`new-tag-dropdown-input-${eKey}`);
-            if (!input) return;
-
-            const raw = input.value.trim();
-            if (!raw) {
-                input.focus();
-                return;
-            }
-
-            const names = raw.split(',').map(s => s.replace(/^#+/, '').trim()).filter(Boolean);
-            if (names.length === 0) return;
-
-            input.disabled = true;
-            const currentSet = new Set((examTagIdsMap[eKey] || []).map(String));
-
-            for (const name of names) {
-                const tagObj = await ensureTagExists(name);
-                if (tagObj && tagObj.id) {
-                    currentSet.add(String(tagObj.id));
-                }
-            }
-
-            await saveExamTagAssignments(examId, Array.from(currentSet));
-            input.value = '';
-            input.disabled = false;
-            dropdownSearchMap[eKey] = '';
-
-            renderQuickTagChips();
-            applySearchAndTagFilter();
-
-            setTimeout(() => {
-                const nextInput = document.getElementById(`new-tag-dropdown-input-${eKey}`);
-                if (nextInput) nextInput.focus();
-            }, 30);
-
-            const toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 1100
-            });
-            toast.fire({ icon: 'success', title: 'เพิ่ม Tag ลงระบบแล้ว' });
-        }
-
-        async function removeTagFromExam(examId, tagId) {
-            const eKey = String(examId);
-            const tKey = String(tagId);
-            const nextIds = (examTagIdsMap[eKey] || []).map(String).filter(id => id !== tKey);
-            await saveExamTagAssignments(examId, nextIds);
-            renderQuickTagChips();
-            applySearchAndTagFilter();
-        }
-
-        function getExamTagsSectionHtml(examId) {
-            const eKey = String(examId);
-            const assignedTags = getExamTags(examId);
-            const assignedIdSet = new Set(assignedTags.map(t => String(t.id)));
-            const isOpen = openTagDropdownExamIds.has(eKey);
-            const filterText = dropdownSearchMap[eKey] || '';
-
-            const selectedChipsHtml = assignedTags.map(t => `
-                <span class="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px] font-semibold">
-                    <button type="button" onclick="event.stopPropagation(); toggleFilterTag('${String(t.id)}')" class="hover:underline">#${t.name}</button>
-                    <button type="button" onclick="event.stopPropagation(); removeTagFromExam('${eKey}', '${String(t.id)}')" title="เอา Tag ออกจากชุดนี้" class="w-3.5 h-3.5 rounded-full hover:bg-rose-500 hover:text-white flex items-center justify-center text-[9px] transition-colors">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </span>
-            `).join('');
-
-            const filteredCatalog = filterText
-                ? tagsList.filter(t => (t.name || '').toLowerCase().includes(filterText))
-                : tagsList;
-
-            const dropdownOptionsHtml = filteredCatalog.length > 0
-                ? filteredCatalog.map(t => {
-                    const tId = String(t.id);
-                    const isChecked = assignedIdSet.has(tId);
-                    return `
-                        <label onclick="event.stopPropagation();" class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer text-[11px] transition-colors ${
-                            isChecked
-                                ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 font-bold'
-                                : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                        }">
-                            <span class="flex items-center gap-2 min-w-0">
-                                <input
-                                    type="checkbox"
-                                    ${isChecked ? 'checked' : ''}
-                                    onchange="toggleTagOnExamImmediate('${eKey}', '${tId}')"
-                                    class="w-3.5 h-3.5 rounded text-emerald-600 shrink-0"
-                                >
-                                <span class="truncate">#${t.name}</span>
-                            </span>
-                            ${isChecked ? '<i class="fas fa-check text-emerald-600 dark:text-emerald-400 text-[10px] shrink-0"></i>' : ''}
-                        </label>
-                    `;
-                }).join('')
-                : `<div class="px-2.5 py-2 text-[11px] text-slate-400 text-center">ไม่พบ Tag ที่ตรงกับ "${filterText}"</div>`;
-
-            const dropdownPopoverHtml = isOpen ? `
-                <div onclick="event.stopPropagation();" class="mt-1.5 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-500/40 shadow-xl space-y-2 z-30 relative">
-                    <div class="flex items-center justify-between text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                        <span><i class="fas fa-list-check mr-1"></i>เลือกได้หลาย Tag (ติ๊กปุ๊บผูกทันที)</span>
-                        <button type="button" onclick="toggleExamTagDropdown('${eKey}')" class="text-slate-400 hover:text-rose-500">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-
-                    <div class="flex items-center gap-1.5">
-                        <input
-                            type="text"
-                            id="new-tag-dropdown-input-${eKey}"
-                            value="${dropdownSearchMap[eKey] || ''}"
-                            oninput="updateDropdownSearch('${eKey}', this.value)"
-                            onkeydown="if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); createAndAttachTagImmediate('${eKey}'); }"
-                            placeholder="พิมพ์ Tag ใหม่ หรือค้นหา Tag..."
-                            class="flex-1 min-w-0 px-2.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] outline-none focus:border-emerald-500"
-                        >
-                        <button
-                            type="button"
-                            onclick="createAndAttachTagImmediate('${eKey}')"
-                            class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold shrink-0 transition-all"
-                        >
-                            <i class="fas fa-plus mr-0.5"></i>เพิ่ม Tag ใหม่
-                        </button>
-                    </div>
-
-                    <div class="max-h-40 overflow-y-auto space-y-0.5 pr-0.5 border-t border-slate-100 dark:border-slate-800 pt-1.5">
-                        ${dropdownOptionsHtml}
-                    </div>
-                </div>
-            ` : '';
-
+        // แสดงป้าย Tag บนการ์ด/ลิสต์ตามปกติ (คลิกเพื่อกรอง Tag ได้)
+        function getExamTagsHtml(examId) {
+            const tags = getExamTags(examId);
+            if (!tags || tags.length === 0) return '';
             return `
-                <div data-tag-dropdown-wrapper class="space-y-1">
-                    <div class="flex flex-wrap items-center gap-1">
-                        ${selectedChipsHtml}
-                        <button
-                            type="button"
-                            onclick="event.stopPropagation(); toggleExamTagDropdown('${eKey}')"
-                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition-colors"
-                        >
-                            <i class="fas fa-tags text-[9px]"></i>
-                            <span>เลือก / เพิ่ม Tag (${assignedTags.length})</span>
-                            <i class="fas fa-chevron-${isOpen ? 'up' : 'down'} text-[8px]"></i>
+                <div class="flex flex-wrap items-center gap-1">
+                    ${tags.map(t => `
+                        <button type="button" onclick="event.stopPropagation(); toggleFilterTag('${String(t.id)}')" class="px-2 py-0.5 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px] font-semibold transition-colors">
+                            #${t.name}
                         </button>
-                    </div>
-                    ${dropdownPopoverHtml}
+                    `).join('')}
                 </div>
             `;
         }
@@ -989,7 +808,7 @@
             const choiceLabel = getChoiceFormatLabel(e.choice_format);
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
             const courseTagHtml = getCourseOrFreeTagHtml(e);
-            const examTagsSectionHtml = getExamTagsSectionHtml(e.id);
+            const examTagsHtml = getExamTagsHtml(e.id);
             const safeTitle = encodeURIComponent(e.title || 'ชุดข้อสอบ');
 
             let scheduleInfo = '';
@@ -1009,7 +828,7 @@
                         </div>
                         <h3 class="font-bold text-sm text-slate-900 dark:text-white leading-snug line-clamp-1">${e.title}</h3>
                         <div class="flex flex-wrap items-center gap-1.5">${courseTagHtml}</div>
-                        ${examTagsSectionHtml}
+                        ${examTagsHtml}
                         ${scheduleInfo ? `<div class="space-y-0.5">${scheduleInfo}</div>` : ''}
                         <div class="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                             ${deliveryBadge}
@@ -1056,20 +875,20 @@
             const choiceLabel = getChoiceFormatLabel(e.choice_format);
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
             const courseTagHtml = getCourseOrFreeTagHtml(e);
-            const examTagsSectionHtml = getExamTagsSectionHtml(e.id);
+            const examTagsHtml = getExamTagsHtml(e.id);
             const safeTitle = encodeURIComponent(e.title || 'ชุดข้อสอบ');
 
             return `
                 <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 hover:border-sky-500/50 transition-colors">
-                    <div class="flex items-start sm:items-center gap-3 min-w-0 flex-1 w-full">
+                    <div class="flex items-start sm:items-center gap-3 min-w-0">
                         <span class="font-mono text-xs font-bold glow-badge-sky px-2.5 py-1 rounded-lg shrink-0">${e.exam_code || 'CODE'}</span>
-                        <div class="space-y-1 min-w-0 flex-1">
+                        <div class="space-y-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h4 class="font-bold text-sm text-slate-900 dark:text-white truncate">${e.title}</h4>
                                 ${statusBadge}
                                 ${courseTagHtml}
                             </div>
-                            ${examTagsSectionHtml}
+                            ${examTagsHtml}
                             <div class="flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500 dark:text-slate-400">
                                 ${deliveryBadge}
                                 <span><i class="far fa-clock text-sky-500 mr-1"></i>${e.time_limit || 60} นาที</span>
@@ -1431,6 +1250,132 @@
             }
         }
 
+        // ==================== Dropdown เลือกหลาย Tag + เพิ่ม Tag ใหม่ในหน้าต่างแก้ไข/สร้างชุดข้อสอบ ====================
+        function renderModalMultiTagPicker() {
+            const summaryBtnText = document.getElementById('swalMultiTagSummaryText');
+            const selectedChipsBox = document.getElementById('swalSelectedTagChipsBox');
+            const dropdownMenu = document.getElementById('swalMultiTagDropdownMenu');
+            const optionsListBox = document.getElementById('swalMultiTagOptionsList');
+            const chevronIcon = document.getElementById('swalMultiTagChevron');
+            if (!summaryBtnText || !selectedChipsBox || !dropdownMenu || !optionsListBox) return;
+
+            const tagMap = getTagMapById();
+            const selectedArr = Array.from(modalSelectedTagIds).map(id => tagMap[String(id)]).filter(Boolean);
+
+            summaryBtnText.textContent = selectedArr.length > 0
+                ? `เลือกแล้ว ${selectedArr.length} Tag (${selectedArr.map(t => '#' + t.name).join(', ')})`
+                : '-- คลิกเพื่อเลือก Tag (เลือกได้หลายอัน) --';
+
+            selectedChipsBox.innerHTML = selectedArr.length > 0
+                ? selectedArr.map(t => `
+                    <span class="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold">
+                        <span>#${t.name}</span>
+                        <button type="button" onclick="event.stopPropagation(); toggleModalTagSelection('${String(t.id)}')" class="w-3.5 h-3.5 rounded-full hover:bg-white/25 flex items-center justify-center text-[9px]">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </span>
+                `).join('')
+                : `<span class="text-[11px] text-slate-400">ยังไม่ได้เลือก Tag สำหรับชุดข้อสอบนี้</span>`;
+
+            if (modalTagDropdownOpen) {
+                dropdownMenu.classList.remove('hidden');
+                if (chevronIcon) chevronIcon.classList.add('rotate-180');
+            } else {
+                dropdownMenu.classList.add('hidden');
+                if (chevronIcon) chevronIcon.classList.remove('rotate-180');
+            }
+
+            const q = (modalTagSearchText || '').trim().toLowerCase();
+            const filtered = q
+                ? tagsList.filter(t => (t.name || '').toLowerCase().includes(q))
+                : tagsList;
+
+            optionsListBox.innerHTML = filtered.length > 0
+                ? filtered.map(t => {
+                    const tId = String(t.id);
+                    const checked = modalSelectedTagIds.has(tId);
+                    return `
+                        <label class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer text-[11px] transition-colors ${
+                            checked
+                                ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 font-bold'
+                                : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                        }">
+                            <span class="flex items-center gap-2 min-w-0">
+                                <input
+                                    type="checkbox"
+                                    ${checked ? 'checked' : ''}
+                                    onchange="toggleModalTagSelection('${tId}')"
+                                    class="w-3.5 h-3.5 rounded text-emerald-600 shrink-0"
+                                >
+                                <span class="truncate">#${t.name}</span>
+                            </span>
+                            ${checked ? '<i class="fas fa-check text-emerald-600 dark:text-emerald-400 text-[10px] shrink-0"></i>' : ''}
+                        </label>
+                    `;
+                }).join('')
+                : `<div class="px-2.5 py-2 text-[11px] text-slate-400 text-center">ไม่พบ Tag — พิมพ์ชื่อแล้วกดปุ่ม "เพิ่ม Tag ใหม่" ด้านบนเพื่อสร้างลงระบบได้ทันที</div>`;
+        }
+
+        window.toggleModalTagDropdown = function() {
+            modalTagDropdownOpen = !modalTagDropdownOpen;
+            renderModalMultiTagPicker();
+            if (modalTagDropdownOpen) {
+                setTimeout(() => {
+                    const input = document.getElementById('swalModalNewTagInput');
+                    if (input) input.focus();
+                }, 20);
+            }
+        };
+
+        window.toggleModalTagSelection = function(tagId) {
+            const key = String(tagId);
+            if (modalSelectedTagIds.has(key)) {
+                modalSelectedTagIds.delete(key);
+            } else {
+                modalSelectedTagIds.add(key);
+            }
+            renderModalMultiTagPicker();
+        };
+
+        window.handleModalTagInput = function(val) {
+            modalTagSearchText = val || '';
+            renderModalMultiTagPicker();
+        };
+
+        window.addNewTagInsideModalImmediate = async function() {
+            const input = document.getElementById('swalModalNewTagInput');
+            const btn = document.getElementById('swalModalAddTagBtn');
+            if (!input) return;
+
+            const raw = input.value.trim();
+            if (!raw) {
+                input.focus();
+                return;
+            }
+
+            const names = raw.split(',').map(s => s.replace(/^#+/, '').trim()).filter(Boolean);
+            if (names.length === 0) return;
+
+            if (btn) btn.disabled = true;
+            input.disabled = true;
+
+            for (const name of names) {
+                const created = await ensureTagExists(name);
+                if (created && created.id) {
+                    modalSelectedTagIds.add(String(created.id));
+                }
+            }
+
+            input.value = '';
+            modalTagSearchText = '';
+            input.disabled = false;
+            if (btn) btn.disabled = false;
+
+            renderQuickTagChips();
+            renderModalMultiTagPicker();
+            input.focus();
+        };
+
         async function openExamModal(examData = null) {
             const isEdit = !!examData;
             const categoryOptions = categoriesList.map(c => `<option value="${c.id}" ${examData?.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
@@ -1446,16 +1391,10 @@
 
             const currentDelivery = examData?.delivery_type || examData?.exam_type || 'pdf';
             const currentChoiceFormat = examData?.choice_format || 'num';
-            const existingTagIds = examData ? new Set((examTagIdsMap[String(examData.id)] || []).map(String)) : new Set();
 
-            const tagCheckboxesHtml = tagsList.length > 0
-                ? tagsList.map(t => `
-                    <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 cursor-pointer text-[11px] font-semibold text-emerald-800 dark:text-emerald-200">
-                        <input type="checkbox" name="swalExamTagCheck" value="${t.id}" ${existingTagIds.has(String(t.id)) ? 'checked' : ''} class="rounded text-emerald-600">
-                        <span>#${t.name}</span>
-                    </label>
-                `).join('')
-                : `<span class="text-[11px] text-slate-400">ยังไม่มี Tag ในระบบ — สามารถพิมพ์เพิ่มใหม่ด้านล่างได้เลย</span>`;
+            modalSelectedTagIds = new Set(examData ? (examTagIdsMap[String(examData.id)] || []).map(String) : []);
+            modalTagDropdownOpen = false;
+            modalTagSearchText = '';
 
             const { value: formValues } = await Swal.fire({
                 title: isEdit ? 'แก้ไขชุดข้อสอบ' : 'สร้างชุดข้อสอบใหม่',
@@ -1535,10 +1474,44 @@
                             </div>
                         </div>
 
+                        <!-- Dropdown เลือกหลาย Tag + ปุ่มเพิ่ม Tag ใหม่ลงระบบทันที -->
                         <div class="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/25 space-y-2">
-                            <label class="block font-bold text-emerald-700 dark:text-emerald-300"><i class="fas fa-hashtag mr-1"></i> Tag ชุดข้อสอบ (เลือกได้หลาย Tag / เพิ่มใหม่ได้ไม่จำกัด)</label>
-                            <div class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">${tagCheckboxesHtml}</div>
-                            <input id="swalNewTagsText" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none text-xs" placeholder="เพิ่ม Tag ใหม่คั่นด้วยจุลภาค เช่น สอวน., Graph, DP">
+                            <label class="block font-bold text-emerald-700 dark:text-emerald-300">
+                                <i class="fas fa-hashtag mr-1"></i> Tag ชุดข้อสอบ (Dropdown เลือกได้หลาย Tag / เพิ่ม Tag ใหม่ได้ทันที)
+                            </label>
+                            <div id="swalSelectedTagChipsBox" class="flex flex-wrap gap-1 min-h-[20px]"></div>
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    onclick="toggleModalTagDropdown()"
+                                    class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 rounded-xl flex items-center justify-between gap-2 text-left text-xs transition-colors"
+                                >
+                                    <span id="swalMultiTagSummaryText" class="truncate text-slate-700 dark:text-slate-200 font-semibold">-- คลิกเพื่อเลือก Tag (เลือกได้หลายอัน) --</span>
+                                    <i id="swalMultiTagChevron" class="fas fa-chevron-down text-[10px] text-emerald-600 shrink-0 transition-transform"></i>
+                                </button>
+
+                                <div id="swalMultiTagDropdownMenu" class="hidden mt-1.5 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-500/40 shadow-lg space-y-2">
+                                    <div class="flex items-center gap-1.5">
+                                        <input
+                                            type="text"
+                                            id="swalModalNewTagInput"
+                                            oninput="handleModalTagInput(this.value)"
+                                            onkeydown="if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); addNewTagInsideModalImmediate(); }"
+                                            placeholder="ค้นหา Tag หรือพิมพ์ชื่อ Tag ใหม่..."
+                                            class="flex-1 min-w-0 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-emerald-500"
+                                        >
+                                        <button
+                                            type="button"
+                                            id="swalModalAddTagBtn"
+                                            onclick="addNewTagInsideModalImmediate()"
+                                            class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shrink-0 transition-all"
+                                        >
+                                            <i class="fas fa-plus mr-1"></i>เพิ่ม Tag ใหม่
+                                        </button>
+                                    </div>
+                                    <div id="swalMultiTagOptionsList" class="max-h-40 overflow-y-auto space-y-0.5 pr-0.5 border-t border-slate-100 dark:border-slate-800 pt-1.5"></div>
+                                </div>
+                            </div>
                         </div>
 
                         <div>
@@ -1577,6 +1550,9 @@
                         </div>
                     </div>
                 `,
+                didOpen: () => {
+                    renderModalMultiTagPicker();
+                },
                 showCancelButton: true,
                 confirmButtonText: 'บันทึกข้อมูล',
                 cancelButtonText: 'ยกเลิก',
@@ -1592,11 +1568,6 @@
                     const isFreeUnassigned = document.getElementById('swalFreeUnassignedCheck').checked;
                     const selectedCourseId = isFreeUnassigned ? '' : document.getElementById('swalCourseSelect').value;
                     const show_answer_instantly = document.getElementById('swalShowAnswerInstantly').checked;
-                    const checkedTagIds = Array.from(document.querySelectorAll('input[name="swalExamTagCheck"]:checked')).map(cb => String(cb.value));
-                    const rawNewTags = (document.getElementById('swalNewTagsText').value || '')
-                        .split(',')
-                        .map(s => s.replace(/^#+/, '').trim())
-                        .filter(Boolean);
 
                     if (!title) { Swal.showValidationMessage('กรุณากรอกชื่อชุดข้อสอบ'); return false; }
 
@@ -1622,8 +1593,7 @@
                             start_time: (status === 'countdown' && document.getElementById('swalStartTime').value) ? new Date(document.getElementById('swalStartTime').value).toISOString() : null,
                             due_date: (hasDueDate && document.getElementById('swalDueDate').value) ? new Date(document.getElementById('swalDueDate').value).toISOString() : null
                         },
-                        checkedTagIds,
-                        rawNewTags
+                        selectedTagIds: Array.from(modalSelectedTagIds)
                     };
                 }
             });
@@ -1631,7 +1601,7 @@
             if (formValues) {
                 Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-                const { payload, checkedTagIds, rawNewTags } = formValues;
+                const { payload, selectedTagIds } = formValues;
                 let resError = null;
                 let savedExamId = isEdit ? examData.id : null;
                 let wasNotPublishedBefore = !isEdit || examData.status !== 'public';
@@ -1663,14 +1633,7 @@
                 }
 
                 if (!resError && savedExamId) {
-                    const finalTagIds = new Set(checkedTagIds);
-                    for (const tagName of rawNewTags) {
-                        const createdTag = await ensureTagExists(tagName);
-                        if (createdTag && createdTag.id) {
-                            finalTagIds.add(String(createdTag.id));
-                        }
-                    }
-                    await saveExamTagAssignments(savedExamId, Array.from(finalTagIds));
+                    await saveExamTagAssignments(savedExamId, selectedTagIds);
                     await loadTagsAndAssignments();
                 }
 
