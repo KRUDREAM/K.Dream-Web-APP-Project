@@ -59,7 +59,7 @@
     </script>
     <style>
         body { font-family: 'Prompt', sans-serif; }
-        .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur: 20px; border-bottom: 1px solid rgba(186, 230, 253, 0.5); }
+        .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(186, 230, 253, 0.5); }
         .dark .glass-nav { background: rgba(2, 6, 23, 0.88); border-bottom: 1px solid rgba(30, 58, 138, 0.4); }
         .hitech-card { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(186, 230, 253, 0.8); box-shadow: 0 10px 30px -10px rgba(2, 132, 199, 0.08); transition: all 0.25s ease; }
         .dark .hitech-card { background: rgba(9, 13, 22, 0.95); border: 1px solid rgba(30, 58, 138, 0.5); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); }
@@ -986,10 +986,12 @@
 
             const fileIndicators = [];
             if (fileCfg.allow_file_download && fileCfg.exam_file_url) {
-                fileIndicators.push(`<span class="px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-300 text-[10px] font-semibold"><i class="fas fa-download mr-0.5"></i>โหลดโจทย์ได้</span>`);
+                fileIndicators.push(`<a href="${fileCfg.exam_file_url}" target="_blank" rel="noopener" class="px-1.5 py-0.5 rounded bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 text-[10px] font-semibold"><i class="fas fa-download mr-0.5"></i>โหลดโจทย์ได้</a>`);
+            } else if (fileCfg.exam_file_url) {
+                fileIndicators.push(`<span class="px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-600 dark:text-slate-300 text-[10px] font-semibold"><i class="fas fa-file mr-0.5"></i>มีไฟล์โจทย์</span>`);
             }
             if (fileCfg.answer_key_file_url) {
-                fileIndicators.push(`<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 text-[10px] font-semibold"><i class="fas fa-file-circle-check mr-0.5"></i>มีไฟล์เฉลย</span>`);
+                fileIndicators.push(`<a href="${fileCfg.answer_key_file_url}" target="_blank" rel="noopener" class="px-1.5 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 text-[10px] font-semibold"><i class="fas fa-file-circle-check mr-0.5"></i>ไฟล์เฉลย</a>`);
             }
             if (e.show_answer_instantly) {
                 fileIndicators.push(`<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 text-[10px] font-semibold"><i class="fas fa-bolt mr-0.5"></i>เฉลยทันที</span>`);
@@ -1705,7 +1707,7 @@
                                     <i class="fas fa-cloud-arrow-up mr-1"></i> อัปโหลดไฟล์ข้อสอบขึ้นระบบ
                                 </label>
                                 <input type="file" id="swalExamFileInput" accept=".pdf,.doc,.docx,.zip,.png,.jpg,.jpeg" onchange="handleExamFileChosen(this)" class="block w-full text-[11px] text-slate-600 dark:text-slate-300 file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-sky-600 file:text-white hover:file:bg-sky-700 cursor-pointer">
-                                ${fileCfg.exam_file_name ? `<div class="text-[10px] text-slate-500 dark:text-slate-400">ไฟล์ข้อสอบปัจจุบัน: <strong>${escapePreviewHtml(fileCfg.exam_file_name)}</strong></div>` : ''}
+                                ${fileCfg.exam_file_name ? `<div class="text-[10px] text-slate-500 dark:text-slate-400">ไฟล์ข้อสอบปัจจุบัน: <strong>${escapePreviewHtml(fileCfg.exam_file_name)}</strong> ${fileCfg.exam_file_url ? `<a href="${fileCfg.exam_file_url}" target="_blank" rel="noopener" class="text-sky-500 underline ml-1">เปิดดู</a>` : ''}</div>` : ''}
                                 <div id="swalExamFileChosenName" class="hidden text-[10px] text-sky-600 dark:text-sky-400 font-semibold"></div>
                             </div>
                         </div>
@@ -1715,7 +1717,7 @@
                                 <i class="fas fa-file-circle-check mr-1"></i> อัปโหลดไฟล์เฉลยข้อสอบขึ้นระบบ
                             </label>
                             <input type="file" id="swalAnswerKeyFileInput" accept=".pdf,.doc,.docx,.zip,.png,.jpg,.jpeg" onchange="handleAnswerKeyFileChosen(this)" class="block w-full text-[11px] text-slate-600 dark:text-slate-300 file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer">
-                            ${fileCfg.answer_key_file_name ? `<div class="text-[10px] text-slate-500 dark:text-slate-400">ไฟล์เฉลยปัจจุบัน: <strong>${escapePreviewHtml(fileCfg.answer_key_file_name)}</strong></div>` : ''}
+                            ${fileCfg.answer_key_file_name ? `<div class="text-[10px] text-slate-500 dark:text-slate-400">ไฟล์เฉลยปัจจุบัน: <strong>${escapePreviewHtml(fileCfg.answer_key_file_name)}</strong> ${fileCfg.answer_key_file_url ? `<a href="${fileCfg.answer_key_file_url}" target="_blank" rel="noopener" class="text-emerald-500 underline ml-1">เปิดดู</a>` : ''}</div>` : ''}
                             <div id="swalAnswerKeyFileChosenName" class="hidden text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold"></div>
                         </div>
 
