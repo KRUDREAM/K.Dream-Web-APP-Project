@@ -1410,6 +1410,141 @@
                 .replace(/"/g, '&quot;');
         }
 
+        function sanitizeFileSlug(str, fallback = 'exam-sample') {
+            const cleaned = String(str || '')
+                .trim()
+                .replace(/[^a-zA-Z0-9_-]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .toLowerCase();
+            return cleaned || fallback;
+        }
+
+        function buildMinimalSamplePdfBytes(titleText, codeText, copyrightText) {
+            const safePdfStr = (s) => String(s || '').replace(/[^\x20-\x7E]/g, '?').replace(/([()\\])/g, '\\$1');
+            const line1 = safePdfStr(`Sample Exam Sheet - ${codeText}`);
+            const line2 = safePdfStr(`Title: ${titleText}`);
+            const line3 = safePdfStr(`Copyright Notice: ${copyrightText}`);
+            const line4 = safePdfStr('Layout Preview: Clean A4 Margins, Header & Question Block');
+
+            const streamContent = `BT\n/F1 14 Tf\n50 760 Td\n(${line1}) Tj\n/F1 11 Tf\n0 -24 Td\n(${line2}) Tj\n0 -20 Td\n(${line3}) Tj\n0 -28 Td\n(${line4}) Tj\nET\n`;
+
+            const objects = [];
+            objects.push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+            objects.push('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+            objects.push('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n');
+            objects.push(`4 0 obj\n<< /Length ${streamContent.length} >>\nstream\n${streamContent}endstream\nendobj\n`);
+            objects.push('5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+
+            let pdf = '%PDF-1.4\n';
+            const offsets = [0];
+            for (const obj of objects) {
+                offsets.push(pdf.length);
+                pdf += obj;
+            }
+            const xrefPos = pdf.length;
+            pdf += `xref\n0 ${objects.length + 1}\n`;
+            pdf += '0000000000 65535 f \n';
+            for (let i = 1; i < offsets.length; i++) {
+                pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+            }
+            pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
+            return new Blob([pdf], { type: 'application/pdf' });
+        }
+
+        function buildFormattedOnlineSampleHtml(titleText, codeText, choiceFormat) {
+            const choiceLabels = getChoiceLabels(choiceFormat);
+            const [c1, c2, c3, c4] = choiceLabels;
+            return `<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ตัวอย่างไฟล์ข้อสอบ - ${escapePreviewHtml(titleText)}</title>
+<style>
+  @page { size: A4; margin: 18mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Prompt', 'Tahoma', sans-serif; margin: 0; padding: 24px; background: #f1f5f9; color: #0f172a; line-height: 1.65; }
+  .sheet { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 36px 40px; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); border-top: 6px solid #0284c7; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 18px; gap: 12px; }
+  .code { font-family: monospace; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+  .copyright { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; padding: 12px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 22px; }
+  .q-block { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; page-break-inside: avoid; }
+  .q-title { font-weight: 700; margin-bottom: 10px; color: #0f172a; }
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 14px; color: #334155; }
+  .footer { margin-top: 28px; padding-top: 12px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; font-size: 11.5px; color: #64748b; }
+  .print-bar { max-width: 800px; margin: 0 auto 14px auto; display: flex; justify-content: flex-end; }
+  .btn-print { background: #0284c7; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+  @media print { body { background: #fff; padding: 0; } .sheet { box-shadow: none; border-radius: 0; padding: 0; border-top: none; } .print-bar { display: none; } }
+</style>
+</head>
+<body>
+  <div class="print-bar"><button class="btn-print" onclick="window.print()">พิมพ์ / บันทึกเป็น PDF</button></div>
+  <div class="sheet">
+    <div class="header">
+      <div>
+        <div style="font-size:12px;color:#0284c7;font-weight:700;">ตัวอย่างการจัดหน้าเอกสารข้อสอบ (สร้างอัตโนมัติจากโจทย์ในระบบ)</div>
+        <h1 style="margin:4px 0 0 0;font-size:20px;">${escapePreviewHtml(titleText)}</h1>
+      </div>
+      <span class="code">${escapePreviewHtml(codeText)}</span>
+    </div>
+    <div class="copyright">
+      <strong>ประกาศลิขสิทธิ์และเงื่อนไขการใช้งาน:</strong> เอกสารนี้จัดทำขึ้นเพื่อการเรียนการสอนและทบทวนภายในระบบ LMS เท่านั้น ห้ามทำซ้ำ ดัดแปลง เผยแพร่ หรือจำหน่ายเพื่อการพาณิชย์โดยไม่ได้รับอนุญาต
+    </div>
+    <div class="q-block">
+      <div class="q-title">ตัวอย่างข้อที่ 1: ข้อความโจทย์ที่พิมพ์ลงระบบจะถูกจัดหน้าแยกบล็อกชัดเจน ไม่เบียดกัน</div>
+      <div class="choices">
+        <div>${escapePreviewHtml(c1)}. ตัวเลือกตัวอย่างที่ 1</div>
+        <div>${escapePreviewHtml(c2)}. ตัวเลือกตัวอย่างที่ 2</div>
+        <div>${escapePreviewHtml(c3)}. ตัวเลือกตัวอย่างที่ 3</div>
+        <div>${escapePreviewHtml(c4)}. ตัวเลือกตัวอย่างที่ 4</div>
+      </div>
+    </div>
+    <div class="q-block">
+      <div class="q-title">ตัวอย่างข้อที่ 2: รองรับการจัดหน้าเว้นช่องว่างสำหรับคำตอบหรือแสดงวิธีทำอย่างเป็นระเบียบ</div>
+      <div style="border-bottom:1px dotted #94a3b8;height:26px;margin-top:8px;"></div>
+      <div style="border-bottom:1px dotted #94a3b8;height:26px;"></div>
+    </div>
+    <div class="footer">
+      <span>ชุดข้อสอบ: ${escapePreviewHtml(titleText)} (${escapePreviewHtml(codeText)})</span>
+      <span>หน้า 1 / ตัวอย่างการจัดหน้า</span>
+    </div>
+  </div>
+</body>
+</html>`;
+        }
+
+        window.downloadSampleExamPreview = function() {
+            const deliveryType = document.querySelector('input[name="swalDeliveryType"]:checked')?.value || 'pdf';
+            const titleVal = (document.getElementById('swalTitle')?.value || '').trim() || 'ชุดข้อสอบตัวอย่าง';
+            const codeVal = (document.getElementById('swalExamCode')?.value || '').trim().toUpperCase() || 'EXAM-SAMPLE';
+            const choiceFormat = document.getElementById('swalChoiceFormat')?.value || 'num';
+            const slug = sanitizeFileSlug(`${codeVal}-${titleVal}`, 'exam-sample');
+
+            let blob;
+            let fileName;
+
+            if (deliveryType === 'pdf') {
+                blob = buildMinimalSamplePdfBytes(
+                    titleVal,
+                    codeVal,
+                    'For educational use within LMS only. Copyright protected.'
+                );
+                fileName = `${slug}-preview.pdf`;
+            } else {
+                const htmlDoc = buildFormattedOnlineSampleHtml(titleVal, codeVal, choiceFormat);
+                blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' });
+                fileName = `${slug}-preview.html`;
+            }
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        };
+
         window.updateStudentDownloadPreview = function() {
             const previewBox = document.getElementById('swalStudentDownloadPreview');
             if (!previewBox) return;
@@ -1470,13 +1605,13 @@
                         <div class="font-bold text-xs text-slate-900 dark:text-white truncate">${escapePreviewHtml(titleVal)} <span class="font-mono text-[10px] text-sky-600 dark:text-sky-400">(${escapePreviewHtml(codeVal)})</span></div>
                         <div class="text-[10px] text-slate-600 dark:text-slate-300">แหล่งไฟล์: <strong>${sourceDesc}</strong></div>
                     </div>
-                    <button type="button" onclick="event.preventDefault()" class="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-[11px] font-bold shrink-0 shadow-sm flex items-center gap-1.5 cursor-default">
+                    <button type="button" onclick="downloadSampleExamPreview()" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 active:scale-95 text-white text-[11px] font-bold shrink-0 shadow-sm flex items-center gap-1.5 transition-all cursor-pointer">
                         <i class="fas fa-download"></i> ดาวน์โหลดข้อสอบ
                     </button>
                 </div>
                 <div class="text-[10px] text-amber-700 dark:text-amber-300/90 flex items-start gap-1.5 leading-relaxed">
                     <i class="fas fa-copyright mt-0.5 shrink-0"></i>
-                    <span><strong>ลิขสิทธิ์และการจัดหน้า:</strong> กรุณาตรวจสอบสิทธิ์/ลิขสิทธิ์ก่อนเปิดดาวน์โหลด โดยระบบจะแสดงข้อมูลที่มา/ลิขสิทธิ์และจัดหน้าเอกสารให้เรียบร้อยก่อนสร้างไฟล์</span>
+                    <span><strong>ลิขสิทธิ์และการจัดหน้า:</strong> กดปุ่ม "ดาวน์โหลดข้อสอบ" เพื่อทดลองโหลดไฟล์ตัวอย่างดูการจัดหน้าและข้อความลิขสิทธิ์ก่อนใช้งานจริง</span>
                 </div>
             `;
         };
@@ -1552,7 +1687,7 @@
 
                         <div>
                             <label class="block font-bold mb-1">รูปแบบกระดาษคำตอบ (Choice Format) <span class="text-red-500">*</span></label>
-                            <select id="swalChoiceFormat" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold text-sky-600 dark:text-sky-400">
+                            <select id="swalChoiceFormat" onchange="updateStudentDownloadPreview()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold text-sky-600 dark:text-sky-400">
                                 <option value="num" ${currentChoiceFormat === 'num' ? 'selected' : ''}>1, 2, 3, 4 (ค่าเริ่มต้น / Default)</option>
                                 <option value="th_num" ${currentChoiceFormat === 'th_num' ? 'selected' : ''}>ก, ข, ค, ง</option>
                                 <option value="upper" ${currentChoiceFormat === 'upper' ? 'selected' : ''}>A, B, C, D</option>
