@@ -114,9 +114,9 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hitech-card p-5 rounded-2xl">
                 <div>
                     <h2 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-                        <i class="fas fa-layer-group text-sky-500"></i> คลังชุดข้อสอบประจำคอร์ส
+                        <i class="fas fa-layer-group text-sky-500"></i> คลังชุดข้อสอบประจำคอร์ส & ชุดแจกฟรี
                     </h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เลือกสลับมุมมองแบบการ์ด/ลิสต์ และจัดการวันเปิด-ปิดของแต่ละข้อสอบได้สะดวก</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เลือกสลับมุมมองแบบการ์ด/ลิสต์ จัดการวันเปิด-ปิด โจทย์แจกฟรี และสิทธิ์สอบได้สะดวก</p>
                 </div>
                 
                 <div class="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto justify-between md:justify-end">
@@ -175,6 +175,12 @@
             );
         }
 
+        function isFreeUnassignedExam(e) {
+            if (!e) return false;
+            const noCourse = !e.course_id || (Array.isArray(e.course_id) && e.course_id.length === 0);
+            return Boolean(e.is_free_public || e.free_access || noCourse);
+        }
+
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('themeIcon');
         if (localStorage.getItem('theme') === 'dark') {
@@ -188,14 +194,14 @@
             themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
         });
 
-        async function autoPostAnnouncementForExam(examTitle, examCode, courseId, status) {
+        async function autoPostAnnouncementForExam(examTitle, examCode, courseId, status, isFree = false) {
             if (status !== 'public') return;
             try {
-                let courseName = 'ทุกคอร์สเรียน';
+                let courseName = isFree ? 'โจทย์แจกฟรี (ไม่สังกัดคอร์ส)' : 'ทุกคอร์สเรียน';
                 let targetTypeVal = 'all';
                 let targetCourseVal = '';
 
-                if (courseId) {
+                if (courseId && !isFree) {
                     let cId = Array.isArray(courseId) ? courseId[0] : courseId;
                     if (cId && coursesMap[cId]) {
                         courseName = coursesMap[cId].title;
@@ -207,7 +213,7 @@
                 const payload = {
                     category: 'exam',
                     title: `📝 แจ้งเปิดข้อสอบใหม่: ${examTitle}`,
-                    content: `ทางระบบได้เปิดชุดข้อสอบใหม่ "${examTitle}" (รหัส: ${examCode}) ในวิชา "${courseName}" เรียบร้อยแล้ว ขอให้นักเรียนทุกคนเตรียมตัวเข้าทำข้อสอบตามกำหนดเวลา`,
+                    content: `ทางระบบได้เปิดชุดข้อสอบใหม่ "${examTitle}" (รหัส: ${examCode}) ใน "${courseName}" เรียบร้อยแล้ว สามารถเข้าทำข้อสอบตามกำหนดเวลา`,
                     target_type: targetTypeVal,
                     target_value: targetCourseVal,
                     created_at: new Date().toISOString()
@@ -217,7 +223,7 @@
                 await mySupabase.from('notifications').insert([{
                     type: 'exam',
                     title: `[ประกาศ] แจ้งเปิดข้อสอบใหม่: ${examTitle}`,
-                    description: `เปิดชุดข้อสอบใหม่ในวิชา ${courseName}`,
+                    description: `เปิดชุดข้อสอบใหม่ใน ${courseName}`,
                     target_url: 'admin.html',
                     is_read: false,
                     created_at: new Date().toISOString()
@@ -429,20 +435,24 @@
             }).join('');
         }
 
+        function getCourseOrFreeTagHtml(e) {
+            const isFree = isFreeUnassignedExam(e);
+            let targetCourseId = e.course_id;
+            if (Array.isArray(targetCourseId)) targetCourseId = targetCourseId[0];
+            if (!isFree && targetCourseId && coursesMap[targetCourseId]) {
+                const cObj = coursesMap[targetCourseId];
+                return `<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-md"><i class="fas fa-chalkboard"></i> ${cObj.title}</span>`;
+            }
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-500/15 text-teal-600 dark:text-teal-300 border border-teal-500/30 text-[10px] font-bold rounded-md"><i class="fas fa-gift"></i> โจทย์แจกฟรี (ไม่สังกัดคอร์ส)</span>`;
+        }
+
         function renderExamCard(e, hasEssay) {
             const statusBadge = getStatusBadge(e);
             const deliveryBadge = getDeliveryBadge(e.delivery_type || e.exam_type);
             const avgScore = getExamAverageScore(e.id);
             const choiceLabel = getChoiceFormatLabel(e.choice_format);
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
-            
-            let courseTagHtml = '';
-            let targetCourseId = e.course_id;
-            if (Array.isArray(targetCourseId)) targetCourseId = targetCourseId[0];
-            if (targetCourseId && coursesMap[targetCourseId]) {
-                const cObj = coursesMap[targetCourseId];
-                courseTagHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-md"><i class="fas fa-chalkboard"></i> ${cObj.title}</span>`;
-            }
+            const courseTagHtml = getCourseOrFreeTagHtml(e);
 
             let scheduleInfo = '';
             if (e.status === 'countdown' && e.start_time) {
@@ -460,7 +470,7 @@
                             ${statusBadge}
                         </div>
                         <h3 class="font-bold text-sm text-slate-900 dark:text-white leading-snug line-clamp-1">${e.title}</h3>
-                        ${courseTagHtml ? `<div>${courseTagHtml}</div>` : ''}
+                        <div>${courseTagHtml}</div>
                         <div class="space-y-0.5">${scheduleInfo}</div>
                         <div class="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-slate-500">
                             ${deliveryBadge}
@@ -484,8 +494,8 @@
                             <button onclick='openExamModal(${JSON.stringify(e)})' class="py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-bold hover:bg-slate-200">แก้ไข</button>
                         </div>
                         <div class="grid grid-cols-2 gap-1.5">
-                            <button onclick="duplicateExam('${e.id}')" class="w-full py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-all"><i class="fas fa-copy mr-1"></i> คัดลอก (Duplicate)</button>
-                            <button onclick="deleteExam('${e.id}')" class="w-full py-1 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-lg text-[10px] font-bold hover:bg-red-100"><i class="fas fa-trash-can mr-1"></i> ลบ</button>
+                            <button onclick="duplicateExam('${e.id}')" title="คัดลอกชุดข้อสอบ" aria-label="คัดลอกชุดข้อสอบ" class="w-full py-1.5 bg-amber-500/15 hover:bg-amber-500 text-amber-600 dark:text-amber-400 hover:text-white border border-amber-500/40 rounded-lg text-xs font-bold transition-all shadow-sm"><i class="fas fa-clone"></i></button>
+                            <button onclick="deleteExam('${e.id}')" title="ลบชุดข้อสอบ" aria-label="ลบชุดข้อสอบ" class="w-full py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all"><i class="fas fa-trash-can"></i></button>
                         </div>
                     </div>
                 </div>
@@ -498,14 +508,7 @@
             const avgScore = getExamAverageScore(e.id);
             const choiceLabel = getChoiceFormatLabel(e.choice_format);
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
-            
-            let courseTagHtml = '';
-            let targetCourseId = e.course_id;
-            if (Array.isArray(targetCourseId)) targetCourseId = targetCourseId[0];
-            if (targetCourseId && coursesMap[targetCourseId]) {
-                const cObj = coursesMap[targetCourseId];
-                courseTagHtml = `<span class="px-2 py-0.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-md"><i class="fas fa-chalkboard mr-1"></i>${cObj.title}</span>`;
-            }
+            const courseTagHtml = getCourseOrFreeTagHtml(e);
 
             return `
                 <div class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 hover:border-sky-500/50 transition-colors">
@@ -532,8 +535,8 @@
                         <button onclick="openAiExamReport('${e.id}', '${e.title}')" class="px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 border border-purple-500/30 rounded-lg text-xs font-bold"><i class="fas fa-brain mr-1"></i>AI วิเคราะห์</button>
                         <button onclick="openAttemptManager('${e.id}', '${e.title}')" class="px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 border border-indigo-500/30 rounded-lg text-xs font-bold"><i class="fas fa-users-gear mr-1"></i>สิทธิ์สอบ</button>
                         <button onclick='openExamModal(${JSON.stringify(e)})' class="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200"><i class="fas fa-pen"></i></button>
-                        <button onclick="duplicateExam('${e.id}')" class="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-100" title="คัดลอกชุดข้อสอบ"><i class="fas fa-copy"></i></button>
-                        <button onclick="deleteExam('${e.id}')" class="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100"><i class="fas fa-trash-can"></i></button>
+                        <button onclick="duplicateExam('${e.id}')" title="คัดลอกชุดข้อสอบ" aria-label="คัดลอกชุดข้อสอบ" class="px-2.5 py-1.5 bg-amber-500/15 hover:bg-amber-500 text-amber-600 dark:text-amber-400 hover:text-white border border-amber-500/40 rounded-lg text-xs font-bold transition-all shadow-sm"><i class="fas fa-clone"></i></button>
+                        <button onclick="deleteExam('${e.id}')" title="ลบชุดข้อสอบ" aria-label="ลบชุดข้อสอบ" class="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100"><i class="fas fa-trash-can"></i></button>
                     </div>
                 </div>
             `;
@@ -557,6 +560,7 @@
                 const { data: sourceExam, error: fetchErr } = await mySupabase.from('exams').select('*').eq('id', sourceExamId).single();
                 if (fetchErr || !sourceExam) throw new Error('ไม่พบข้อมูลชุดข้อสอบต้นฉบับ');
 
+                const isFree = isFreeUnassignedExam(sourceExam);
                 const newExamPayload = {
                     title: `${sourceExam.title} (สำเนา)`,
                     exam_code: `EXAM-${Math.floor(Math.random() * 9000 + 1000)}`,
@@ -564,7 +568,9 @@
                     exam_type: sourceExam.exam_type,
                     choice_format: sourceExam.choice_format,
                     category_id: sourceExam.category_id,
-                    course_id: sourceExam.course_id,
+                    course_id: isFree ? null : sourceExam.course_id,
+                    is_free_public: isFree,
+                    free_access: isFree,
                     time_limit: sourceExam.time_limit,
                     max_attempts: sourceExam.max_attempts,
                     status: 'draft',
@@ -575,7 +581,13 @@
                     created_at: new Date().toISOString()
                 };
 
-                const { data: insertedExam, error: insertExamErr } = await mySupabase.from('exams').insert([newExamPayload]).select().single();
+                let { data: insertedExam, error: insertExamErr } = await mySupabase.from('exams').insert([newExamPayload]).select().single();
+                if (insertExamErr) {
+                    const { is_free_public, free_access, ...fallbackPayload } = newExamPayload;
+                    const fallbackRes = await mySupabase.from('exams').insert([fallbackPayload]).select().single();
+                    insertedExam = fallbackRes.data;
+                    insertExamErr = fallbackRes.error;
+                }
                 if (insertExamErr || !insertedExam) throw new Error(insertExamErr?.message || 'ไม่สามารถสร้างชุดข้อสอบใหม่ได้');
 
                 const newExamId = insertedExam.id;
@@ -654,8 +666,12 @@
         }
 
         async function openAttemptManager(examId, examTitle) {
-            Swal.fire({ title: 'กำลังโหลดรายชื่อผู้ส่งสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const { data: attempts } = await mySupabase.from('exam_attempts').select('*, profiles(full_name)').eq('exam_id', examId);
+            Swal.fire({ title: 'กำลังโหลดรายชื่อและประวัติ Attempt...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const { data: attempts } = await mySupabase
+                .from('exam_attempts')
+                .select('*, profiles(full_name)')
+                .eq('exam_id', examId)
+                .order('created_at', { ascending: true });
             Swal.close();
 
             if (!attempts || attempts.length === 0) {
@@ -663,21 +679,43 @@
                 return;
             }
 
+            // นับลำดับ Attempt ต่อนักเรียน (1, 2, 3, ...)
+            const studentAttemptCounter = {};
+            const enrichedAttempts = attempts.map(att => {
+                const sKey = String(att.student_id || att.user_id || att.id);
+                studentAttemptCounter[sKey] = (studentAttemptCounter[sKey] || 0) + 1;
+                return { ...att, attemptNo: studentAttemptCounter[sKey] };
+            }).reverse(); // แสดงรอบล่าสุดขึ้นก่อน
+
             const renderAttemptRows = (list) => {
                 if (list.length === 0) return `<div class="text-center py-4 text-slate-400 text-xs">ไม่พบรายชื่อนักเรียนที่ค้นหา</div>`;
                 return list.map(att => {
                     const submitted = isAttemptSubmitted(att);
-                    const scoreVal = att.total_score !== undefined && att.total_score !== null ? att.total_score : (att.score ?? '-');
-                    const statusLabel = submitted
-                        ? `<span class="text-emerald-600 font-bold">ส่งแล้ว</span> (${att.submission_time || att.submitted_at ? new Date(att.submission_time || att.submitted_at).toLocaleString('th-TH') : '-'})`
-                        : `<span class="text-amber-600 font-bold">ทำค้างอยู่</span>`;
+                    const rawScore = att.total_score !== undefined && att.total_score !== null ? att.total_score : (att.score ?? '-');
+                    const submittedDateRaw = att.submission_time || att.submitted_at;
+                    const submittedDateStr = submittedDateRaw ? new Date(submittedDateRaw).toLocaleString('th-TH') : '-';
+                    const studentName = att.profiles?.full_name || att.student_name || 'ไม่ระบุชื่อ';
+
+                    const statusBadge = submitted
+                        ? `<span class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">ส่งแล้ว</span>`
+                        : `<span class="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold text-[10px]">ทำค้างอยู่</span>`;
+
                     return `
-                        <div class="flex justify-between items-center p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs attempt-row" data-name="${(att.profiles?.full_name || '').toLowerCase()}">
-                            <div>
-                                <div class="font-bold text-slate-900 dark:text-white">${att.profiles?.full_name || 'ไม่ระบุชื่อ'}</div>
-                                <div class="text-[10px] text-slate-400">คะแนน: ${submitted ? scoreVal : '-'} | สถานะ: ${statusLabel}</div>
+                        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs attempt-row border border-slate-200/60 dark:border-slate-700/60" data-name="${studentName.toLowerCase()}">
+                            <div class="space-y-0.5">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-mono font-bold text-[10px]">Attempt #${att.attemptNo}</span>
+                                    <span class="font-bold text-slate-900 dark:text-white">${studentName}</span>
+                                    ${statusBadge}
+                                </div>
+                                <div class="text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-3 pt-0.5">
+                                    <span><i class="fas fa-star text-amber-500 mr-1"></i>คะแนน: <strong class="font-mono text-indigo-600 dark:text-indigo-400">${submitted ? rawScore : '-'}</strong></span>
+                                    <span><i class="far fa-clock text-sky-500 mr-1"></i>เวลาที่ส่ง: <strong class="font-mono">${submitted ? submittedDateStr : '-'}</strong></span>
+                                </div>
                             </div>
-                            <button onclick="deleteAttemptRecord('${att.id}', '${examId}', '${examTitle}')" class="px-2.5 py-1 bg-red-500 text-white rounded-lg font-bold text-[10px] hover:bg-red-600"><i class="fas fa-trash mr-1"></i> ลบสิทธิ์/ให้สอบใหม่</button>
+                            <button onclick="deleteAttemptRecord('${att.id}', '${examId}', '${examTitle.replace(/'/g, "\\'")}')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[11px] shrink-0 transition-all">
+                                <i class="fas fa-rotate-left mr-1"></i> Reset Attempt
+                            </button>
                         </div>
                     `;
                 }).join('');
@@ -685,11 +723,15 @@
 
             Swal.fire({
                 title: `จัดการสิทธิ์สอบ: ${examTitle}`,
-                width: '620px',
+                width: '680px',
                 html: `
                     <div class="space-y-3 text-left">
+                        <div class="flex justify-between items-center text-[11px] text-slate-400">
+                            <span>ทั้งหมด ${enrichedAttempts.length} Attempt</span>
+                            <span>กด Reset Attempt เพื่อลบรอบนั้นให้นักเรียนสอบใหม่</span>
+                        </div>
                         <input type="text" id="searchAttemptInput" oninput="filterAttemptList(this.value)" placeholder="🔍 ค้นหาชื่อนักเรียนแบบเรียลไทม์..." class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-xl text-xs outline-none">
-                        <div id="attemptListContainer" class="space-y-2 max-h-60 overflow-y-auto">${renderAttemptRows(attempts)}</div>
+                        <div id="attemptListContainer" class="space-y-2 max-h-72 overflow-y-auto pr-1">${renderAttemptRows(enrichedAttempts)}</div>
                     </div>
                 `,
                 showConfirmButton: false,
@@ -701,26 +743,27 @@
             const term = keyword.toLowerCase().trim();
             document.querySelectorAll('.attempt-row').forEach(row => {
                 const name = row.getAttribute('data-name') || '';
-                row.style.display = name.includes(term) ? 'flex' : 'none';
+                row.style.display = name.includes(term) ? '' : 'none';
             });
         };
 
         async function deleteAttemptRecord(attemptId, examId, examTitle) {
             const res = await Swal.fire({
-                title: 'ยืนยันลบประวัติการสอบนี้?',
-                text: 'การลบจะทำให้นักเรียนสามารถกดเข้ามาทำข้อสอบชุดนี้ใหม่อีกครั้งได้',
+                title: 'ยืนยัน Reset Attempt นี้?',
+                text: 'ระบบจะลบข้อมูลรอบการสอบนี้เพื่อให้นักเรียนสามารถสอบใหม่ได้',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#ef4444',
-                confirmButtonText: 'ยืนยันลบสิทธิ์'
+                confirmButtonColor: '#d97706',
+                confirmButtonText: 'ยืนยัน Reset Attempt',
+                cancelButtonText: 'ยกเลิก'
             });
 
             if (res.isConfirmed) {
-                Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                Swal.fire({ title: 'กำลัง Reset Attempt...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 await mySupabase.from('exam_answers').delete().eq('attempt_id', attemptId);
                 await mySupabase.from('exam_attempts').delete().eq('id', attemptId);
                 await loadAttemptsData();
-                Swal.fire({ icon: 'success', title: 'ลบประวัติสำเร็จ!', timer: 1200, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Reset Attempt สำเร็จ!', timer: 1200, showConfirmButton: false });
                 setTimeout(() => openAttemptManager(examId, examTitle), 400);
             }
         }
@@ -769,10 +812,12 @@
             const isEdit = !!examData;
             const categoryOptions = categoriesList.map(c => `<option value="${c.id}" ${examData?.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
             
+            const isFreeDefault = examData ? isFreeUnassignedExam(examData) : (!filterCourseId && false);
             let currentCourseId = examData?.course_id || filterCourseId || '';
             if (Array.isArray(currentCourseId)) {
                 currentCourseId = currentCourseId.length > 0 ? currentCourseId[0] : '';
             }
+            if (isFreeDefault) currentCourseId = '';
 
             const courseDropdownOptions = allCoursesList.map(c => `<option value="${c.id}" ${String(currentCourseId) === String(c.id) ? 'selected' : ''}>📚 ${c.title} (${c.course_code || 'COURSE'})</option>`).join('');
 
@@ -784,12 +829,18 @@
                 width: '620px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
-                        <div>
-                            <label class="block font-bold mb-1"><i class="fas fa-chalkboard text-purple-500 mr-1"></i> เลือกคอร์สเรียน (1 คอร์ส)</label>
-                            <select id="swalCourseSelect" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold text-purple-600 dark:text-purple-400">
-                                <option value="">-- เลือกคอร์สเรียนประจำชุดข้อสอบ --</option>
-                                ${courseDropdownOptions}
-                            </select>
+                        <div class="p-3 rounded-xl bg-teal-500/10 border border-teal-500/30 space-y-2">
+                            <label class="flex items-center gap-2 cursor-pointer font-bold text-teal-700 dark:text-teal-300">
+                                <input type="checkbox" id="swalFreeUnassignedCheck" onchange="toggleFreeCourseSelect(this.checked)" ${isFreeDefault ? 'checked' : ''} class="w-4 h-4 rounded text-teal-600">
+                                <span>🆓 โจทย์แจกฟรี (ไม่สังกัดคอร์สไหน ๆ — ทุกคนเข้าถึงได้โดยไม่ต้องลงคอร์ส)</span>
+                            </label>
+                            <div id="courseSelectWrapper" class="${isFreeDefault ? 'hidden' : ''}">
+                                <label class="block font-bold mb-1"><i class="fas fa-chalkboard text-purple-500 mr-1"></i> เลือกคอร์สเรียน (1 คอร์ส)</label>
+                                <select id="swalCourseSelect" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold text-purple-600 dark:text-purple-400">
+                                    <option value="">-- เลือกคอร์สเรียนประจำชุดข้อสอบ --</option>
+                                    ${courseDropdownOptions}
+                                </select>
+                            </div>
                         </div>
 
                         <div>
@@ -899,11 +950,13 @@
                     const hasDueDate = document.getElementById('hasDueDateCheck').checked;
                     const allow_late_submission = hasDueDate ? document.getElementById('swalAllowLateSubmission').checked : false;
                     const catVal = document.getElementById('swalCategory').value;
-                    const selectedCourseId = document.getElementById('swalCourseSelect').value;
+                    const isFreeUnassigned = document.getElementById('swalFreeUnassignedCheck').checked;
+                    const selectedCourseId = isFreeUnassigned ? '' : document.getElementById('swalCourseSelect').value;
                     const show_answer_instantly = document.getElementById('swalShowAnswerInstantly').checked;
 
                     if (!title) { Swal.showValidationMessage('กรุณากรอกชื่อชุดข้อสอบ'); return false; }
 
+                    const isFreeFinal = isFreeUnassigned || !selectedCourseId;
                     const courseIdPayload = selectedCourseId ? [selectedCourseId] : null;
 
                     return {
@@ -914,6 +967,8 @@
                         choice_format,
                         category_id: catVal ? catVal : null,
                         course_id: courseIdPayload,
+                        is_free_public: isFreeFinal,
+                        free_access: isFreeFinal,
                         time_limit: parseInt(document.getElementById('swalTimeLimit').value) || 60,
                         max_attempts: parseInt(document.getElementById('swalMaxAttempts').value) || 0,
                         status: status,
@@ -931,16 +986,20 @@
                 let resError = null;
                 let wasNotPublishedBefore = !isEdit || examData.status !== 'public';
 
+                const coreExamPayload = { ...formValues };
+                delete coreExamPayload.is_free_public;
+                delete coreExamPayload.free_access;
+
                 if (isEdit) {
                     const { error } = await mySupabase.from('exams').update(formValues).eq('id', examData.id);
-                    resError = error;
+                    resError = error ? (await mySupabase.from('exams').update(coreExamPayload).eq('id', examData.id)).error : null;
                     
                     if (!resError && typeof logSystemAction === 'function') {
                         await logSystemAction('ADMIN_UPDATE_EXAM', `แอดมินแก้ไขชุดข้อสอบ: ${formValues.title}`, { exam_id: examData.id });
                     }
                 } else {
                     const { error } = await mySupabase.from('exams').insert([formValues]);
-                    resError = error;
+                    resError = error ? (await mySupabase.from('exams').insert([coreExamPayload])).error : null;
                     
                     if (!resError && typeof logSystemAction === 'function') {
                         await logSystemAction('ADMIN_CREATE_EXAM', `แอดมินสร้างชุดข้อสอบใหม่: ${formValues.title}`, { title: formValues.title });
@@ -953,7 +1012,8 @@
                         formValues.title,
                         formValues.exam_code,
                         targetCourseVal,
-                        formValues.status
+                        formValues.status,
+                        formValues.is_free_public
                     );
                 }
 
@@ -965,6 +1025,16 @@
                 }
             }
         }
+
+        window.toggleFreeCourseSelect = function(checked) {
+            const wrapper = document.getElementById('courseSelectWrapper');
+            const sel = document.getElementById('swalCourseSelect');
+            if (wrapper) {
+                if (checked) wrapper.classList.add('hidden');
+                else wrapper.classList.remove('hidden');
+            }
+            if (checked && sel) sel.value = '';
+        };
 
         window.toggleCountdownInput = function(val) {
             document.getElementById('countdownTimeBox').className = val === 'countdown' ? '' : 'hidden';
@@ -1023,4 +1093,4 @@
         initPage();
     </script>
 </body>
-</html>v
+</html>
