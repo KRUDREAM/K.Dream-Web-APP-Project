@@ -65,11 +65,11 @@
                         <i class="fas fa-circle-check"></i> ตรวจผลคะแนนเรียบร้อย
                     </span>
                     <div class="flex flex-wrap items-center gap-2">
-                        <button id="downloadExamAndKeyBtn" type="button" onclick="downloadExamAndAnswerKey()" class="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-not-allowed opacity-75" title="จะดาวน์โหลดได้เมื่อเปิดเฉลยแล้ว">
-                            <i class="fas fa-lock"></i> <span id="downloadExamAndKeyLabel">ดาวน์โหลดข้อสอบและเฉลย (รอเปิดเฉลย)</span>
+                        <button id="downloadExamPdfBtn" type="button" onclick="downloadExamPdf()" class="hidden px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
+                            <i class="fas fa-file-pdf"></i> <span>ดาวน์โหลดข้อสอบ (.pdf)</span>
                         </button>
-                        <button type="button" onclick="downloadSummaryReport()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
-                            <i class="fas fa-file-pdf"></i> ดาวน์โหลด PDF รายงาน
+                        <button id="downloadAnswerKeyPdfBtn" type="button" onclick="downloadAnswerKeyPdf()" class="hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
+                            <i class="fas fa-file-pdf"></i> <span>ดาวน์โหลดเฉลย (.pdf)</span>
                         </button>
                     </div>
                 </div>
@@ -230,6 +230,90 @@
             return val === true || val === 'true' || val === 1 || val === '1';
         }
 
+        function isPdfUrlOrName(url, fileName) {
+            const u = String(url || '').trim().toLowerCase();
+            const n = String(fileName || '').trim().toLowerCase();
+            if (!u && !n) return false;
+            if (u.startsWith('data:application/pdf')) return true;
+            if (n.endsWith('.pdf')) return true;
+            const cleanUrl = u.split('?')[0].split('#')[0];
+            return cleanUrl.endsWith('.pdf');
+        }
+
+        function normalizeFileUrl(rawUrl) {
+            if (!rawUrl) return '';
+            let clean = String(rawUrl).trim();
+            try {
+                if (clean.startsWith('https%3A') || clean.startsWith('http%3A') || clean.startsWith('data%3A')) {
+                    clean = decodeURIComponent(clean);
+                }
+            } catch (_) {}
+            return clean;
+        }
+
+        function readLocalExamFilesMetaForExam(targetExamId) {
+            if (!targetExamId) return {};
+            try {
+                const all = JSON.parse(localStorage.getItem(LOCAL_EXAM_FILES_KEY) || '{}');
+                return all[String(targetExamId)] || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function ensurePdfFileName(fileName, fallbackBase) {
+            const cleaned = String(fileName || '').trim();
+            if (cleaned) {
+                return cleaned.toLowerCase().endsWith('.pdf') ? cleaned : `${cleaned}.pdf`;
+            }
+            const safeBase = String(fallbackBase || 'document').trim().replace(/[^\w\u0E00-\u0E7F-]+/g, '-') || 'document';
+            return `${safeBase}.pdf`;
+        }
+
+        function getExamPdfInfo(examObj) {
+            if (!examObj) return { canDownload: false, url: '', fileName: '' };
+            const localMeta = readLocalExamFilesMetaForExam(examObj.id || examObj.exam_id || '');
+
+            const isDownloadEnabled = Boolean(
+                isTruthyFlag(examObj.allow_file_download) ||
+                isTruthyFlag(examObj.allow_download) ||
+                isTruthyFlag(examObj.can_download) ||
+                isTruthyFlag(examObj.downloadable) ||
+                isTruthyFlag(localMeta.allow_file_download)
+            );
+
+            const candidates = [
+                {
+                    url: normalizeFileUrl(examObj.exam_file_url),
+                    name: examObj.exam_file_name
+                },
+                {
+                    url: normalizeFileUrl(examObj.question_file_url),
+                    name: examObj.question_file_name
+                },
+                {
+                    url: normalizeFileUrl(examObj.pdf_url),
+                    name: examObj.pdf_file_name || examObj.file_name
+                },
+                {
+                    url: normalizeFileUrl(localMeta.exam_file_url),
+                    name: localMeta.exam_file_name
+                }
+            ];
+
+            const matched = candidates.find(c => c.url && isPdfUrlOrName(c.url, c.name));
+            if (!matched || !isDownloadEnabled) {
+                return { canDownload: false, url: '', fileName: '' };
+            }
+
+            const baseLabel = examObj.exam_code || examObj.title || 'exam';
+            return {
+                canDownload: true,
+                url: matched.url,
+                fileName: ensurePdfFileName(matched.name, `${baseLabel}-exam`)
+            };
+        }
+
         function isAnswerKeyUnlocked(exam) {
             if (!globalShowAnswerInstantly) return false;
             if (!exam) return true;
@@ -239,8 +323,8 @@
                 'show_solution',
                 'show_solutions',
                 'reveal_answers',
-                'allow_answer_download',
-                'allow_solution_download'
+                'is_answer_open',
+                'answer_opened'
             ];
 
             for (const k of explicitUnlockKeys) {
@@ -259,81 +343,77 @@
             return true;
         }
 
-        function readLocalExamFilesMetaForExam(targetExamId) {
-            if (!targetExamId) return {};
-            try {
-                const all = JSON.parse(localStorage.getItem(LOCAL_EXAM_FILES_KEY) || '{}');
-                return all[String(targetExamId)] || {};
-            } catch {
-                return {};
+        function getAnswerKeyPdfInfo(examObj) {
+            if (!examObj) return { canDownload: false, url: '', fileName: '' };
+            if (!isAnswerKeyUnlocked(examObj)) {
+                return { canDownload: false, url: '', fileName: '' };
             }
-        }
 
-        function normalizeFileUrl(rawUrl) {
-            if (!rawUrl) return '';
-            let clean = String(rawUrl).trim();
-            try {
-                if (clean.startsWith('https%3A') || clean.startsWith('http%3A') || clean.startsWith('data%3A')) {
-                    clean = decodeURIComponent(clean);
-                }
-            } catch (_) {}
-            return clean;
-        }
-
-        function getExamAttachmentInfo(examObj) {
-            if (!examObj) return { url: '', fileName: '' };
             const localMeta = readLocalExamFilesMetaForExam(examObj.id || examObj.exam_id || '');
-            const rawUrl =
-                examObj.exam_file_url ||
-                examObj.question_file_url ||
-                examObj.file_url ||
-                examObj.pdf_url ||
-                localMeta.exam_file_url ||
-                '';
-            const url = normalizeFileUrl(rawUrl);
-            const fallbackCode = (examObj.exam_code || examObj.title || 'exam-sheet')
-                .toString()
-                .trim()
-                .replace(/[^\w\u0E00-\u0E7F-]+/g, '-');
-            const defaultName = url.toLowerCase().includes('.pdf') || examObj.pdf_url ? `${fallbackCode}.pdf` : `${fallbackCode}`;
-            const fileName =
-                examObj.exam_file_name ||
-                examObj.question_file_name ||
-                examObj.file_name ||
-                localMeta.exam_file_name ||
-                defaultName;
-            return { url, fileName };
+            const candidates = [
+                {
+                    url: normalizeFileUrl(examObj.answer_key_pdf_url),
+                    name: examObj.answer_key_pdf_name
+                },
+                {
+                    url: normalizeFileUrl(examObj.solution_pdf_url),
+                    name: examObj.solution_pdf_name
+                },
+                {
+                    url: normalizeFileUrl(examObj.answer_pdf_url),
+                    name: examObj.answer_pdf_name
+                },
+                {
+                    url: normalizeFileUrl(examObj.key_file_url),
+                    name: examObj.key_file_name
+                },
+                {
+                    url: normalizeFileUrl(localMeta.answer_key_pdf_url || localMeta.solution_pdf_url),
+                    name: localMeta.answer_key_pdf_name || localMeta.solution_pdf_name
+                }
+            ];
+
+            const matched = candidates.find(c => c.url && isPdfUrlOrName(c.url, c.name));
+            if (!matched) {
+                return { canDownload: false, url: '', fileName: '' };
+            }
+
+            const baseLabel = examObj.exam_code || examObj.title || 'exam';
+            return {
+                canDownload: true,
+                url: matched.url,
+                fileName: ensurePdfFileName(matched.name, `${baseLabel}-answer-key`)
+            };
         }
 
-        function dataUrlToBlobUrl(dataUrl) {
+        function dataUrlToPdfBlobUrl(dataUrl) {
             const parts = String(dataUrl).split(',');
-            if (parts.length < 2) return dataUrl;
-            const mimeMatch = parts[0].match(/:(.*?);/);
-            const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+            if (parts.length < 2) return '';
             const binaryStr = atob(parts[1]);
             const len = binaryStr.length;
             const bytes = new Uint8Array(len);
             for (let i = 0; i < len; i++) {
                 bytes[i] = binaryStr.charCodeAt(i);
             }
-            const blob = new Blob([bytes], { type: mimeType });
+            const blob = new Blob([bytes], { type: 'application/pdf' });
             return URL.createObjectURL(blob);
         }
 
-        async function triggerDirectFileDownload(url, fileName) {
+        async function triggerPdfDownload(url, fileName) {
             if (!url) return;
             let downloadHref = url;
             let revokeAfter = false;
 
             if (url.startsWith('data:')) {
-                downloadHref = dataUrlToBlobUrl(url);
-                revokeAfter = true;
+                downloadHref = dataUrlToPdfBlobUrl(url);
+                revokeAfter = Boolean(downloadHref);
             } else if (/^https?:\/\//i.test(url)) {
                 try {
                     const resp = await fetch(url);
                     if (resp.ok) {
                         const blob = await resp.blob();
-                        downloadHref = URL.createObjectURL(blob);
+                        const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' });
+                        downloadHref = URL.createObjectURL(pdfBlob);
                         revokeAfter = true;
                     }
                 } catch (_) {
@@ -341,9 +421,11 @@
                 }
             }
 
+            if (!downloadHref) return;
+
             const link = document.createElement('a');
             link.href = downloadHref;
-            link.download = fileName || 'exam-file';
+            link.download = ensurePdfFileName(fileName, 'document');
             link.target = '_blank';
             link.rel = 'noopener';
             document.body.appendChild(link);
@@ -355,151 +437,41 @@
             }
         }
 
-        function syncDownloadExamAndKeyButton() {
-            const btn = document.getElementById('downloadExamAndKeyBtn');
-            const label = document.getElementById('downloadExamAndKeyLabel');
-            if (!btn || !label) return;
+        function syncPdfDownloadButtons() {
+            const examPdf = getExamPdfInfo(currentExam);
+            const keyPdf = getAnswerKeyPdfInfo(currentExam);
 
-            const unlocked = isAnswerKeyUnlocked(currentExam);
-            if (unlocked) {
-                btn.disabled = false;
-                btn.className = 'px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer';
-                btn.title = 'ดาวน์โหลดข้อสอบและเฉลย';
-                btn.innerHTML = `<i class="fas fa-download"></i> <span>ดาวน์โหลดข้อสอบและเฉลย</span>`;
-            } else {
-                btn.disabled = false;
-                btn.className = 'px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-not-allowed opacity-75';
-                btn.title = 'จะดาวน์โหลดข้อสอบและเฉลยได้เมื่อเปิดเฉลยแล้ว';
-                btn.innerHTML = `<i class="fas fa-lock"></i> <span>ดาวน์โหลดข้อสอบและเฉลย (รอเปิดเฉลย)</span>`;
+            const examBtn = document.getElementById('downloadExamPdfBtn');
+            if (examBtn) {
+                if (examPdf.canDownload) {
+                    examBtn.classList.remove('hidden');
+                    examBtn.innerHTML = `<i class="fas fa-file-pdf"></i> <span>ดาวน์โหลดข้อสอบ (${escapeHtml(examPdf.fileName)})</span>`;
+                } else {
+                    examBtn.classList.add('hidden');
+                }
+            }
+
+            const keyBtn = document.getElementById('downloadAnswerKeyPdfBtn');
+            if (keyBtn) {
+                if (keyPdf.canDownload) {
+                    keyBtn.classList.remove('hidden');
+                    keyBtn.innerHTML = `<i class="fas fa-file-pdf"></i> <span>ดาวน์โหลดเฉลย (${escapeHtml(keyPdf.fileName)})</span>`;
+                } else {
+                    keyBtn.classList.add('hidden');
+                }
             }
         }
 
-        function formatCorrectAnswerDisplay(q) {
-            const opts = getQuestionOptions(q);
-            const rawCorrect = q.correct_answer !== undefined && q.correct_answer !== null ? q.correct_answer : '';
-            const tokens = toNormalizedArray(rawCorrect);
-            if (tokens.length === 0) return '-';
-
-            return tokens.map(tok => {
-                if (/^\d+$/.test(tok)) {
-                    const idx = Number(tok);
-                    const letter = idx >= 0 && idx < 26 ? String.fromCharCode(65 + idx) : String(idx + 1);
-                    const text = idx >= 0 && idx < opts.length ? ` (${opts[idx]})` : '';
-                    return `${letter}${text}`;
-                }
-                return tok;
-            }).join(', ');
+        async function downloadExamPdf() {
+            const examPdf = getExamPdfInfo(currentExam);
+            if (!examPdf.canDownload || !examPdf.url) return;
+            await triggerPdfDownload(examPdf.url, examPdf.fileName);
         }
 
-        function formatUserAnswerDisplay(q, userVal) {
-            if (userVal === null || userVal === undefined || userVal === '-' || userVal === '') return 'ไม่ได้ตอบ';
-            const opts = getQuestionOptions(q);
-            const tokens = toNormalizedArray(userVal);
-            if (tokens.length === 0) return String(userVal);
-
-            return tokens.map(tok => {
-                if (/^\d+$/.test(tok)) {
-                    const idx = Number(tok);
-                    const letter = idx >= 0 && idx < 26 ? String.fromCharCode(65 + idx) : String(idx + 1);
-                    const text = idx >= 0 && idx < opts.length ? ` (${opts[idx]})` : '';
-                    return `${letter}${text}`;
-                }
-                return tok;
-            }).join(', ');
-        }
-
-        async function downloadExamAndAnswerKey() {
-            if (!isAnswerKeyUnlocked(currentExam)) {
-                alert('ยังไม่เปิดเฉลยคำตอบ กรุณารอให้เปิดเฉลยก่อนจึงจะดาวน์โหลดข้อสอบและเฉลยได้');
-                return;
-            }
-
-            try {
-                const attachment = getExamAttachmentInfo(currentExam);
-                const allowRawDownload = Boolean(
-                    currentExam?.allow_file_download === true ||
-                    currentExam?.allow_download === true ||
-                    currentExam?.can_download === true ||
-                    readLocalExamFilesMetaForExam(currentExam?.id || '').allow_file_download === true
-                );
-
-                if (allowRawDownload && attachment.url) {
-                    await triggerDirectFileDownload(attachment.url, attachment.fileName);
-                }
-
-                const itemsHtml = (globalQuestions || []).map((q, index) => {
-                    const qNum = q.question_number || (index + 1);
-                    const qText = q.question_text || q.content || '';
-                    const tag = q.category_tag || 'ทั่วไป';
-                    const opts = getQuestionOptions(q);
-                    const userVal = getUserAnswer(q, globalRawAnswers);
-                    const earnedPts = getQuestionEarnedScore(q, userVal);
-                    const maxPts = getQuestionMaxPoints(q);
-                    const isCorrect = earnedPts >= maxPts;
-                    const correctDisplay = formatCorrectAnswerDisplay(q);
-                    const userDisplay = formatUserAnswerDisplay(q, userVal);
-                    const explanation = q.explanation || q.solution_text || q.answer_explanation || '';
-
-                    const choicesListHtml = opts.map((optText, optIdx) => {
-                        const letter = String.fromCharCode(65 + optIdx);
-                        return `<li style="margin: 2px 0; font-size: 11px;"><b>${escapeHtml(letter)}.</b> ${escapeHtml(optText)}</li>`;
-                    }).join('');
-
-                    return `
-                        <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 12px; page-break-inside: avoid;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px;">
-                                <b>ข้อที่ ${qNum} [${escapeHtml(tag)}]</b>
-                                <span style="font-weight: bold; color: ${isCorrect ? '#059669' : '#dc2626'};">
-                                    ${isCorrect ? 'ถูก' : 'ตรวจแล้ว'} (${earnedPts} / ${maxPts} คะแนน)
-                                </span>
-                            </div>
-                            <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #0f172a;">${escapeHtml(qText)}</div>
-                            <ul style="list-style: none; padding-left: 8px; margin: 4px 0 8px 0; color: #334155;">${choicesListHtml}</ul>
-                            <div style="background: #f8fafc; border-radius: 6px; padding: 8px; font-size: 11px; line-height: 1.5;">
-                                <div><b>คำตอบที่เลือก:</b> ${escapeHtml(userDisplay)}</div>
-                                <div style="color: #059669;"><b>เฉลยคำตอบ:</b> ${escapeHtml(correctDisplay)}</div>
-                                ${explanation ? `<div style="margin-top: 4px; color: #1e293b;"><b>คำอธิบายเฉลย:</b> ${escapeHtml(explanation)}</div>` : ''}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                const win = window.open('', '_blank');
-                if (!win) {
-                    alert('เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัปเพื่อดาวน์โหลดข้อสอบและเฉลย');
-                    return;
-                }
-
-                win.document.write(`<!DOCTYPE html>
-                <html lang="th">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>ข้อสอบและเฉลย - ${escapeHtml(cachedExamTitle)}</title>
-                    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-                    <style>
-                        body { font-family: 'Prompt', sans-serif; padding: 20px; color: #1e293b; background: #ffffff; }
-                        .header-box { border: 1px solid #bae6fd; background: #f0f9ff; padding: 14px 16px; border-radius: 10px; margin-bottom: 16px; }
-                        h1 { margin: 0 0 6px 0; font-size: 18px; color: #0369a1; }
-                        p { margin: 2px 0; font-size: 12px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header-box">
-                        <h1>ข้อสอบและเฉลยคำตอบ: ${escapeHtml(cachedExamTitle)}</h1>
-                        <p><b>ผู้สอบ:</b> ${escapeHtml(cachedStudentName)} | <b>คะแนน:</b> ${cachedScore} / ${cachedTotal}</p>
-                        ${attachment.url ? `<p><b>ไฟล์ข้อสอบแนบ:</b> ${escapeHtml(attachment.fileName)}</p>` : ''}
-                    </div>
-                    ${itemsHtml || '<p>ไม่พบรายการข้อสอบ</p>'}
-                    <script>
-                        window.onload = function() { setTimeout(function() { window.print(); }, 450); };
-                    <\/script>
-                </body>
-                </html>`);
-                win.document.close();
-            } catch (err) {
-                console.error('Download exam & answer key error:', err);
-                alert('ไม่สามารถดาวน์โหลดข้อสอบและเฉลยได้');
-            }
+        async function downloadAnswerKeyPdf() {
+            const keyPdf = getAnswerKeyPdfInfo(currentExam);
+            if (!keyPdf.canDownload || !keyPdf.url) return;
+            await triggerPdfDownload(keyPdf.url, keyPdf.fileName);
         }
 
         function calculateTimeSpentMinutes(attempt, exam) {
@@ -756,7 +728,7 @@
                 if (!attempt) {
                     document.getElementById('examTitle').textContent = 'ไม่พบข้อมูลการสอบ';
                     document.getElementById('resultsContainer').innerHTML = '<div class="text-center py-12 text-amber-500 text-xs">ไม่พบผลการสอบ กรุณาตรวจสอบลิงก์ใหม่อีกครั้ง</div>';
-                    syncDownloadExamAndKeyButton();
+                    syncPdfDownloadButtons();
                     return;
                 }
 
@@ -779,7 +751,7 @@
                     gradingCriteriaList = Array.isArray(exam.grading_criteria) ? exam.grading_criteria : [];
                 }
 
-                syncDownloadExamAndKeyButton();
+                syncPdfDownloadButtons();
 
                 if (!enableGradingCriteria || gradingCriteriaList.length === 0) {
                     const localCriteria = localStorage.getItem(`grading_criteria_${examRef}`);
@@ -938,107 +910,6 @@
                         </tr>
                     `;
                 }).join('');
-            }
-        }
-
-        function downloadSummaryReport() {
-            try {
-                let categoryTableHtml = '';
-                const entries = Object.entries(cachedCategoryStats);
-                const hasActiveCriteria = enableGradingCriteria && gradingCriteriaList.length > 0;
-
-                if (entries.length > 0) {
-                    if (hasActiveCriteria) {
-                        const categoryRows = entries.map(([tag, stat]) => {
-                            const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
-                            const levelName = findCriteriaNameForCategoryAndPct(tag, pct);
-                            return `
-                                <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
-                                    <td style="padding: 6px;"><b>${escapeHtml(tag)}</b></td>
-                                    <td style="padding: 6px; text-align: center;">${stat.correct} / ${stat.total}</td>
-                                    <td style="padding: 6px; text-align: center; font-weight: bold; color: #0284c7;">${pct}%</td>
-                                    <td style="padding: 6px; text-align: center; font-weight: bold;">${escapeHtml(levelName)}</td>
-                                </tr>
-                            `;
-                        }).join('');
-                        categoryTableHtml = `
-                            <h3>สรุปผลการประเมินรายหมวดหมู่</h3>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>หมวดหมู่</th>
-                                        <th style="text-align: center;">คะแนนที่ได้ / เต็ม</th>
-                                        <th style="text-align: center;">% คะแนน</th>
-                                        <th style="text-align: center;">ระดับการประเมิน</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${categoryRows}</tbody>
-                            </table>
-                        `;
-                    } else {
-                        const categoryRows = entries.map(([tag, stat]) => {
-                            const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
-                            return `
-                                <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
-                                    <td style="padding: 6px;"><b>${escapeHtml(tag)}</b></td>
-                                    <td style="padding: 6px; text-align: center;">${stat.correct} / ${stat.total}</td>
-                                    <td style="padding: 6px; text-align: center; font-weight: bold; color: #0284c7;">${pct}%</td>
-                                </tr>
-                            `;
-                        }).join('');
-                        categoryTableHtml = `
-                            <h3>สรุปผลคะแนนรายหมวดหมู่</h3>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>หมวดหมู่</th>
-                                        <th style="text-align: center;">คะแนนที่ได้ / เต็ม</th>
-                                        <th style="text-align: center;">% คะแนน</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${categoryRows}</tbody>
-                            </table>
-                        `;
-                    }
-                }
-
-                const win = window.open('', '_blank');
-                if (!win) {
-                    alert('เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัป');
-                    return;
-                }
-
-                win.document.write(`<!DOCTYPE html>
-                <html lang="th">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>รายงานผลการสอบ - ${escapeHtml(cachedStudentName)}</title>
-                    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-                    <style>
-                        body { font-family: 'Prompt', sans-serif; padding: 20px; color: #1e293b; background: #ffffff; }
-                        h2 { color: #0284c7; margin-bottom: 5px; font-size: 16px; }
-                        .box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-                        th { background: #0284c7; color: white; padding: 8px; font-size: 11px; text-align: left; }
-                    </style>
-                </head>
-                <body>
-                    <div class="box">
-                        <h2>รายงานผลคะแนนสอบออนไลน์</h2>
-                        <p><b>ชุดข้อสอบ:</b> ${escapeHtml(cachedExamTitle)}</p>
-                        <p><b>ผู้สอบ:</b> ${escapeHtml(cachedStudentName)}</p>
-                        <p><b>คะแนนที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">${cachedScore} / ${cachedTotal}</span> คะแนน</p>
-                    </div>
-                    ${categoryTableHtml}
-                    <script>
-                        window.onload = function() { setTimeout(function() { window.print(); }, 500); };
-                    <\/script>
-                </body>
-                </html>`);
-                win.document.close();
-            } catch (e) {
-                console.error('Report Error:', e);
-                alert('ไม่สามารถสร้างรายงานได้');
             }
         }
 
