@@ -299,7 +299,6 @@
         let gradingCriteriaList = [];
         let enableCriteria = false;
 
-        // 🌟 เก็บ Metadata เสริมต่อข้อใน localStorage (กันกรณีตาราง questions ใน DB ยังไม่มีบางคอลัมน์ เช่น score, shared_passage_id)
         function getQuestionMetaMap() {
             try {
                 const raw = localStorage.getItem(`question_meta_${examId}`);
@@ -365,12 +364,12 @@
 
         function renderMarkdownSafe(rawText) {
             const text = rawText || '';
-            if (!isOnlineExamMode()) {
-                return escapeHtml(text).replace(/\r?\n/g, '<br>');
-            }
             try {
                 if (typeof marked !== 'undefined') {
-                    if (typeof marked.parse === 'function') return marked.parse(text);
+                    if (typeof marked.parse === 'function') {
+                        marked.setOptions({ breaks: true, gfm: true });
+                        return marked.parse(text);
+                    }
                     if (typeof marked === 'function') return marked(text);
                 }
             } catch (e) {
@@ -401,23 +400,41 @@
 
         async function uploadFilesToExamStorage(fileList) {
             const uploadedItems = [];
+            const candidateBuckets = ['exam_images', 'images', 'uploads', 'public'];
+
             for (let i = 0; i < fileList.length; i++) {
                 const file = fileList[i];
                 const cleanFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
                 const fileName = `exam_inline_${Date.now()}_${i}_${cleanFileName}`;
-                const { error } = await mySupabase.storage.from('exam_images').upload(fileName, file);
-                if (error) {
-                    throw new Error(error.message || 'อัปโหลดไฟล์ไม่สำเร็จ');
+                const isImg = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(file.name) || (file.type && file.type.startsWith('image/'));
+
+                let uploadedUrl = null;
+                let lastErrorMsg = '';
+
+                for (const bucketName of candidateBuckets) {
+                    const { error } = await mySupabase.storage
+                        .from(bucketName)
+                        .upload(fileName, file, { cacheControl: '3600', upsert: true, contentType: file.type || undefined });
+                    if (!error) {
+                        const { data } = mySupabase.storage.from(bucketName).getPublicUrl(fileName);
+                        if (data && data.publicUrl) {
+                            uploadedUrl = data.publicUrl;
+                            break;
+                        }
+                    } else {
+                        lastErrorMsg = error.message || '';
+                    }
                 }
-                const { data } = mySupabase.storage.from('exam_images').getPublicUrl(fileName);
-                if (data && data.publicUrl) {
-                    const isImg = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(file.name) || (file.type && file.type.startsWith('image/'));
-                    uploadedItems.push({
-                        name: file.name,
-                        url: data.publicUrl,
-                        isImage: isImg
-                    });
+
+                if (!uploadedUrl) {
+                    throw new Error(lastErrorMsg || 'อัปโหลดไฟล์ไปยัง Storage ไม่สำเร็จ');
                 }
+
+                uploadedItems.push({
+                    name: file.name,
+                    url: uploadedUrl,
+                    isImage: isImg
+                });
             }
             return uploadedItems;
         }
@@ -437,22 +454,21 @@
         window.handleEditorFileInsert = async function(inputEl, textareaId, previewId = null) {
             if (!inputEl || !inputEl.files || inputEl.files.length === 0) return;
             const files = Array.from(inputEl.files);
+            const triggerLabel = inputEl.closest('label');
             inputEl.value = '';
-            await processAndInsertFilesIntoTextarea(files, textareaId, previewId);
+            await processAndInsertFilesIntoTextarea(files, textareaId, previewId, triggerLabel);
         };
 
         window.handleEditorDropImage = async function(event, textareaId, previewId = null) {
-            if (!isOnlineExamMode()) return;
             event.preventDefault();
             const dtFiles = event.dataTransfer && event.dataTransfer.files ? Array.from(event.dataTransfer.files) : [];
-            const validFiles = dtFiles.filter(f => (f.type && f.type.startsWith('image/')) || /\.(jpg|jpeg|png|gif|webp|pdf|doc|docx|xls|xlsx)$/i.test(f.name));
+            const validFiles = dtFiles.filter(f => (f.type && f.type.startsWith('image/')) || /\.(jpg|jpeg|png|gif|webp|svg|pdf|doc|docx|xls|xlsx)$/i.test(f.name));
             if (validFiles.length > 0) {
-                await processAndInsertFilesIntoTextarea(validFiles, textareaId, previewId);
+                await processAndInsertFilesIntoTextarea(validFiles, textareaId, previewId, null);
             }
         };
 
         window.handleEditorPasteImage = async function(event, textareaId, previewId = null) {
-            if (!isOnlineExamMode()) return;
             const cbItems = event.clipboardData && event.clipboardData.items ? Array.from(event.clipboardData.items) : [];
             const imageFiles = cbItems
                 .filter(item => item.kind === 'file' && item.type && item.type.startsWith('image/'))
@@ -465,23 +481,20 @@
 
             if (imageFiles.length > 0) {
                 event.preventDefault();
-                await processAndInsertFilesIntoTextarea(imageFiles, textareaId, previewId);
+                await processAndInsertFilesIntoTextarea(imageFiles, textareaId, previewId, null);
             }
         };
 
-        async function processAndInsertFilesIntoTextarea(files, textareaId, previewId = null) {
+        async function processAndInsertFilesIntoTextarea(files, textareaId, previewId = null, triggerLabel = null) {
             const ta = document.getElementById(textareaId);
             if (!ta) return;
 
-            const prevHtml = Swal.getHtmlContainer()?.innerHTML;
-            const prevTitle = Swal.getTitle()?.textContent;
-
-            Swal.fire({
-                title: 'กำลังอัปโหลดรูปภาพ...',
-                html: '<div class="text-xs text-slate-400">กำลังแทรกลงตำแหน่งเคอร์เซอร์...</div>',
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading()
-            });
+            let origLabelHtml = '';
+            if (triggerLabel) {
+                origLabelHtml = triggerLabel.innerHTML;
+                triggerLabel.classList.add('opacity-70', 'pointer-events-none');
+                triggerLabel.innerHTML = `<i class="fas fa-spinner fa-spin"></i> กำลังอัปโหลด...`;
+            }
 
             try {
                 const uploaded = await uploadFilesToExamStorage(files);
@@ -493,30 +506,36 @@
 
                 insertTextAtTextareaCursor(textareaId, mdSnippet);
                 if (previewId) {
+                    const prev = document.getElementById(previewId);
+                    if (prev) prev.classList.remove('hidden');
                     refreshMarkdownPreview(textareaId, previewId);
                 }
-
-                Swal.close();
-                if (prevTitle) {
-                    Swal.fire({
-                        title: prevTitle,
-                        width: '720px',
-                        html: prevHtml,
-                        showCancelButton: true,
-                        confirmButtonText: 'บันทึกข้อมูล',
-                        didOpen: () => {
-                            const restoredTa = document.getElementById(textareaId);
-                            if (restoredTa) {
-                                restoredTa.value = ta.value;
-                                if (previewId) refreshMarkdownPreview(textareaId, previewId);
-                            }
-                        }
-                    });
-                }
             } catch (err) {
-                Swal.fire('อัปโหลดล้มเหลว', err.message || 'ไม่สามารถอัปโหลดไฟล์ได้', 'error');
+                const msg = err.message || 'ไม่สามารถอัปโหลดไฟล์ได้';
+                if (typeof Swal.showValidationMessage === 'function' && Swal.isVisible()) {
+                    Swal.showValidationMessage(`อัปโหลดรูปไม่สำเร็จ: ${msg}`);
+                } else {
+                    Swal.fire('อัปโหลดล้มเหลว', msg, 'error');
+                }
+            } finally {
+                if (triggerLabel && origLabelHtml) {
+                    triggerLabel.classList.remove('opacity-70', 'pointer-events-none');
+                    triggerLabel.innerHTML = origLabelHtml;
+                }
             }
         }
+
+        window.insertImageUrlPromptIntoTextarea = function(textareaId, previewId = null) {
+            const url = window.prompt('วางลิงก์ URL รูปภาพ (เช่น https://...):');
+            if (!url || !url.trim()) return;
+            const cleanUrl = url.trim();
+            insertTextAtTextareaCursor(textareaId, `\n![รูปประกอบ](${cleanUrl})\n`);
+            if (previewId) {
+                const prev = document.getElementById(previewId);
+                if (prev) prev.classList.remove('hidden');
+                refreshMarkdownPreview(textareaId, previewId);
+            }
+        };
 
         window.refreshMarkdownPreview = function(textareaId, previewId) {
             const ta = document.getElementById(textareaId);
@@ -531,32 +550,27 @@
             prev.classList.toggle('hidden');
         };
 
-        function buildMarkdownTextareaBlock({ id, label, value, rows = 4, previewId, placeholder = 'พิมพ์ข้อความ (รองรับ Markdown)...' }) {
-            if (!isOnlineExamMode()) {
-                return `
-                    <div>
-                        <label class="block text-xs font-bold mb-1">${escapeHtml(label)}</label>
-                        <textarea id="${id}" rows="${rows}" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value || '')}</textarea>
-                    </div>
-                `;
-            }
-
+        function buildMarkdownTextareaBlock({ id, label, value, rows = 4, previewId, placeholder = 'พิมพ์ข้อความ (รองรับ Markdown และวาง/ลากรูปภาพได้)...' }) {
+            const hasExistingImage = /!\[.*?\]\(.*?\)/.test(value || '');
             return `
                 <div class="space-y-1.5" ondragover="event.preventDefault()" ondrop="handleEditorDropImage(event, '${id}', '${previewId}')">
                     <div class="flex justify-between items-center flex-wrap gap-2">
-                        <label class="block text-xs font-bold">${escapeHtml(label)} <span class="text-[10px] text-sky-500 font-semibold">(Markdown + วาง/ลากรูปได้)</span></label>
-                        <div class="flex items-center gap-1.5">
+                        <label class="block text-xs font-bold">${escapeHtml(label)} <span class="text-[10px] text-sky-500 font-semibold">(แทรกรูป / ลากวาง / Ctrl+V ได้)</span></label>
+                        <div class="flex items-center gap-1.5 flex-wrap">
                             <label class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[10px] font-bold cursor-pointer flex items-center gap-1">
                                 <i class="fas fa-image"></i> แทรกรูป/ไฟล์
                                 <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="handleEditorFileInsert(this, '${id}', '${previewId}')">
                             </label>
+                            <button type="button" onclick="insertImageUrlPromptIntoTextarea('${id}', '${previewId}')" class="px-2 py-1 bg-indigo-600/15 hover:bg-indigo-600/25 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 rounded-lg text-[10px] font-bold">
+                                <i class="fas fa-link"></i> URL รูป
+                            </button>
                             <button type="button" onclick="toggleMarkdownPreviewPane('${previewId}'); refreshMarkdownPreview('${id}', '${previewId}');" class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[10px] font-bold">
                                 <i class="fas fa-eye"></i> Preview
                             </button>
                         </div>
                     </div>
                     <textarea id="${id}" rows="${rows}" oninput="refreshMarkdownPreview('${id}', '${previewId}')" onpaste="handleEditorPasteImage(event, '${id}', '${previewId}')" class="w-full px-3 py-2 border rounded-xl dark:bg-slate-800 font-mono text-xs leading-relaxed" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value || '')}</textarea>
-                    <div id="${previewId}" onclick="handleMarkdownBodyClick(event)" class="hidden p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-sky-500/30 prose dark:prose-invert max-w-none text-xs max-h-56 overflow-y-auto">${renderMarkdownSafe(value || '')}</div>
+                    <div id="${previewId}" onclick="handleMarkdownBodyClick(event)" class="${hasExistingImage ? '' : 'hidden'} p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-sky-500/30 prose dark:prose-invert max-w-none text-xs max-h-56 overflow-y-auto">${renderMarkdownSafe(value || '')}</div>
                 </div>
             `;
         }
@@ -784,10 +798,6 @@
             const listEl = document.getElementById('sharedPassagesList');
             if (!card || !listEl) return;
 
-            if (!isOnlineExamMode()) {
-                card.classList.add('hidden');
-                return;
-            }
             card.classList.remove('hidden');
 
             if (sharedPassages.length === 0) {
@@ -816,7 +826,6 @@
         }
 
         async function openSharedPassageModal(passageId = null) {
-            if (!isOnlineExamMode()) return;
             const existing = passageId ? sharedPassages.find(p => String(p.id) === String(passageId)) : null;
             const pId = existing ? existing.id : `sp_${Date.now()}`;
             const titleVal = existing ? (existing.title || '') : '';
@@ -917,9 +926,7 @@
 
                 const accSub = document.getElementById('accordionSubtitle');
                 if (accSub) {
-                    accSub.textContent = isOnline
-                        ? 'ขยายดูโจทย์ พิมพ์ Markdown แทรกรูปภาพตรงไหนก็ได้ ผูกโจทย์ร่วม และตั้งค่าการให้คะแนนได้'
-                        : 'ขยายดูโจทย์ แนบรูปภาพ เพิ่มตัวเลือก และตั้งค่าการให้คะแนนได้';
+                    accSub.textContent = 'ขยายดูโจทย์ พิมพ์ Markdown แทรกรูปภาพตรงไหนก็ได้ ผูกโจทย์ร่วม และตั้งค่าการให้คะแนนได้';
                 }
 
                 const pdfUploadCard = document.getElementById('pdfUploadCard');
@@ -1238,7 +1245,10 @@
                 const scoreBadge = `<span class="px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 font-bold text-[10px]">${qScore} คะแนน</span>`;
                 const imgTag = q.image_url ? `<div class="mb-2"><img src="${escapeHtml(q.image_url)}" onclick="openEditorImageModal(this.src)" class="max-h-48 rounded-xl border border-slate-300 shadow-sm cursor-pointer"></div>` : '';
                 const rawQText = q.question_text || q.content || 'คำถามในระบบ';
-                const qTextPlain = escapeHtml(rawQText);
+                const qTextPlain = escapeHtml(rawQText.replace(/!\[.*?\]\(.*?\)/g, ' [รูปภาพ] '));
+                const hasImgBadge = (q.image_url || /!\[.*?\]\(.*?\)/.test(rawQText))
+                    ? `<span class="px-1.5 py-0.5 rounded bg-pink-100 dark:bg-pink-950/60 text-pink-600 dark:text-pink-300 font-bold text-[10px]"><i class="fas fa-image"></i> มีรูป</span>`
+                    : '';
                 const qId = q.id;
 
                 const passageBlockHtml = linkedPassage ? `
@@ -1255,6 +1265,7 @@
                                 <i class="fas fa-chevron-down text-slate-400 transition-transform" id="icon-acc-${qId}"></i>
                                 <span class="text-sky-600 dark:text-sky-400">ข้อ ${qNum}:</span>
                                 ${scoreBadge}
+                                ${hasImgBadge}
                                 ${bonusBadge}
                                 ${categoryBadge}
                                 ${passageBadge}
@@ -1405,16 +1416,17 @@
             const optId = `qOptText_${Date.now()}_${currentCount}`;
             const prevId = `qOptPrev_${Date.now()}_${currentCount}`;
 
-            const optInputHtml = isOnlineExamMode()
-                ? `<div class="flex-1 space-y-1">
-                        <input id="${optId}" class="opt-text-input w-full px-3 py-1 border rounded-xl dark:bg-slate-800 text-xs" value="${escapeHtml(label)}" oninput="refreshMarkdownPreview('${optId}', '${prevId}')">
-                        <div class="flex items-center gap-2 text-[10px]">
-                            <label class="text-sky-600 dark:text-sky-400 font-bold cursor-pointer"><i class="fas fa-image"></i> แทรกรูป<input type="file" accept="image/*" class="hidden" onchange="handleEditorFileInsert(this, '${optId}', '${prevId}')"></label>
-                            <button type="button" onclick="toggleMarkdownPreviewPane('${prevId}'); refreshMarkdownPreview('${optId}', '${prevId}');" class="text-slate-500 underline">Preview</button>
-                        </div>
-                        <div id="${prevId}" onclick="handleMarkdownBodyClick(event)" class="hidden p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border prose dark:prose-invert max-w-none text-[11px]">${renderMarkdownSafe(label)}</div>
-                   </div>`
-                : `<input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(label)}">`;
+            const optInputHtml = `
+                <div class="flex-1 space-y-1">
+                    <input id="${optId}" class="opt-text-input w-full px-3 py-1 border rounded-xl dark:bg-slate-800 text-xs" value="${escapeHtml(label)}" oninput="refreshMarkdownPreview('${optId}', '${prevId}')">
+                    <div class="flex items-center gap-2 text-[10px]">
+                        <label class="text-sky-600 dark:text-sky-400 font-bold cursor-pointer"><i class="fas fa-image"></i> แทรกรูป<input type="file" accept="image/*" class="hidden" onchange="handleEditorFileInsert(this, '${optId}', '${prevId}')"></label>
+                        <button type="button" onclick="insertImageUrlPromptIntoTextarea('${optId}', '${prevId}')" class="text-indigo-500 font-bold">URL รูป</button>
+                        <button type="button" onclick="toggleMarkdownPreviewPane('${prevId}'); refreshMarkdownPreview('${optId}', '${prevId}');" class="text-slate-500 underline">Preview</button>
+                    </div>
+                    <div id="${prevId}" onclick="handleMarkdownBodyClick(event)" class="hidden p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border prose dark:prose-invert max-w-none text-[11px]">${renderMarkdownSafe(label)}</div>
+                </div>
+            `;
 
             const div = document.createElement('div');
             div.className = 'flex items-start gap-2 option-row pt-1';
@@ -1443,18 +1455,55 @@
             container.appendChild(div);
         };
 
+        window.refreshMainQuestionImagePreview = function() {
+            const imgInp = document.getElementById('qImageUrl');
+            const prevWrap = document.getElementById('qMainImagePreviewWrap');
+            const prevImg = document.getElementById('qMainImagePreviewImg');
+            if (!imgInp || !prevWrap || !prevImg) return;
+            const url = imgInp.value.trim();
+            if (url) {
+                prevImg.src = url;
+                prevWrap.classList.remove('hidden');
+            } else {
+                prevImg.src = '';
+                prevWrap.classList.add('hidden');
+            }
+        };
+
         window.uploadQuestionImage = async function(input) {
             const file = input.files[0];
             if (!file) return;
-            const fileName = `img_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
-            const { error } = await mySupabase.storage.from('exam_images').upload(fileName, file);
-            if (!error) {
-                const { data } = mySupabase.storage.from('exam_images').getPublicUrl(fileName);
-                if (data) {
+            const triggerLabel = input.closest('label');
+            const origHtml = triggerLabel ? triggerLabel.innerHTML : '';
+            input.value = '';
+
+            if (triggerLabel) {
+                triggerLabel.classList.add('opacity-70', 'pointer-events-none');
+                triggerLabel.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> กำลังอัป...`;
+            }
+
+            try {
+                const uploaded = await uploadFilesToExamStorage([file]);
+                if (uploaded && uploaded[0] && uploaded[0].url) {
                     const imgInp = document.getElementById('qImageUrl');
-                    if (imgInp) imgInp.value = data.publicUrl;
+                    if (imgInp) {
+                        imgInp.value = uploaded[0].url;
+                        refreshMainQuestionImagePreview();
+                    }
                 }
-            } else { Swal.fire('อัปโหลดล้มเหลว', error.message, 'error'); }
+            } catch (err) {
+                const msg = err.message || 'อัปโหลดรูปไม่สำเร็จ';
+                if (typeof Swal.showValidationMessage === 'function' && Swal.isVisible()) {
+                    Swal.showValidationMessage(`อัปโหลดรูปไม่สำเร็จ: ${msg}`);
+                } else {
+                    Swal.fire('อัปโหลดล้มเหลว', msg, 'error');
+                }
+            } finally {
+                if (triggerLabel && origHtml) {
+                    triggerLabel.classList.remove('opacity-70', 'pointer-events-none');
+                    triggerLabel.innerHTML = origHtml;
+                }
+            }
         };
 
         function openQuestionModalById(qId) {
@@ -1524,17 +1573,19 @@
                 const deleteBtn = i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1 mt-1"><i class="fas fa-times"></i></button>` : '';
                 const optInputId = `optField_${i}`;
                 const optPrevId = `optPrev_${i}`;
+                const hasOptImg = /!\[.*?\]\(.*?\)/.test(opt || '');
 
-                const optFieldHtml = isOnline
-                    ? `<div class="flex-1 space-y-1">
-                            <input id="${optInputId}" class="opt-text-input w-full px-3 py-1 border rounded-xl dark:bg-slate-800 text-xs" value="${escapeHtml(opt)}" oninput="refreshMarkdownPreview('${optInputId}', '${optPrevId}')">
-                            <div class="flex items-center gap-2 text-[10px]">
-                                <label class="text-sky-600 dark:text-sky-400 font-bold cursor-pointer"><i class="fas fa-image"></i> แทรกรูป<input type="file" accept="image/*" class="hidden" onchange="handleEditorFileInsert(this, '${optInputId}', '${optPrevId}')"></label>
-                                <button type="button" onclick="toggleMarkdownPreviewPane('${optPrevId}'); refreshMarkdownPreview('${optInputId}', '${optPrevId}');" class="text-slate-500 underline">Preview</button>
-                            </div>
-                            <div id="${optPrevId}" onclick="handleMarkdownBodyClick(event)" class="hidden p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border prose dark:prose-invert max-w-none text-[11px]">${renderMarkdownSafe(opt)}</div>
-                       </div>`
-                    : `<input class="opt-text-input flex-1 px-3 py-1 border rounded-xl dark:bg-slate-800" value="${escapeHtml(opt)}">`;
+                const optFieldHtml = `
+                    <div class="flex-1 space-y-1">
+                        <input id="${optInputId}" class="opt-text-input w-full px-3 py-1 border rounded-xl dark:bg-slate-800 text-xs" value="${escapeHtml(opt)}" oninput="refreshMarkdownPreview('${optInputId}', '${optPrevId}')">
+                        <div class="flex items-center gap-2 text-[10px]">
+                            <label class="text-sky-600 dark:text-sky-400 font-bold cursor-pointer"><i class="fas fa-image"></i> แทรกรูป<input type="file" accept="image/*" class="hidden" onchange="handleEditorFileInsert(this, '${optInputId}', '${optPrevId}')"></label>
+                            <button type="button" onclick="insertImageUrlPromptIntoTextarea('${optInputId}', '${optPrevId}')" class="text-indigo-500 font-bold">URL รูป</button>
+                            <button type="button" onclick="toggleMarkdownPreviewPane('${optPrevId}'); refreshMarkdownPreview('${optInputId}', '${optPrevId}');" class="text-slate-500 underline">Preview</button>
+                        </div>
+                        <div id="${optPrevId}" onclick="handleMarkdownBodyClick(event)" class="${hasOptImg ? '' : 'hidden'} p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border prose dark:prose-invert max-w-none text-[11px]">${renderMarkdownSafe(opt)}</div>
+                    </div>
+                `;
 
                 return `<div class="flex items-start gap-2 option-row pt-1">
                     <input type="${allowMultiSelectInputs ? 'checkbox' : 'radio'}" name="swalCorrectChoice" value="${i}" ${isChecked ? 'checked' : ''} ${isBonusAll ? 'disabled' : ''} class="mt-2">
@@ -1561,40 +1612,44 @@
                 value: qData?.question_text || qData?.content || '',
                 rows: 4,
                 previewId: 'qTextMarkdownPreview',
-                placeholder: isOnline ? 'พิมพ์โจทย์ด้วย Markdown และวาง/ลากรูปภาพแทรกตรงไหนก็ได้...' : 'พิมพ์ข้อความโจทย์...'
+                placeholder: 'พิมพ์โจทย์ด้วย Markdown หรือกดปุ่ม "แทรกรูป/ไฟล์" / วางรูป (Ctrl+V) ตรงไหนก็ได้...'
             });
 
-            const imageUploadBlock = isOnline
-                ? `<div class="text-[11px] text-teal-600 dark:text-teal-400 bg-teal-500/5 border border-teal-500/20 p-2.5 rounded-xl">
-                        <i class="fas fa-info-circle mr-1"></i> โหมดพิมพ์โจทย์ลงระบบรองรับการแทรกรูปภาพตรงตำแหน่งที่ต้องการในช่องโจทย์/ตัวเลือก/โจทย์ร่วมได้ทันที (หรือใส่ลิงก์ URL รูปภาพเพิ่มเติมด้านล่างได้)
-                        <input type="hidden" id="qImageUrl" value="${escapeHtml(qData?.image_url || '')}">
-                   </div>`
-                : `<div>
-                        <label class="block font-bold mb-1">รูปภาพประกอบโจทย์ (ถ้ามี)</label>
-                        <div class="flex gap-2 items-center">
-                            <input id="qImageUrl" class="flex-1 px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-[11px]" value="${escapeHtml(qData?.image_url || '')}" placeholder="URL รูปภาพหรืออัปโหลดจากปุ่มขวา...">
-                            <label class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold text-xs cursor-pointer">
-                                <i class="fas fa-upload mr-1"></i> อัปรูป
-                                <input type="file" accept="image/*" class="hidden" onchange="uploadQuestionImage(this)">
-                            </label>
-                        </div>
-                   </div>`;
+            const existingMainImgUrl = qData?.image_url || '';
+            const imageUploadBlock = `
+                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="block font-bold">รูปภาพหลักด้านบนโจทย์ (ถ้ามี)</label>
+                        ${existingMainImgUrl ? `<button type="button" onclick="document.getElementById('qImageUrl').value=''; refreshMainQuestionImagePreview();" class="text-[10px] text-red-500 font-bold hover:underline">ลบรูปภาพหลัก</button>` : ''}
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <input id="qImageUrl" oninput="refreshMainQuestionImagePreview()" class="flex-1 px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-[11px]" value="${escapeHtml(existingMainImgUrl)}" placeholder="วาง URL รูปภาพหรือกดอัปโหลดจากปุ่มขวา...">
+                        <label class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold text-xs cursor-pointer shrink-0">
+                            <i class="fas fa-upload mr-1"></i> อัปรูป
+                            <input type="file" accept="image/*" class="hidden" onchange="uploadQuestionImage(this)">
+                        </label>
+                    </div>
+                    <div id="qMainImagePreviewWrap" class="${existingMainImgUrl ? '' : 'hidden'} pt-1">
+                        <img id="qMainImagePreviewImg" src="${escapeHtml(existingMainImgUrl)}" onclick="openEditorImageModal(this.src)" class="max-h-40 rounded-xl border border-slate-300 dark:border-slate-700 shadow-sm cursor-pointer">
+                    </div>
+                </div>
+            `;
 
-            const sharedPassageField = isOnline
-                ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                            <label class="block font-bold mb-1">ผูกกับชุดโจทย์ร่วม (ถ้ามี)</label>
-                            <select id="qSharedPassageId" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-teal-600 dark:text-teal-400">
-                                ${sharedPassageOptionsHtml}
-                            </select>
-                        </div>
-                        <div class="flex items-end">
-                            <button type="button" onclick="Swal.close(); openSharedPassageModal();" class="w-full px-3 py-1.5 bg-teal-600/10 hover:bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/30 rounded-xl font-bold text-xs">
-                                <i class="fas fa-plus mr-1"></i> สร้างชุดโจทย์ร่วมใหม่
-                            </button>
-                        </div>
-                   </div>`
-                : `<input type="hidden" id="qSharedPassageId" value="${escapeHtml(String(qData?.shared_passage_id || ''))}">`;
+            const sharedPassageField = `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-bold mb-1">ผูกกับชุดโจทย์ร่วม (ถ้ามี)</label>
+                        <select id="qSharedPassageId" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-teal-600 dark:text-teal-400">
+                            ${sharedPassageOptionsHtml}
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button type="button" onclick="Swal.close(); openSharedPassageModal();" class="w-full px-3 py-1.5 bg-teal-600/10 hover:bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/30 rounded-xl font-bold text-xs">
+                            <i class="fas fa-plus mr-1"></i> สร้างชุดโจทย์ร่วมใหม่
+                        </button>
+                    </div>
+                </div>
+            `;
 
             const { value: formValues } = await Swal.fire({
                 title: isEdit ? `แก้ไขโจทย์ ข้อที่ ${qData.question_number}` : 'เพิ่มข้อสอบใหม่',
@@ -2050,11 +2105,9 @@
                 didOpen: () => Swal.showLoading()
             });
 
-            if (isOnlineExamMode()) {
-                try {
-                    await mySupabase.from('exams').update({ shared_passages: sharedPassages }).eq('id', examId);
-                } catch (e) {}
-            }
+            try {
+                await mySupabase.from('exams').update({ shared_passages: sharedPassages }).eq('id', examId);
+            } catch (e) {}
             
             for (const q of cachedQuestions) {
                 const qScoreVal = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
