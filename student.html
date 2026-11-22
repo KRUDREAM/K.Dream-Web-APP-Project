@@ -319,24 +319,46 @@
                 <div id="quickPendingContainer" class="flex overflow-x-auto gap-3.5 pb-2 pt-1 hide-scrollbar snap-x snap-mandatory"></div>
             </div>
 
-            <div class="hitech-card p-4 sm:p-5 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-3">
-                <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
-                    <div class="relative w-full sm:w-72">
-                        <i class="fas fa-search absolute left-3.5 top-3 text-sky-500 text-xs"></i>
-                        <input type="text" id="searchExamInput" oninput="renderExamCatalog()" placeholder="ค้นหาชื่อชุดข้อสอบ..." class="w-full pl-9 pr-3.5 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none transition-all font-medium">
+            <div class="hitech-card p-4 sm:p-5 rounded-2xl space-y-3">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-3">
+                    <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
+                        <div class="relative w-full sm:w-72">
+                            <i class="fas fa-search absolute left-3.5 top-3 text-sky-500 text-xs"></i>
+                            <input type="text" id="searchExamInput" oninput="renderExamCatalog()" placeholder="ค้นหาชื่อชุดข้อสอบ หรือ #Tag..." class="w-full pl-9 pr-3.5 py-2 bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none transition-all font-medium">
+                        </div>
+                        <div class="flex items-center gap-1 bg-slate-100 dark:bg-darkinput p-1 rounded-xl border border-slate-200 dark:border-slate-800 w-full sm:w-auto">
+                            <button onclick="setStatusFilter('all')" id="statusFilterAll" class="flex-1 sm:flex-none px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm">ทั้งหมด</button>
+                            <button onclick="setStatusFilter('pending')" id="statusFilterPending" class="flex-1 sm:flex-none px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:text-sky-600 rounded-lg text-xs font-bold transition-all">ยังไม่ทำ</button>
+                            <button onclick="setStatusFilter('completed')" id="statusFilterCompleted" class="flex-1 sm:flex-none px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:text-sky-600 rounded-lg text-xs font-bold transition-all">เสร็จแล้ว</button>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-1 bg-slate-100 dark:bg-darkinput p-1 rounded-xl border border-slate-200 dark:border-slate-800 w-full sm:w-auto">
-                        <button onclick="setStatusFilter('all')" id="statusFilterAll" class="flex-1 sm:flex-none px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm">ทั้งหมด</button>
-                        <button onclick="setStatusFilter('pending')" id="statusFilterPending" class="flex-1 sm:flex-none px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:text-sky-600 rounded-lg text-xs font-bold transition-all">ยังไม่ทำ</button>
-                        <button onclick="setStatusFilter('completed')" id="statusFilterCompleted" class="flex-1 sm:flex-none px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:text-sky-600 rounded-lg text-xs font-bold transition-all">เสร็จแล้ว</button>
+
+                    <div class="flex items-center justify-between w-full md:w-auto gap-2">
+                        <button onclick="toggleStudentTagFilterBar()" id="studentTagBarToggleBtn" class="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
+                            <i class="fas fa-hashtag text-emerald-500"></i>
+                            <span id="studentTagBarToggleText">กรอง Tag</span>
+                            <span id="studentActiveTagCountBadge" class="hidden px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[10px]">0</span>
+                        </button>
+                        <span class="text-xs text-sky-700 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-950/40 px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900" id="examCountBadge">0 ชุด</span>
+                        <div class="flex items-center bg-slate-100 dark:bg-darkinput p-1 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0">
+                            <button onclick="setExamViewMode('grid')" id="examViewBtnGrid" class="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm" title="มุมมองการ์ด"><i class="fas fa-th-large"></i></button>
+                            <button onclick="setExamViewMode('list')" id="examViewBtnList" class="px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:text-sky-600 rounded-lg text-xs font-bold transition-all" title="มุมมองรายการ"><i class="fas fa-list"></i></button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between w-full md:w-auto gap-3">
-                    <span class="text-xs text-sky-700 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-950/40 px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900" id="examCountBadge">0 ชุด</span>
-                    <div class="flex items-center bg-slate-100 dark:bg-darkinput p-1 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0">
-                        <button onclick="setExamViewMode('grid')" id="examViewBtnGrid" class="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm" title="มุมมองการ์ด"><i class="fas fa-th-large"></i></button>
-                        <button onclick="setExamViewMode('list')" id="examViewBtnList" class="px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:text-sky-600 rounded-lg text-xs font-bold transition-all" title="มุมมองรายการ"><i class="fas fa-list"></i></button>
+                <!-- แถบเลือกกรอง Tag หลายอันฝั่งนักเรียน -->
+                <div id="studentTagFilterSection" class="pt-2.5 border-t border-slate-200/70 dark:border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <span class="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                            <i class="fas fa-tags text-emerald-500"></i> เลือก Tag เพื่อกรองชุดข้อสอบ (เลือกได้หลาย Tag)
+                        </span>
+                        <button id="clearStudentTagsBtn" onclick="clearStudentSelectedTags()" class="hidden text-[11px] font-bold text-rose-500 hover:underline">
+                            ล้าง Tag ที่เลือก
+                        </button>
+                    </div>
+                    <div id="studentTagChipsContainer" class="flex flex-wrap items-center gap-1.5">
+                        <span class="text-[11px] text-slate-400">ยังไม่มี Tag ในชุดข้อสอบ</span>
                     </div>
                 </div>
             </div>
@@ -490,6 +512,9 @@
         
         const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        const LOCAL_TAGS_KEY = 'lms_exam_tags_fallback_v1';
+        const LOCAL_ASSIGN_KEY = 'lms_exam_tag_assignments_fallback_v1';
+
         let currentStudentId = null;
         let currentStudentName = 'นักเรียน';
         let currentStudentData = null;
@@ -500,6 +525,10 @@
         let activeEnrolledCoursesList = [];    
         let activeEnrolledCourseIds = [];     
         let categoriesMap = {};
+        let tagsCatalogList = [];
+        let examTagIdsMap = {}; // { [examId]: [tagId, ...] }
+        let selectedStudentTagIds = new Set();
+        let isStudentTagBarVisible = true;
         let userAttempts = [];
         let examQuestionCounts = {};
         let examTotalScores = {}; 
@@ -517,6 +546,149 @@
         let chartRadarInstance = null;
         let allCategoryTags = new Set();
         let countdownInterval = null;
+
+        async function loadStudentExamTags() {
+            tagsCatalogList = [];
+            examTagIdsMap = {};
+
+            const { data: dbTags, error: tagErr } = await mySupabase.from('exam_tags').select('*').order('name');
+            if (!tagErr && dbTags) {
+                tagsCatalogList = dbTags;
+                const { data: dbAssign, error: assignErr } = await mySupabase.from('exam_tag_assignments').select('exam_id, tag_id');
+                if (!assignErr && dbAssign) {
+                    dbAssign.forEach(row => {
+                        const eId = String(row.exam_id);
+                        const tId = String(row.tag_id);
+                        if (!examTagIdsMap[eId]) examTagIdsMap[eId] = [];
+                        if (!examTagIdsMap[eId].includes(tId)) examTagIdsMap[eId].push(tId);
+                    });
+                }
+            } else {
+                try {
+                    tagsCatalogList = JSON.parse(localStorage.getItem(LOCAL_TAGS_KEY) || '[]');
+                    const localAssign = JSON.parse(localStorage.getItem(LOCAL_ASSIGN_KEY) || '{}');
+                    Object.keys(localAssign).forEach(eId => {
+                        examTagIdsMap[String(eId)] = (localAssign[eId] || []).map(String);
+                    });
+                } catch (e) {
+                    tagsCatalogList = [];
+                    examTagIdsMap = {};
+                }
+            }
+        }
+
+        function getTagLookupMap() {
+            const map = {};
+            tagsCatalogList.forEach(t => { map[String(t.id)] = t; });
+            return map;
+        }
+
+        function getTagsForExam(examId) {
+            const map = getTagLookupMap();
+            const ids = examTagIdsMap[String(examId)] || [];
+            return ids.map(id => map[String(id)]).filter(Boolean);
+        }
+
+        function toggleStudentTagFilterBar() {
+            isStudentTagBarVisible = !isStudentTagBarVisible;
+            const sec = document.getElementById('studentTagFilterSection');
+            const textEl = document.getElementById('studentTagBarToggleText');
+            if (sec) sec.classList.toggle('hidden', !isStudentTagBarVisible);
+            if (textEl) textEl.textContent = isStudentTagBarVisible ? 'ซ่อน Tag' : 'กรอง Tag';
+        }
+
+        function toggleStudentFilterTag(tagId) {
+            const key = String(tagId);
+            if (selectedStudentTagIds.has(key)) {
+                selectedStudentTagIds.delete(key);
+            } else {
+                selectedStudentTagIds.add(key);
+            }
+            renderStudentTagFilterChips();
+            renderExamCatalog();
+        }
+
+        function clearStudentSelectedTags() {
+            selectedStudentTagIds.clear();
+            renderStudentTagFilterChips();
+            renderExamCatalog();
+        }
+
+        function renderStudentTagFilterChips() {
+            const container = document.getElementById('studentTagChipsContainer');
+            const badge = document.getElementById('studentActiveTagCountBadge');
+            const clearBtn = document.getElementById('clearStudentTagsBtn');
+            if (!container) return;
+
+            const activeCount = selectedStudentTagIds.size;
+            if (badge) {
+                if (activeCount > 0) {
+                    badge.textContent = activeCount;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            if (clearBtn) {
+                clearBtn.classList.toggle('hidden', activeCount === 0);
+            }
+
+            const accessibleExams = allExams.filter(exam => isExamAccessibleToStudent(exam));
+            const availableTagIdSet = new Set();
+            accessibleExams.forEach(ex => {
+                (examTagIdsMap[String(ex.id)] || []).forEach(tId => availableTagIdSet.add(String(tId)));
+            });
+
+            const relevantTags = tagsCatalogList.filter(t => availableTagIdSet.has(String(t.id)));
+            if (relevantTags.length === 0) {
+                container.innerHTML = `<span class="text-[11px] text-slate-400">ยังไม่มี Tag ในชุดข้อสอบที่เปิดให้ทำ</span>`;
+                return;
+            }
+
+            container.innerHTML = relevantTags.map(t => {
+                const tId = String(t.id);
+                const isSelected = selectedStudentTagIds.has(tId);
+                const matchCount = accessibleExams.filter(ex => (examTagIdsMap[String(ex.id)] || []).includes(tId)).length;
+                return `
+                    <button
+                        type="button"
+                        onclick="toggleStudentFilterTag('${tId}')"
+                        class="px-2.5 py-1 rounded-full text-[11px] font-bold transition-all flex items-center gap-1 border ${
+                            isSelected
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
+                        }"
+                    >
+                        <span>#${t.name}</span>
+                        <span class="text-[10px] opacity-80">(${matchCount})</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function getExamTagBadgesHtml(examId) {
+            const tags = getTagsForExam(examId);
+            if (!tags || tags.length === 0) return '';
+            return `
+                <div class="flex flex-wrap items-center gap-1 mt-1">
+                    ${tags.map(t => {
+                        const tId = String(t.id);
+                        const active = selectedStudentTagIds.has(tId);
+                        return `
+                            <button
+                                type="button"
+                                onclick="event.stopPropagation(); toggleStudentFilterTag('${tId}')"
+                                class="px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors border ${
+                                    active
+                                        ? 'bg-emerald-600 text-white border-emerald-600'
+                                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+                                }"
+                            >#${t.name}</button>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
 
         function isAttemptSubmitted(att) {
             return Boolean(
@@ -1582,6 +1754,8 @@
             const { data: cats } = await mySupabase.from('exam_categories').select('*').order('name');
             if (cats) cats.forEach(c => categoriesMap[c.id] = c.name);
 
+            await loadStudentExamTags();
+
             const { data: exams } = await mySupabase.from('exams').select('*').order('created_at', { ascending: false });
             allExams = exams || [];
 
@@ -1608,6 +1782,7 @@
             const { data: attempts } = await mySupabase.from('exam_attempts').select('*').eq('student_id', currentStudentId).order('submission_time', { ascending: false });
             userAttempts = attempts || [];
 
+            renderStudentTagFilterChips();
             renderExamCatalog();
             renderExamHistory();
 
@@ -1632,7 +1807,9 @@
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, async (payload) => {
                     const { data: exams } = await mySupabase.from('exams').select('*').order('created_at', { ascending: false });
                     if (exams) allExams = exams;
+                    await loadStudentExamTags();
 
+                    renderStudentTagFilterChips();
                     renderExamCatalog();
                     renderExamHistory();
                     
@@ -1730,11 +1907,20 @@
             return extractExamCourseId(exam) === String(selectedGlobalCourseId);
         }
 
+        function matchesSelectedStudentTags(exam) {
+            if (selectedStudentTagIds.size === 0) return true;
+            const examTagsSet = new Set((examTagIdsMap[String(exam.id)] || []).map(String));
+            for (const reqTagId of selectedStudentTagIds) {
+                if (!examTagsSet.has(reqTagId)) return false;
+            }
+            return true;
+        }
+
         function renderExamCatalog() {
             const container = document.getElementById('examCategoriesGroupContainer');
             const quickPendingContainer = document.getElementById('quickPendingContainer');
             const quickPendingSection = document.getElementById('quickPendingSection');
-            const keyword = document.getElementById('searchExamInput').value.toLowerCase();
+            const keyword = document.getElementById('searchExamInput').value.toLowerCase().replace(/^#/, '');
             const now = new Date();
 
             const accessibleExams = allExams.filter(exam => isExamAccessibleToStudent(exam));
@@ -1748,7 +1934,15 @@
             document.getElementById('overallProgressBar').style.width = `${progressPercent}%`;
 
             const availableExams = activeExams.filter(exam => {
-                if (keyword && !exam.title.toLowerCase().includes(keyword) && (!exam.description || !exam.description.toLowerCase().includes(keyword))) return false;
+                if (!matchesSelectedStudentTags(exam)) return false;
+
+                if (keyword) {
+                    const examTagNames = getTagsForExam(exam.id).map(t => (t.name || '').toLowerCase()).join(' ');
+                    const inTitle = (exam.title || '').toLowerCase().includes(keyword);
+                    const inDesc = exam.description && exam.description.toLowerCase().includes(keyword);
+                    const inTags = examTagNames.includes(keyword);
+                    if (!inTitle && !inDesc && !inTags) return false;
+                }
 
                 const myAttemptsForExam = userAttempts.filter(a => a.exam_id === exam.id);
                 const completedCount = myAttemptsForExam.filter(a => isAttemptSubmitted(a)).length;
@@ -1777,7 +1971,7 @@
             quickPendingCount = pendingExamsList.length;
             document.getElementById('quickPendingCountText').textContent = quickPendingCount;
 
-            if (quickPendingCount > 0 && currentStatusFilter === 'all' && !keyword) {
+            if (quickPendingCount > 0 && currentStatusFilter === 'all' && !keyword && selectedStudentTagIds.size === 0) {
                 quickPendingSection.classList.remove('hidden');
                 quickPendingContainer.innerHTML = pendingExamsList.map(exam => {
                     const questionCount = examQuestionCounts[exam.id] || 0;
@@ -1787,6 +1981,7 @@
                     const freeTag = isFreeUnassignedExam(exam)
                         ? `<span class="px-1.5 py-0.5 bg-teal-500/15 text-teal-600 dark:text-teal-300 border border-teal-500/30 rounded text-[9px] font-bold">🆓 แจกฟรี</span>`
                         : '';
+                    const tagBadgesHtml = getExamTagBadgesHtml(exam.id);
                     
                     let dueDateHtml = '';
                     if (exam.due_date) {
@@ -1807,6 +2002,7 @@
                                     <button onclick="toggleStarExam('${exam.id}', event)" class="w-7 h-7 rounded-xl flex items-center justify-center transition-all ${isStarred ? 'text-amber-500 bg-amber-500/20' : 'text-slate-400 hover:text-amber-400 bg-sky-50 dark:bg-slate-800'}"><i class="${isStarred ? 'fas' : 'far'} fa-star text-xs"></i></button>
                                 </div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-1">${exam.title}</h3>
+                                ${tagBadgesHtml}
                                 <div class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 font-light prose dark:prose-invert">${renderedDesc}</div>
                                 ${dueDateHtml}
                             </div>
@@ -1822,7 +2018,14 @@
             }
 
             if (availableExams.length === 0) {
-                if (activeEnrolledCourseIds.length === 0 && !accessibleExams.some(isFreeUnassignedExam)) {
+                if (selectedStudentTagIds.size > 0 || keyword) {
+                    container.innerHTML = `
+                        <div class="hitech-card p-8 rounded-3xl text-center space-y-2.5">
+                            <div class="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">ไม่พบชุดข้อสอบที่ตรงกับ Tag หรือคำค้นหาที่เลือก</div>
+                            <button onclick="clearStudentSelectedTags(); document.getElementById('searchExamInput').value=''; renderExamCatalog();" class="px-3.5 py-1.5 bg-sky-600 text-white rounded-xl text-xs font-bold">ล้างตัวกรองทั้งหมด</button>
+                        </div>
+                    `;
+                } else if (activeEnrolledCourseIds.length === 0 && !accessibleExams.some(isFreeUnassignedExam)) {
                     container.innerHTML = `
                         <div class="hitech-card p-8 rounded-3xl text-center space-y-3 border-amber-500/40 bg-amber-500/5">
                             <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center text-2xl shadow-inner">
@@ -1889,6 +2092,7 @@
                 const freeBadgeHtml = isFreeUnassignedExam(exam)
                     ? `<span class="px-2 py-0.5 bg-teal-500/15 text-teal-600 dark:text-teal-300 border border-teal-500/30 rounded-lg text-[9px] sm:text-[10px] font-extrabold">🆓 แจกฟรี</span>`
                     : '';
+                const tagBadgesHtml = getExamTagBadgesHtml(exam.id);
 
                 let actionBtnHtml = '';
                 let statusBadge = '';
@@ -1945,6 +2149,7 @@
                                     <div class="flex items-center gap-1 flex-wrap justify-end">${freeBadgeHtml}${statusBadge}${starBtnHtml}</div>
                                 </div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-1">${exam.title}</h3>
+                                ${tagBadgesHtml}
                                 <div class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 font-light prose dark:prose-invert">${renderedExamDesc}</div>
                                 ${dueDateDisplayHtml}
                             </div>
@@ -1960,6 +2165,7 @@
                             <div class="space-y-1 flex-1 min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">${freeBadgeHtml}${statusBadge}<span class="text-[10px] sm:text-[11px] text-slate-500 font-bold"><i class="fas fa-list-ol mr-1 text-sky-500"></i> ${questionCount} ข้อ | ${durationMins} นาที</span></div>
                                 <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">${exam.title}</h3>
+                                ${tagBadgesHtml}
                                 <div class="text-[11px] text-slate-500 dark:text-slate-400 font-light truncate prose dark:prose-invert">${renderedExamDesc}</div>
                                 ${dueDateDisplayHtml}
                             </div>
@@ -1994,6 +2200,7 @@
             const durationMins = exam.duration || exam.time_limit || 'ไม่จำกัด';
             const isDark = document.documentElement.classList.contains('dark');
             const renderedExamDesc = renderMarkdown(exam.description || 'กรุณาอ่านคำชี้แจงและตรวจสอบเวลาให้เรียบร้อยก่อนกดปุ่มเริ่มทำข้อสอบ');
+            const tagBadgesHtml = getExamTagBadgesHtml(examId);
 
             const { value: confirmed } = await Swal.fire({
                 title: `<div class="text-base font-extrabold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-2"><i class="fas fa-clipboard-list"></i> คำชี้แจงก่อนเข้าสอบ</div>`,
@@ -2001,6 +2208,7 @@
                     <div class="space-y-3 text-left text-xs sm:text-sm bg-slate-50 dark:bg-darkinput p-4 rounded-2xl border border-sky-500/20">
                         <div class="font-bold text-slate-900 dark:text-white text-sm sm:text-base border-b border-slate-200 dark:border-slate-800 pb-2">
                             📝 ${exam.title} ${isFreeUnassignedExam(exam) ? '<span class="ml-1 px-2 py-0.5 bg-teal-500/15 text-teal-600 dark:text-teal-300 rounded text-[10px]">🆓 แจกฟรี</span>' : ''}
+                            ${tagBadgesHtml}
                         </div>
                         <div class="text-slate-600 dark:text-slate-300 font-light text-xs prose dark:prose-invert">
                             ${renderedExamDesc}
