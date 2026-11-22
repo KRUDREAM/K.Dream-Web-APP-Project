@@ -134,9 +134,14 @@
             </div>
 
             <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <button onclick="downloadExamSheet()" class="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-md shadow-sky-500/20" title="ดาวน์โหลดไฟล์ข้อสอบ">
+                    <i class="fas fa-file-alt"></i>
+                    <span class="hidden md:inline">ดาวน์โหลดข้อสอบ</span>
+                </button>
+
                 <button onclick="downloadSolutionSheet()" class="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-md shadow-emerald-500/20" title="ดาวน์โหลดไฟล์เฉลย">
                     <i class="fas fa-download"></i>
-                    <span>ดาวน์โหลดเฉลย</span>
+                    <span class="hidden sm:inline">ดาวน์โหลดเฉลย</span>
                 </button>
 
                 <button id="themeToggle" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white dark:bg-darkinput border border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-500 text-sky-600 dark:text-slate-300 transition-all" title="สลับธีม">
@@ -316,6 +321,10 @@
                     <option value="all">🏷️ ทุกหมวดหมู่</option>
                 </select>
 
+                <button onclick="downloadExamSheet()" class="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-sm">
+                    <i class="fas fa-file-alt"></i> ดาวน์โหลดข้อสอบ
+                </button>
+
                 <button onclick="downloadSolutionSheet()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-sm">
                     <i class="fas fa-file-download"></i> ดาวน์โหลดเฉลย
                 </button>
@@ -394,15 +403,11 @@
             return Math.max(0, Math.min(PERCENT_BUCKETS.length - 1, idx));
         }
 
-        // คำนวณตำแหน่ง x (หน่วย index ของแกนหมวดหมู่ 0..9) ตามค่าเปอร์เซ็นต์จริง (0..100%)
-        // โดยให้จุดกึ่งกลางของแต่ละช่วงอยู่ใกล้จุดกึ่งกลางของค่าเปอร์เซ็นต์ในช่วงนั้น
         function getContinuousBucketPosition(pct) {
             const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
             if (clamped <= 10) {
-                // ช่วง 0-10% กว้าง 10 หน่วย อยู่ที่ index 0 (กึ่งกลางคือ 5%)
                 return (clamped / 10) * 0.5;
             }
-            // สำหรับ > 10% ช่วง 11-20 คือ index 1 (กึ่งกลาง 15.5), 21-30 คือ index 2 (กึ่งกลาง 25.5) ...
             const approxBucket = (clamped - 5.5) / 9.9;
             return Math.max(0, Math.min(PERCENT_BUCKETS.length - 1, approxBucket));
         }
@@ -1099,6 +1104,114 @@
             typesetMathElements(container);
         }
 
+        function triggerHtmlDownload(filename, htmlContent) {
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function getAttachedExamFileUrl() {
+            if (!examData) return null;
+            const candidates = [
+                examData.exam_file_url,
+                examData.file_url,
+                examData.pdf_url,
+                examData.attachment_url,
+                examData.sheet_url,
+                examData.question_file_url
+            ];
+            for (const u of candidates) {
+                if (typeof u === 'string' && u.trim() !== '') return u.trim();
+            }
+            return null;
+        }
+
+        function downloadExamSheet() {
+            const attachedUrl = getAttachedExamFileUrl();
+            const title = examData?.title || 'ชุดข้อสอบ';
+            const cleanTitle = title.replace(/[\\/:*?"<>|]/g, '_');
+
+            if (attachedUrl && (!questionsData || questionsData.length === 0)) {
+                window.open(attachedUrl, '_blank', 'noopener,noreferrer');
+                return;
+            }
+
+            if (!questionsData || questionsData.length === 0) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'ไม่มีข้อมูลข้อสอบสำหรับดาวน์โหลด',
+                    confirmButtonColor: '#0284c7'
+                });
+                return;
+            }
+
+            const rowsHtml = questionsData.map((q, idx) => {
+                const qNum = q.question_number || (idx + 1);
+                const choices = getChoices(q);
+                const catName = (q.category_tag && String(q.category_tag).trim() !== '') ? String(q.category_tag).trim() : 'ทั่วไป';
+
+                return `
+                    <div class="card">
+                        <div class="head">
+                            <strong>ข้อที่ ${qNum}</strong>
+                            <span class="cat">#${catName}</span>
+                        </div>
+                        <div class="q-text">${renderMarkdownAndMath(q.question_text || q.question || '')}</div>
+                        ${choices.length > 0 ? `<div class="choices">${choices.map((c, i) => `<div class="choice-item"><strong>${['ก','ข','ค','ง','จ'][i] || (i+1)}.</strong> ${renderMarkdownAndMath(c)}</div>`).join('')}</div>` : `<div class="blank-box">คำตอบ: ________________________________________</div>`}
+                    </div>
+                `;
+            }).join('');
+
+            const attachedNotice = attachedUrl
+                ? `<div class="attach-bar">ไฟล์ข้อสอบต้นฉบับ: <a href="${attachedUrl}" target="_blank" rel="noopener noreferrer">${attachedUrl}</a></div>`
+                : '';
+
+            const htmlOutput = `<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ข้อสอบ - ${title}</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']], displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']] }
+};
+<\/script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"><\/script>
+<style>
+  body { font-family: 'Prompt', sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 24px; }
+  .wrap { max-width: 840px; margin: 0 auto; }
+  .banner { background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; padding: 20px 24px; border-radius: 16px; margin-bottom: 16px; }
+  .attach-bar { background: #e0f2fe; border: 1px solid #7dd3fc; color: #0369a1; padding: 10px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 16px; word-break: break-all; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 20px; margin-bottom: 14px; }
+  .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .cat { font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: #f1f5f9; color: #475569; }
+  .q-text { font-weight: 600; margin-bottom: 10px; }
+  .choices { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 10px; font-size: 13px; display: grid; gap: 6px; }
+  .blank-box { font-size: 13px; color: #64748b; padding-top: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner">
+    <h1 style="margin:0 0 6px;font-size:20px;">ข้อสอบ: ${title}</h1>
+    <div style="font-size:13px;">จำนวน ${questionsData.length} ข้อ • ดาวน์โหลดโดย: ${studentName}</div>
+  </div>
+  ${attachedNotice}
+  ${rowsHtml}
+</div>
+</body>
+</html>`;
+
+            triggerHtmlDownload(`ข้อสอบ_${cleanTitle}.html`, htmlOutput);
+        }
+
         function downloadSolutionSheet() {
             if (!questionsData || questionsData.length === 0) {
                 Swal.fire({
@@ -1192,16 +1305,8 @@ window.MathJax = {
 </body>
 </html>`;
 
-            const blob = new Blob([htmlOutput], { type: 'text/html;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
             const cleanTitle = title.replace(/[\\/:*?"<>|]/g, '_');
-            a.href = url;
-            a.download = `เฉลย_${cleanTitle}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            triggerHtmlDownload(`เฉลย_${cleanTitle}.html`, htmlOutput);
         }
 
         window.addEventListener('DOMContentLoaded', initResultAnalytics);
