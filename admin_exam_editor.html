@@ -107,6 +107,9 @@
             </div>
             
             <div class="flex items-center gap-2 shrink-0">
+                <button onclick="openCategoryManagerModal()" class="px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                    <i class="fas fa-tags"></i> หมวดหมู่โจทย์
+                </button>
                 <button onclick="openAuditLogModal()" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
                     <i class="fas fa-history"></i> Audit Log
                 </button>
@@ -227,27 +230,6 @@
             </button>
         </div>
 
-        <!-- Category Manager & Summary Card -->
-        <div id="categoryManagerCard" class="hitech-card p-6 rounded-2xl space-y-4 border-l-4 border-l-cyan-500">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-                <div>
-                    <h3 class="font-bold text-base flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
-                        <i class="fas fa-tags"></i> จัดการหมวดหมู่โจทย์ (แก้ไขชื่อยาวได้เต็มที่ & เลือกข้อเข้าหมวดหมู่)
-                    </h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ไม่จำกัดความยาวชื่อหมวดหมู่ สามารถกดแก้ไขชื่อหมวดหมู่และเลือกข้อสอบเข้า/ออกแต่ละหมวดหมู่ได้ทันที</p>
-                </div>
-                <button type="button" onclick="openCreateCategoryModal()" class="px-3.5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 shrink-0">
-                    <i class="fas fa-folder-plus"></i> สร้างหมวดหมู่ใหม่
-                </button>
-            </div>
-
-            <div id="categorySummaryChips" class="flex flex-wrap gap-2"></div>
-
-            <div id="categoryCardsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="col-span-full text-xs text-slate-400 py-2">กำลังโหลดหมวดหมู่โจทย์...</div>
-            </div>
-        </div>
-
         <!-- OMR Grid Container -->
         <div id="omrSectionCard" class="hitech-card p-6 rounded-2xl space-y-4">
             <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -271,9 +253,12 @@
                     <select id="categoryFilterDropdown" onchange="renderQuestionAccordions()" class="max-w-full sm:max-w-md px-4 py-2 bg-slate-100 dark:bg-slate-800 font-bold text-xs rounded-xl border border-slate-300 dark:border-slate-700 outline-none text-sky-600 dark:text-sky-400">
                         <option value="ALL">📂 แสดงหมวดหมู่โจทย์ทั้งหมด</option>
                     </select>
+                    <button type="button" onclick="openCategoryManagerModal()" class="px-3.5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs rounded-xl shadow-sm shrink-0"><i class="fas fa-tags mr-1"></i> จัดการหมวดหมู่</button>
                     <button onclick="openQuestionModal()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-sm shrink-0"><i class="fas fa-plus mr-1"></i> เพิ่มโจทย์ใหม่</button>
                 </div>
             </div>
+
+            <div id="categorySummaryChips" class="flex flex-wrap gap-2"></div>
 
             <div id="questionAccordionContainer" class="space-y-3">
                 <div class="text-center py-6 text-slate-400 text-xs">กำลังโหลดรายการคำถาม...</div>
@@ -322,6 +307,7 @@
         let currentExamData = null;
         let gradingCriteriaList = [];
         let enableCriteria = false;
+        let isCategoryManagerPopupOpen = false;
 
         function getQuestionMetaMap() {
             try {
@@ -621,9 +607,9 @@
                     Swal.fire('อัปโหลดล้มเหลว', msg, 'error');
                 }
             } finally {
-                if (triggerLabel && origHtml) {
+                if (triggerLabel && origLabelHtml) {
                     triggerLabel.classList.remove('opacity-70', 'pointer-events-none');
-                    triggerLabel.innerHTML = origHtml;
+                    triggerLabel.innerHTML = origLabelHtml;
                 }
             }
         }
@@ -1211,6 +1197,115 @@
             }
         }
 
+        function buildCategoryManagerCardsHtml() {
+            const categories = getAllDistinctCategories();
+            if (categories.length === 0) {
+                return `<div class="text-xs text-slate-400 py-4 text-center">ยังไม่มีหมวดหมู่โจทย์ กดปุ่ม "+ สร้างหมวดหมู่ใหม่" ด้านบนเพื่อเริ่มสร้าง</div>`;
+            }
+
+            return categories.map((catName, catIdx) => {
+                const assignedQuestions = cachedQuestions
+                    .filter(q => String(q.category_tag || '').trim() === catName)
+                    .sort((a, b) => (Number(a.question_number) || 0) - (Number(b.question_number) || 0));
+
+                const unassignedToThis = cachedQuestions
+                    .filter(q => String(q.category_tag || '').trim() !== catName)
+                    .sort((a, b) => (Number(a.question_number) || 0) - (Number(b.question_number) || 0));
+
+                const encodedCat = encodeURIComponent(catName);
+
+                const assignedBadgesHtml = assignedQuestions.length > 0
+                    ? assignedQuestions.map(q => {
+                        const qNum = q.question_number || '?';
+                        return `
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 text-[11px] font-bold">
+                                ข้อ ${qNum}
+                                <button type="button" onclick="removeQuestionFromCategory('${q.id}', decodeURIComponent('${encodedCat}'))" class="ml-0.5 text-red-500 hover:text-red-600" title="นำข้อ ${qNum} ออกจากหมวดหมู่นี้">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </span>
+                        `;
+                    }).join('')
+                    : `<span class="text-[11px] text-slate-400">ยังไม่มีข้อสอบในหมวดหมู่นี้</span>`;
+
+                const dropdownOptionsHtml = unassignedToThis.map(q => {
+                    const qNum = q.question_number || '?';
+                    const currentCatNote = q.category_tag ? ` [เดิม: ${q.category_tag}]` : '';
+                    const rawSnippet = String(q.question_text || q.content || '').replace(/!\[.*?\]\(.*?\)/g, '[รูป]').replace(/\s+/g, ' ').trim();
+                    const shortSnippet = rawSnippet.length > 42 ? `${rawSnippet.slice(0, 42)}...` : rawSnippet;
+                    return `<option value="${escapeHtml(String(q.id))}">ข้อ ${qNum}${escapeHtml(currentCatNote)}${shortSnippet ? ` — ${escapeHtml(shortSnippet)}` : ''}</option>`;
+                }).join('');
+
+                return `
+                    <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-cyan-500/30 space-y-2.5 text-left">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0 flex-1">
+                                <div class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">หมวดที่ ${catIdx + 1} (${assignedQuestions.length} ข้อ)</div>
+                                <div class="font-extrabold text-xs text-slate-900 dark:text-white break-words leading-snug mt-0.5">${escapeHtml(catName)}</div>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <button type="button" onclick="openEditCategoryModal(decodeURIComponent('${encodedCat}'))" class="px-2 py-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg text-[11px] font-bold">
+                                    <i class="fas fa-pen"></i> แก้ไขชื่อ
+                                </button>
+                                <button type="button" onclick="confirmDeleteCategory(decodeURIComponent('${encodedCat}'))" class="px-2 py-1 bg-red-100 dark:bg-red-950/50 text-red-600 rounded-lg text-[11px] font-bold" title="ลบหมวดหมู่นี้">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-1.5">
+                            ${assignedBadgesHtml}
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2">
+                            <select id="catAssignSelect_${catIdx}" class="flex-1 min-w-0 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-[11px] font-bold outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- เลือกข้อสอบเข้าหมวดหมู่นี้ --</option>
+                                ${dropdownOptionsHtml}
+                            </select>
+                            <button type="button" onclick="assignSelectedQuestionToCategory(${catIdx}, decodeURIComponent('${encodedCat}'))" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-[11px] font-bold shrink-0">
+                                <i class="fas fa-plus mr-1"></i> เพิ่ม
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function syncCategoryManagerPopupList() {
+            if (!isCategoryManagerPopupOpen) return;
+            const listEl = document.getElementById('swalCategoryPopupList');
+            if (listEl) {
+                listEl.innerHTML = buildCategoryManagerCardsHtml();
+            }
+        }
+
+        window.openCategoryManagerModal = function() {
+            isCategoryManagerPopupOpen = true;
+            Swal.fire({
+                title: '🏷️ จัดการหมวดหมู่โจทย์',
+                width: '760px',
+                html: `
+                    <div class="space-y-3 text-left text-xs">
+                        <div class="flex justify-between items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
+                            <span class="text-[11px] text-slate-400">แก้ไขชื่อหมวดหมู่ได้ไม่จำกัดความยาว และเลือกข้อสอบเข้า/ออกแต่ละหมวดได้ทันที</span>
+                            <button type="button" onclick="openCreateCategoryModal()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-[11px] rounded-xl shrink-0">
+                                <i class="fas fa-folder-plus mr-1"></i> สร้างหมวดหมู่ใหม่
+                            </button>
+                        </div>
+                        <div id="swalCategoryPopupList" class="space-y-2.5 max-h-[62vh] overflow-y-auto pr-1">
+                            ${buildCategoryManagerCardsHtml()}
+                        </div>
+                    </div>
+                `,
+                showConfirmButton: true,
+                confirmButtonText: 'เสร็จสิ้น',
+                confirmButtonColor: '#0284c7',
+                didDestroy: () => {
+                    isCategoryManagerPopupOpen = false;
+                }
+            });
+        };
+
         function refreshCategoryRelatedViews(preserveFilter = true) {
             const dd = document.getElementById('categoryFilterDropdown');
             const prevFilterVal = preserveFilter && dd ? dd.value : 'ALL';
@@ -1246,95 +1341,18 @@
                 }
             }
 
-            renderCategoryManagerCards();
+            syncCategoryManagerPopupList();
             renderQuestionAccordions();
             renderCriteriaTable();
         }
 
-        function renderCategoryManagerCards() {
-            const container = document.getElementById('categoryCardsContainer');
-            if (!container) return;
-
-            const categories = getAllDistinctCategories();
-            if (categories.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-xs text-slate-400 py-2">ยังไม่มีหมวดหมู่โจทย์ กดปุ่ม "สร้างหมวดหมู่ใหม่" ด้านบนเพื่อสร้างหมวดหมู่และเลือกข้อสอบเข้าหมวดหมู่</div>`;
-                return;
-            }
-
-            container.innerHTML = categories.map((catName, catIdx) => {
-                const assignedQuestions = cachedQuestions
-                    .filter(q => String(q.category_tag || '').trim() === catName)
-                    .sort((a, b) => (Number(a.question_number) || 0) - (Number(b.question_number) || 0));
-
-                const unassignedToThis = cachedQuestions
-                    .filter(q => String(q.category_tag || '').trim() !== catName)
-                    .sort((a, b) => (Number(a.question_number) || 0) - (Number(b.question_number) || 0));
-
-                const encodedCat = encodeURIComponent(catName);
-
-                const assignedBadgesHtml = assignedQuestions.length > 0
-                    ? assignedQuestions.map(q => {
-                        const qNum = q.question_number || '?';
-                        return `
-                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 text-[11px] font-bold">
-                                ข้อ ${qNum}
-                                <button type="button" onclick="removeQuestionFromCategory('${q.id}', decodeURIComponent('${encodedCat}'))" class="ml-0.5 text-red-500 hover:text-red-600" title="นำข้อ ${qNum} ออกจากหมวดหมู่นี้">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </span>
-                        `;
-                    }).join('')
-                    : `<span class="text-[11px] text-slate-400">ยังไม่มีข้อสอบในหมวดหมู่นี้</span>`;
-
-                const dropdownOptionsHtml = unassignedToThis.map(q => {
-                    const qNum = q.question_number || '?';
-                    const currentCatNote = q.category_tag ? ` [เดิม: ${q.category_tag}]` : ' [ยังไม่มีหมวดหมู่]';
-                    const rawSnippet = String(q.question_text || q.content || '').replace(/!\[.*?\]\(.*?\)/g, '[รูป]').replace(/\s+/g, ' ').trim();
-                    const shortSnippet = rawSnippet.length > 48 ? `${rawSnippet.slice(0, 48)}...` : rawSnippet;
-                    return `<option value="${escapeHtml(String(q.id))}">ข้อ ${qNum}${escapeHtml(currentCatNote)}${shortSnippet ? ` — ${escapeHtml(shortSnippet)}` : ''}</option>`;
-                }).join('');
-
-                return `
-                    <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-cyan-500/30 space-y-3 flex flex-col justify-between">
-                        <div class="space-y-2.5">
-                            <div class="flex items-start justify-between gap-2">
-                                <div class="min-w-0 flex-1">
-                                    <div class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">หมวดหมู่ที่ ${catIdx + 1} (${assignedQuestions.length} ข้อ)</div>
-                                    <div class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white break-words leading-snug mt-0.5">${escapeHtml(catName)}</div>
-                                </div>
-                                <div class="flex items-center gap-1 shrink-0">
-                                    <button type="button" onclick="openEditCategoryModal(decodeURIComponent('${encodedCat}'))" class="px-2.5 py-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg text-[11px] font-bold flex items-center gap-1" title="แก้ไขชื่อหมวดหมู่">
-                                        <i class="fas fa-pen"></i> แก้ไขชื่อ
-                                    </button>
-                                    <button type="button" onclick="confirmDeleteCategory(decodeURIComponent('${encodedCat}'))" class="px-2 py-1 bg-red-100 dark:bg-red-950/50 text-red-600 rounded-lg text-[11px] font-bold" title="ลบหมวดหมู่นี้">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="flex flex-wrap gap-1.5 pt-1">
-                                ${assignedBadgesHtml}
-                            </div>
-                        </div>
-
-                        <div class="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2">
-                            <select id="catAssignSelect_${catIdx}" class="flex-1 min-w-0 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-[11px] font-bold outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- เลือกข้อสอบเข้าหมวดหมู่นี้ --</option>
-                                ${dropdownOptionsHtml}
-                            </select>
-                            <button type="button" onclick="assignSelectedQuestionToCategory(${catIdx}, decodeURIComponent('${encodedCat}'))" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-[11px] font-bold shrink-0">
-                                <i class="fas fa-plus mr-1"></i> เพิ่มเข้าหมวดหมู่
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
         window.openCreateCategoryModal = async function() {
+            const wasPopupOpen = isCategoryManagerPopupOpen;
+            if (wasPopupOpen) isCategoryManagerPopupOpen = false;
+
             const questionCheckboxesHtml = cachedQuestions.map(q => {
                 const qNum = q.question_number || '?';
-                const tagNote = q.category_tag ? ` (หมวดปัจจุบัน: ${escapeHtml(q.category_tag)})` : '';
+                const tagNote = q.category_tag ? ` (เดิม: ${escapeHtml(q.category_tag)})` : '';
                 return `
                     <label class="flex items-start gap-2 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border border-slate-200 dark:border-slate-800">
                         <input type="checkbox" class="new-cat-q-cb mt-0.5" value="${escapeHtml(String(q.id))}">
@@ -1345,16 +1363,16 @@
 
             const { value: formRes } = await Swal.fire({
                 title: 'สร้างหมวดหมู่โจทย์ใหม่',
-                width: '680px',
+                width: '660px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
                         <div>
                             <label class="block font-bold mb-1">ชื่อหมวดหมู่ (พิมพ์ได้ยาวเต็มที่ ไม่จำกัดความยาว)</label>
-                            <textarea id="newCategoryNameInput" rows="2" class="w-full px-3 py-2 border rounded-xl dark:bg-slate-800 font-bold text-xs leading-relaxed" placeholder="พิมพ์ชื่อหมวดหมู่หรือตัวชี้วัด/มาตรฐานการเรียนรู้ที่ต้องการ..."></textarea>
+                            <textarea id="newCategoryNameInput" rows="2" class="w-full px-3 py-2 border rounded-xl dark:bg-slate-800 font-bold text-xs leading-relaxed" placeholder="พิมพ์ชื่อหมวดหมู่หรือตัวชี้วัดที่ต้องการ..."></textarea>
                         </div>
                         ${cachedQuestions.length > 0 ? `
                         <div>
-                            <label class="block font-bold mb-1">เลือกข้อสอบที่ต้องการจัดเข้าหมวดหมู่นี้ทันที (เลือกได้หลายข้อ หรือข้ามไว้เลือกทีหลังได้)</label>
+                            <label class="block font-bold mb-1">เลือกข้อสอบเข้าหมวดหมู่นี้ (เลือกได้หลายข้อ หรือข้ามไว้เลือกทีหลังได้)</label>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto p-1">
                                 ${questionCheckboxesHtml}
                             </div>
@@ -1381,21 +1399,26 @@
                 if (formRes.selectedIds.length > 0) {
                     await persistCategoryForQuestions(formRes.selectedIds, formRes.name);
                 }
-                await logAdminAction('สร้างหมวดหมู่โจทย์', `สร้างหมวดหมู่ "${formRes.name}" (กำหนด ${formRes.selectedIds.length} ข้อ)`);
+                await logAdminAction('สร้างหมวดหมู่โจทย์', `สร้างหมวดหมู่ "${formRes.name}" (${formRes.selectedIds.length} ข้อ)`);
                 refreshCategoryRelatedViews(true);
                 markAsModified();
             }
+
+            if (wasPopupOpen) openCategoryManagerModal();
         };
 
         window.openEditCategoryModal = async function(oldCategoryName) {
+            const wasPopupOpen = isCategoryManagerPopupOpen;
+            if (wasPopupOpen) isCategoryManagerPopupOpen = false;
+
             const { value: newCategoryName } = await Swal.fire({
                 title: 'แก้ไขชื่อหมวดหมู่โจทย์',
-                width: '650px',
+                width: '640px',
                 html: `
                     <div class="space-y-2 text-left text-xs">
                         <label class="block font-bold">ชื่อหมวดหมู่ใหม่ (พิมพ์ชื่อยาวได้เต็มที่ ไม่จำกัดความยาว)</label>
                         <textarea id="editCategoryNameInput" rows="3" class="w-full px-3 py-2 border rounded-xl dark:bg-slate-800 font-bold text-xs leading-relaxed">${escapeHtml(oldCategoryName)}</textarea>
-                        <p class="text-[11px] text-slate-400">ระบบจะอัปเดตชื่อหมวดหมู่ใหม่ให้ทุกข้อสอบที่อยู่ในหมวดหมู่นี้ รวมถึงเกณฑ์การประเมินผลโดยอัตโนมัติ</p>
+                        <p class="text-[11px] text-slate-400">ระบบจะอัปเดตชื่อหมวดหมู่ใหม่ให้ทุกข้อสอบที่อยู่ในหมวดหมู่นี้ รวมถึงเกณฑ์การประเมินผลอัตโนมัติ</p>
                     </div>
                 `,
                 showCancelButton: true,
@@ -1440,12 +1463,14 @@
                 refreshCategoryRelatedViews(true);
                 markAsModified();
             }
+
+            if (wasPopupOpen) openCategoryManagerModal();
         };
 
         window.assignSelectedQuestionToCategory = async function(catIdx, categoryName) {
             const sel = document.getElementById(`catAssignSelect_${catIdx}`);
             if (!sel || !sel.value) {
-                Swal.fire({ icon: 'info', title: 'กรุณาเลือกข้อสอบจากรายการก่อน', timer: 1300, showConfirmButton: false });
+                Swal.fire({ icon: 'info', title: 'กรุณาเลือกข้อสอบจากรายการก่อน', timer: 1200, showConfirmButton: false });
                 return;
             }
             const qId = sel.value;
@@ -1465,6 +1490,9 @@
         };
 
         window.confirmDeleteCategory = async function(categoryName) {
+            const wasPopupOpen = isCategoryManagerPopupOpen;
+            if (wasPopupOpen) isCategoryManagerPopupOpen = false;
+
             const res = await Swal.fire({
                 title: 'ลบหมวดหมู่นี้?',
                 html: `<div class="text-xs text-slate-500 break-words">หมวดหมู่: <b>${escapeHtml(categoryName)}</b><br>ข้อสอบที่อยู่ในหมวดหมู่นี้จะไม่ถูกลบ แต่จะถูกปลดออกจากหมวดหมู่</div>`,
@@ -1474,19 +1502,21 @@
                 confirmButtonText: 'ยืนยันลบหมวดหมู่',
                 cancelButtonText: 'ยกเลิก'
             });
-            if (!res.isConfirmed) return;
+            if (res.isConfirmed) {
+                const targetIds = cachedQuestions
+                    .filter(q => String(q.category_tag || '').trim() === categoryName)
+                    .map(q => q.id);
 
-            const targetIds = cachedQuestions
-                .filter(q => String(q.category_tag || '').trim() === categoryName)
-                .map(q => q.id);
-
-            if (targetIds.length > 0) {
-                await persistCategoryForQuestions(targetIds, '');
+                if (targetIds.length > 0) {
+                    await persistCategoryForQuestions(targetIds, '');
+                }
+                saveCustomCategoryNames(customCategoryNames.filter(c => c !== categoryName));
+                await logAdminAction('ลบหมวดหมู่โจทย์', `ลบหมวดหมู่ "${categoryName}"`);
+                refreshCategoryRelatedViews(true);
+                markAsModified();
             }
-            saveCustomCategoryNames(customCategoryNames.filter(c => c !== categoryName));
-            await logAdminAction('ลบหมวดหมู่โจทย์', `ลบหมวดหมู่ "${categoryName}"`);
-            refreshCategoryRelatedViews(true);
-            markAsModified();
+
+            if (wasPopupOpen) openCategoryManagerModal();
         };
 
         async function loadQuestions() {
