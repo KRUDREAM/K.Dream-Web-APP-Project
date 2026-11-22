@@ -25,9 +25,6 @@
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
-    <!-- html2canvas + jsPDF for Direct .pdf Generation -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     
     <script>
         (function() {
@@ -95,141 +92,6 @@
         .rich-inline p { display: inline; margin: 0; }
         mjx-container { display: inline-block !important; }
         mjx-container[display="true"] { display: block !important; margin: 0.4rem 0 !important; text-align: center; }
-
-        /* Dedicated A4 Sheet for Direct PDF Export */
-        #pdfExportStaging {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 794px;
-            background: #ffffff;
-            color: #0f172a;
-            padding: 32px 40px;
-            font-family: 'Prompt', sans-serif;
-            font-size: 14px;
-            line-height: 1.65;
-            letter-spacing: 0;
-            word-spacing: normal;
-            z-index: -9999;
-            opacity: 0;
-            pointer-events: none;
-            box-sizing: border-box;
-        }
-        #pdfExportStaging * {
-            font-family: 'Prompt', sans-serif !important;
-            box-sizing: border-box;
-        }
-        #pdfExportStaging code, #pdfExportStaging pre, #pdfExportStaging .pdf-code {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
-        }
-        #pdfExportStaging mjx-container, #pdfExportStaging mjx-container * {
-            font-family: initial !important;
-        }
-        #pdfExportStaging .pdf-section {
-            background: #ffffff;
-            padding-bottom: 6px;
-        }
-        #pdfExportStaging .pdf-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 2px solid #cbd5e1;
-            padding-bottom: 12px;
-            margin-bottom: 14px;
-            gap: 14px;
-        }
-        #pdfExportStaging .pdf-code {
-            font-weight: 700;
-            background: #e0f2fe;
-            color: #0369a1;
-            padding: 5px 11px;
-            border-radius: 7px;
-            font-size: 12px;
-            white-space: nowrap;
-        }
-        #pdfExportStaging .pdf-copyright {
-            background: #fffbeb;
-            border: 1px solid #f59e0b;
-            color: #78350f;
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 12px;
-            margin-bottom: 14px;
-        }
-        #pdfExportStaging .pdf-q-block {
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            padding: 12px 15px;
-            margin-bottom: 12px;
-            background: #ffffff;
-        }
-        #pdfExportStaging .pdf-q-header {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            font-weight: 700;
-            font-size: 14px;
-            color: #0f172a;
-            margin-bottom: 6px;
-        }
-        #pdfExportStaging .pdf-q-num {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 26px;
-            height: 26px;
-            padding: 0 7px;
-            border-radius: 7px;
-            background: #0284c7;
-            color: #ffffff;
-            font-size: 12px;
-            font-weight: 700;
-            line-height: 1;
-            flex-shrink: 0;
-            margin-top: 1px;
-        }
-        #pdfExportStaging .pdf-q-body {
-            flex: 1;
-            min-width: 0;
-        }
-        #pdfExportStaging .pdf-choices {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px 16px;
-            font-size: 13px;
-            color: #1e293b;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed #e2e8f0;
-        }
-        #pdfExportStaging .pdf-choice-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 6px;
-        }
-        #pdfExportStaging .pdf-ans-line {
-            border-bottom: 1px dotted #94a3b8;
-            height: 24px;
-            margin-top: 6px;
-        }
-        #pdfExportStaging .pdf-img {
-            max-width: 100%;
-            max-height: 230px;
-            width: auto;
-            height: auto;
-            border-radius: 8px;
-            margin: 8px 0 4px 0;
-            display: block;
-        }
-        #pdfExportStaging .pdf-footer {
-            margin-top: 14px;
-            padding-top: 10px;
-            border-top: 1px dashed #cbd5e1;
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: #475569;
-        }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100">
@@ -375,8 +237,6 @@
         </div>
     </main>
 
-    <div id="pdfExportStaging" aria-hidden="true"></div>
-
     <script>
         const SUPABASE_URL = 'https://fvsofdlmpnoeeqcpioeu.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2c29mZGxtcG5vZWVxY3Bpb2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjMwMjEsImV4cCI6MjEwNzQzOTAyMX0.U5nHS_fNHFlgR2rTSu0TrXVn_iIrEkvouHHD0zD4zaw';
@@ -384,8 +244,9 @@
 
         const LOCAL_TAGS_KEY = 'lms_exam_tags_fallback_v1';
         const LOCAL_ASSIGN_KEY = 'lms_exam_tag_assignments_fallback_v1';
-        const LOCAL_DOWNLOAD_FLAGS_KEY = 'lms_exam_allow_download_fallback_v1';
+        const LOCAL_EXAM_FILES_KEY = 'lms_exam_files_fallback_v1';
         const TAG_BAR_COLLAPSED_KEY = 'lms_tag_bar_collapsed_v1';
+        const EXAM_STORAGE_BUCKET = 'exam-files';
         const QUICK_TAG_LIMIT = 10;
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -464,29 +325,86 @@
             });
         }
 
-        function readLocalDownloadFlags() {
+        function readLocalExamFilesMeta() {
             try {
-                return JSON.parse(localStorage.getItem(LOCAL_DOWNLOAD_FLAGS_KEY) || '{}');
+                return JSON.parse(localStorage.getItem(LOCAL_EXAM_FILES_KEY) || '{}');
             } catch {
                 return {};
             }
         }
 
-        function writeLocalDownloadFlag(examId, allowed) {
+        function writeLocalExamFilesMeta(examId, metaObj) {
             if (!examId) return;
-            const mapObj = readLocalDownloadFlags();
-            mapObj[String(examId)] = Boolean(allowed);
-            localStorage.setItem(LOCAL_DOWNLOAD_FLAGS_KEY, JSON.stringify(mapObj));
+            const all = readLocalExamFilesMeta();
+            all[String(examId)] = {
+                ...(all[String(examId)] || {}),
+                ...metaObj
+            };
+            try {
+                localStorage.setItem(LOCAL_EXAM_FILES_KEY, JSON.stringify(all));
+            } catch (err) {
+                console.warn('LocalStorage quota note for exam file:', err);
+            }
         }
 
-        function getExamAllowDownload(examObj) {
-            if (!examObj) return false;
-            if (typeof examObj.allow_file_download === 'boolean') return examObj.allow_file_download;
-            if (examObj.id) {
-                const localMap = readLocalDownloadFlags();
-                if (typeof localMap[String(examObj.id)] === 'boolean') return localMap[String(examObj.id)];
+        function getExamFileConfig(examObj) {
+            const localMeta = (examObj && examObj.id) ? (readLocalExamFilesMeta()[String(examObj.id)] || {}) : {};
+            const allowDownload = typeof examObj?.allow_file_download === 'boolean'
+                ? examObj.allow_file_download
+                : Boolean(localMeta.allow_file_download);
+
+            const examFileUrl = examObj?.exam_file_url || examObj?.question_file_url || localMeta.exam_file_url || '';
+            const examFileName = examObj?.exam_file_name || examObj?.question_file_name || localMeta.exam_file_name || '';
+
+            const answerKeyFileUrl = examObj?.answer_key_file_url || examObj?.answer_file_url || examObj?.solution_file_url || localMeta.answer_key_file_url || '';
+            const answerKeyFileName = examObj?.answer_key_file_name || examObj?.answer_file_name || examObj?.solution_file_name || localMeta.answer_key_file_name || '';
+
+            return {
+                allow_file_download: allowDownload,
+                exam_file_url: examFileUrl,
+                exam_file_name: examFileName,
+                answer_key_file_url: answerKeyFileUrl,
+                answer_key_file_name: answerKeyFileName
+            };
+        }
+
+        async function uploadExamAssetFile(file, folderName, examCode) {
+            if (!file) return null;
+            const safeCode = (examCode || 'EXAM').replace(/[^a-zA-Z0-9_-]+/g, '-');
+            const ext = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : 'bin';
+            const filePath = `${folderName}/${safeCode}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+
+            try {
+                const { error: upErr } = await mySupabase.storage
+                    .from(EXAM_STORAGE_BUCKET)
+                    .upload(filePath, file, { upsert: true });
+
+                if (!upErr) {
+                    const { data: pubData } = mySupabase.storage
+                        .from(EXAM_STORAGE_BUCKET)
+                        .getPublicUrl(filePath);
+                    if (pubData?.publicUrl) {
+                        return {
+                            url: pubData.publicUrl,
+                            name: file.name
+                        };
+                    }
+                }
+            } catch (err) {
+                console.warn('Supabase Storage upload fallback:', err);
             }
-            return false;
+
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+
+            return {
+                url: dataUrl,
+                name: file.name
+            };
         }
 
         function isAttemptSubmitted(att) {
@@ -967,13 +885,6 @@
             return '1, 2, 3, 4';
         }
 
-        function getChoiceLabels(fmt) {
-            if (fmt === 'th_num') return ['ก', 'ข', 'ค', 'ง'];
-            if (fmt === 'upper') return ['A', 'B', 'C', 'D'];
-            if (fmt === 'lower') return ['a', 'b', 'c', 'd'];
-            return ['1', '2', '3', '4'];
-        }
-
         function getExamTagsHtml(examId) {
             const tags = getExamTags(examId);
             if (!tags || tags.length === 0) return '';
@@ -1062,6 +973,7 @@
             const submittedCount = (allAttemptsMap[String(e.id)] || []).length;
             const courseTagHtml = getCourseOrFreeTagHtml(e);
             const examTagsHtml = getExamTagsHtml(e.id);
+            const fileCfg = getExamFileConfig(e);
             const safeTitle = encodeURIComponent(e.title || 'ชุดข้อสอบ');
 
             let scheduleInfo = '';
@@ -1070,6 +982,17 @@
             }
             if (e.due_date) {
                 scheduleInfo += `<div class="text-[10px] text-rose-600 dark:text-rose-400 font-semibold"><i class="fas fa-hourglass-end mr-1"></i>ปิด: ${new Date(e.due_date).toLocaleString('th-TH')}${e.allow_late_submission ? ' <span class="text-amber-600 dark:text-amber-400">(ส่งช้าได้)</span>' : ''}</div>`;
+            }
+
+            const fileIndicators = [];
+            if (fileCfg.allow_file_download && fileCfg.exam_file_url) {
+                fileIndicators.push(`<span class="px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-300 text-[10px] font-semibold"><i class="fas fa-download mr-0.5"></i>โหลดโจทย์ได้</span>`);
+            }
+            if (fileCfg.answer_key_file_url) {
+                fileIndicators.push(`<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 text-[10px] font-semibold"><i class="fas fa-file-circle-check mr-0.5"></i>มีไฟล์เฉลย</span>`);
+            }
+            if (e.show_answer_instantly) {
+                fileIndicators.push(`<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 text-[10px] font-semibold"><i class="fas fa-bolt mr-0.5"></i>เฉลยทันที</span>`);
             }
 
             return `
@@ -1088,6 +1011,7 @@
                             <span><i class="far fa-clock text-sky-500 mr-1"></i>${e.time_limit || 60} นาที</span>
                             <span class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px]">${choiceLabel}</span>
                         </div>
+                        ${fileIndicators.length > 0 ? `<div class="flex flex-wrap items-center gap-1">${fileIndicators.join('')}</div>` : ''}
                         <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-200/70 dark:border-slate-700/60 text-xs">
                             <span class="text-slate-500 dark:text-slate-400">คะแนนเฉลี่ย:</span>
                             <span class="font-extrabold text-indigo-600 dark:text-indigo-400">${avgScore} <span class="text-[10px] font-normal text-slate-400">(ส่งแล้ว ${submittedCount})</span></span>
@@ -1183,7 +1107,7 @@
                 if (fetchErr || !sourceExam) throw new Error('ไม่พบข้อมูลชุดข้อสอบต้นฉบับ');
 
                 const isFree = isFreeUnassignedExam(sourceExam);
-                const allowDl = getExamAllowDownload(sourceExam);
+                const fileCfg = getExamFileConfig(sourceExam);
                 const newExamPayload = {
                     title: `${sourceExam.title} (สำเนา)`,
                     exam_code: `EXAM-${Math.floor(Math.random() * 9000 + 1000)}`,
@@ -1194,7 +1118,11 @@
                     course_id: isFree ? null : sourceExam.course_id,
                     is_free_public: isFree,
                     free_access: isFree,
-                    allow_file_download: allowDl,
+                    allow_file_download: fileCfg.allow_file_download,
+                    exam_file_url: fileCfg.exam_file_url,
+                    exam_file_name: fileCfg.exam_file_name,
+                    answer_key_file_url: fileCfg.answer_key_file_url,
+                    answer_key_file_name: fileCfg.answer_key_file_name,
                     time_limit: sourceExam.time_limit,
                     max_attempts: sourceExam.max_attempts,
                     status: 'draft',
@@ -1207,7 +1135,11 @@
 
                 let { data: insertedExam, error: insertExamErr } = await mySupabase.from('exams').insert([newExamPayload]).select().single();
                 if (insertExamErr) {
-                    const { is_free_public, free_access, allow_file_download, ...fallbackPayload } = newExamPayload;
+                    const {
+                        is_free_public, free_access, allow_file_download,
+                        exam_file_url, exam_file_name, answer_key_file_url, answer_key_file_name,
+                        ...fallbackPayload
+                    } = newExamPayload;
                     const fallbackRes = await mySupabase.from('exams').insert([fallbackPayload]).select().single();
                     insertedExam = fallbackRes.data;
                     insertExamErr = fallbackRes.error;
@@ -1215,7 +1147,7 @@
                 if (insertExamErr || !insertedExam) throw new Error(insertExamErr?.message || 'ไม่สามารถสร้างชุดข้อสอบใหม่ได้');
 
                 const newExamId = insertedExam.id;
-                writeLocalDownloadFlag(newExamId, allowDl);
+                writeLocalExamFilesMeta(newExamId, fileCfg);
 
                 const { data: sourceQuestions, error: qFetchErr } = await mySupabase.from('questions').select('*').eq('exam_id', sourceExamId);
                 
@@ -1645,382 +1577,52 @@
                 .replace(/"/g, '&quot;');
         }
 
-        function sanitizeFileSlug(str, fallback = 'exam-sample') {
-            const cleaned = String(str || '')
-                .trim()
-                .replace(/[^a-zA-Z0-9_-]+/g, '-')
-                .replace(/^-+|-+$/g, '')
-                .toLowerCase();
-            return cleaned || fallback;
-        }
-
-        function extractQuestionImageUrl(q) {
-            if (!q || typeof q !== 'object') return '';
-            const candidates = [q.image_url, q.image, q.img_url, q.picture_url, q.attachment_url];
-            for (const c of candidates) {
-                if (typeof c === 'string' && c.trim()) return c.trim();
-            }
-            return '';
-        }
-
-        function sortQuestionsByOrder(questions = []) {
-            return [...questions].sort((a, b) => {
-                const orderA = Number(a.question_number ?? a.order_index ?? a.number ?? a.sort_order);
-                const orderB = Number(b.question_number ?? b.order_index ?? b.number ?? b.sort_order);
-                const hasNumA = Number.isFinite(orderA) && orderA > 0;
-                const hasNumB = Number.isFinite(orderB) && orderB > 0;
-
-                if (hasNumA && hasNumB && orderA !== orderB) {
-                    return orderA - orderB;
-                }
-                if (hasNumA && !hasNumB) return -1;
-                if (!hasNumA && hasNumB) return 1;
-
-                const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                if (timeA !== timeB) return timeA - timeB;
-
-                return String(a.id || '').localeCompare(String(b.id || ''), 'en', { numeric: true });
-            });
-        }
-
-        async function fetchOrderedQuestionsForExam(examId) {
-            if (!examId) return [];
-            const { data, error } = await mySupabase
-                .from('questions')
-                .select('*')
-                .eq('exam_id', examId);
-            if (error || !Array.isArray(data)) return [];
-            return sortQuestionsByOrder(data);
-        }
-
-        async function waitForFontsAndImages(containerEl, timeoutMs = 4500) {
-            if (document.fonts && document.fonts.ready) {
-                try {
-                    await document.fonts.ready;
-                } catch {}
-            }
-
-            const imgs = Array.from(containerEl.querySelectorAll('img'));
-            if (imgs.length === 0) return;
-
-            await Promise.all(imgs.map(img => {
-                img.setAttribute('crossorigin', 'anonymous');
-                if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-                return new Promise(resolve => {
-                    const timer = setTimeout(resolve, timeoutMs);
-                    img.addEventListener('load', () => { clearTimeout(timer); resolve(); }, { once: true });
-                    img.addEventListener('error', () => { clearTimeout(timer); resolve(); }, { once: true });
-                });
-            }));
-        }
-
-        async function captureDomSectionToCanvas(sectionEl) {
-            return await window.html2canvas(sectionEl, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff',
-                logging: false,
-                windowWidth: sectionEl.scrollWidth || 794
-            });
-        }
-
-        async function generateDirectPdfFromStaging(stagingEl, fileName) {
-            await typesetMath(stagingEl);
-            await waitForFontsAndImages(stagingEl);
-            await new Promise(r => setTimeout(r, 180));
-
-            const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
-            if (!jsPDFCtor) {
-                throw new Error('ไม่พบไลบรารี jsPDF');
-            }
-
-            const pdf = new jsPDFCtor({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
-
-            const pageWidthMm = pdf.internal.pageSize.getWidth();
-            const pageHeightMm = pdf.internal.pageSize.getHeight();
-            const marginMm = 10;
-            const printableWidthMm = pageWidthMm - marginMm * 2;
-            const printableHeightMm = pageHeightMm - marginMm * 2;
-
-            const sections = Array.from(stagingEl.querySelectorAll('.pdf-section'));
-            const blocksToRender = sections.length > 0 ? sections : [stagingEl];
-
-            let currentPageYmm = 0;
-            let hasAddedContent = false;
-
-            for (const blockEl of blocksToRender) {
-                const canvas = await captureDomSectionToCanvas(blockEl);
-                if (!canvas.width || !canvas.height) continue;
-
-                const blockHeightMm = (canvas.height * printableWidthMm) / canvas.width;
-
-                if (blockHeightMm <= printableHeightMm) {
-                    if (hasAddedContent && currentPageYmm + blockHeightMm > printableHeightMm + 0.1) {
-                        pdf.addPage();
-                        currentPageYmm = 0;
-                    }
-                    const imgData = canvas.toDataURL('image/jpeg', 0.94);
-                    pdf.addImage(imgData, 'JPEG', marginMm, marginMm + currentPageYmm, printableWidthMm, blockHeightMm);
-                    currentPageYmm += blockHeightMm + 2;
-                    hasAddedContent = true;
-                } else {
-                    if (hasAddedContent && currentPageYmm > 0.1) {
-                        pdf.addPage();
-                        currentPageYmm = 0;
-                    }
-                    const pxPerMm = canvas.width / printableWidthMm;
-                    const sliceHeightPx = Math.floor(printableHeightMm * pxPerMm);
-                    let renderedY = 0;
-
-                    while (renderedY < canvas.height) {
-                        const currentSliceHeight = Math.min(sliceHeightPx, canvas.height - renderedY);
-                        const sliceCanvas = document.createElement('canvas');
-                        sliceCanvas.width = canvas.width;
-                        sliceCanvas.height = currentSliceHeight;
-
-                        const ctx = sliceCanvas.getContext('2d');
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-                        ctx.drawImage(
-                            canvas,
-                            0,
-                            renderedY,
-                            canvas.width,
-                            currentSliceHeight,
-                            0,
-                            0,
-                            canvas.width,
-                            currentSliceHeight
-                        );
-
-                        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.94);
-                        const sliceHeightMm = currentSliceHeight / pxPerMm;
-                        pdf.addImage(sliceData, 'JPEG', marginMm, marginMm, printableWidthMm, sliceHeightMm);
-
-                        renderedY += currentSliceHeight;
-                        hasAddedContent = true;
-                        if (renderedY < canvas.height) {
-                            pdf.addPage();
-                        }
-                    }
-                    currentPageYmm = 0;
-                }
-            }
-
-            pdf.save(fileName);
-        }
-
-        function buildSamplePdfSheetHtml(titleText, codeText, deliveryType, choiceFormat, questions = []) {
-            const labels = getChoiceLabels(choiceFormat);
-            const isPdfMode = deliveryType === 'pdf';
-            const orderedQuestions = sortQuestionsByOrder(questions);
-
-            const headerAndCopyrightSection = `
-                <div class="pdf-section">
-                    <div class="pdf-header">
-                        <div>
-                            <div style="font-size:12px;color:#0284c7;font-weight:700;">${escapePreviewHtml(
-                                isPdfMode
-                                    ? 'ตัวอย่างไฟล์ PDF ข้อสอบ (โหมดไฟล์ PDF)'
-                                    : 'ตัวอย่างไฟล์ PDF ข้อสอบ (สร้างจากโจทย์ที่พิมพ์ลงระบบ)'
-                            )}</div>
-                            <h1 class="rich-content" style="margin:4px 0 0 0;font-size:19px;font-weight:700;color:#0f172a;">${renderRichText(titleText)}</h1>
-                        </div>
-                        <span class="pdf-code">${escapePreviewHtml(codeText)}</span>
-                    </div>
-                    <div class="pdf-copyright">
-                        <strong>ประกาศลิขสิทธิ์และเงื่อนไขการใช้งาน:</strong> เอกสารนี้จัดทำขึ้นเพื่อการเรียนการสอนและทบทวนภายในระบบ LMS เท่านั้น ห้ามทำซ้ำ ดัดแปลง เผยแพร่ หรือจำหน่ายเพื่อการพาณิชย์โดยไม่ได้รับอนุญาต
-                    </div>
-                </div>
-            `;
-
-            const questionSections = orderedQuestions.length > 0
-                ? orderedQuestions.map((q, idx) => {
-                    const questionNumber = idx + 1;
-                    const qRaw = q.question_text || q.prompt || q.title || `โจทย์ข้อที่ ${questionNumber}`;
-                    const qHtml = renderRichText(qRaw);
-                    const qImgUrl = extractQuestionImageUrl(q);
-                    const qImgBlock = qImgUrl
-                        ? `<img class="pdf-img" src="${escapePreviewHtml(qImgUrl)}" alt="รูปประกอบข้อที่ ${questionNumber}">`
-                        : '';
-
-                    const rawChoices = Array.isArray(q.choices)
-                        ? q.choices
-                        : [q.choice_1, q.choice_2, q.choice_3, q.choice_4].filter(v => v !== undefined && v !== null && String(v).trim() !== '');
-
-                    const choicesBlock = rawChoices.length > 0
-                        ? `<div class="pdf-choices">${rawChoices.map((ch, cIdx) => {
-                            const chText = typeof ch === 'object' && ch !== null
-                                ? (ch.text || ch.label || ch.content || '')
-                                : ch;
-                            const chImg = typeof ch === 'object' && ch !== null
-                                ? (ch.image_url || ch.image || '')
-                                : '';
-                            return `
-                                <div class="pdf-choice-item">
-                                    <strong>${escapePreviewHtml(labels[cIdx] || String(cIdx + 1))}.</strong>
-                                    <div class="rich-inline" style="flex:1;min-width:0;">${renderRichText(chText, { inline: true })}${chImg ? `<img class="pdf-img" src="${escapePreviewHtml(chImg)}" alt="ตัวเลือก ${cIdx + 1}">` : ''}</div>
-                                </div>
-                            `;
-                        }).join('')}</div>`
-                        : `<div class="pdf-ans-line"></div><div class="pdf-ans-line"></div>`;
-
-                    return `
-                        <div class="pdf-section">
-                            <div class="pdf-q-block">
-                                <div class="pdf-q-header">
-                                    <span class="pdf-q-num">ข้อ ${questionNumber}</span>
-                                    <div class="pdf-q-body rich-content">${qHtml}</div>
-                                </div>
-                                ${qImgBlock}
-                                ${choicesBlock}
-                            </div>
-                        </div>
-                    `;
-                }).join('')
-                : `
-                    <div class="pdf-section">
-                        <div class="pdf-q-block">
-                            <div class="pdf-q-header">
-                                <span class="pdf-q-num">ข้อ 1</span>
-                                <div class="pdf-q-body rich-content">
-                                    <p>กำหนดฟังก์ชัน **กำลังสอง** $f(x) = ax^2 + bx + c$ โดยที่ $a \\neq 0$ และสูตรคำนวณรากสมการ:</p>
-                                    $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
-                                </div>
-                            </div>
-                            <div class="pdf-choices">
-                                <div class="pdf-choice-item"><strong>${escapePreviewHtml(labels[0])}.</strong> <span class="rich-inline">$\\Delta > 0$</span></div>
-                                <div class="pdf-choice-item"><strong>${escapePreviewHtml(labels[1])}.</strong> <span class="rich-inline">$\\Delta = 0$</span></div>
-                                <div class="pdf-choice-item"><strong>${escapePreviewHtml(labels[2])}.</strong> <span class="rich-inline">$\\Delta < 0$</span></div>
-                                <div class="pdf-choice-item"><strong>${escapePreviewHtml(labels[3])}.</strong> <span class="rich-inline"><strong>ไม่มีรากจริง</strong></span></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="pdf-section">
-                        <div class="pdf-q-block">
-                            <div class="pdf-q-header">
-                                <span class="pdf-q-num">ข้อ 2</span>
-                                <div class="pdf-q-body rich-content">
-                                    <p>ข้อสอบแสดงวิธีทำ / อัตนัย (จัดลำดับข้อชัดเจน และไม่ตัดแบ่งกล่องข้ามหน้า)</p>
-                                </div>
-                            </div>
-                            <div class="pdf-ans-line"></div>
-                            <div class="pdf-ans-line"></div>
-                        </div>
-                    </div>
-                `;
-
-            const footerSection = `
-                <div class="pdf-section">
-                    <div class="pdf-footer">
-                        <span>ชุดข้อสอบ: ${escapePreviewHtml(titleText)} (${escapePreviewHtml(codeText)})</span>
-                        <span>รูปแบบตัวเลือก: ${escapePreviewHtml(labels.join(', '))}</span>
-                    </div>
-                </div>
-            `;
-
-            return `${headerAndCopyrightSection}${questionSections}${footerSection}`;
-        }
-
-        window.downloadSampleExamPreview = async function(examId = '') {
+        window.syncExamFileUploadBox = function() {
             const deliveryType = document.querySelector('input[name="swalDeliveryType"]:checked')?.value || 'pdf';
-            const titleVal = (document.getElementById('swalTitle')?.value || '').trim() || 'ชุดข้อสอบตัวอย่าง';
-            const codeVal = (document.getElementById('swalExamCode')?.value || '').trim().toUpperCase() || 'EXAM-SAMPLE';
-            const choiceFormat = document.getElementById('swalChoiceFormat')?.value || 'num';
-            const slug = sanitizeFileSlug(`${codeVal}-${titleVal}`, 'exam-sample');
-            const stagingEl = document.getElementById('pdfExportStaging');
-            if (!stagingEl) return;
+            const allowDownloadCheck = document.getElementById('swalAllowFileDownload');
+            const onlineToggleWrap = document.getElementById('swalOnlineAllowDownloadWrap');
+            const pdfDirectWrap = document.getElementById('swalPdfDirectDownloadWrap');
+            const uploadBox = document.getElementById('swalExamFileUploadBox');
 
-            try {
-                const questions = examId ? await fetchOrderedQuestionsForExam(examId) : [];
-                stagingEl.innerHTML = buildSamplePdfSheetHtml(titleVal, codeVal, deliveryType, choiceFormat, questions);
-                await generateDirectPdfFromStaging(stagingEl, `${slug}-sample.pdf`);
-                stagingEl.innerHTML = '';
-            } catch (err) {
-                console.error('PDF export error:', err);
-                stagingEl.innerHTML = '';
-                Swal.fire('สร้างไฟล์ PDF ไม่สำเร็จ', err.message || 'ไม่สามารถสร้างไฟล์ PDF ได้', 'error');
+            if (!allowDownloadCheck || !uploadBox) return;
+
+            if (deliveryType === 'pdf') {
+                if (onlineToggleWrap) onlineToggleWrap.classList.add('hidden');
+                if (pdfDirectWrap) pdfDirectWrap.classList.remove('hidden');
+                uploadBox.classList.remove('hidden');
+            } else {
+                if (onlineToggleWrap) onlineToggleWrap.classList.remove('hidden');
+                if (pdfDirectWrap) pdfDirectWrap.classList.add('hidden');
+                if (allowDownloadCheck.checked) {
+                    uploadBox.classList.remove('hidden');
+                } else {
+                    uploadBox.classList.add('hidden');
+                }
             }
         };
 
-        window.updateStudentDownloadPreview = function() {
-            const previewBox = document.getElementById('swalStudentDownloadPreview');
-            if (!previewBox) return;
-
-            const allowDownload = Boolean(document.getElementById('swalAllowFileDownload')?.checked);
-            const deliveryType = document.querySelector('input[name="swalDeliveryType"]:checked')?.value || 'pdf';
-            const titleVal = (document.getElementById('swalTitle')?.value || '').trim() || 'ชื่อชุดข้อสอบตัวอย่าง';
-            const codeVal = (document.getElementById('swalExamCode')?.value || '').trim().toUpperCase() || 'EXAM-CODE';
-            const previewExamId = document.getElementById('swalExamIdHidden')?.value || '';
-
-            const isPdfMode = deliveryType === 'pdf';
-            const sourceDesc = isPdfMode
-                ? 'ดาวน์โหลดเป็นไฟล์ .pdf (โหมดไฟล์ PDF)'
-                : 'ดาวน์โหลดเป็นไฟล์ .pdf (สร้างจากโจทย์ Markdown, สมการคณิตศาสตร์ & รูปภาพ)';
-
-            const fileBadge = isPdfMode
-                ? `<span class="px-2 py-0.5 rounded bg-red-500/15 text-red-600 dark:text-red-400 font-bold text-[10px]"><i class="fas fa-file-pdf mr-1"></i>ไฟล์ .pdf</span>`
-                : `<span class="px-2 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300 font-bold text-[10px]"><i class="fas fa-file-pdf mr-1"></i>ส่งออกเป็น .pdf</span>`;
-
-            if (!allowDownload) {
-                previewBox.className = 'p-3 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 space-y-2 transition-all';
-                previewBox.innerHTML = `
-                    <div class="flex items-center justify-between gap-2 flex-wrap">
-                        <span class="font-bold text-[11px] text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                            <i class="fas fa-eye text-sky-500"></i> ตัวอย่างมุมมองที่นักเรียนจะเห็น (exam_take.html &amp; student_result.html)
-                        </span>
-                        <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-[10px]">
-                            <i class="fas fa-ban mr-1"></i>ปิดการดาวน์โหลด
-                        </span>
-                    </div>
-                    <div class="p-2.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-2">
-                        <div class="min-w-0">
-                            <div class="font-bold text-xs text-slate-800 dark:text-slate-100 truncate rich-inline">${renderRichText(titleVal, { inline: true })} <span class="font-mono text-[10px] text-slate-400">(${escapePreviewHtml(codeVal)})</span></div>
-                            <div class="text-[10px] text-slate-500 dark:text-slate-400">นักเรียนจะไม่เห็นปุ่มดาวน์โหลดไฟล์ — อ่าน/ทำข้อสอบบนหน้าเว็บเท่านั้น</div>
-                        </div>
-                        <span class="px-2.5 py-1 rounded-lg bg-slate-200/80 dark:bg-slate-800 text-slate-400 text-[10px] font-bold shrink-0 cursor-not-allowed">
-                            <i class="fas fa-lock mr-1"></i>ไม่เปิดให้โหลด
-                        </span>
-                    </div>
-                `;
-                typesetMath(previewBox);
-                return;
+        window.handleExamFileChosen = function(inputEl) {
+            const labelEl = document.getElementById('swalExamFileChosenName');
+            if (!labelEl) return;
+            const file = inputEl?.files?.[0];
+            if (file) {
+                labelEl.textContent = `ไฟล์ที่เลือกใหม่: ${file.name}`;
+                labelEl.classList.remove('hidden');
+            } else {
+                labelEl.classList.add('hidden');
             }
+        };
 
-            previewBox.className = 'p-3 rounded-xl bg-sky-500/10 dark:bg-sky-950/30 border border-sky-500/35 space-y-2 transition-all';
-            previewBox.innerHTML = `
-                <div class="flex items-center justify-between gap-2 flex-wrap">
-                    <span class="font-bold text-[11px] text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
-                        <i class="fas fa-eye text-sky-500"></i> ตัวอย่างมุมมองที่นักเรียนจะเห็น (exam_take.html &amp; student_result.html)
-                    </span>
-                    <div class="flex items-center gap-1.5">
-                        ${fileBadge}
-                        <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-[10px]">
-                            <i class="fas fa-check-circle mr-1"></i>เปิดให้ดาวน์โหลด
-                        </span>
-                    </div>
-                </div>
-                <div class="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-sky-500/25 flex items-center justify-between gap-2 shadow-sm">
-                    <div class="min-w-0 space-y-0.5">
-                        <div class="font-bold text-xs text-slate-900 dark:text-white truncate rich-inline">${renderRichText(titleVal, { inline: true })} <span class="font-mono text-[10px] text-sky-600 dark:text-sky-400">(${escapePreviewHtml(codeVal)})</span></div>
-                        <div class="text-[10px] text-slate-600 dark:text-slate-300">รูปแบบไฟล์: <strong>${sourceDesc}</strong></div>
-                    </div>
-                    <button type="button" onclick="downloadSampleExamPreview('${escapePreviewHtml(previewExamId)}')" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 active:scale-95 text-white text-[11px] font-bold shrink-0 shadow-sm flex items-center gap-1.5 transition-all cursor-pointer">
-                        <i class="fas fa-download"></i> ดาวน์โหลดข้อสอบ (.pdf)
-                    </button>
-                </div>
-                <div class="text-[10px] text-amber-700 dark:text-amber-300/90 flex items-start gap-1.5 leading-relaxed">
-                    <i class="fas fa-copyright mt-0.5 shrink-0"></i>
-                    <span><strong>ลิขสิทธิ์และการจัดหน้า:</strong> กดปุ่มเพื่อดาวน์โหลดไฟล์ <code>.pdf</code> เรียงเลขข้อชัดเจน พร้อมประกาศลิขสิทธิ์ก่อนใช้งานจริง</span>
-                </div>
-            `;
-            typesetMath(previewBox);
+        window.handleAnswerKeyFileChosen = function(inputEl) {
+            const labelEl = document.getElementById('swalAnswerKeyFileChosenName');
+            if (!labelEl) return;
+            const file = inputEl?.files?.[0];
+            if (file) {
+                labelEl.textContent = `ไฟล์เฉลยที่เลือกใหม่: ${file.name}`;
+                labelEl.classList.remove('hidden');
+            } else {
+                labelEl.classList.add('hidden');
+            }
         };
 
         async function openExamModal(examData = null) {
@@ -2038,7 +1640,7 @@
 
             const currentDelivery = examData?.delivery_type || examData?.exam_type || 'pdf';
             const currentChoiceFormat = examData?.choice_format || 'num';
-            const currentAllowDownload = examData ? getExamAllowDownload(examData) : false;
+            const fileCfg = getExamFileConfig(examData);
 
             modalSelectedTagIds = new Set(examData ? (examTagIdsMap[String(examData.id)] || []).map(String) : []);
             modalTagDropdownOpen = false;
@@ -2046,9 +1648,8 @@
 
             const { value: formValues } = await Swal.fire({
                 title: isEdit ? 'แก้ไขชุดข้อสอบ' : 'สร้างชุดข้อสอบใหม่',
-                width: '620px',
+                width: '640px',
                 html: `
-                    <input type="hidden" id="swalExamIdHidden" value="${examData?.id || ''}">
                     <div class="space-y-3 text-left text-xs">
                         <div class="p-3 rounded-xl bg-teal-500/10 border border-teal-500/30 space-y-2">
                             <label class="flex items-center gap-2 cursor-pointer font-bold text-teal-700 dark:text-teal-300">
@@ -2068,14 +1669,14 @@
                             <label class="block font-bold mb-1">ประเภทรูปแบบข้อสอบ <span class="text-red-500">*</span></label>
                             <div class="grid grid-cols-2 gap-2">
                                 <label class="p-2.5 border rounded-xl dark:border-slate-700 flex items-center gap-2 cursor-pointer hover:border-sky-500">
-                                    <input type="radio" name="swalDeliveryType" value="pdf" onchange="updateStudentDownloadPreview()" ${(!examData || currentDelivery === 'pdf') ? 'checked' : ''}>
+                                    <input type="radio" name="swalDeliveryType" value="pdf" onchange="syncExamFileUploadBox()" ${(!examData || currentDelivery === 'pdf') ? 'checked' : ''}>
                                     <div>
                                         <div class="font-bold"><i class="fas fa-file-pdf text-red-500 mr-1"></i>ใช้ไฟล์ PDF</div>
-                                        <div class="text-[10px] text-slate-400">อ่านโจทย์จาก PDF + OMR</div>
+                                        <div class="text-[10px] text-slate-400">อัปโหลดไฟล์ PDF ข้อสอบ + OMR</div>
                                     </div>
                                 </label>
                                 <label class="p-2.5 border rounded-xl dark:border-slate-700 flex items-center gap-2 cursor-pointer hover:border-sky-500">
-                                    <input type="radio" name="swalDeliveryType" value="online" onchange="updateStudentDownloadPreview()" ${currentDelivery === 'online' ? 'checked' : ''}>
+                                    <input type="radio" name="swalDeliveryType" value="online" onchange="syncExamFileUploadBox()" ${currentDelivery === 'online' ? 'checked' : ''}>
                                     <div>
                                         <div class="font-bold"><i class="fas fa-keyboard text-purple-500 mr-1"></i>พิมพ์ลงระบบ</div>
                                         <div class="text-[10px] text-slate-400">รองรับ Markdown, สมการคณิตศาสตร์ &amp; รูปภาพ</div>
@@ -2085,16 +1686,42 @@
                         </div>
 
                         <div class="p-3 rounded-xl bg-sky-500/5 border border-sky-500/25 space-y-2.5">
-                            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-100">
-                                <input type="checkbox" id="swalAllowFileDownload" onchange="updateStudentDownloadPreview()" ${currentAllowDownload ? 'checked' : ''} class="w-4 h-4 rounded text-sky-600">
-                                <span><i class="fas fa-download text-sky-500 mr-1"></i>อนุญาตให้นักเรียนดาวน์โหลดไฟล์ข้อสอบ (ในหน้าทำข้อสอบ &amp; หน้าตรวจผลสอบ)</span>
+                            <div id="swalOnlineAllowDownloadWrap" class="${currentDelivery === 'online' ? '' : 'hidden'}">
+                                <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-100">
+                                    <input type="checkbox" id="swalAllowFileDownload" onchange="syncExamFileUploadBox()" ${fileCfg.allow_file_download ? 'checked' : ''} class="w-4 h-4 rounded text-sky-600">
+                                    <span><i class="fas fa-download text-sky-500 mr-1"></i>เปิดให้นักเรียนดาวน์โหลดไฟล์ข้อสอบได้ (กรณีพิมพ์คำตอบลงระบบ)</span>
+                                </label>
+                            </div>
+
+                            <div id="swalPdfDirectDownloadWrap" class="${currentDelivery === 'pdf' ? '' : 'hidden'}">
+                                <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-100">
+                                    <input type="checkbox" id="swalPdfAllowDownloadCheck" ${fileCfg.allow_file_download ? 'checked' : ''} class="w-4 h-4 rounded text-sky-600">
+                                    <span><i class="fas fa-file-pdf text-red-500 mr-1"></i>อนุญาตให้นักเรียนดาวน์โหลดไฟล์ PDF ข้อสอบที่อัปโหลด</span>
+                                </label>
+                            </div>
+
+                            <div id="swalExamFileUploadBox" class="space-y-1.5 pt-1">
+                                <label class="block font-bold text-sky-700 dark:text-sky-300">
+                                    <i class="fas fa-cloud-arrow-up mr-1"></i> อัปโหลดไฟล์ข้อสอบขึ้นระบบ
+                                </label>
+                                <input type="file" id="swalExamFileInput" accept=".pdf,.doc,.docx,.zip,.png,.jpg,.jpeg" onchange="handleExamFileChosen(this)" class="block w-full text-[11px] text-slate-600 dark:text-slate-300 file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-sky-600 file:text-white hover:file:bg-sky-700 cursor-pointer">
+                                ${fileCfg.exam_file_name ? `<div class="text-[10px] text-slate-500 dark:text-slate-400">ไฟล์ข้อสอบปัจจุบัน: <strong>${escapePreviewHtml(fileCfg.exam_file_name)}</strong></div>` : ''}
+                                <div id="swalExamFileChosenName" class="hidden text-[10px] text-sky-600 dark:text-sky-400 font-semibold"></div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/25 space-y-1.5">
+                            <label class="block font-bold text-emerald-700 dark:text-emerald-300">
+                                <i class="fas fa-file-circle-check mr-1"></i> อัปโหลดไฟล์เฉลยข้อสอบขึ้นระบบ
                             </label>
-                            <div id="swalStudentDownloadPreview"></div>
+                            <input type="file" id="swalAnswerKeyFileInput" accept=".pdf,.doc,.docx,.zip,.png,.jpg,.jpeg" onchange="handleAnswerKeyFileChosen(this)" class="block w-full text-[11px] text-slate-600 dark:text-slate-300 file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer">
+                            ${fileCfg.answer_key_file_name ? `<div class="text-[10px] text-slate-500 dark:text-slate-400">ไฟล์เฉลยปัจจุบัน: <strong>${escapePreviewHtml(fileCfg.answer_key_file_name)}</strong></div>` : ''}
+                            <div id="swalAnswerKeyFileChosenName" class="hidden text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold"></div>
                         </div>
 
                         <div>
                             <label class="block font-bold mb-1">รูปแบบกระดาษคำตอบ (Choice Format) <span class="text-red-500">*</span></label>
-                            <select id="swalChoiceFormat" onchange="updateStudentDownloadPreview()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold text-sky-600 dark:text-sky-400">
+                            <select id="swalChoiceFormat" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none font-bold text-sky-600 dark:text-sky-400">
                                 <option value="num" ${currentChoiceFormat === 'num' ? 'selected' : ''}>1, 2, 3, 4 (ค่าเริ่มต้น / Default)</option>
                                 <option value="th_num" ${currentChoiceFormat === 'th_num' ? 'selected' : ''}>ก, ข, ค, ง</option>
                                 <option value="upper" ${currentChoiceFormat === 'upper' ? 'selected' : ''}>A, B, C, D</option>
@@ -2105,11 +1732,11 @@
                         <div class="grid grid-cols-3 gap-2">
                             <div class="col-span-2">
                                 <label class="block font-bold mb-1">ชื่อชุดข้อสอบ (รองรับ Markdown &amp; $LaTeX$) <span class="text-red-500">*</span></label>
-                                <input id="swalTitle" oninput="updateStudentDownloadPreview()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" value="${escapePreviewHtml(examData?.title || '')}">
+                                <input id="swalTitle" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" value="${escapePreviewHtml(examData?.title || '')}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">รหัสข้อสอบ (Code)</label>
-                                <input id="swalExamCode" oninput="updateStudentDownloadPreview()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl font-mono uppercase outline-none" value="${escapePreviewHtml(examData?.exam_code || '')}">
+                                <input id="swalExamCode" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl font-mono uppercase outline-none" value="${escapePreviewHtml(examData?.exam_code || '')}">
                             </div>
                         </div>
 
@@ -2201,23 +1828,27 @@
                         <div class="pt-2 border-t dark:border-slate-800">
                             <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-200">
                                 <input type="checkbox" id="swalShowAnswerInstantly" ${examData?.show_answer_instantly ? 'checked' : ''} class="w-4 h-4 rounded text-sky-600">
-                                <span>เปิดเฉลยชุดข้อสอบทันทีหลังส่งข้อสอบ (Show Answer Instantly)</span>
+                                <span>แสดงผลและเฉลยทันทีหลังจากทำข้อสอบเสร็จ (Show Answer Instantly)</span>
                             </label>
                         </div>
                     </div>
                 `,
                 didOpen: () => {
                     renderModalMultiTagPicker();
-                    updateStudentDownloadPreview();
+                    syncExamFileUploadBox();
                 },
                 showCancelButton: true,
                 confirmButtonText: 'บันทึกข้อมูล',
                 cancelButtonText: 'ยกเลิก',
                 preConfirm: () => {
                     const title = document.getElementById('swalTitle').value.trim();
-                    const exam_code = document.getElementById('swalExamCode').value.trim().toUpperCase();
+                    const exam_code = document.getElementById('swalExamCode').value.trim().toUpperCase() || `EXAM-${Math.floor(Math.random()*9000+1000)}`;
                     const delivery_type = document.querySelector('input[name="swalDeliveryType"]:checked')?.value || 'pdf';
-                    const allow_file_download = Boolean(document.getElementById('swalAllowFileDownload')?.checked);
+                    const allow_file_download = delivery_type === 'pdf'
+                        ? Boolean(document.getElementById('swalPdfAllowDownloadCheck')?.checked)
+                        : Boolean(document.getElementById('swalAllowFileDownload')?.checked);
+                    const exam_file = document.getElementById('swalExamFileInput')?.files?.[0] || null;
+                    const answer_key_file = document.getElementById('swalAnswerKeyFileInput')?.files?.[0] || null;
                     const choice_format = document.getElementById('swalChoiceFormat').value;
                     const status = document.getElementById('swalStatus').value;
                     const hasDueDate = document.getElementById('hasDueDateCheck').checked;
@@ -2235,10 +1866,14 @@
                     return {
                         payload: {
                             title,
-                            exam_code: exam_code || `EXAM-${Math.floor(Math.random()*9000+1000)}`,
+                            exam_code,
                             delivery_type,
                             exam_type: delivery_type,
                             allow_file_download,
+                            exam_file_url: fileCfg.exam_file_url,
+                            exam_file_name: fileCfg.exam_file_name,
+                            answer_key_file_url: fileCfg.answer_key_file_url,
+                            answer_key_file_name: fileCfg.answer_key_file_name,
                             choice_format,
                             category_id: catVal ? catVal : null,
                             course_id: courseIdPayload,
@@ -2252,15 +1887,34 @@
                             start_time: (status === 'countdown' && document.getElementById('swalStartTime').value) ? new Date(document.getElementById('swalStartTime').value).toISOString() : null,
                             due_date: (hasDueDate && document.getElementById('swalDueDate').value) ? new Date(document.getElementById('swalDueDate').value).toISOString() : null
                         },
+                        exam_file,
+                        answer_key_file,
                         selectedTagIds: Array.from(modalSelectedTagIds)
                     };
                 }
             });
 
             if (formValues) {
-                Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                Swal.fire({ title: 'กำลังอัปโหลดไฟล์และบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-                const { payload, selectedTagIds } = formValues;
+                const { payload, exam_file, answer_key_file, selectedTagIds } = formValues;
+
+                if (exam_file) {
+                    const uploadedExamFile = await uploadExamAssetFile(exam_file, 'question-sheets', payload.exam_code);
+                    if (uploadedExamFile) {
+                        payload.exam_file_url = uploadedExamFile.url;
+                        payload.exam_file_name = uploadedExamFile.name;
+                    }
+                }
+
+                if (answer_key_file) {
+                    const uploadedAnswerFile = await uploadExamAssetFile(answer_key_file, 'answer-keys', payload.exam_code);
+                    if (uploadedAnswerFile) {
+                        payload.answer_key_file_url = uploadedAnswerFile.url;
+                        payload.answer_key_file_name = uploadedAnswerFile.name;
+                    }
+                }
+
                 let resError = null;
                 let savedExamId = isEdit ? examData.id : null;
                 let wasNotPublishedBefore = !isEdit || examData.status !== 'public';
@@ -2269,6 +1923,10 @@
                 delete coreExamPayload.is_free_public;
                 delete coreExamPayload.free_access;
                 delete coreExamPayload.allow_file_download;
+                delete coreExamPayload.exam_file_url;
+                delete coreExamPayload.exam_file_name;
+                delete coreExamPayload.answer_key_file_url;
+                delete coreExamPayload.answer_key_file_name;
 
                 if (isEdit) {
                     const { error } = await mySupabase.from('exams').update(payload).eq('id', examData.id);
@@ -2293,7 +1951,13 @@
                 }
 
                 if (!resError && savedExamId) {
-                    writeLocalDownloadFlag(savedExamId, payload.allow_file_download);
+                    writeLocalExamFilesMeta(savedExamId, {
+                        allow_file_download: payload.allow_file_download,
+                        exam_file_url: payload.exam_file_url,
+                        exam_file_name: payload.exam_file_name,
+                        answer_key_file_url: payload.answer_key_file_url,
+                        answer_key_file_name: payload.answer_key_file_name
+                    });
                     await saveExamTagAssignments(savedExamId, selectedTagIds);
                     await loadTagsAndAssignments();
                 }
