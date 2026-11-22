@@ -1525,7 +1525,7 @@
             document.getElementById('dueDateBox').className = checked ? 'space-y-2' : 'hidden';
         }
 
-        // ==================== ระบบจัดการ Tag (ไม่จำกัดจำนวน) ====================
+        // ==================== ระบบจัดการ Tag (เพิ่มได้เรื่อย ๆ ทันที) ====================
         async function ensureTagExists(rawName) {
             const clean = (rawName || '').replace(/^#+/, '').trim();
             if (!clean) return null;
@@ -1551,7 +1551,12 @@
             return localTag;
         }
 
-        async function openTagManagerModal() {
+        async function refreshTagManagerListDom() {
+            const listBox = document.getElementById('tagManagerListBox');
+            const titleEl = document.querySelector('#swal2-title');
+            if (titleEl) titleEl.textContent = `จัดการ Tag ข้อสอบ (${tagsList.length} Tag)`;
+            if (!listBox) return;
+
             const countByTag = {};
             Object.values(examTagIdsMap).forEach(arr => {
                 (arr || []).forEach(tId => {
@@ -1560,63 +1565,103 @@
                 });
             });
 
-            const tagRowsHtml = tagsList.length > 0
-                ? tagsList.map(t => {
-                    const tId = String(t.id);
-                    const cnt = countByTag[tId] || 0;
-                    const safeName = encodeURIComponent(t.name || '');
-                    return `
-                        <div class="flex justify-between items-center gap-2 p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs border border-slate-200/70 dark:border-slate-700/70">
-                            <div class="min-w-0">
-                                <span class="font-bold text-emerald-700 dark:text-emerald-300 block truncate">#${t.name}</span>
-                                <span class="text-[10px] text-slate-500 dark:text-slate-400">ใช้งานใน ${cnt} ชุดข้อสอบ</span>
-                            </div>
-                            <div class="flex items-center gap-1 shrink-0">
-                                <button onclick="openTagExamsEditor('${tId}', decodeURIComponent('${safeName}'))" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] transition-all">
-                                    <i class="fas fa-check-square mr-1"></i>ผูกชุดสอบ
-                                </button>
-                                <button onclick="renameTag('${tId}', decodeURIComponent('${safeName}'))" class="px-2 py-1 bg-sky-500/15 hover:bg-sky-500 text-sky-600 dark:text-sky-400 hover:text-white rounded-lg text-[11px] font-bold transition-all" title="แก้ไขชื่อ Tag">
-                                    <i class="fas fa-pen"></i>
-                                </button>
-                                <button onclick="deleteTag('${tId}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg text-[11px] transition-all" title="ลบ Tag">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }).join('')
-                : `<div class="text-center text-slate-400 py-4">ยังไม่มี Tag ในระบบ เพิ่มได้ไม่จำกัดจำนวน</div>`;
+            if (tagsList.length === 0) {
+                listBox.innerHTML = `<div class="text-center text-slate-400 py-4">ยังไม่มี Tag ในระบบ เพิ่มได้ไม่จำกัดจำนวน</div>`;
+                return;
+            }
 
-            const { value: newTagInput } = await Swal.fire({
+            listBox.innerHTML = tagsList.map(t => {
+                const tId = String(t.id);
+                const cnt = countByTag[tId] || 0;
+                const safeName = encodeURIComponent(t.name || '');
+                return `
+                    <div class="flex justify-between items-center gap-2 p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs border border-slate-200/70 dark:border-slate-700/70">
+                        <div class="min-w-0">
+                            <span class="font-bold text-emerald-700 dark:text-emerald-300 block truncate">#${t.name}</span>
+                            <span class="text-[10px] text-slate-500 dark:text-slate-400">ใช้งานใน ${cnt} ชุดข้อสอบ</span>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button type="button" onclick="openTagExamsEditor('${tId}', decodeURIComponent('${safeName}'))" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] transition-all">
+                                <i class="fas fa-check-square mr-1"></i>ผูกชุดสอบ
+                            </button>
+                            <button type="button" onclick="renameTag('${tId}', decodeURIComponent('${safeName}'))" class="px-2 py-1 bg-sky-500/15 hover:bg-sky-500 text-sky-600 dark:text-sky-400 hover:text-white rounded-lg text-[11px] font-bold transition-all" title="แก้ไขชื่อ Tag">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button type="button" onclick="deleteTag('${tId}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg text-[11px] transition-all" title="ลบ Tag">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.instantAddTagsFromModal = async function() {
+            const input = document.getElementById('newTagNameInput');
+            const btn = document.getElementById('instantAddTagBtn');
+            if (!input) return;
+
+            const raw = input.value.trim();
+            if (!raw) {
+                input.focus();
+                return;
+            }
+
+            const names = raw.split(',').map(s => s.replace(/^#+/, '').trim()).filter(Boolean);
+            if (names.length === 0) return;
+
+            if (btn) btn.disabled = true;
+            input.disabled = true;
+
+            for (const n of names) {
+                await ensureTagExists(n);
+            }
+
+            await loadTagsAndAssignments();
+            applySearchAndTagFilter();
+            await refreshTagManagerListDom();
+
+            input.value = '';
+            input.disabled = false;
+            if (btn) btn.disabled = false;
+            input.focus();
+        };
+
+        async function openTagManagerModal() {
+            await Swal.fire({
                 title: `จัดการ Tag ข้อสอบ (${tagsList.length} Tag)`,
                 width: '580px',
                 html: `
                     <div class="space-y-3 text-left text-xs">
                         <div class="text-[11px] text-slate-500 dark:text-slate-400">
-                            Tag เพิ่มได้ไม่จำกัด และ 1 ชุดข้อสอบมีได้หลาย Tag (พิมพ์หลาย Tag คั่นด้วยจุลภาคได้เลย)
+                            พิมพ์ชื่อ Tag แล้วกด <strong>Enter</strong> หรือกด <strong>+ เพิ่มทันที</strong> ได้เรื่อย ๆ โดยหน้าต่างไม่ปิด (คั่นด้วยจุลภาคเพื่อเพิ่มหลาย Tag พร้อมกันได้)
                         </div>
-                        <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1">${tagRowsHtml}</div>
-                        <div class="pt-2 border-t dark:border-slate-800">
-                            <label class="block font-bold mb-1">เพิ่ม Tag ใหม่</label>
-                            <input id="newTagNameInput" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none" placeholder="เช่น คณิตศาสตร์, สอวน., กลางภาค (คั่นด้วย , ได้)">
+                        <div class="flex gap-2">
+                            <input id="newTagNameInput" class="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl outline-none focus:border-emerald-500" placeholder="เช่น คณิตศาสตร์, สอวน., กลางภาค">
+                            <button type="button" id="instantAddTagBtn" onclick="instantAddTagsFromModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shrink-0 transition-all">
+                                <i class="fas fa-plus mr-1"></i>เพิ่มทันที
+                            </button>
                         </div>
+                        <div id="tagManagerListBox" class="space-y-1.5 max-h-60 overflow-y-auto pr-1"></div>
                     </div>
                 `,
-                showCancelButton: true,
-                confirmButtonText: '<i class="fas fa-plus mr-1"></i>เพิ่ม Tag',
-                cancelButtonText: 'ปิด',
-                preConfirm: () => document.getElementById('newTagNameInput').value.trim()
-            });
-
-            if (newTagInput) {
-                const names = newTagInput.split(',').map(s => s.replace(/^#+/, '').trim()).filter(Boolean);
-                for (const n of names) {
-                    await ensureTagExists(n);
+                showConfirmButton: false,
+                showCloseButton: true,
+                didOpen: async () => {
+                    await refreshTagManagerListDom();
+                    const input = document.getElementById('newTagNameInput');
+                    if (input) {
+                        input.focus();
+                        input.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.instantAddTagsFromModal();
+                            }
+                        });
+                    }
                 }
-                await loadTagsAndAssignments();
-                applySearchAndTagFilter();
-                openTagManagerModal();
-            }
+            });
         }
 
         async function renameTag(tagId, oldName) {
@@ -1742,7 +1787,7 @@
             openTagManagerModal();
         }
 
-        // ==================== ระบบจัดการหมวดหมู่ (คงไว้ตามเดิม) ====================
+        // ==================== ระบบจัดการหมวดหมู่ ====================
         async function openCategoryManagerModal() {
             const countByCat = {};
             allExamsRawData.forEach(e => {
