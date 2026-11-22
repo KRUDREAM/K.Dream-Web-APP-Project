@@ -18,10 +18,10 @@
                         sans: ['Kanit', 'sans-serif']
                     },
                     colors: {
-                        navy950: '#051129',
-                        navy900: '#0a1e44',
-                        navy800: '#102d63',
-                        navy700: '#193f85'
+                        admin950: '#061530',
+                        admin900: '#0b224d',
+                        admin800: '#12336e',
+                        admin700: '#1b4794'
                     }
                 }
             }
@@ -30,31 +30,32 @@
     <style>
         body {
             font-family: 'Kanit', sans-serif;
-            background-color: #f1f5f9;
-            color: #0a1e44;
+            background-color: #f4f7fb;
+            color: #0b224d;
             user-select: none;
             -webkit-user-select: none;
         }
 
-        .navy-nav {
-            background: #071738;
-            border-bottom: 2px solid #193f85;
-            box-shadow: 0 4px 16px rgba(7, 23, 56, 0.16);
-        }
-
-        .navy-card {
-            background: #ffffff;
-            border: 1.5px solid #cbd5e1;
-            box-shadow: 0 6px 20px rgba(7, 23, 56, 0.06);
-            border-radius: 1.25rem;
-        }
-
-        .navy-hero {
-            background: linear-gradient(135deg, #071738 0%, #0f295c 65%, #163a7d 100%);
+        .admin-topbar {
+            background: #0b224d;
             color: #ffffff;
-            border: 1.5px solid #1e468f;
-            box-shadow: 0 10px 26px rgba(7, 23, 56, 0.18);
-            border-radius: 1.25rem;
+            border-bottom: 3px solid #1b4794;
+            box-shadow: 0 2px 10px rgba(6, 21, 48, 0.14);
+        }
+
+        .admin-panel {
+            background: #ffffff;
+            border: 1px solid #d6e0f0;
+            border-radius: 0.875rem;
+            box-shadow: 0 2px 8px rgba(11, 34, 77, 0.04);
+        }
+
+        .admin-header-strip {
+            background: #ffffff;
+            border: 1px solid #d6e0f0;
+            border-left: 5px solid #0b224d;
+            border-radius: 0.875rem;
+            box-shadow: 0 2px 8px rgba(11, 34, 77, 0.05);
         }
 
         .result-bubble {
@@ -66,16 +67,16 @@
             justify-content: center;
             font-weight: 700;
             font-size: 12px;
-            border: 2px solid #94a3b8;
+            border: 1.5px solid #94a3b8;
             background-color: #ffffff;
-            color: #0a1e44;
+            color: #0b224d;
             flex-shrink: 0;
         }
 
         .result-bubble.student-choice {
-            border-color: #0a1e44 !important;
-            color: #0a1e44 !important;
-            background-color: #dbeafe !important;
+            border-color: #1b4794 !important;
+            color: #0b224d !important;
+            background-color: #e0ecff !important;
         }
 
         .result-bubble.correct-choice {
@@ -96,7 +97,7 @@
         }
 
         .hide-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(10, 30, 68, 0.3);
+            background: rgba(11, 34, 77, 0.25);
             border-radius: 9999px;
         }
 
@@ -113,9 +114,9 @@
             max-height: 260px;
             width: auto;
             height: auto;
-            border-radius: 0.75rem;
-            border: 1px solid #cbd5e1;
-            margin: 0.45rem 0;
+            border-radius: 0.5rem;
+            border: 1px solid #d6e0f0;
+            margin: 0.4rem 0;
             display: inline-block;
             background: #ffffff;
         }
@@ -123,8 +124,8 @@
         .rich-content .katex-display {
             overflow-x: auto;
             overflow-y: hidden;
-            padding: 0.25rem 0;
-            margin: 0.35rem 0;
+            padding: 0.2rem 0;
+            margin: 0.3rem 0;
         }
 
         .rich-content .katex {
@@ -132,119 +133,119 @@
         }
     </style>
 </head>
-<body class="min-h-screen pb-24">
+<body class="min-h-screen pb-20">
 
-    <!-- Navbar -->
-    <nav class="navy-nav fixed w-full top-0 z-40 text-white">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center gap-3">
+    <!-- Admin Topbar -->
+    <nav class="admin-topbar fixed w-full top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 h-14 flex justify-between items-center gap-3">
             <div class="flex items-center gap-3 min-w-0">
-                <button onclick="window.location.href = 'student.html'" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white hover:text-navy950 text-white border border-white/20 transition-all cursor-pointer shrink-0" title="กลับหน้าหลัก">
+                <button onclick="window.location.href = 'student.html'" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white hover:text-admin950 text-white border border-white/20 transition-all cursor-pointer shrink-0" title="กลับหน้าหลัก">
                     <i class="fas fa-arrow-left text-xs"></i>
                 </button>
-                <h1 class="font-bold text-sm sm:text-base text-white truncate" id="navTitle">ผลการสอบ & สถิติ</h1>
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="px-2 py-0.5 rounded bg-white text-admin950 text-[11px] font-bold shrink-0">ผลการสอบ</span>
+                    <h1 class="font-semibold text-sm sm:text-base text-white truncate" id="navTitle">ผลการสอบ & สถิติ</h1>
+                </div>
             </div>
-            <span class="px-3 py-1 rounded-lg bg-white/10 border border-white/20 text-xs font-semibold text-blue-100 shrink-0">
-                ระบบผลการสอบ
-            </span>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4 pt-24 space-y-6">
+    <main class="max-w-7xl mx-auto px-4 pt-20 space-y-5">
 
-        <!-- Header Summary Banner -->
-        <div class="navy-hero p-6 sm:p-7 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            <div class="space-y-3 w-full">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <span class="px-3.5 py-1 bg-white/15 text-white font-semibold text-xs rounded-full inline-flex items-center gap-1.5 border border-white/25">
-                        <i class="fas fa-circle-check text-emerald-300"></i> ตรวจผลคะแนนเรียบร้อย
+        <!-- Exam Summary Header Strip -->
+        <div class="admin-header-strip p-5 sm:p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+            <div class="space-y-2.5 w-full">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span class="px-3 py-1 bg-blue-50 text-admin900 font-semibold text-xs rounded-lg inline-flex items-center gap-1.5 border border-blue-200">
+                        <i class="fas fa-circle-check text-emerald-600"></i> ตรวจผลคะแนนเรียบร้อย
                     </span>
 
                     <!-- ปุ่มดาวน์โหลดไฟล์ข้อสอบ (.pdf) และปุ่มดาวน์โหลดไฟล์เฉลย (.pdf) -->
-                    <div class="flex flex-wrap items-center gap-2.5">
-                        <button id="downloadExamPdfBtn" type="button" onclick="downloadExamPdf()" class="hidden px-4 py-2 bg-white hover:bg-blue-50 text-navy950 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 shadow cursor-pointer">
-                            <i class="fas fa-file-pdf text-red-600"></i> <span>ดาวน์โหลดข้อสอบ (.pdf)</span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button id="downloadExamPdfBtn" type="button" onclick="downloadExamPdf()" class="hidden px-3.5 py-1.5 bg-admin900 hover:bg-admin800 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer">
+                            <i class="fas fa-file-pdf text-red-300"></i> <span>ดาวน์โหลดข้อสอบ (.pdf)</span>
                         </button>
-                        <button id="downloadAnswerKeyPdfBtn" type="button" onclick="downloadAnswerKeyPdf()" class="hidden px-4 py-2 bg-blue-950/90 hover:bg-blue-900 text-white border border-white/35 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 shadow cursor-pointer">
-                            <i class="fas fa-file-pdf text-sky-300"></i> <span>ดาวน์โหลดเฉลย (.pdf)</span>
+                        <button id="downloadAnswerKeyPdfBtn" type="button" onclick="downloadAnswerKeyPdf()" class="hidden px-3.5 py-1.5 bg-white hover:bg-blue-50 text-admin900 border border-admin800 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer">
+                            <i class="fas fa-file-pdf text-admin800"></i> <span>ดาวน์โหลดเฉลย (.pdf)</span>
                         </button>
                     </div>
                 </div>
 
-                <h2 class="text-xl sm:text-3xl font-extrabold text-white pt-1 rich-content" id="examTitle">กำลังโหลดชุดข้อสอบ...</h2>
+                <h2 class="text-lg sm:text-2xl font-bold text-admin950 rich-content" id="examTitle">กำลังโหลดชุดข้อสอบ...</h2>
 
-                <div class="flex flex-wrap items-center gap-4 text-xs sm:text-sm font-normal text-blue-100 pt-1">
-                    <span id="subTime"><i class="fas fa-clock mr-1 text-sky-300"></i> เวลาส่ง: --</span>
-                    <span id="timeSpentSpan"><i class="fas fa-hourglass-half mr-1 text-amber-300"></i> เวลาที่ใช้: --</span>
-                    <span id="studentName" class="text-white font-semibold"><i class="fas fa-user-graduate mr-1 text-sky-300"></i> ผู้สอบ: กำลังโหลด...</span>
+                <div class="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-600">
+                    <span id="subTime"><i class="fas fa-clock mr-1 text-admin800"></i> เวลาส่ง: --</span>
+                    <span id="timeSpentSpan"><i class="fas fa-hourglass-half mr-1 text-admin800"></i> เวลาที่ใช้: --</span>
+                    <span id="studentName" class="text-admin900 font-semibold"><i class="fas fa-user-graduate mr-1 text-admin800"></i> ผู้สอบ: กำลังโหลด...</span>
                 </div>
             </div>
 
-            <div class="flex items-center gap-4 bg-white text-navy950 p-4 rounded-2xl shrink-0 w-full lg:w-auto justify-around shadow-lg">
-                <div class="text-center px-4 border-r border-slate-200">
-                    <span class="text-[11px] text-slate-500 block font-bold uppercase">คะแนนที่ได้</span>
-                    <span class="text-3xl sm:text-4xl font-extrabold text-navy900" id="scoreVal">--</span>
+            <div class="flex items-center gap-4 bg-slate-50 border border-slate-200 px-5 py-3.5 rounded-xl shrink-0 w-full lg:w-auto justify-around">
+                <div class="text-center px-3 border-r border-slate-200">
+                    <span class="text-[11px] text-slate-500 block font-medium">คะแนนที่ได้</span>
+                    <span class="text-2xl sm:text-3xl font-extrabold text-admin900" id="scoreVal">--</span>
                 </div>
-                <div class="text-center px-4">
-                    <span class="text-[11px] text-slate-500 block font-bold uppercase">คะแนนเต็ม</span>
-                    <span class="text-3xl sm:text-4xl font-extrabold text-slate-700" id="totalVal">--</span>
+                <div class="text-center px-3">
+                    <span class="text-[11px] text-slate-500 block font-medium">คะแนนเต็ม</span>
+                    <span class="text-2xl sm:text-3xl font-extrabold text-slate-700" id="totalVal">--</span>
                 </div>
             </div>
         </div>
 
         <!-- Stats Overview Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="navy-card p-4 flex items-center gap-3.5 border-l-4 border-l-navy900">
-                <div class="w-11 h-11 rounded-xl bg-navy900 text-white flex items-center justify-center font-bold text-base shrink-0">
+            <div class="admin-panel p-4 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-admin900 text-white flex items-center justify-center text-sm shrink-0">
                     <i class="fas fa-trophy"></i>
                 </div>
                 <div>
-                    <span class="text-[11px] text-slate-500 block font-semibold">อันดับในห้อง</span>
-                    <span class="text-base sm:text-lg font-extrabold text-navy900" id="rankStat">#-- / --</span>
+                    <span class="text-xs text-slate-500 block">อันดับในห้อง</span>
+                    <span class="text-base sm:text-lg font-bold text-admin950" id="rankStat">#-- / --</span>
                 </div>
             </div>
-            <div class="navy-card p-4 flex items-center gap-3.5 border-l-4 border-l-navy800">
-                <div class="w-11 h-11 rounded-xl bg-blue-100 text-navy900 flex items-center justify-center font-bold text-base shrink-0">
+            <div class="admin-panel p-4 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-100 text-admin900 flex items-center justify-center text-sm shrink-0">
                     <i class="fas fa-chart-simple"></i>
                 </div>
                 <div>
-                    <span class="text-[11px] text-slate-500 block font-semibold">คะแนนเฉลี่ย</span>
-                    <span class="text-base sm:text-lg font-extrabold text-navy900" id="avgStat">--</span>
+                    <span class="text-xs text-slate-500 block">คะแนนเฉลี่ย</span>
+                    <span class="text-base sm:text-lg font-bold text-admin950" id="avgStat">--</span>
                 </div>
             </div>
-            <div class="navy-card p-4 flex items-center gap-3.5 border-l-4 border-l-navy700">
-                <div class="w-11 h-11 rounded-xl bg-blue-100 text-navy900 flex items-center justify-center font-bold text-base shrink-0">
+            <div class="admin-panel p-4 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-100 text-admin900 flex items-center justify-center text-sm shrink-0">
                     <i class="fas fa-medal"></i>
                 </div>
                 <div>
-                    <span class="text-[11px] text-slate-500 block font-semibold">คะแนนสูงสุด</span>
-                    <span class="text-base sm:text-lg font-extrabold text-navy900" id="maxStat">--</span>
+                    <span class="text-xs text-slate-500 block">คะแนนสูงสุด</span>
+                    <span class="text-base sm:text-lg font-bold text-admin950" id="maxStat">--</span>
                 </div>
             </div>
-            <div class="navy-card p-4 flex items-center gap-3.5 border-l-4 border-l-sky-700">
-                <div class="w-11 h-11 rounded-xl bg-navy900 text-white flex items-center justify-center font-bold text-base shrink-0">
+            <div class="admin-panel p-4 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-admin900 text-white flex items-center justify-center text-sm shrink-0">
                     <i class="fas fa-percent"></i>
                 </div>
                 <div>
-                    <span class="text-[11px] text-slate-500 block font-semibold">เปอร์เซ็นต์ไทล์</span>
-                    <span class="text-base sm:text-lg font-extrabold text-navy900" id="percentileStat">--</span>
+                    <span class="text-xs text-slate-500 block">เปอร์เซ็นต์ไทล์</span>
+                    <span class="text-base sm:text-lg font-bold text-admin950" id="percentileStat">--</span>
                 </div>
             </div>
         </div>
 
         <!-- Category Percentage Breakdown Table -->
-        <div id="categoryBreakdownCard" class="navy-card p-6 space-y-4 hidden">
+        <div id="categoryBreakdownCard" class="admin-panel p-5 space-y-3 hidden">
             <div class="flex justify-between items-center pb-3 border-b border-slate-200">
-                <h3 class="font-bold text-sm sm:text-base text-navy900 flex items-center gap-2" id="categoryTableTitle">
-                    <i class="fas fa-table-cells text-navy800"></i> สรุปผลคะแนนรายหมวดหมู่ (%)
+                <h3 class="font-bold text-sm sm:text-base text-admin950 flex items-center gap-2" id="categoryTableTitle">
+                    <i class="fas fa-table-cells text-admin800"></i> สรุปผลคะแนนรายหมวดหมู่ (%)
                 </h3>
             </div>
             <div class="overflow-x-auto hide-scrollbar">
                 <table class="w-full text-left border-collapse text-xs sm:text-sm">
                     <thead>
-                        <tr class="bg-navy900 text-white text-xs" id="categoryTableHeader">
-                            <th class="p-3 rounded-l-xl">หมวดหมู่ข้อสอบ</th>
+                        <tr class="bg-admin900 text-white text-xs" id="categoryTableHeader">
+                            <th class="p-3 rounded-l-lg">หมวดหมู่ข้อสอบ</th>
                             <th class="p-3 text-center">คะแนนที่ได้ / เต็ม</th>
-                            <th class="p-3 text-center rounded-r-xl">% คะแนน</th>
+                            <th class="p-3 text-center rounded-r-lg">% คะแนน</th>
                         </tr>
                     </thead>
                     <tbody id="categoryTableBody" class="divide-y divide-slate-200">
@@ -255,18 +256,18 @@
         </div>
 
         <!-- Score Distribution Chart Section -->
-        <div class="navy-card p-6 space-y-3">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div class="admin-panel p-5 space-y-3">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-slate-100">
                 <div>
-                    <h3 class="font-bold text-sm sm:text-base text-navy900 flex items-center gap-2">
-                        <i class="fas fa-chart-bar text-navy800"></i> แผนภูมิการกระจายตัวของคะแนน (% ช่วงละ 10%) พร้อมเส้นค่าเฉลี่ย
+                    <h3 class="font-bold text-sm sm:text-base text-admin950 flex items-center gap-2">
+                        <i class="fas fa-chart-bar text-admin800"></i> แผนภูมิการกระจายตัวของคะแนน (% ช่วงละ 10%) พร้อมเส้นค่าเฉลี่ย
                     </h3>
                     <p class="text-xs text-slate-500 mt-0.5">เปรียบเทียบสัดส่วนคะแนนของนักเรียนเทียบกับค่าเฉลี่ยในชั้นเรียน</p>
                 </div>
-                <div class="flex items-center gap-3 text-xs font-semibold text-navy900">
-                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-navy900 inline-block"></span> คะแนนของคุณ</span>
+                <div class="flex items-center gap-3 text-xs font-medium text-slate-700">
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-admin900 inline-block"></span> คะแนนของคุณ</span>
                     <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-300 inline-block"></span> เพื่อนในชั้นเรียน</span>
-                    <span class="flex items-center gap-1.5"><span class="w-4 h-1 bg-amber-500 inline-block rounded"></span> ค่าเฉลี่ย</span>
+                    <span class="flex items-center gap-1.5"><span class="w-4 h-0.5 bg-amber-500 inline-block"></span> ค่าเฉลี่ย</span>
                 </div>
             </div>
             <div class="h-64 sm:h-72 w-full relative pt-2">
@@ -276,21 +277,21 @@
         </div>
 
         <!-- Detailed Questions & Answers Section -->
-        <div class="navy-card p-6 space-y-4">
+        <div class="admin-panel p-5 space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200">
-                <h3 class="font-bold text-sm sm:text-base text-navy900 flex items-center gap-2">
-                    <i class="fas fa-list-check text-navy800"></i> รายละเอียดคะแนนรายข้อ
+                <h3 class="font-bold text-sm sm:text-base text-admin950 flex items-center gap-2">
+                    <i class="fas fa-list-check text-admin800"></i> รายละเอียดคะแนนรายข้อ
                 </h3>
 
-                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-300 text-xs">
-                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg font-bold bg-navy900 text-white transition-all cursor-pointer">ทั้งหมด (<span id="cnt-all">0</span>)</button>
-                    <button onclick="setFilter('correct')" id="filter-correct" class="px-3 py-1 rounded-lg font-bold text-navy900 hover:bg-white transition-all cursor-pointer">ถูก (<span id="cnt-correct">0</span>)</button>
-                    <button onclick="setFilter('wrong')" id="filter-wrong" class="px-3 py-1 rounded-lg font-bold text-navy900 hover:bg-white transition-all cursor-pointer">ผิด (<span id="cnt-wrong">0</span>)</button>
+                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
+                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-md font-semibold bg-admin900 text-white transition-all cursor-pointer">ทั้งหมด (<span id="cnt-all">0</span>)</button>
+                    <button onclick="setFilter('correct')" id="filter-correct" class="px-3 py-1 rounded-md font-semibold text-admin900 hover:bg-white transition-all cursor-pointer">ถูก (<span id="cnt-correct">0</span>)</button>
+                    <button onclick="setFilter('wrong')" id="filter-wrong" class="px-3 py-1 rounded-md font-semibold text-admin900 hover:bg-white transition-all cursor-pointer">ผิด (<span id="cnt-wrong">0</span>)</button>
                 </div>
             </div>
 
             <div id="resultsContainer" class="space-y-3 max-h-[70vh] overflow-y-auto pr-1 hide-scrollbar">
-                <div class="text-center py-12 text-navy900 text-xs flex items-center justify-center gap-2">
+                <div class="text-center py-12 text-admin900 text-xs flex items-center justify-center gap-2">
                     <i class="fas fa-spinner fa-spin"></i> กำลังประมวลผลข้อมูลผลการสอบ...
                 </div>
             </div>
@@ -361,7 +362,6 @@
             }
         }
 
-        // แปลงข้อความให้รองรับ Markdown รูปภาพ (![alt](url)) และสมการคณิตศาสตร์ ($...$, $$...$$, \(...\), \[...\])
         function renderRichText(rawText) {
             const text = String(rawText || '');
             if (!text.trim()) return '';
@@ -622,7 +622,7 @@
             if (examBtn) {
                 if (examPdf.canDownload) {
                     examBtn.classList.remove('hidden');
-                    examBtn.innerHTML = `<i class="fas fa-file-pdf text-red-600"></i> <span>ดาวน์โหลดข้อสอบ (.pdf)</span>`;
+                    examBtn.innerHTML = `<i class="fas fa-file-pdf text-red-300"></i> <span>ดาวน์โหลดข้อสอบ (.pdf)</span>`;
                 } else {
                     examBtn.classList.add('hidden');
                 }
@@ -632,7 +632,7 @@
             if (keyBtn) {
                 if (keyPdf.canDownload) {
                     keyBtn.classList.remove('hidden');
-                    keyBtn.innerHTML = `<i class="fas fa-file-pdf text-sky-300"></i> <span>ดาวน์โหลดเฉลย (.pdf)</span>`;
+                    keyBtn.innerHTML = `<i class="fas fa-file-pdf text-admin800"></i> <span>ดาวน์โหลดเฉลย (.pdf)</span>`;
                 } else {
                     keyBtn.classList.add('hidden');
                 }
@@ -925,11 +925,11 @@
                 cachedExamTitle = exam ? exam.title : 'ชุดข้อสอบออนไลน์';
                 document.getElementById('examTitle').innerHTML = renderRichText(cachedExamTitle);
                 document.getElementById('navTitle').textContent = cachedExamTitle;
-                document.getElementById('subTime').innerHTML = '<i class="fas fa-clock mr-1 text-sky-300"></i> เวลาส่ง: ' + new Date(attempt.submission_time || attempt.submitted_at || Date.now()).toLocaleString('th-TH');
+                document.getElementById('subTime').innerHTML = '<i class="fas fa-clock mr-1 text-admin800"></i> เวลาส่ง: ' + new Date(attempt.submission_time || attempt.submitted_at || Date.now()).toLocaleString('th-TH');
 
                 const timeSpentMin = calculateTimeSpentMinutes(attempt, exam);
                 const timeSpentText = timeSpentMin > 0 ? `${timeSpentMin.toFixed(1)} นาที` : 'ไม่ระบุ';
-                document.getElementById('timeSpentSpan').innerHTML = `<i class="fas fa-hourglass-half mr-1 text-amber-300"></i> เวลาที่ใช้: ${timeSpentText}`;
+                document.getElementById('timeSpentSpan').innerHTML = `<i class="fas fa-hourglass-half mr-1 text-admin800"></i> เวลาที่ใช้: ${timeSpentText}`;
 
                 const studentIdRef = attempt.student_id || attempt.user_id;
                 let studentName = 'นักเรียน';
@@ -941,7 +941,7 @@
                     }
                 }
                 cachedStudentName = studentName;
-                document.getElementById('studentName').innerHTML = '<i class="fas fa-user-graduate mr-1 text-sky-300"></i> ผู้สอบ: ' + escapeHtml(studentName);
+                document.getElementById('studentName').innerHTML = '<i class="fas fa-user-graduate mr-1 text-admin800"></i> ผู้สอบ: ' + escapeHtml(studentName);
 
                 let rawAns = attempt.answer_saved || {};
                 if (typeof rawAns === 'string') {
@@ -1021,45 +1021,45 @@
             const hasActiveCriteria = enableGradingCriteria && gradingCriteriaList.length > 0;
 
             if (titleEl) {
-                titleEl.innerHTML = `<i class="fas fa-table-cells text-navy800"></i> ${hasActiveCriteria ? 'สรุปผลคะแนนรายหมวดหมู่ (%) และระดับการประเมิน' : 'สรุปผลคะแนนรายหมวดหมู่ (%)'}`;
+                titleEl.innerHTML = `<i class="fas fa-table-cells text-admin800"></i> ${hasActiveCriteria ? 'สรุปผลคะแนนรายหมวดหมู่ (%) และระดับการประเมิน' : 'สรุปผลคะแนนรายหมวดหมู่ (%)'}`;
             }
 
             if (hasActiveCriteria) {
                 if (theadTr) {
                     theadTr.innerHTML = `
-                        <th class="p-3 rounded-l-xl">หมวดหมู่ข้อสอบ</th>
+                        <th class="p-3 rounded-l-lg">หมวดหมู่ข้อสอบ</th>
                         <th class="p-3 text-center">คะแนนที่ได้ / เต็ม</th>
                         <th class="p-3 text-center">% คะแนน</th>
-                        <th class="p-3 text-center rounded-r-xl">ระดับผลการประเมิน</th>
+                        <th class="p-3 text-center rounded-r-lg">ระดับผลการประเมิน</th>
                     `;
                 }
                 tbody.innerHTML = entries.map(([tag, stat]) => {
                     const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
                     const levelName = findCriteriaNameForCategoryAndPct(tag, pct);
                     return `
-                        <tr class="hover:bg-blue-50/60 transition-all">
-                            <td class="p-3 font-bold text-navy900 rich-content">${renderRichText(tag)}</td>
-                            <td class="p-3 text-center text-slate-700 font-semibold">${stat.correct} / ${stat.total}</td>
-                            <td class="p-3 text-center font-extrabold text-navy900">${pct}%</td>
-                            <td class="p-3 text-center font-bold text-navy800 rich-content">${renderRichText(levelName)}</td>
+                        <tr class="hover:bg-blue-50/50 transition-all">
+                            <td class="p-3 font-semibold text-admin950 rich-content">${renderRichText(tag)}</td>
+                            <td class="p-3 text-center text-slate-700">${stat.correct} / ${stat.total}</td>
+                            <td class="p-3 text-center font-bold text-admin900">${pct}%</td>
+                            <td class="p-3 text-center font-semibold text-admin800 rich-content">${renderRichText(levelName)}</td>
                         </tr>
                     `;
                 }).join('');
             } else {
                 if (theadTr) {
                     theadTr.innerHTML = `
-                        <th class="p-3 rounded-l-xl">หมวดหมู่ข้อสอบ</th>
+                        <th class="p-3 rounded-l-lg">หมวดหมู่ข้อสอบ</th>
                         <th class="p-3 text-center">คะแนนที่ได้ / เต็ม</th>
-                        <th class="p-3 text-center rounded-r-xl">% คะแนน</th>
+                        <th class="p-3 text-center rounded-r-lg">% คะแนน</th>
                     `;
                 }
                 tbody.innerHTML = entries.map(([tag, stat]) => {
                     const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
                     return `
-                        <tr class="hover:bg-blue-50/60 transition-all">
-                            <td class="p-3 font-bold text-navy900 rich-content">${renderRichText(tag)}</td>
-                            <td class="p-3 text-center text-slate-700 font-semibold">${stat.correct} / ${stat.total}</td>
-                            <td class="p-3 text-center font-extrabold text-navy900 rounded-r-xl">${pct}%</td>
+                        <tr class="hover:bg-blue-50/50 transition-all">
+                            <td class="p-3 font-semibold text-admin950 rich-content">${renderRichText(tag)}</td>
+                            <td class="p-3 text-center text-slate-700">${stat.correct} / ${stat.total}</td>
+                            <td class="p-3 text-center font-bold text-admin900 rounded-r-lg">${pct}%</td>
                         </tr>
                     `;
                 }).join('');
@@ -1153,8 +1153,8 @@
                 const labels = bins.map(b => b.label);
                 const dataCounts = bins.map(b => b.count);
 
-                const bgColors = bins.map((_, idx) => idx === studentBinIndex ? '#0a1e44' : '#cbd5e1');
-                const borderColors = bins.map((_, idx) => idx === studentBinIndex ? '#051129' : '#94a3b8');
+                const bgColors = bins.map((_, idx) => idx === studentBinIndex ? '#0b224d' : '#cbd5e1');
+                const borderColors = bins.map((_, idx) => idx === studentBinIndex ? '#061530' : '#94a3b8');
 
                 const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
                 const avgPct = totalQ > 0 ? (avgScore / totalQ) * 100 : 0;
@@ -1171,7 +1171,7 @@
                 if (avgPct > 100) avgBinIndex = 9;
 
                 document.getElementById('chartLegendInfo').innerHTML = `
-                    <span class="text-navy900 font-bold">คะแนนของคุณ: ${Math.round(studentPct)}%</span>
+                    <span class="text-admin900 font-bold">คะแนนของคุณ: ${Math.round(studentPct)}%</span>
                     (อยู่ช่วง ${studentBinIndex !== -1 ? bins[studentBinIndex].label : '--'}) |
                     <span class="text-amber-600 font-bold">ค่าเฉลี่ยชั้นเรียน: ${avgPct.toFixed(1)}%</span>
                 `;
@@ -1218,13 +1218,13 @@
                             y: {
                                 beginAtZero: true,
                                 ticks: { stepSize: 1, color: '#334155', font: { family: 'Kanit' } },
-                                grid: { color: 'rgba(10, 30, 68, 0.08)' },
-                                title: { display: true, text: 'จำนวนนักเรียน (คน)', color: '#0a1e44', font: { family: 'Kanit', size: 12, weight: 'bold' } }
+                                grid: { color: 'rgba(11, 34, 77, 0.08)' },
+                                title: { display: true, text: 'จำนวนนักเรียน (คน)', color: '#0b224d', font: { family: 'Kanit', size: 12, weight: 'bold' } }
                             },
                             x: {
                                 ticks: { color: '#334155', font: { family: 'Kanit' } },
                                 grid: { display: false },
-                                title: { display: true, text: 'ช่วงคะแนน (%)', color: '#0a1e44', font: { family: 'Kanit', size: 12, weight: 'bold' } }
+                                title: { display: true, text: 'ช่วงคะแนน (%)', color: '#0b224d', font: { family: 'Kanit', size: 12, weight: 'bold' } }
                             }
                         }
                     },
@@ -1241,8 +1241,8 @@
                 const btn = document.getElementById('filter-' + f);
                 if (btn) {
                     btn.className = f === type
-                        ? 'px-3 py-1 rounded-lg font-bold bg-navy900 text-white transition-all cursor-pointer'
-                        : 'px-3 py-1 rounded-lg font-bold text-navy900 hover:bg-white transition-all cursor-pointer';
+                        ? 'px-3 py-1 rounded-md font-semibold bg-admin900 text-white transition-all cursor-pointer'
+                        : 'px-3 py-1 rounded-md font-semibold text-admin900 hover:bg-white transition-all cursor-pointer';
                 }
             });
             renderResults();
@@ -1298,30 +1298,30 @@
                         else if (isPicked) { bClass += ' student-choice'; }
                     } else if (isPicked) {
                         bClass += ' student-choice';
-                        icon = '<span class="text-xs text-navy900 font-bold ml-auto">ที่คุณตอบ</span>';
+                        icon = '<span class="text-xs text-admin900 font-semibold ml-auto">ที่คุณตอบ</span>';
                     }
 
                     return `
-                        <div class="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200">
+                        <div class="flex items-center gap-2.5 p-2.5 rounded-lg bg-white border border-slate-200">
                             <div class="${bClass}">${String.fromCharCode(65 + optIdx)}</div>
-                            <span class="text-xs sm:text-sm text-navy900 rich-content flex-1">${renderRichText(optText)}</span>
+                            <span class="text-xs sm:text-sm text-admin950 rich-content flex-1">${renderRichText(optText)}</span>
                             ${icon}
                         </div>
                     `;
                 }).join('');
 
                 const badge = isFull
-                    ? `<span class="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold"><i class="fas fa-check-circle mr-1"></i> ถูก (+${earnedPts}/${maxPts})</span>`
-                    : `<span class="px-2.5 py-0.5 bg-red-100 text-red-700 border border-red-300 rounded-lg text-xs font-bold"><i class="fas fa-times-circle mr-1"></i> ได้ ${earnedPts}/${maxPts} คะแนน</span>`;
+                    ? `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-xs font-semibold"><i class="fas fa-check-circle mr-1"></i> ถูก (+${earnedPts}/${maxPts})</span>`
+                    : `<span class="px-2.5 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded-md text-xs font-semibold"><i class="fas fa-times-circle mr-1"></i> ได้ ${earnedPts}/${maxPts} คะแนน</span>`;
 
                 return `
-                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 hover:border-navy800 transition-all">
+                    <div class="p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-3 hover:border-admin800 transition-all">
                         <div class="flex justify-between items-center gap-2 flex-wrap">
-                            <span class="font-bold text-xs sm:text-sm text-navy900">ข้อที่ ${qNum} [${escapeHtml(tag)}]</span>
+                            <span class="font-bold text-xs sm:text-sm text-admin900">ข้อที่ ${qNum} [${escapeHtml(tag)}]</span>
                             ${badge}
                         </div>
-                        <div class="text-xs sm:text-sm font-semibold text-navy950 rich-content">${renderRichText(q.question_text || q.content || '')}</div>
-                        <div class="grid grid-cols-1 gap-1.5 bg-white p-2.5 rounded-xl border border-slate-200">${bubbles}</div>
+                        <div class="text-xs sm:text-sm font-semibold text-admin950 rich-content">${renderRichText(q.question_text || q.content || '')}</div>
+                        <div class="grid grid-cols-1 gap-1.5 bg-white p-2.5 rounded-lg border border-slate-200">${bubbles}</div>
                         ${!globalShowAnswerInstantly ? '<div class="text-xs text-amber-700 font-medium italic"><i class="fas fa-lock mr-1"></i>ชุดข้อสอบนี้ปิดการแสดงเฉลยคำตอบ</div>' : ''}
                     </div>
                 `;
