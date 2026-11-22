@@ -69,16 +69,14 @@
                 </div>
                 <span id="floatOverviewCount" class="text-[10px] font-bold text-sky-600 dark:text-sky-400">0/0</span>
             </div>
-            
+
             <div class="flex items-center justify-between text-[10px] text-slate-500 font-medium px-1">
                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> ตอบ</span>
                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700 inline-block"></span> ว่าง</span>
                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> ธง</span>
             </div>
 
-            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-56 overflow-y-auto pr-1 hide-scrollbar">
-                <!-- Populated dynamically -->
-            </div>
+            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-56 overflow-y-auto pr-1 hide-scrollbar"></div>
         </div>
 
         <button onclick="toggleOverviewSidebar()" id="toggleSidebarBtn" class="ml-1.5 w-6 h-12 bg-white dark:bg-darkbox border border-slate-200 dark:border-slate-800 rounded-r-xl shadow-md text-slate-500 hover:text-sky-500 flex items-center justify-center text-xs transition-all cursor-pointer" title="ซ่อน/แสดง แผงภาพรวม">
@@ -100,7 +98,7 @@
             </div>
 
             <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-                <button onclick="confirmSubmitExam()" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 shrink-0">
+                <button id="topSubmitBtn" onclick="confirmSubmitExam()" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 shrink-0">
                     <i class="fas fa-paper-plane"></i> <span class="hidden sm:inline">ส่งข้อสอบ</span>
                 </button>
 
@@ -126,19 +124,17 @@
     </nav>
 
     <main class="max-w-[96rem] mx-auto px-4 pt-24 space-y-6 lg:pl-16">
-        
         <div id="previewBanner" class="hidden p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex justify-between items-center text-xs font-bold text-indigo-600 dark:text-indigo-400">
             <span><i class="fas fa-eye mr-1.5"></i> โหมดดูตัวอย่างข้อสอบ (Preview Mode - คะแนนจะไม่ถูกบันทึก)</span>
             <button onclick="window.close()" class="px-3 py-1 bg-indigo-600 text-white rounded-lg">ปิดหน้าต่างนี้</button>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
             <!-- ฝั่งซ้าย: PDF Viewer -->
             <div id="pdfViewerCard" class="hidden lg:col-span-8 hitech-card p-4 rounded-3xl space-y-3 sticky top-24">
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <h3 class="font-bold text-xs text-red-600 flex items-center gap-1.5"><i class="fas fa-file-pdf"></i> เอกสารข้อสอบ (คลิกค้างแล้วลากดูได้อิสระ)</h3>
-                    
+
                     <div class="flex items-center gap-2 flex-wrap">
                         <button onclick="toggleZoomLock()" id="lockZoomBtn" class="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 flex items-center gap-1 transition-all">
                             <i class="fas fa-lock-open"></i> ล็อกซูม
@@ -171,7 +167,6 @@
                         <p id="choiceFormatSubLabel" class="text-[11px] text-slate-400 mt-1">รูปแบบตัวเลือก: กำลังโหลด...</p>
                     </div>
 
-                    <!-- ปุ่มสลับโหมดการแสดงผล -->
                     <div id="viewModeToggleContainer" class="hidden items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px]">
                         <button onclick="switchViewMode('scroll')" id="modeScrollBtn" class="px-3 py-1.5 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm">เลื่อนลง</button>
                         <button onclick="switchViewMode('step')" id="modeStepBtn" class="px-3 py-1.5 rounded-lg font-bold transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white">ทีละข้อ</button>
@@ -182,7 +177,6 @@
                     <div class="text-center py-12 text-slate-400 text-xs">กรุณากดเริ่มทำข้อสอบเพื่อแสดงชุดข้อสอบ</div>
                 </div>
 
-                <!-- ปุ่มควบคุมสำหรับโหมดทีละข้อ -->
                 <div id="stepPaginationFooter" class="hidden pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
                     <button onclick="prevStepQuestion()" id="prevStepBtn" class="px-4 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
                         <i class="fas fa-arrow-left"></i> ข้อก่อนหน้า
@@ -193,7 +187,6 @@
                     </button>
                 </div>
             </div>
-
         </div>
     </main>
 
@@ -209,7 +202,7 @@
         let currentExam = null;
         let currentStudentId = null;
         let currentQuestions = [];
-        let studentAnswers = {}; 
+        let studentAnswers = {};
         let flaggedQuestions = {};
         let timerInterval = null;
         let currentRemainingSeconds = 0;
@@ -224,7 +217,7 @@
         let currentZoom = 1.0;
         let isZoomLocked = false;
 
-        let currentViewMode = 'scroll'; 
+        let currentViewMode = 'scroll';
         let currentStepIndex = 0;
         let examRealtimeChannel = null;
         let activeAttemptRecordId = null;
@@ -232,15 +225,17 @@
         history.pushState(null, null, location.href);
         window.addEventListener('popstate', function () {
             history.pushState(null, null, location.href);
-            Swal.fire({
-                icon: 'warning',
-                title: 'ไม่อนุญาตให้ย้อนกลับ',
-                text: 'คุณกำลังอยู่ในระหว่างการทำข้อสอบ กรุณาใช้ปุ่มส่งข้อสอบหรือปุ่มออกที่ระบบจัดไว้ให้เท่านั้น',
-                confirmButtonText: 'รับทราบ'
-            });
+            if (!isSubmitting) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่อนุญาตให้ย้อนกลับ',
+                    text: 'คุณกำลังอยู่ในระหว่างการทำข้อสอบ กรุณาใช้ปุ่มส่งข้อสอบที่ระบบจัดไว้ให้เท่านั้น',
+                    confirmButtonText: 'รับทราบ'
+                });
+            }
         });
 
-        window.addEventListener('pageshow', function(event) {
+        window.addEventListener('pageshow', function (event) {
             if (event.persisted) {
                 window.location.reload();
             }
@@ -324,17 +319,17 @@
         }
 
         function getValidatedStudentId() {
-            let studentId = urlParams.get('student_id') || 
-                    localStorage.getItem('id') || 
-                    localStorage.getItem('student_id') || 
-                    localStorage.getItem('user_id') || 
-                    localStorage.getItem('userId') || null;
+            let studentId = urlParams.get('student_id') ||
+                localStorage.getItem('id') ||
+                localStorage.getItem('student_id') ||
+                localStorage.getItem('user_id') ||
+                localStorage.getItem('userId') || null;
 
             if (!studentId || studentId === '00000000-0000-0000-0000-000000000000') {
                 try {
                     const userObj = JSON.parse(localStorage.getItem('user') || localStorage.getItem('profile') || localStorage.getItem('current_user') || '{}');
                     studentId = userObj.id || userObj.student_id || userObj.uid || null;
-                } catch(e) {}
+                } catch (e) {}
             }
             return studentId;
         }
@@ -365,6 +360,51 @@
             });
         }
 
+        function calculateQuestionScore(q, studentAns) {
+            const isEssay = q.question_type === 'essay';
+            const isMultiple = !!q.is_multiple_answers;
+            const maxQScore = Number(q.score);
+            const fullPoints = (!Number.isNaN(maxQScore) && maxQScore > 0) ? maxQScore : 1;
+
+            if (isEssay || studentAns === undefined || studentAns === null) return 0;
+
+            let correctAnsArr = q.correct_answer;
+            if (typeof correctAnsArr === 'string') {
+                try { correctAnsArr = JSON.parse(correctAnsArr); } catch (e) { correctAnsArr = [String(correctAnsArr)]; }
+            }
+            if (!Array.isArray(correctAnsArr)) correctAnsArr = [String(correctAnsArr)];
+            correctAnsArr = correctAnsArr.map(v => String(v).trim().toLowerCase()).filter(v => v !== '').sort();
+
+            if (correctAnsArr.length === 0) return 0;
+
+            if (isMultiple) {
+                const rawStudentArr = Array.isArray(studentAns) ? studentAns : [studentAns];
+                const studentAnsArr = Array.from(new Set(rawStudentArr.map(v => String(v).trim().toLowerCase()).filter(v => v !== ''))).sort();
+                if (studentAnsArr.length === 0) return 0;
+
+                const gradingMode = q.multiple_grading_mode || currentExam?.multiple_grading_mode || 'all';
+
+                if (gradingMode === 'at_least_one') {
+                    const hasAtLeastOne = studentAnsArr.some(ans => correctAnsArr.includes(ans));
+                    return hasAtLeastOne ? fullPoints : 0;
+                }
+
+                if (gradingMode === 'partial') {
+                    let matched = 0;
+                    studentAnsArr.forEach(ans => { if (correctAnsArr.includes(ans)) matched++; });
+                    const rawRatio = matched / correctAnsArr.length;
+                    const extraWrong = Math.max(0, studentAnsArr.length - matched);
+                    const penaltyRatio = extraWrong * 0.2;
+                    return Math.max(0, rawRatio - penaltyRatio) * fullPoints;
+                }
+
+                return JSON.stringify(correctAnsArr) === JSON.stringify(studentAnsArr) ? fullPoints : 0;
+            }
+
+            const userStr = String(studentAns).trim().toLowerCase();
+            return userStr !== '' && userStr === correctAnsArr[0] ? fullPoints : 0;
+        }
+
         async function initPage() {
             if (!checkStudentAuth()) return;
             if (!examId) {
@@ -387,6 +427,17 @@
             document.getElementById('examTitleNav').textContent = exam.title;
             document.getElementById('examSubNav').textContent = `รหัส: ${exam.exam_code || 'ไม่มี'} | เวลาทำ: ${exam.time_limit || 60} นาที`;
 
+            if (!isPreview && exam.start_time && Date.now() < new Date(exam.start_time).getTime()) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'ยังไม่ถึงเวลาเปิดสอบ',
+                    text: 'ชุดข้อสอบนี้ยังไม่เปิดให้ทำในขณะนี้',
+                    confirmButtonText: 'กลับหน้าหลัก',
+                    allowOutsideClick: false
+                }).then(() => window.location.replace('student.html'));
+                return;
+            }
+
             let inProgressAttempt = null;
             if (!isPreview && currentStudentId) {
                 try {
@@ -396,12 +447,14 @@
                         .eq('exam_id', examId)
                         .eq('student_id', currentStudentId);
 
-                    const submittedAttempt = existingAttempts?.find(a => a.status === 'submitted');
-                    if (submittedAttempt) {
+                    const submittedAttempts = existingAttempts?.filter(a => a.status === 'submitted') || [];
+                    const maxAttempts = Number(exam.max_attempts) || 0;
+
+                    if ((maxAttempts > 0 && submittedAttempts.length >= maxAttempts) || (maxAttempts === 0 && submittedAttempts.length > 0)) {
                         Swal.fire({
                             icon: 'error',
-                            title: 'คุณได้ทำและส่งข้อสอบชุดนี้ไปแล้ว!',
-                            text: 'ไม่อนุญาตให้ทำข้อสอบซ้ำผ่านการเข้าลิงก์เดิม ระบบจะนำคุณกลับสู่หน้าหลัก',
+                            title: 'คุณทำข้อสอบชุดนี้ครบโควต้าแล้ว!',
+                            text: 'ไม่อนุญาตให้ทำข้อสอบซ้ำเกินจำนวนครั้งที่กำหนด ระบบจะนำคุณกลับสู่หน้าหลัก',
                             confirmButtonText: 'รับทราบ',
                             allowOutsideClick: false
                         }).then(() => {
@@ -414,7 +467,7 @@
                     if (inProgressAttempt) {
                         activeAttemptRecordId = inProgressAttempt.id;
                     }
-                } catch(err) {
+                } catch (err) {
                     console.error("Error checking exam attempt status:", err);
                 }
             }
@@ -422,7 +475,6 @@
             const isPastDueDate = !!(exam.due_date && Date.now() > new Date(exam.due_date).getTime());
             const allowLate = !!exam.allow_late_submission;
 
-            // คนที่ยังไม่เคยทำเลย เมื่อเลย due_date และครูไม่อนุญาตให้ทำช้า -> เข้าทำไม่ได้ และไม่สร้าง attempt
             if (!isPreview && isPastDueDate && !inProgressAttempt && !allowLate) {
                 Swal.fire({
                     icon: 'error',
@@ -447,7 +499,7 @@
                     if (savedAnswers) studentAnswers = JSON.parse(savedAnswers) || {};
                     const savedFlags = localStorage.getItem(`exam_flags_${examId}_${currentStudentId}`);
                     if (savedFlags) flaggedQuestions = JSON.parse(savedFlags) || {};
-                } catch(e) {}
+                } catch (e) {}
             }
 
             const timerKey = `exam_start_time_${examId}_${currentStudentId}`;
@@ -471,13 +523,13 @@
                         return;
                     }
 
-                    // สร้างแถว in_progress หลังกดยืนยันเริ่มทำจริงเท่านั้น
                     try {
                         const { data: newIns, error: insErr } = await mySupabase
                             .from('exam_attempts')
                             .insert([{
                                 exam_id: examId,
                                 student_id: currentStudentId,
+                                user_id: currentStudentId,
                                 status: 'in_progress'
                             }])
                             .select()
@@ -486,7 +538,7 @@
                         if (!insErr && newIns) {
                             activeAttemptRecordId = newIns.id;
                         }
-                    } catch(err) {
+                    } catch (err) {
                         console.error("Error creating in_progress attempt:", err);
                     }
                 }
@@ -510,8 +562,10 @@
                 if (pdfCard) pdfCard.classList.add('hidden');
                 if (rightCard) rightCard.className = 'lg:col-span-12 hitech-card p-8 rounded-3xl space-y-8 max-w-4xl mx-auto w-full';
                 if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-file-lines text-sky-500"></i> แบบทดสอบออนไลน์ & ตัวเลือกคำตอบ`;
-                if (viewModeToggleContainer) viewModeToggleContainer.classList.remove('hidden');
-                if (viewModeToggleContainer) viewModeToggleContainer.style.display = 'flex';
+                if (viewModeToggleContainer) {
+                    viewModeToggleContainer.classList.remove('hidden');
+                    viewModeToggleContainer.style.display = 'flex';
+                }
             }
 
             await loadQuestions();
@@ -527,7 +581,7 @@
             if (currentExam.due_date && !isPreview && !allowLate) {
                 const dueDateTime = new Date(currentExam.due_date).getTime();
                 const secondsUntilDueDate = Math.floor((dueDateTime - parseInt(startTime, 10)) / 1000);
-                
+
                 if (secondsUntilDueDate < totalExamSeconds) {
                     totalExamSeconds = secondsUntilDueDate;
                 }
@@ -588,7 +642,7 @@
                     canvas.style.width = '100%';
                     canvas.style.height = 'auto';
                     canvas.className = 'shadow-md rounded-lg mb-4 bg-white';
-                    
+
                     await page.render({ canvasContext: context, viewport: viewport }).promise;
                     container.appendChild(canvas);
                 }
@@ -604,7 +658,7 @@
             let isDragging = false;
             let startX, startY, scrollLeft, scrollTop;
 
-            container.addEventListener('wheel', function(e) {
+            container.addEventListener('wheel', function (e) {
                 if (isZoomLocked) return;
                 e.preventDefault();
                 const zoomIntensity = 0.1;
@@ -666,20 +720,18 @@
                     box.classList.add('ring-2', 'ring-sky-500');
                     setTimeout(() => box.classList.remove('ring-2', 'ring-sky-500'), 1500);
                 }
+            } else if (currentViewMode === 'step') {
+                const idx = currentQuestions.findIndex(q => q.id === qId);
+                if (idx !== -1) {
+                    currentStepIndex = idx;
+                    renderQuestionsContainer();
+                }
             } else {
-                if (currentViewMode === 'step') {
-                    const idx = currentQuestions.findIndex(q => q.id === qId);
-                    if (idx !== -1) {
-                        currentStepIndex = idx;
-                        renderQuestionsContainer();
-                    }
-                } else {
-                    const box = document.getElementById(`q-box-${qId}`);
-                    if (box) {
-                        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        box.classList.add('ring-2', 'ring-sky-500');
-                        setTimeout(() => box.classList.remove('ring-2', 'ring-sky-500'), 1500);
-                    }
+                const box = document.getElementById(`q-box-${qId}`);
+                if (box) {
+                    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    box.classList.add('ring-2', 'ring-sky-500');
+                    setTimeout(() => box.classList.remove('ring-2', 'ring-sky-500'), 1500);
                 }
             }
         }
@@ -740,7 +792,7 @@
             });
 
             const percent = total > 0 ? Math.round((answeredCount / total) * 100) : 0;
-            
+
             const navBarProg = document.getElementById('navProgressBar');
             const navBarText = document.getElementById('navProgressText');
             if (navBarProg) navBarProg.style.width = `${percent}%`;
@@ -785,7 +837,7 @@
         function getParsedOptions(qOptions, standardLabels) {
             let raw = qOptions;
             if (typeof raw === 'string') {
-                try { raw = JSON.parse(raw); } catch(e) { raw = raw.split(',').map(s => s.trim()); }
+                try { raw = JSON.parse(raw); } catch (e) { raw = raw.split(',').map(s => s.trim()); }
             }
             let list = (Array.isArray(raw) && raw.length > 0) ? raw : standardLabels;
             return Array.from(new Set(list.map(o => String(o).trim()))).filter(o => o !== '');
@@ -818,7 +870,7 @@
                 if (!q) return;
                 const isEssay = q.question_type === 'essay';
                 const isMultiple = !!q.is_multiple_answers;
-                
+
                 let opts = getParsedOptions(q.options, standardLabels);
                 const qNum = q.question_number || (currentStepIndex + 1);
                 const isFlagged = flaggedQuestions[q.id];
@@ -863,9 +915,9 @@
                         const strIdx1 = String(cIdx + 1).trim();
 
                         const isDuplicateText = (
-                            trimmedOpt === '' || 
-                            trimmedOpt === strLabel || 
-                            trimmedOpt === strIdx1 || 
+                            trimmedOpt === '' ||
+                            trimmedOpt === strLabel ||
+                            trimmedOpt === strIdx1 ||
                             trimmedOpt === String(cIdx) ||
                             trimmedOpt === `ตัวเลือกที่ ${strLabel}`
                         );
@@ -973,9 +1025,9 @@
                             const strIdx1 = String(cIdx + 1).trim();
 
                             const isDuplicateText = (
-                                trimmedOpt === '' || 
-                                trimmedOpt === strLabel || 
-                                trimmedOpt === strIdx1 || 
+                                trimmedOpt === '' ||
+                                trimmedOpt === strLabel ||
+                                trimmedOpt === strIdx1 ||
                                 trimmedOpt === String(cIdx) ||
                                 trimmedOpt === `ตัวเลือกที่ ${strLabel}`
                             );
@@ -1082,17 +1134,17 @@
             htmlContent += `</div>`;
             container.innerHTML = htmlContent;
         }
-        
+
         function saveEssayAnswer(qId, val) {
             if (!val || val.trim() === '') {
                 delete studentAnswers[qId];
             } else {
                 studentAnswers[qId] = val;
             }
-            
+
             try {
                 localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
-            } catch(e) {}
+            } catch (e) {}
 
             if (val && val.trim() !== '') {
                 const box = document.getElementById(`q-box-${qId}`);
@@ -1110,8 +1162,8 @@
 
                 oscillator.type = 'sine';
                 if (type === 'half') {
-                    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); 
-                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); 
+                    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
                     gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
                     oscillator.connect(gainNode);
                     gainNode.connect(audioCtx.destination);
@@ -1123,7 +1175,7 @@
                         let osc = audioCtx.createOscillator();
                         let gain = audioCtx.createGain();
                         osc.type = 'triangle';
-                        osc.frequency.setValueAtTime(587.33, now + delay); 
+                        osc.frequency.setValueAtTime(587.33, now + delay);
                         gain.gain.setValueAtTime(0.15, now + delay);
                         gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.15);
                         osc.connect(gain);
@@ -1147,27 +1199,25 @@
 
                 const index = currentArr.indexOf(cIdx);
                 if (index > -1) {
-                    currentArr.splice(index, 1); 
+                    currentArr.splice(index, 1);
                 } else {
-                    currentArr.push(cIdx); 
+                    currentArr.push(cIdx);
                 }
 
                 if (currentArr.length > 0) {
                     studentAnswers[qId] = currentArr;
                 } else {
-                    delete studentAnswers[qId]; 
-                }
-            } else {
-                if (String(studentAnswers[qId]) === cIdx) {
                     delete studentAnswers[qId];
-                } else {
-                    studentAnswers[qId] = cIdx;
                 }
+            } else if (String(studentAnswers[qId]) === cIdx) {
+                delete studentAnswers[qId];
+            } else {
+                studentAnswers[qId] = cIdx;
             }
-            
+
             try {
                 localStorage.setItem(`exam_answers_${examId}_${currentStudentId}`, JSON.stringify(studentAnswers));
-            } catch(e) {}
+            } catch (e) {}
 
             const box = document.getElementById(`q-box-${qId}`);
             if (box) box.classList.remove('question-unanswered-highlight');
@@ -1186,12 +1236,12 @@
 
             try {
                 localStorage.setItem(`exam_flags_${examId}_${currentStudentId}`, JSON.stringify(flaggedQuestions));
-            } catch(e) {}
+            } catch (e) {}
 
             updateExamProgress();
             renderQuestionsContainer();
         }
-        
+
         function checkTimerAlerts(timeLeftSeconds, totalDurationSeconds) {
             if (totalDurationSeconds <= 0) return;
             if (!halfTimeTriggered && timeLeftSeconds === Math.floor(totalDurationSeconds / 2)) {
@@ -1318,9 +1368,15 @@
             }
         }
 
+        function setSubmitButtonsDisabled(disabled) {
+            const topBtn = document.getElementById('topSubmitBtn');
+            if (topBtn) topBtn.disabled = disabled;
+        }
+
         async function submitExam(isTimeout = false) {
             if (isSubmitting) return;
             isSubmitting = true;
+            setSubmitButtonsDisabled(true);
 
             if (timerInterval) clearInterval(timerInterval);
             if (examRealtimeChannel) mySupabase.removeChannel(examRealtimeChannel);
@@ -1333,7 +1389,6 @@
                 return;
             }
 
-            // หากหมดเวลาและไม่ได้ตอบอะไรเลย และไม่มีแถว in_progress ค้างไว้ ไม่ต้องสร้าง attempt เปล่า
             if (isTimeout && !hasAnyAnswered() && !activeAttemptRecordId) {
                 localStorage.removeItem(`exam_start_time_${examId}_${currentStudentId}`);
                 localStorage.removeItem(`exam_answers_${examId}_${currentStudentId}`);
@@ -1355,57 +1410,20 @@
             });
 
             let totalScore = 0;
+            let maxTotalScore = 0;
+
             currentQuestions.forEach(q => {
-                const studentAns = studentAnswers[q.id];
-                const isEssay = q.question_type === 'essay';
-                const isMultiple = !!q.is_multiple_answers;
-
-                if (!isEssay) {
-                    if (studentAns !== undefined && studentAns !== null) {
-                        let correctAnsArr = q.correct_answer;
-                        if (typeof correctAnsArr === 'string') {
-                            try { correctAnsArr = JSON.parse(correctAnsArr); } catch(e) { correctAnsArr = [String(correctAnsArr)]; }
-                        }
-                        if (!Array.isArray(correctAnsArr)) correctAnsArr = [String(correctAnsArr)];
-                        correctAnsArr = correctAnsArr.map(String).sort();
-
-                        if (isMultiple) {
-                            let studentAnsArr = Array.isArray(studentAns) ? studentAns.map(String).sort() : [String(studentAns)].sort();
-                            const gradingMode = q.multiple_grading_mode || 'all';
-
-                            if (gradingMode === 'at_least_one') {
-                                const hasAtLeastOne = studentAnsArr.some(ans => correctAnsArr.includes(ans));
-                                if (hasAtLeastOne) totalScore += 1;
-                            } else if (gradingMode === 'partial') {
-                                let matched = 0;
-                                studentAnsArr.forEach(ans => { if (correctAnsArr.includes(ans)) matched++; });
-                                let qScore = 0;
-                                if (correctAnsArr.length > 0) {
-                                    const rawPart = matched / correctAnsArr.length;
-                                    const penalty = studentAnsArr.length > correctAnsArr.length ? (studentAnsArr.length - correctAnsArr.length) * 0.2 : 0;
-                                    qScore = Math.max(0, rawPart - penalty);
-                                }
-                                totalScore += qScore;
-                            } else {
-                                if (JSON.stringify(correctAnsArr) === JSON.stringify(studentAnsArr)) {
-                                    totalScore += 1;
-                                }
-                            }
-                        } else {
-                            const userStr = String(studentAns).trim().toLowerCase();
-                            const correctStr = String(correctAnsArr[0] || '').trim().toLowerCase();
-                            if (userStr === correctStr) {
-                                totalScore += 1;
-                            }
-                        }
-                    }
-                }
+                const maxQScore = Number(q.score);
+                maxTotalScore += (!Number.isNaN(maxQScore) && maxQScore > 0) ? maxQScore : 1;
+                totalScore += calculateQuestionScore(q, studentAnswers[q.id]);
             });
 
+            const roundedTotalScore = Math.round(totalScore * 100) / 100;
             const studentId = getValidatedStudentId();
 
             if (!studentId || studentId === '00000000-0000-0000-0000-000000000000') {
                 isSubmitting = false;
+                setSubmitButtonsDisabled(false);
                 Swal.fire({
                     icon: 'warning',
                     title: 'ข้อมูลผู้ใช้ไม่ถูกต้อง',
@@ -1418,14 +1436,19 @@
                 return;
             }
 
+            const nowIso = new Date().toISOString();
             const attemptPayload = {
                 exam_id: examId,
                 status: 'submitted',
                 student_id: studentId,
+                user_id: studentId,
                 answer_saved: JSON.stringify(studentAnswers),
                 remaining_time: currentRemainingSeconds,
-                total_score: Math.round(totalScore * 100) / 100,
-                submission_time: new Date().toISOString()
+                total_score: roundedTotalScore,
+                score: roundedTotalScore,
+                submission_time: nowIso,
+                submitted_at: nowIso,
+                updated_at: nowIso
             };
 
             let updateError = null;
@@ -1449,6 +1472,7 @@
 
             if (updateError) {
                 isSubmitting = false;
+                setSubmitButtonsDisabled(false);
                 Swal.fire({
                     icon: 'error',
                     title: 'Supabase Error!',
@@ -1466,48 +1490,20 @@
                 let progress = JSON.parse(localStorage.getItem('student_in_progress_exams') || '{}');
                 delete progress[examId];
                 localStorage.setItem('student_in_progress_exams', JSON.stringify(progress));
-            } catch(e) {}
+            } catch (e) {}
 
             const answersPayloads = currentQuestions.map(q => {
                 const studentAns = studentAnswers[q.id];
                 const isEssay = q.question_type === 'essay';
-                const isMultiple = !!q.is_multiple_answers;
-                let qScore = 0;
+                const qScore = calculateQuestionScore(q, studentAns);
 
-                if (!isEssay) {
-                    if (studentAns !== undefined && studentAns !== null) {
-                        let correctAnsArr = q.correct_answer;
-                        if (typeof correctAnsArr === 'string') {
-                            try { correctAnsArr = JSON.parse(correctAnsArr); } catch(e) { correctAnsArr = [String(correctAnsArr)]; }
-                        }
-                        if (!Array.isArray(correctAnsArr)) correctAnsArr = [String(correctAnsArr)];
-                        correctAnsArr = correctAnsArr.map(String).sort();
-
-                        if (isMultiple) {
-                            let studentAnsArr = Array.isArray(studentAns) ? studentAns.map(String).sort() : [String(studentAns)].sort();
-                            const gradingMode = q.multiple_grading_mode || 'all';
-
-                            if (gradingMode === 'at_least_one') {
-                                const hasAtLeastOne = studentAnsArr.some(ans => correctAnsArr.includes(ans));
-                                if (hasAtLeastOne) qScore = 1;
-                            } else if (gradingMode === 'partial') {
-                                let matched = 0;
-                                studentAnsArr.forEach(ans => { if (correctAnsArr.includes(ans)) matched++; });
-                                if (correctAnsArr.length > 0) {
-                                    const rawPart = matched / correctAnsArr.length;
-                                    const penalty = studentAnsArr.length > correctAnsArr.length ? (studentAnsArr.length - correctAnsArr.length) * 0.2 : 0;
-                                    qScore = Math.max(0, rawPart - penalty);
-                                }
-                            } else {
-                                if (JSON.stringify(correctAnsArr) === JSON.stringify(studentAnsArr)) {
-                                    qScore = 1;
-                                }
-                            }
-                        } else {
-                            if (String(studentAns) === String(correctAnsArr[0])) {
-                                qScore = 1;
-                            }
-                        }
+                let selectedOptionValue = null;
+                if (!isEssay && studentAns !== undefined && studentAns !== null && studentAns !== '') {
+                    if (Array.isArray(studentAns)) {
+                        selectedOptionValue = JSON.stringify(studentAns);
+                    } else {
+                        const parsedInt = parseInt(studentAns, 10);
+                        selectedOptionValue = Number.isNaN(parsedInt) ? String(studentAns) : String(parsedInt);
                     }
                 }
 
@@ -1515,19 +1511,19 @@
                     attempt_id: finalAttemptId,
                     question_id: q.id,
                     score: Math.round(qScore * 100) / 100,
-                    selected_option_index: (!isEssay && studentAns !== undefined && studentAns !== null && studentAns !== '') ? (Array.isArray(studentAns) ? JSON.stringify(studentAns) : parseInt(studentAns)) : null,
-                    subjective_answer: isEssay ? (studentAns || '') : null
+                    selected_option_index: selectedOptionValue,
+                    subjective_answer: isEssay ? String(studentAns || '') : null
                 };
             });
 
             if (answersPayloads.length > 0) {
                 await mySupabase.from('exam_answers').insert(answersPayloads);
             }
-            
+
             Swal.fire({
                 icon: 'success',
                 title: isTimeout ? 'หมดเวลาและส่งข้อสอบอัตโนมัติแล้ว!' : 'ส่งข้อสอบสำเร็จ!',
-                text: `คะแนนของคุณ: ${Math.round(totalScore * 100) / 100} / ${currentQuestions.length}`,
+                text: `คะแนนของคุณ: ${roundedTotalScore} / ${Math.round(maxTotalScore * 100) / 100}`,
                 confirmButtonText: 'ดูผลการสอบและเฉลย',
                 allowOutsideClick: false
             }).then(() => {
