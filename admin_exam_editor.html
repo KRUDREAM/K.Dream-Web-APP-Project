@@ -299,6 +299,56 @@
         let gradingCriteriaList = [];
         let enableCriteria = false;
 
+        // 🌟 เก็บ Metadata เสริมต่อข้อใน localStorage (กันกรณีตาราง questions ใน DB ยังไม่มีบางคอลัมน์ เช่น score, shared_passage_id)
+        function getQuestionMetaMap() {
+            try {
+                const raw = localStorage.getItem(`question_meta_${examId}`);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveQuestionMetaItem(qId, patch) {
+            if (!qId) return;
+            const map = getQuestionMetaMap();
+            map[String(qId)] = { ...(map[String(qId)] || {}), ...patch };
+            localStorage.setItem(`question_meta_${examId}`, JSON.stringify(map));
+        }
+
+        function hydrateQuestionWithFlags(q) {
+            const metaMap = getQuestionMetaMap();
+            const meta = metaMap[String(q.id)] || {};
+            const modeStr = String(q.multiple_grading_mode || meta.multiple_grading_mode || '').toLowerCase();
+            const isBonus = Boolean(
+                q.is_bonus_all ||
+                meta.is_bonus_all ||
+                modeStr === 'bonus_all' ||
+                String(q.correct_answer || '').toUpperCase() === 'BONUS_ALL'
+            );
+            const isSingleMultiKey = !isBonus && Boolean(
+                q.allow_multi_correct_keys ||
+                meta.allow_multi_correct_keys ||
+                modeStr === 'single_multi_key'
+            );
+            const isMultiple = !isBonus && !isSingleMultiKey && Boolean(q.is_multiple_answers);
+
+            let cleanGradingMode = 'all';
+            if (isBonus) cleanGradingMode = 'bonus_all';
+            else if (isSingleMultiKey) cleanGradingMode = 'single_multi_key';
+            else if (['partial', 'at_least_one', 'all'].includes(modeStr)) cleanGradingMode = modeStr;
+
+            return {
+                ...q,
+                score: (q.score !== undefined && q.score !== null) ? Number(q.score) : (meta.score !== undefined ? Number(meta.score) : 1),
+                shared_passage_id: q.shared_passage_id || meta.shared_passage_id || null,
+                is_bonus_all: isBonus,
+                allow_multi_correct_keys: isSingleMultiKey,
+                is_multiple_answers: isMultiple,
+                multiple_grading_mode: cleanGradingMode
+            };
+        }
+
         function isOnlineExamMode() {
             return currentExamData && currentExamData.delivery_type === 'online';
         }
@@ -513,17 +563,18 @@
 
         function normalizeCorrectAnswerList(rawVal) {
             if (Array.isArray(rawVal)) {
-                return rawVal.map(v => String(v).trim()).filter(v => v !== '');
+                return rawVal.map(v => String(v).trim()).filter(v => v !== '' && v.toUpperCase() !== 'BONUS_ALL');
             }
             if (rawVal === undefined || rawVal === null || rawVal === '') return [];
             const str = String(rawVal).trim();
+            if (str.toUpperCase() === 'BONUS_ALL') return [];
             if (str.startsWith('[') && str.endsWith(']')) {
                 try {
                     const parsed = JSON.parse(str);
-                    if (Array.isArray(parsed)) return parsed.map(v => String(v).trim()).filter(v => v !== '');
+                    if (Array.isArray(parsed)) return parsed.map(v => String(v).trim()).filter(v => v !== '' && v.toUpperCase() !== 'BONUS_ALL');
                 } catch (e) {}
             }
-            return str.split(',').map(s => s.trim()).filter(s => s !== '');
+            return str.split(',').map(s => s.trim()).filter(s => s !== '' && s.toUpperCase() !== 'BONUS_ALL');
         }
 
         async function logAdminAction(actionTitle, detailDesc) {
@@ -831,6 +882,7 @@
             cachedQuestions.forEach(q => {
                 if (String(q.shared_passage_id || '') === String(passageId)) {
                     q.shared_passage_id = null;
+                    saveQuestionMetaItem(q.id, { shared_passage_id: null });
                 }
             });
             await persistSharedPassages(false);
@@ -1020,7 +1072,7 @@
 
         async function loadQuestions() {
             const { data: questions } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
-            cachedQuestions = questions || [];
+            cachedQuestions = (questions || []).map(hydrateQuestionWithFlags);
 
             const tagCounts = {};
             cachedQuestions.forEach(q => {
@@ -1083,7 +1135,7 @@
                 const correctArr = normalizeCorrectAnswerList(q.correct_answer);
 
                 const bubblesHtml = opts.map((cLabel, cIdx) => {
-                    const isSelected = !isBonusAll && correctArr.includes(String(cIdx));
+                    const isSelected = isBonusAll || correctArr.includes(String(cIdx));
                     return `<div onclick="selectOmrChoice('${qId}', '${cIdx}')" class="omr-bubble-lg ${isSelected ? 'active' : ''}">${escapeHtml(cLabel)}</div>`;
                 }).join('');
 
@@ -1181,6 +1233,7 @@
 
                 const qNum = q.question_number || (idx+1);
                 const categoryBadge = q.category_tag ? `<span class="px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-600 font-bold text-[10px]">${escapeHtml(q.category_tag)}</span>` : '';
+                const bonusBadge = isBonusAll ? `<span class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 font-bold text-[10px]">🎁 แจกคะแนนฟรี</span>` : '';
                 const passageBadge = linkedPassage ? `<span class="px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-600 dark:text-teal-300 font-bold text-[10px]">🔗 ${escapeHtml(linkedPassage.title || 'โจทย์ร่วม')}</span>` : '';
                 const scoreBadge = `<span class="px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 font-bold text-[10px]">${qScore} คะแนน</span>`;
                 const imgTag = q.image_url ? `<div class="mb-2"><img src="${escapeHtml(q.image_url)}" onclick="openEditorImageModal(this.src)" class="max-h-48 rounded-xl border border-slate-300 shadow-sm cursor-pointer"></div>` : '';
@@ -1202,6 +1255,7 @@
                                 <i class="fas fa-chevron-down text-slate-400 transition-transform" id="icon-acc-${qId}"></i>
                                 <span class="text-sky-600 dark:text-sky-400">ข้อ ${qNum}:</span>
                                 ${scoreBadge}
+                                ${bonusBadge}
                                 ${categoryBadge}
                                 ${passageBadge}
                                 <span class="text-slate-800 dark:text-slate-200 truncate">${qTextPlain}</span>
@@ -1247,6 +1301,9 @@
             const item = cachedQuestions.find(q => q.id === qId);
             if (item) {
                 item.is_bonus_all = false;
+                if (item.multiple_grading_mode === 'bonus_all') {
+                    item.multiple_grading_mode = item.allow_multi_correct_keys ? 'single_multi_key' : 'all';
+                }
                 const isMultiple = !!item.is_multiple_answers;
                 const isSingleMultiKey = !isMultiple && !!item.allow_multi_correct_keys;
                 let correctArr = normalizeCorrectAnswerList(item.correct_answer);
@@ -1262,6 +1319,11 @@
                 } else {
                     item.correct_answer = String(choiceIdx);
                 }
+
+                saveQuestionMetaItem(item.id, {
+                    is_bonus_all: false,
+                    multiple_grading_mode: item.multiple_grading_mode
+                });
 
                 renderOmrGrid();
                 renderQuestionAccordions();
@@ -1316,7 +1378,7 @@
                     newInput.type = allowMultiSelectInputs ? 'checkbox' : 'radio';
                     newInput.name = 'swalCorrectChoice';
                     newInput.value = idx;
-                    newInput.checked = oldInput.checked;
+                    newInput.checked = isBonusAll ? true : oldInput.checked;
                     newInput.disabled = isBonusAll;
                     oldInput.replaceWith(newInput);
                 }
@@ -1357,7 +1419,7 @@
             const div = document.createElement('div');
             div.className = 'flex items-start gap-2 option-row pt-1';
             div.innerHTML = `
-                <input type="${allowMultiSelectInputs ? 'checkbox' : 'radio'}" name="swalCorrectChoice" value="${currentCount}" ${isBonusAll ? 'disabled' : ''} class="mt-2">
+                <input type="${allowMultiSelectInputs ? 'checkbox' : 'radio'}" name="swalCorrectChoice" value="${currentCount}" ${isBonusAll ? 'checked disabled' : ''} class="mt-2">
                 <span class="font-bold w-6 mt-1">${escapeHtml(label)}:</span>
                 ${optInputHtml}
                 <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1 mt-1"><i class="fas fa-times"></i></button>
@@ -1396,7 +1458,7 @@
         };
 
         function openQuestionModalById(qId) {
-            const qData = cachedQuestions.find(q => q.id === qId);
+            const qData = cachedQuestions.find(q => String(q.id) === String(qId));
             openQuestionModal(qData || null);
         }
 
@@ -1424,7 +1486,7 @@
             const isBonusAll = !!qData?.is_bonus_all;
             const isMultiple = !isBonusAll && !!qData?.is_multiple_answers;
             const isSingleMultiKey = !isBonusAll && !isMultiple && !!qData?.allow_multi_correct_keys;
-            const gradingMode = qData?.multiple_grading_mode || 'all';
+            const gradingMode = ['partial', 'at_least_one', 'all'].includes(qData?.multiple_grading_mode) ? qData.multiple_grading_mode : 'all';
             const qScoreVal = qData?.score !== undefined && qData?.score !== null ? Number(qData.score) : 1;
 
             let selectedMode = 'single_one';
@@ -1453,9 +1515,11 @@
             });
 
             let optionsHtml = currentOpts.map((opt, i) => {
-                const isChecked = allowMultiSelectInputs
-                    ? correctArr.includes(String(i))
-                    : (String(qData?.correct_answer) === String(i) || (!qData && i === 0));
+                const isChecked = isBonusAll
+                    ? true
+                    : (allowMultiSelectInputs
+                        ? correctArr.includes(String(i))
+                        : (String(qData?.correct_answer) === String(i) || (!qData && i === 0)));
                 const label = standardLabels[i] || String.fromCharCode(65+i);
                 const deleteBtn = i >= 2 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1 mt-1"><i class="fas fa-times"></i></button>` : '';
                 const optInputId = `optField_${i}`;
@@ -1631,20 +1695,28 @@
 
                     const optInputs = document.querySelectorAll('.opt-text-input');
                     const optsParsed = Array.from(optInputs).map(inp => inp.value.trim()).filter(Boolean);
-                    
+                    const finalOptions = optsParsed.length > 0 ? optsParsed : standardLabels;
+
                     const mcMode = document.getElementById('mcAnswerModeSelect')?.value || 'single_one';
                     const isBonusAll = mcMode === 'bonus_all';
                     const isMultiple = mcMode === 'multiple_select';
                     const isSingleMultiKey = mcMode === 'single_one_multi_key';
                     const allowMultiSelectInputs = isMultiple || isSingleMultiKey;
 
-                    let correctAnsValue = isMultiple || isSingleMultiKey ? [] : '0';
+                    let correctAnsValue = allowMultiSelectInputs ? [] : '0';
                     const checkedElements = document.querySelectorAll('input[name="swalCorrectChoice"]:checked');
-                    if (allowMultiSelectInputs) {
+                    if (isBonusAll) {
+                        correctAnsValue = 'BONUS_ALL';
+                    } else if (allowMultiSelectInputs) {
                         correctAnsValue = Array.from(checkedElements).map(el => el.value);
                     } else {
                         correctAnsValue = checkedElements.length > 0 ? checkedElements[0].value : '0';
                     }
+
+                    let persistedGradingMode = 'all';
+                    if (isBonusAll) persistedGradingMode = 'bonus_all';
+                    else if (isSingleMultiKey) persistedGradingMode = 'single_multi_key';
+                    else if (isMultiple) persistedGradingMode = document.getElementById('multipleGradingMode').value;
 
                     const kwRows = document.querySelectorAll('.keyword-row');
                     const kwParsed = Array.from(kwRows).map(row => ({
@@ -1664,15 +1736,15 @@
                         question_text: txt,
                         content: txt,
                         image_url: document.getElementById('qImageUrl')?.value.trim() || null,
-                        options: optsParsed.length > 0 ? optsParsed : standardLabels,
+                        options: finalOptions,
                         correct_answer: correctAnsValue,
                         is_multiple_answers: isMultiple,
                         allow_multi_correct_keys: isSingleMultiKey,
                         is_bonus_all: isBonusAll,
-                        multiple_grading_mode: isMultiple ? document.getElementById('multipleGradingMode').value : 'all',
+                        multiple_grading_mode: persistedGradingMode,
                         grading_type: document.getElementById('qGradingType').value,
                         keywords: kwParsed
-                    }
+                    };
                 }
             });
 
@@ -1694,6 +1766,8 @@
                     keywords: formValues.keywords
                 };
 
+                let savedRecordId = isEdit ? qData.id : null;
+
                 if (isEdit) {
                     const { error } = await mySupabase.from('questions').update(fullPayload).eq('id', qData.id);
                     if (error) {
@@ -1701,12 +1775,26 @@
                     }
                     await logAdminAction('แก้ไขโจทย์', `แก้ไขข้อสอบข้อที่ ${formValues.question_number}`);
                 } else {
-                    const { error } = await mySupabase.from('questions').insert([fullPayload]);
+                    const { data: insertedRows, error } = await mySupabase.from('questions').insert([fullPayload]).select('id');
                     if (error) {
-                        await mySupabase.from('questions').insert([corePayload]);
+                        const fallbackRes = await mySupabase.from('questions').insert([corePayload]).select('id');
+                        savedRecordId = fallbackRes.data?.[0]?.id || null;
+                    } else {
+                        savedRecordId = insertedRows?.[0]?.id || null;
                     }
                     await logAdminAction('เพิ่มโจทย์ใหม่', `เพิ่มข้อสอบข้อที่ ${formValues.question_number}`);
                 }
+
+                if (savedRecordId) {
+                    saveQuestionMetaItem(savedRecordId, {
+                        score: formValues.score,
+                        shared_passage_id: formValues.shared_passage_id,
+                        is_bonus_all: formValues.is_bonus_all,
+                        allow_multi_correct_keys: formValues.allow_multi_correct_keys,
+                        multiple_grading_mode: formValues.multiple_grading_mode
+                    });
+                }
+
                 markAsModified();
                 await loadQuestions();
             }
@@ -1883,7 +1971,6 @@
                     newItems.push({
                         exam_id: examId,
                         question_number: i,
-                        score: 1,
                         question_text: `ข้อที่ ${i}`,
                         content: `ข้อที่ ${i}`,
                         category_tag: formValues.tag || '',
@@ -1891,8 +1978,6 @@
                         options: standardLabels,
                         correct_answer: '0',
                         is_multiple_answers: false,
-                        allow_multi_correct_keys: false,
-                        is_bonus_all: false,
                         multiple_grading_mode: 'all'
                     });
                 }
@@ -1909,22 +1994,23 @@
         }
 
         function computeQuestionRegradeScore(q, userAns) {
-            const qMaxScore = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
-            if ((q.question_type || '').toLowerCase() === 'essay') {
+            const hydrated = hydrateQuestionWithFlags(q);
+            const qMaxScore = hydrated.score !== undefined && hydrated.score !== null ? Number(hydrated.score) : 1;
+            if ((hydrated.question_type || '').toLowerCase() === 'essay') {
                 return 0;
             }
-            if (q.is_bonus_all) {
+            if (hydrated.is_bonus_all) {
                 return qMaxScore;
             }
             if (userAns === null || userAns === undefined || userAns === '') {
                 return 0;
             }
 
-            const correctArr = normalizeCorrectAnswerList(q.correct_answer);
+            const correctArr = normalizeCorrectAnswerList(hydrated.correct_answer);
             if (correctArr.length === 0) return 0;
 
-            const isMultiple = !!q.is_multiple_answers;
-            const isSingleMultiKey = !isMultiple && !!q.allow_multi_correct_keys;
+            const isMultiple = !!hydrated.is_multiple_answers;
+            const isSingleMultiKey = !isMultiple && !!hydrated.allow_multi_correct_keys;
             const userArr = normalizeCorrectAnswerList(userAns);
             if (userArr.length === 0) return 0;
 
@@ -1934,7 +2020,7 @@
             }
 
             if (isMultiple) {
-                const gradingMode = q.multiple_grading_mode || 'all';
+                const gradingMode = hydrated.multiple_grading_mode || 'all';
                 if (gradingMode === 'at_least_one') {
                     return userArr.some(ans => correctArr.includes(ans)) ? qMaxScore : 0;
                 }
@@ -1972,8 +2058,21 @@
             
             for (const q of cachedQuestions) {
                 const qScoreVal = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
+                const persistedMode = q.is_bonus_all
+                    ? 'bonus_all'
+                    : (q.allow_multi_correct_keys ? 'single_multi_key' : (q.multiple_grading_mode || 'all'));
+                const persistedCorrect = q.is_bonus_all ? 'BONUS_ALL' : q.correct_answer;
+
+                saveQuestionMetaItem(q.id, {
+                    score: qScoreVal,
+                    shared_passage_id: q.shared_passage_id || null,
+                    is_bonus_all: !!q.is_bonus_all,
+                    allow_multi_correct_keys: !!q.allow_multi_correct_keys,
+                    multiple_grading_mode: persistedMode
+                });
+
                 const fullUpdate = {
-                    correct_answer: q.correct_answer,
+                    correct_answer: persistedCorrect,
                     question_type: q.question_type,
                     options: q.options,
                     category_tag: q.category_tag,
@@ -1982,23 +2081,23 @@
                     is_multiple_answers: !!q.is_multiple_answers,
                     allow_multi_correct_keys: !!q.allow_multi_correct_keys,
                     is_bonus_all: !!q.is_bonus_all,
-                    multiple_grading_mode: q.multiple_grading_mode || 'all'
+                    multiple_grading_mode: persistedMode
                 };
                 const { error } = await mySupabase.from('questions').update(fullUpdate).eq('id', q.id);
                 if (error) {
                     await mySupabase.from('questions').update({
-                        correct_answer: q.correct_answer,
+                        correct_answer: persistedCorrect,
                         question_type: q.question_type,
                         options: q.options,
                         category_tag: q.category_tag,
                         is_multiple_answers: !!q.is_multiple_answers,
-                        multiple_grading_mode: q.multiple_grading_mode || 'all'
+                        multiple_grading_mode: persistedMode
                     }).eq('id', q.id);
                 }
             }
 
             const { data: latestQuestions } = await mySupabase.from('questions').select('*').eq('exam_id', examId);
-            const questionsForGrade = (latestQuestions && latestQuestions.length > 0) ? latestQuestions : cachedQuestions;
+            const questionsForGrade = (latestQuestions && latestQuestions.length > 0 ? latestQuestions : cachedQuestions).map(hydrateQuestionWithFlags);
 
             let { data: attempts } = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examId);
             if (!attempts || attempts.length === 0) {
@@ -2021,17 +2120,6 @@
                     let recalculatedScore = 0;
 
                     questionsForGrade.forEach((q, index) => {
-                        const localQ = cachedQuestions.find(cq => String(cq.id) === String(q.id));
-                        const mergedQ = {
-                            ...q,
-                            score: q.score !== undefined && q.score !== null ? q.score : (localQ?.score ?? 1),
-                            is_multiple_answers: q.is_multiple_answers !== undefined ? q.is_multiple_answers : !!localQ?.is_multiple_answers,
-                            allow_multi_correct_keys: q.allow_multi_correct_keys !== undefined ? q.allow_multi_correct_keys : !!localQ?.allow_multi_correct_keys,
-                            is_bonus_all: q.is_bonus_all !== undefined ? q.is_bonus_all : !!localQ?.is_bonus_all,
-                            multiple_grading_mode: q.multiple_grading_mode || localQ?.multiple_grading_mode || 'all',
-                            correct_answer: q.correct_answer !== undefined && q.correct_answer !== null ? q.correct_answer : localQ?.correct_answer
-                        };
-
                         let userAns = null;
                         if (typeof rawAnswers === 'object' && rawAnswers !== null) {
                             if (rawAnswers[q.id] !== undefined) userAns = rawAnswers[q.id];
@@ -2049,7 +2137,7 @@
                             }
                         }
 
-                        recalculatedScore += computeQuestionRegradeScore(mergedQ, userAns);
+                        recalculatedScore += computeQuestionRegradeScore(q, userAns);
                     });
 
                     const targetId = att.id || att.attempt_id || att.uuid;
