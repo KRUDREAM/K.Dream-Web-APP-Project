@@ -355,37 +355,21 @@
                 .replace(/'/g, '&#039;');
         }
 
-        function getAttemptScore(att) {
-            if (att.total_score !== undefined && att.total_score !== null && !isNaN(att.total_score)) return Number(att.total_score);
-            if (att.score !== undefined && att.score !== null && !isNaN(att.score)) return Number(att.score);
-            return 0;
-        }
-
-        // 🌟 ฟังก์ชันแปลงค่าคำตอบจาก Index หรือ String ให้เป็นรูปแบบที่ตั้งไว้ (เช่น 1, ก, A)
-        function formatAnswerText(ansValue, examObj = null) {
-            if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
-            
-            if (Array.isArray(ansValue)) {
-                return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
-            }
-            return formatSingleAnswerText(ansValue, examObj);
-        }
-
         function formatSingleAnswerText(ansValue, examObj = null) {
             if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
-            
+
             if (Array.isArray(ansValue)) {
                 return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
             }
-            
+
             let strVal = String(ansValue).trim();
             if (strVal.startsWith('[') && strVal.endsWith(']')) {
                 try {
-                    let parsed = JSON.parse(strVal);
+                    const parsed = JSON.parse(strVal);
                     if (Array.isArray(parsed)) {
                         return parsed.map(v => formatSingleAnswerText(v, examObj)).join(', ');
                     }
-                } catch(e) {}
+                } catch (e) {}
             }
 
             const formatType = (examObj && examObj.choice_format) ? examObj.choice_format : 'num';
@@ -403,245 +387,186 @@
             return strVal;
         }
 
+        function formatAnswerText(ansValue, examObj = null) {
+            if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
+            if (Array.isArray(ansValue)) {
+                return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
+            }
+            return formatSingleAnswerText(ansValue, examObj);
+        }
+
         function getCorrectAnswer(q, examObj = null) {
-            let raw = q.correct_answer !== undefined ? q.correct_answer : 
-                    (q.answer !== undefined ? q.answer : 
-                    (q.key !== undefined ? q.key : 
-                    (q.solution !== undefined ? q.solution : '')));
+            const raw = q.correct_answer !== undefined ? q.correct_answer :
+                (q.answer !== undefined ? q.answer :
+                (q.key !== undefined ? q.key :
+                (q.solution !== undefined ? q.solution : '')));
             return formatAnswerText(raw, examObj);
         }
 
-function extractStudentAnswer(att, q, index, examObj = null) {
-    if (!att) return null;
+        function extractStudentAnswer(att, q, index) {
+            if (!att) return null;
 
-    // ลองหาจากทุกฟิลด์ที่เป็นไปได้ที่ใช้เก็บคำตอบ
-    let raw = att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses;
-    if (!raw) return null;
+            let raw = att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses;
+            if (!raw) return null;
 
-    if (typeof raw === 'string') {
-        try { raw = JSON.parse(raw); } catch (e) { return null; }
-    }
-
-    let val = null;
-    if (typeof raw === 'object' && raw !== null) {
-        // ค้นหาด้วย q.id หรือ question_number
-        if (q.id !== undefined && raw[q.id] !== undefined) {
-            val = raw[q.id];
-        } else if (q.id !== undefined && raw[String(q.id)] !== undefined) {
-            val = raw[String(q.id)];
-        } else if (q.question_id !== undefined && raw[q.question_id] !== undefined) {
-            val = raw[q.question_id];
-        } else if (q.question_number !== undefined) {
-            if (raw[q.question_number] !== undefined) val = raw[q.question_number];
-            else if (raw[String(q.question_number)] !== undefined) val = raw[String(q.question_number)];
-            else if (raw[`q${q.question_number}`] !== undefined) val = raw[`q${q.question_number}`];
-        }
-
-        // ถ้ายังหาไม่เจอ ลองดึงตามลำดับ Index ของอาเรย์หรือออบเจกต์
-        if (val === null || val === undefined) {
-            if (Array.isArray(raw)) {
-                if (raw[index] !== undefined) val = raw[index];
-            } else {
-                const keys = Object.keys(raw);
-                if (keys[index] !== undefined) val = raw[keys[index]];
+            if (typeof raw === 'string') {
+                try { raw = JSON.parse(raw); } catch (e) { return null; }
             }
-        }
-    }
 
-    return val !== null && val !== undefined ? val : null;
-}
-        
-// 🌟 ฟังก์ชันแปลงค่าคำตอบจาก Index หรือ String ให้เป็นรูปแบบที่ตั้งไว้
-function formatAnswerText(ansValue, examObj = null) {
-    if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
-    
-    if (Array.isArray(ansValue)) {
-        return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
-    }
-    return formatSingleAnswerText(ansValue, examObj);
-}
+            let val = null;
+            if (typeof raw === 'object' && raw !== null) {
+                if (q.id !== undefined && raw[q.id] !== undefined) {
+                    val = raw[q.id];
+                } else if (q.id !== undefined && raw[String(q.id)] !== undefined) {
+                    val = raw[String(q.id)];
+                } else if (q.question_id !== undefined && raw[q.question_id] !== undefined) {
+                    val = raw[q.question_id];
+                } else if (q.question_number !== undefined) {
+                    if (raw[q.question_number] !== undefined) val = raw[q.question_number];
+                    else if (raw[String(q.question_number)] !== undefined) val = raw[String(q.question_number)];
+                    else if (raw[`q${q.question_number}`] !== undefined) val = raw[`q${q.question_number}`];
+                }
 
-function formatSingleAnswerText(ansValue, examObj = null) {
-    if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
-    
-    if (Array.isArray(ansValue)) {
-        return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
-    }
-    
-    let strVal = String(ansValue).trim();
-    if (strVal.startsWith('[') && strVal.endsWith(']')) {
-        try {
-            let parsed = JSON.parse(strVal);
-            if (Array.isArray(parsed)) {
-                return parsed.map(v => formatSingleAnswerText(v, examObj)).join(', ');
+                if (val === null || val === undefined) {
+                    if (Array.isArray(raw)) {
+                        if (raw[index] !== undefined) val = raw[index];
+                    } else {
+                        const keys = Object.keys(raw);
+                        if (keys[index] !== undefined) val = raw[keys[index]];
+                    }
+                }
             }
-        } catch(e) {}
-    }
 
-    const formatType = (examObj && examObj.choice_format) ? examObj.choice_format : 'num';
-    let labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
-    if (formatType === 'th_num') labels = ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ', 'ช', 'ซ', 'ฌ', 'ญ'];
-    else if (formatType === 'upper') labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-    else if (formatType === 'lower') labels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
-
-    if (/^\d+$/.test(strVal)) {
-        const idx = Number(strVal);
-        if (idx >= 0 && idx < labels.length) {
-            return labels[idx];
-        }
-    }
-    return strVal;
-}
-
-function getCorrectAnswer(q, examObj = null) {
-    let raw = q.correct_answer !== undefined ? q.correct_answer : 
-            (q.answer !== undefined ? q.answer : 
-            (q.key !== undefined ? q.key : 
-            (q.solution !== undefined ? q.solution : '')));
-    return formatAnswerText(raw, examObj);
-}
-
-function extractStudentAnswer(att, q, index, examObj = null) {
-    if (!att) return '-';
-
-    let raw = att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses;
-    if (!raw) return '-';
-
-    if (typeof raw === 'string') {
-        try { raw = JSON.parse(raw); } catch (e) { return '-'; }
-    }
-
-    let val = null;
-    if (typeof raw === 'object' && raw !== null) {
-        if (q.id !== undefined && raw[q.id] !== undefined) {
-            val = raw[q.id];
-        } else if (q.id !== undefined && raw[String(q.id)] !== undefined) {
-            val = raw[String(q.id)];
-        } else if (q.question_number !== undefined) {
-            if (raw[q.question_number] !== undefined) val = raw[q.question_number];
-            else if (raw[String(q.question_number)] !== undefined) val = raw[String(q.question_number)];
-            else if (raw[`q${q.question_number}`] !== undefined) val = raw[`q${q.question_number}`];
+            return val !== null && val !== undefined ? val : null;
         }
 
-        if (val === null) {
-            if (Array.isArray(raw)) {
-                if (raw[index] !== undefined) val = raw[index];
-                else if (raw[index + 1] !== undefined) val = raw[index + 1];
-            } else {
-                const keys = Object.keys(raw);
-                if (keys[index] !== undefined) val = raw[keys[index]];
+        function toCleanArray(input) {
+            if (input === undefined || input === null || input === '') return [];
+            if (Array.isArray(input)) {
+                return input.map(item => String(item).trim()).filter(item => item !== '');
             }
-        }
-    }
-
-    return val !== null && val !== undefined ? val : '-';
-}
-
-// 🌟 ฟังก์ชันแปลงข้อมูลให้อยู่ในรูป Array ของ String ที่สะอาดและปลอดภัยที่สุด
-function toCleanArray(input) {
-    if (input === undefined || input === null || input === '') return [];
-    if (Array.isArray(input)) {
-        return input.map(item => String(item).trim()).filter(item => item !== '');
-    }
-    let str = String(input).trim();
-    if (str.startsWith('[') && str.endsWith(']')) {
-        try {
-            let parsed = JSON.parse(str);
-            if (Array.isArray(parsed)) {
-                return parsed.map(item => String(item).trim()).filter(item => item !== '');
-            } else if (typeof parsed === 'object' && parsed !== null) {
-                return Object.values(parsed).map(item => String(item).trim()).filter(item => item !== '');
+            const str = String(input).trim();
+            if (str.startsWith('[') && str.endsWith(']')) {
+                try {
+                    const parsed = JSON.parse(str);
+                    if (Array.isArray(parsed)) {
+                        return parsed.map(item => String(item).trim()).filter(item => item !== '');
+                    } else if (typeof parsed === 'object' && parsed !== null) {
+                        return Object.values(parsed).map(item => String(item).trim()).filter(item => item !== '');
+                    }
+                } catch (e) {}
             }
-        } catch (e) {}
-    }
-    if (str.includes(',')) {
-        return str.split(',').map(s => String(s).trim()).filter(s => s !== '');
-    }
-    return [str];
-}
-
-// 🌟 ฟังก์ชันคำนวณคะแนนรายข้อ (ดึงฟิลด์ multiple_grading_mode มาเช็ค Subset อย่างถูกต้อง)
-function getQuestionScore(q, rawUserAns) {
-    if (!q) return 0;
-    const qType = (q.question_type || q.type || '').toLowerCase();
-    const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) : 
-                      (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
-
-    if (qType === 'essay' || qType === 'subjective') {
-        return 0; // ต้องตรวจด้วยอาจารย์
-    }
-
-    if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
-        return 0;
-    }
-
-    let correctRaw = q.correct_answer !== undefined ? q.correct_answer : 
-                     (q.answer !== undefined ? q.answer : 
-                     (q.key !== undefined ? q.key : 
-                     (q.solution !== undefined ? q.solution : '')));
-
-    if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
-        return 0;
-    }
-
-    let correctArr = toCleanArray(correctRaw);
-    let userArr = toCleanArray(rawUserAns);
-
-    if (userArr.length === 0) return 0;
-
-    // 🔍 ดึงค่าจาก multiple_grading_mode เป็นหลัก ตามด้วยฟิลด์ทางเลือกอื่นๆ
-    const rawRule = q.multiple_grading_mode || q.grading_rule || q.multiple_grading_rule || q.rule || q.grading_type ||
-                    (currentExam && (currentExam.multiple_grading_mode || currentExam.grading_rule || currentExam.multiple_grading_rule)) || '';
-    const gradingRule = String(rawRule).toLowerCase().trim();
-
-    // เช็คว่าเป็นกฎ at_least_one / at_least_once / subset หรือไม่
-    const isAtLeastOneRule = gradingRule.includes('at_least') || gradingRule.includes('one') || gradingRule.includes('once') || gradingRule === 'subset';
-
-    // 🌟 ถ้าเป็น at_least_one หรือถ้าเฉลยมีหลายข้อ และไม่ได้บังคับตอบครบแบบ all/exact
-    if (isAtLeastOneRule || (correctArr.length > 1 && gradingRule !== 'all' && gradingRule !== 'exact')) {
-        // เงื่อนไข Subset: นักเรียนตอบมาอย่างน้อย 1 ข้อ และทุกข้อที่ตอบต้องอยู่ในเซ็ตเฉลย
-        const isSubset = userArr.length > 0 && userArr.every(u => correctArr.includes(u));
-        return isSubset ? fullScore : 0;
-    }
-
-    // ถ้าเป็นกฎ partial (ตอบถูกบางส่วน)
-    if (gradingRule === 'partial') {
-        let correctMatches = userArr.filter(u => correctArr.includes(u)).length;
-        let wrongChoices = userArr.filter(u => !correctArr.includes(u)).length;
-        let netCorrect = Math.max(0, correctMatches - wrongChoices);
-        let ratio = netCorrect / correctArr.length;
-        return Number((fullScore * ratio).toFixed(2));
-    }
-
-    // ถ้าเป็นข้อสอบแบบหลายตัวเลือก หรือเฉลยมีหลายข้อ (กรณีบังคับตอบครบแบบ all)
-    if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
-        if (correctArr.length !== userArr.length) return 0;
-        let exactMatch = userArr.every(u => correctArr.includes(u)) && correctArr.every(c => userArr.includes(c));
-        return exactMatch ? fullScore : 0;
-    }
-
-    // ข้อสอบแบบตัวเลือกเดี่ยว หรือเติมคำทั่วไป
-    let singleCorrect = correctArr[0] || '';
-    let singleUser = userArr[0] || '';
-
-    if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
-        return fullScore;
-    }
-
-    return 0;
-}
-        
-        function checkAnswerIsCorrect(q, rawUserAns) {
-            return getQuestionScore(q, rawUserAns) > 0;
+            if (str.includes(',')) {
+                return str.split(',').map(s => String(s).trim()).filter(s => s !== '');
+            }
+            return [str];
         }
 
-        function calculateAttemptTotalScore(att, questionsList, examObj = null) {
+        function extractEssayScore(att, q, index) {
+            if (!att || !q) return null;
+            const scoreMaps = [att.essay_scores, att.question_scores, att.graded_scores];
+            for (let map of scoreMaps) {
+                if (!map) continue;
+                let parsed = map;
+                if (typeof parsed === 'string') {
+                    try { parsed = JSON.parse(parsed); } catch (e) { parsed = null; }
+                }
+                if (parsed && typeof parsed === 'object') {
+                    const keysToTry = [q.id, String(q.id), q.question_id, q.question_number, String(q.question_number), `q${q.question_number}`];
+                    for (const k of keysToTry) {
+                        if (k !== undefined && parsed[k] !== undefined && parsed[k] !== null && !isNaN(Number(parsed[k]))) {
+                            return Number(parsed[k]);
+                        }
+                    }
+                    if (Array.isArray(parsed) && parsed[index] !== undefined && parsed[index] !== null && !isNaN(Number(parsed[index]))) {
+                        return Number(parsed[index]);
+                    }
+                }
+            }
+            return null;
+        }
+
+        function getQuestionScore(q, rawUserAns, att = null, index = 0) {
+            if (!q) return 0;
+            const qType = (q.question_type || q.type || '').toLowerCase();
+            const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) :
+                (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
+
+            if (qType === 'essay' || qType === 'subjective') {
+                const graded = extractEssayScore(att, q, index);
+                return graded !== null ? Math.min(Math.max(graded, 0), fullScore) : 0;
+            }
+
+            if (rawUserAns === undefined || rawUserAns === null || rawUserAns === '' || rawUserAns === '-') {
+                return 0;
+            }
+
+            const correctRaw = q.correct_answer !== undefined ? q.correct_answer :
+                (q.answer !== undefined ? q.answer :
+                (q.key !== undefined ? q.key :
+                (q.solution !== undefined ? q.solution : '')));
+
+            if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
+                return 0;
+            }
+
+            const correctArr = toCleanArray(correctRaw);
+            const userArr = toCleanArray(rawUserAns);
+
+            if (userArr.length === 0) return 0;
+
+            const rawRule = q.multiple_grading_mode || q.grading_rule || q.multiple_grading_rule || q.rule || q.grading_type ||
+                (currentExam && (currentExam.multiple_grading_mode || currentExam.grading_rule || currentExam.multiple_grading_rule)) || '';
+            const gradingRule = String(rawRule).toLowerCase().trim();
+
+            const isAtLeastOneRule = gradingRule.includes('at_least') || gradingRule.includes('one') || gradingRule.includes('once') || gradingRule === 'subset';
+
+            if (isAtLeastOneRule || (correctArr.length > 1 && gradingRule !== 'all' && gradingRule !== 'exact')) {
+                const isSubset = userArr.length > 0 && userArr.every(u => correctArr.includes(u));
+                return isSubset ? fullScore : 0;
+            }
+
+            if (gradingRule === 'partial') {
+                const correctMatches = userArr.filter(u => correctArr.includes(u)).length;
+                const wrongChoices = userArr.filter(u => !correctArr.includes(u)).length;
+                const netCorrect = Math.max(0, correctMatches - wrongChoices);
+                const ratio = netCorrect / correctArr.length;
+                return Number((fullScore * ratio).toFixed(2));
+            }
+
+            if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
+                if (correctArr.length !== userArr.length) return 0;
+                const exactMatch = userArr.every(u => correctArr.includes(u)) && correctArr.every(c => userArr.includes(c));
+                return exactMatch ? fullScore : 0;
+            }
+
+            const singleCorrect = correctArr[0] || '';
+            const singleUser = userArr[0] || '';
+
+            if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
+                return fullScore;
+            }
+
+            return 0;
+        }
+
+        function checkAnswerIsCorrect(q, rawUserAns, att = null, index = 0) {
+            return getQuestionScore(q, rawUserAns, att, index) > 0;
+        }
+
+        function calculateAttemptTotalScore(att, questionsList) {
             if (!att || !Array.isArray(questionsList)) return 0;
+
+            const hasAnswersPayload = Boolean(att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses);
+            if (!hasAnswersPayload && questionsList.length > 0) {
+                if (att.total_score !== undefined && att.total_score !== null && !isNaN(att.total_score)) return Number(att.total_score);
+                if (att.score !== undefined && att.score !== null && !isNaN(att.score)) return Number(att.score);
+            }
 
             let totalScore = 0;
             questionsList.forEach((q, index) => {
-                const studentAns = extractStudentAnswer(att, q, index, examObj);
-                totalScore += getQuestionScore(q, studentAns);
+                const studentAns = extractStudentAnswer(att, q, index);
+                totalScore += getQuestionScore(q, studentAns, att, index);
             });
 
             return Number(totalScore.toFixed(2));
@@ -656,7 +581,7 @@ function getQuestionScore(q, rawUserAns) {
                 let remSeconds = Number(att.remaining_time);
                 if (remSeconds < 0) remSeconds = 0;
                 if (remSeconds > totalExamSeconds) remSeconds = totalExamSeconds;
-                let spentSeconds = totalExamSeconds - remSeconds;
+                const spentSeconds = totalExamSeconds - remSeconds;
                 return spentSeconds / 60;
             }
 
@@ -687,8 +612,8 @@ function getQuestionScore(q, rawUserAns) {
             const examDurationMinutes = Number(currentExam.duration || currentExam.time_limit || currentExam.exam_duration || 30);
             const now = new Date().getTime();
 
-            for (let att of allAttempts) {
-                const isSubmitted = att.status === 'submitted' || (att.total_score !== undefined && att.total_score !== null) || (att.score !== undefined && att.score !== null);
+            for (const att of allAttempts) {
+                const isSubmitted = att.status === 'submitted' || att.status === 'completed' || att.submitted_at || att.submission_time;
                 if (isSubmitted) continue;
 
                 const startTimeStr = att.started_at || att.created_at || att.start_time;
@@ -702,7 +627,7 @@ function getQuestionScore(q, rawUserAns) {
                     }
 
                     if (isExpired) {
-                        let totalScore = calculateAttemptTotalScore(att, allQuestions, currentExam);
+                        const totalScore = calculateAttemptTotalScore(att, allQuestions);
 
                         const updatePayload = {
                             status: 'submitted',
@@ -719,7 +644,7 @@ function getQuestionScore(q, rawUserAns) {
                             att.total_score = totalScore;
                             att.score = totalScore;
                             att.submitted_at = updatePayload.submitted_at;
-                        } catch(err) {
+                        } catch (err) {
                             console.error("Failed to auto-submit attempt:", err);
                         }
                     }
@@ -772,7 +697,7 @@ function getQuestionScore(q, rawUserAns) {
                             const enRes = await mySupabase.from('enrollments').select('*').eq('course_id', activeCourseId);
                             if (enRes.data && enRes.data.length > 0) courseStudents = enRes.data;
                         }
-                    } catch(e) { console.warn("Course members fetch skipped", e); }
+                    } catch (e) { console.warn("Course members fetch skipped", e); }
                 }
 
                 if (courseStudents.length === 0) {
@@ -802,7 +727,7 @@ function getQuestionScore(q, rawUserAns) {
                         schema: 'public',
                         table: 'exam_attempts',
                         filter: `exam_id=eq.${examId}`
-                    }, async (payload) => {
+                    }, async () => {
                         const attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examId);
                         if (attRes.data) {
                             allAttempts = attRes.data;
@@ -811,7 +736,7 @@ function getQuestionScore(q, rawUserAns) {
                         }
                     })
                     .subscribe();
-            } catch(e) {
+            } catch (e) {
                 console.warn("Realtime subscription setup error:", e);
             }
         }
@@ -823,7 +748,7 @@ function getQuestionScore(q, rawUserAns) {
                 attemptMap[sId] = att;
             });
 
-            let studentMasterList = courseStudents.map(cs => {
+            const studentMasterList = courseStudents.map(cs => {
                 const sId = String(cs.student_id || cs.user_id || cs.id);
                 const p = cs.profiles || allStudentsMap[sId] || cs;
                 const nickname = (p.nickname || p.nick_name || '').trim();
@@ -854,10 +779,10 @@ function getQuestionScore(q, rawUserAns) {
             combinedStudentRows = studentMasterList.map(item => {
                 const att = attemptMap[item.studentId];
                 const hasAttempt = !!att;
-                const isSubmitted = hasAttempt && (att.status === 'submitted' || (att.total_score !== undefined && att.total_score !== null) || (att.score !== undefined && att.score !== null));
+                const isSubmitted = hasAttempt && (att.status === 'submitted' || att.status === 'completed' || att.submitted_at || att.submission_time);
                 const isInProgress = hasAttempt && !isSubmitted;
 
-                const score = isSubmitted ? calculateAttemptTotalScore(att, allQuestions, currentExam) : 0;
+                const score = isSubmitted ? calculateAttemptTotalScore(att, allQuestions) : 0;
                 const submittedAtVal = att ? (att.submission_time || att.submitted_at || att.created_at || att.updated_at) : null;
 
                 return {
@@ -898,15 +823,15 @@ function getQuestionScore(q, rawUserAns) {
             globalTimes = allAttempts.map(a => calculateTimeSpentMinutes(a));
             globalMaxScore = allQuestions.reduce((sum, q) => sum + (q.score !== undefined && q.score !== null ? Number(q.score) : 1), 0) || 10;
 
-            let sumScore = globalScores.reduce((acc, curr) => acc + curr, 0);
-            let avgScore = submittedAttempts.length > 0 ? (sumScore / submittedAttempts.length).toFixed(1) : '0.0';
-            let highestScore = globalScores.length > 0 ? Math.max(...globalScores) : 0;
-            let lowestScore = globalScores.length > 0 ? Math.min(...globalScores) : 0;
+            const sumScore = globalScores.reduce((acc, curr) => acc + curr, 0);
+            const avgScore = submittedAttempts.length > 0 ? (sumScore / submittedAttempts.length).toFixed(1) : '0.0';
+            const highestScore = globalScores.length > 0 ? Math.max(...globalScores) : 0;
+            const lowestScore = globalScores.length > 0 ? Math.min(...globalScores) : 0;
 
             let medianScore = '0.0';
             if (globalScores.length > 0) {
-                let sortedScores = [...globalScores].sort((a, b) => a - b);
-                let mid = Math.floor(sortedScores.length / 2);
+                const sortedScores = [...globalScores].sort((a, b) => a - b);
+                const mid = Math.floor(sortedScores.length / 2);
                 if (sortedScores.length % 2 === 0) {
                     medianScore = ((sortedScores[mid - 1] + sortedScores[mid]) / 2).toFixed(1);
                 } else {
@@ -942,7 +867,7 @@ function getQuestionScore(q, rawUserAns) {
                 titleText = '🟡 รายชื่อนักเรียนที่กำลังทำข้อสอบอยู่ (Active / In Progress)';
             }
 
-            let listHtml = targetRows.length === 0 ? `<div class="text-center py-6 text-slate-400">ไม่มีรายชื่อนักเรียนในสถานะนี้</div>` : targetRows.map((r, idx) => `
+            const listHtml = targetRows.length === 0 ? `<div class="text-center py-6 text-slate-400">ไม่มีรายชื่อนักเรียนในสถานะนี้</div>` : targetRows.map((r, idx) => `
                 <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs">
                     <div>
                         <div class="font-bold text-slate-800 dark:text-slate-100">${idx + 1}. ${escapeHtml(r.fullName)}${r.nickname ? ' (' + escapeHtml(r.nickname) + ')' : ''}</div>
@@ -976,16 +901,16 @@ function getQuestionScore(q, rawUserAns) {
                 titleEl.innerHTML = `<i class="fas fa-chart-bar text-sky-500 shrink-0"></i> สถิติความยาก-ง่ายรายข้อ (${metric === 'correct' ? 'จำนวนผู้ตอบถูก (คน)' : 'จำนวนผู้ตอบผิด (คน)'})`;
             }
             
-            let submittedAttempts = allAttempts.filter(att => att.status === 'submitted' || (att.total_score !== undefined && att.total_score !== null) || (att.score !== undefined && att.score !== null));
+            const submittedAttempts = allAttempts.filter(att => att.status === 'submitted' || att.status === 'completed' || att.submitted_at || att.submission_time);
 
-            let labels = allQuestions.map(q => `ข้อ ${q.question_number}`);
-            let counts = allQuestions.map(q => {
+            const labels = allQuestions.map(q => `ข้อ ${q.question_number}`);
+            const counts = allQuestions.map((q, qIdx) => {
                 if (submittedAttempts.length === 0) return 0;
                 let correctCount = 0;
                 
-                submittedAttempts.forEach((att, index) => {
-                    let uAns = extractStudentAnswer(att, q, index, currentExam);
-                    if (checkAnswerIsCorrect(q, uAns)) {
+                submittedAttempts.forEach((att, attIdx) => {
+                    const uAns = extractStudentAnswer(att, q, attIdx);
+                    if (checkAnswerIsCorrect(q, uAns, att, qIdx)) {
                         correctCount++;
                     }
                 });
@@ -1066,18 +991,18 @@ function getQuestionScore(q, rawUserAns) {
 
             if (metric === 'percent') {
                 labels = ['0-9%', '10-19%', '20-29%', '30-39%', '40-49%', '50-59%', '60-69%', '70-79%', '80-89%', '90-100%'];
-                let buckets = new Array(10).fill(0);
+                const buckets = new Array(10).fill(0);
                 globalScores.forEach(s => {
-                    let pct = globalMaxScore > 0 ? (s / globalMaxScore) * 100 : 0;
-                    let idx = Math.min(Math.floor(pct / 10), 9);
+                    const pct = globalMaxScore > 0 ? (s / globalMaxScore) * 100 : 0;
+                    const idx = Math.min(Math.floor(pct / 10), 9);
                     buckets[idx]++;
                 });
                 dataValues = buckets;
             } else {
-                let freqMap = {};
+                const freqMap = {};
                 for (let i = 0; i <= globalMaxScore; i++) freqMap[i] = 0;
                 globalScores.forEach(s => {
-                    let rounded = Math.min(Math.max(Math.round(s), 0), globalMaxScore);
+                    const rounded = Math.min(Math.max(Math.round(s), 0), globalMaxScore);
                     freqMap[rounded] = (freqMap[rounded] || 0) + 1;
                 });
                 for (let i = 0; i <= globalMaxScore; i++) {
@@ -1086,8 +1011,8 @@ function getQuestionScore(q, rawUserAns) {
                 }
             }
 
-            let avgScoreVal = globalScores.length > 0 ? (globalScores.reduce((a, b) => a + b, 0) / globalScores.length) : 0;
-            let avgIndex = metric === 'percent' ? Math.min(Math.floor((avgScoreVal / globalMaxScore) * 10.0), 9) : Math.min(Math.round(avgScoreVal), globalMaxScore);
+            const avgScoreVal = globalScores.length > 0 ? (globalScores.reduce((a, b) => a + b, 0) / globalScores.length) : 0;
+            const avgIndex = metric === 'percent' ? Math.min(Math.floor((avgScoreVal / globalMaxScore) * 10.0), 9) : Math.min(Math.round(avgScoreVal), globalMaxScore);
 
             if (spreadChartInstance) spreadChartInstance.destroy();
             spreadChartInstance = new Chart(ctx, {
@@ -1121,9 +1046,9 @@ function getQuestionScore(q, rawUserAns) {
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
             
-            let ranges = [0, 0, 0, 0];
+            const ranges = [0, 0, 0, 0];
             scores.forEach(s => {
-                let pct = maxScore > 0 ? (s / maxScore) * 100 : 0;
+                const pct = maxScore > 0 ? (s / maxScore) * 100 : 0;
                 if (pct < 50) ranges[0]++;
                 else if (pct < 70) ranges[1]++;
                 else if (pct < 85) ranges[2]++;
@@ -1155,21 +1080,21 @@ function getQuestionScore(q, rawUserAns) {
             const ctx = canvasEl.getContext('2d');
 
             const maxDuration = Number(currentExam && (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) ? (currentExam.duration || currentExam.time_limit || currentExam.exam_duration) : 30);
-            let binCount = Math.max(Math.ceil(maxDuration / 5), 6);
-            let labels = [];
-            let timeBuckets = new Array(binCount).fill(0);
+            const binCount = Math.max(Math.ceil(maxDuration / 5), 6);
+            const labels = [];
+            const timeBuckets = new Array(binCount).fill(0);
 
             for (let i = 0; i < binCount; i++) {
                 labels.push(`${i * 5}-${(i + 1) * 5} นาที`);
             }
 
             globalTimes.forEach(t => {
-                let binIdx = Math.min(Math.floor(t / 5), binCount - 1);
+                const binIdx = Math.min(Math.floor(t / 5), binCount - 1);
                 timeBuckets[binIdx]++;
             });
 
-            let avgTimeVal = globalTimes.length > 0 ? (globalTimes.reduce((a, b) => a + b, 0) / globalTimes.length) : 0;
-            let avgTimeBucketIdx = Math.min(Math.floor(avgTimeVal / 5), binCount - 1);
+            const avgTimeVal = globalTimes.length > 0 ? (globalTimes.reduce((a, b) => a + b, 0) / globalTimes.length) : 0;
+            const avgTimeBucketIdx = Math.min(Math.floor(avgTimeVal / 5), binCount - 1);
 
             if (timeSpentChartInstance) timeSpentChartInstance.destroy();
             timeSpentChartInstance = new Chart(ctx, {
@@ -1202,7 +1127,7 @@ function getQuestionScore(q, rawUserAns) {
             if (!canvasEl) return;
             const ctx = canvasEl.getContext('2d');
 
-            let scatterData = combinedStudentRows.filter(r => r.isSubmitted).map(r => {
+            const scatterData = combinedStudentRows.filter(r => r.isSubmitted).map(r => {
                 const score = r.score;
                 const minutes = r.minutesSpent;
                 const name = r.fullName || 'นักเรียน';
@@ -1310,7 +1235,7 @@ function getQuestionScore(q, rawUserAns) {
                 return null;
             }
             const matchedCriteria = currentExam.grading_criteria.filter(c => !c.category || c.category.trim() === '' || c.category.trim() === categoryName.trim());
-            for (let crit of matchedCriteria) {
+            for (const crit of matchedCriteria) {
                 const min = crit.min_pct !== undefined ? crit.min_pct : 0;
                 const max = crit.max_pct !== undefined ? crit.max_pct : 100;
                 if (categoryPct >= min && categoryPct <= max) return crit.name;
@@ -1320,9 +1245,9 @@ function getQuestionScore(q, rawUserAns) {
 
         function downloadStudentReport(studentName, studentIdCode, score, maxScore, categoryStats) {
             const hasCriteria = currentExam && currentExam.enable_grading_criteria && Array.isArray(currentExam.grading_criteria) && currentExam.grading_criteria.length > 0;
-            let categoryRows = Object.entries(categoryStats).map(([cat, stat]) => {
-                let pct = stat.total > 0 ? ((stat.correct / stat.total) * 100).toFixed(1) : '0.0';
-                let evalLevel = evaluateCategoryCriteria(cat, parseFloat(pct));
+            const categoryRows = Object.entries(categoryStats).map(([cat, stat]) => {
+                const pct = stat.total > 0 ? ((stat.correct / stat.total) * 100).toFixed(1) : '0.0';
+                const evalLevel = evaluateCategoryCriteria(cat, parseFloat(pct));
                 return `
                     <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
                         <td style="padding: 8px;"><b>${escapeHtml(cat)}</b></td>
@@ -1333,8 +1258,8 @@ function getQuestionScore(q, rawUserAns) {
                 `;
             }).join('');
 
-            let totalPct = maxScore > 0 ? ((score / maxScore) * 100).toFixed(1) : '0.0';
-            let overallEval = evaluateCategoryCriteria('ภาพรวม', parseFloat(totalPct));
+            const totalPct = maxScore > 0 ? ((score / maxScore) * 100).toFixed(1) : '0.0';
+            const overallEval = evaluateCategoryCriteria('ภาพรวม', parseFloat(totalPct));
 
             const reportWin = window.open('', '_blank');
             reportWin.document.write(`
@@ -1390,19 +1315,19 @@ function getQuestionScore(q, rawUserAns) {
             const name = (profile.first_name || profile.name || profile.full_name || '').trim() + 
                          (profile.last_name ? ' ' + profile.last_name : '') || att.student_name || 'นักเรียน';
             const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
-            const score = calculateAttemptTotalScore(att, allQuestions, currentExam);
+            const score = calculateAttemptTotalScore(att, allQuestions);
             const maxScore = globalMaxScore;
 
-            let categoryStats = {};
-            let questionsHtml = allQuestions.map((q, index) => {
-                let rawUserAns = extractStudentAnswer(att, q, index, currentExam);
-                let userAnsFormatted = formatAnswerText(rawUserAns, currentExam);
-                let correctAnsFormatted = getCorrectAnswer(q, currentExam);
+            const categoryStats = {};
+            const questionsHtml = allQuestions.map((q, index) => {
+                const rawUserAns = extractStudentAnswer(att, q, index);
+                const userAnsFormatted = formatAnswerText(rawUserAns, currentExam);
+                const correctAnsFormatted = getCorrectAnswer(q, currentExam);
 
-                const isEssay = q.question_type === 'essay';
-                const isMultiple = q.question_type === 'multiple';
-                let qEarnedScore = getQuestionScore(q, rawUserAns);
-                let qMaxScore = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
+                const isEssay = (q.question_type || q.type || '').toLowerCase() === 'essay';
+                const isMultiple = (q.question_type || q.type || '').toLowerCase() === 'multiple';
+                const qEarnedScore = getQuestionScore(q, rawUserAns, att, index);
+                const qMaxScore = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
                 const isCorrect = qEarnedScore >= qMaxScore;
                 const isPartial = qEarnedScore > 0 && qEarnedScore < qMaxScore;
 
@@ -1411,8 +1336,8 @@ function getQuestionScore(q, rawUserAns) {
                 categoryStats[catTag].total += qMaxScore;
                 categoryStats[catTag].correct += qEarnedScore;
 
-                let statusText = isCorrect ? '✅ ถูกต้อง' : (isPartial ? `⚠️ ถูกบางส่วน (${qEarnedScore}/${qMaxScore})` : '❌ ตอบผิด');
-                if (isEssay) statusText = '✍️ อัตนัย';
+                let statusText = isCorrect ? `✅ ถูกต้อง (${qEarnedScore}/${qMaxScore})` : (isPartial ? `⚠️ ถูกบางส่วน (${qEarnedScore}/${qMaxScore})` : `❌ ตอบผิด (${qEarnedScore}/${qMaxScore})`);
+                if (isEssay) statusText = `✍️ อัตนัย (${qEarnedScore}/${qMaxScore})`;
 
                 return `
                     <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isEssay ? 'border-amber-500/40' : (isCorrect ? 'border-emerald-500/40' : (isPartial ? 'border-indigo-500/40' : 'border-rose-500/40'))} space-y-1.5 text-xs text-left">
@@ -1431,9 +1356,9 @@ function getQuestionScore(q, rawUserAns) {
             }).join('');
 
             const hasCriteria = currentExam && currentExam.enable_grading_criteria && Array.isArray(currentExam.grading_criteria) && currentExam.grading_criteria.length > 0;
-            let categorySummaryHtml = Object.entries(categoryStats).map(([cat, stat]) => {
-                let pct = stat.total > 0 ? ((stat.correct / stat.total) * 100).toFixed(1) : '0.0';
-                let levelName = evaluateCategoryCriteria(cat, parseFloat(pct));
+            const categorySummaryHtml = Object.entries(categoryStats).map(([cat, stat]) => {
+                const pct = stat.total > 0 ? ((stat.correct / stat.total) * 100).toFixed(1) : '0.0';
+                const levelName = evaluateCategoryCriteria(cat, parseFloat(pct));
                 return `
                     <div class="p-2.5 bg-sky-500/5 border border-sky-500/20 rounded-xl flex justify-between items-center text-[11px] gap-2">
                         <div class="truncate"><b>หมวด:</b> ${escapeHtml(cat)}</div>
