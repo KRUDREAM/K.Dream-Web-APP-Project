@@ -189,8 +189,8 @@
             </div>
         </div>
 
-        <!-- Shared Passage / Stimulus Panel -->
-        <div id="sharedPassagesCard" class="hitech-card p-6 rounded-2xl space-y-4 border-l-4 border-l-teal-500">
+        <!-- Shared Passage / Stimulus Panel (Online Mode) -->
+        <div id="sharedPassagesCard" class="hitech-card p-6 rounded-2xl space-y-4 border-l-4 border-l-teal-500 hidden">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div>
                     <h3 class="font-bold text-base flex items-center gap-2 text-teal-600 dark:text-teal-400">
@@ -421,15 +421,11 @@
                 ? String(q.category_tag).trim()
                 : (meta.category_tag !== undefined && meta.category_tag !== null ? String(meta.category_tag).trim() : '');
 
-            const resolvedPassageId = (q.shared_passage_id !== undefined && q.shared_passage_id !== null && String(q.shared_passage_id).trim() !== '')
-                ? String(q.shared_passage_id).trim()
-                : (meta.shared_passage_id ? String(meta.shared_passage_id).trim() : null);
-
             return {
                 ...q,
                 category_tag: resolvedCategoryTag,
                 score: (q.score !== undefined && q.score !== null) ? Number(q.score) : (meta.score !== undefined ? Number(meta.score) : 1),
-                shared_passage_id: resolvedPassageId,
+                shared_passage_id: q.shared_passage_id || meta.shared_passage_id || null,
                 is_bonus_all: isBonus,
                 allow_multi_correct_keys: isSingleMultiKey,
                 is_multiple_answers: isMultiple,
@@ -934,7 +930,6 @@
             let parsed = [];
             if (Array.isArray(examData?.shared_passages) && examData.shared_passages.length > 0) {
                 parsed = examData.shared_passages;
-                localStorage.setItem(localKey, JSON.stringify(parsed));
             } else {
                 try {
                     const rawLocal = localStorage.getItem(localKey);
@@ -946,20 +941,10 @@
 
         async function persistSharedPassages(silent = true) {
             localStorage.setItem(`shared_passages_${examId}`, JSON.stringify(sharedPassages));
-            const { error } = await mySupabase
-                .from('exams')
-                .update({ shared_passages: sharedPassages })
-                .eq('id', examId);
-
-            if (error) {
-                console.warn('Shared passages column update warning:', error);
-                if (!silent) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'บันทึกในเครื่องแล้ว (รอคอลัมน์ DB)',
-                        html: `<div class="text-xs text-slate-400 mt-1">บันทึกโจทย์ร่วมไว้ในเบราว์เซอร์แล้ว แต่ยังไม่ถูกบันทึกลงตาราง <code>exams</code> (${escapeHtml(error.message)})</div>`
-                    });
-                }
+            try {
+                await mySupabase.from('exams').update({ shared_passages: sharedPassages }).eq('id', examId);
+            } catch (err) {
+                console.warn('Shared passages column fallback to localStorage:', err);
             }
             renderSharedPassagesPanel();
             renderQuestionAccordions();
@@ -2115,9 +2100,9 @@
                             <button type="button" onclick="insertTableSnippetIntoTextarea('${optInputId}', '${optPrevId}')" class="text-emerald-600 dark:text-emerald-400 font-bold"><i class="fas fa-table"></i> ตาราง</button>
                             <label class="text-sky-600 dark:text-sky-400 font-bold cursor-pointer"><i class="fas fa-image"></i> แทรกรูป<input type="file" accept="image/*" class="hidden" onchange="handleEditorFileInsert(this, '${optInputId}', '${optPrevId}')"></label>
                             <button type="button" onclick="insertImageUrlPromptIntoTextarea('${optInputId}', '${optPrevId}')" class="text-indigo-500 font-bold">URL รูป</button>
-                            <button type="button" onclick="toggleMarkdownPreviewPane('${prevId}'); refreshMarkdownPreview('${optInputId}', '${optPrevId}');" class="text-slate-500 underline">Preview</button>
+                            <button type="button" onclick="toggleMarkdownPreviewPane('${optPrevId}'); refreshMarkdownPreview('${optInputId}', '${optPrevId}');" class="text-slate-500 underline">Preview</button>
                         </div>
-                        <div id="${prevId}" onclick="handleMarkdownBodyClick(event)" class="${hasOptPreview ? '' : 'hidden'} p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border prose dark:prose-invert max-w-none text-[11px]">${renderMarkdownSafe(opt)}</div>
+                        <div id="${optPrevId}" onclick="handleMarkdownBodyClick(event)" class="${hasOptPreview ? '' : 'hidden'} p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border prose dark:prose-invert max-w-none text-[11px]">${renderMarkdownSafe(opt)}</div>
                     </div>
                 `;
 
@@ -2178,7 +2163,7 @@
                         </select>
                     </div>
                     <div class="flex items-end">
-                        <button type="button" onclick="Swal.close(); setTimeout(() => openSharedPassageModal(), 200);" class="w-full px-3 py-1.5 bg-teal-600/10 hover:bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/30 rounded-xl font-bold text-xs">
+                        <button type="button" onclick="Swal.close(); openSharedPassageModal();" class="w-full px-3 py-1.5 bg-teal-600/10 hover:bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/30 rounded-xl font-bold text-xs">
                             <i class="fas fa-plus mr-1"></i> สร้างชุดโจทย์ร่วมใหม่
                         </button>
                     </div>
@@ -2344,7 +2329,6 @@
                     exam_id: formValues.exam_id,
                     question_number: formValues.question_number,
                     category_tag: formValues.category_tag,
-                    shared_passage_id: formValues.shared_passage_id,
                     question_type: formValues.question_type,
                     question_text: formValues.question_text,
                     content: formValues.content,
@@ -2649,7 +2633,6 @@
                 didOpen: () => Swal.showLoading()
             });
 
-            localStorage.setItem(`shared_passages_${examId}`, JSON.stringify(sharedPassages));
             try {
                 await mySupabase.from('exams').update({ shared_passages: sharedPassages }).eq('id', examId);
             } catch (e) {}
@@ -2689,7 +2672,6 @@
                         question_type: q.question_type,
                         options: q.options,
                         category_tag: q.category_tag,
-                        shared_passage_id: q.shared_passage_id || null,
                         is_multiple_answers: !!q.is_multiple_answers,
                         multiple_grading_mode: persistedMode
                     }).eq('id', q.id);
