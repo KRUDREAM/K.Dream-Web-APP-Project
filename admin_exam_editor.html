@@ -925,33 +925,52 @@
             return '1, 2, 3, 4';
         }
 
-        function loadSharedPassagesState(examData) {
-            const localKey = `shared_passages_${examId}`;
-            let parsed = [];
-            if (Array.isArray(examData?.shared_passages) && examData.shared_passages.length > 0) {
-                parsed = examData.shared_passages;
-            } else {
-                try {
-                    const rawLocal = localStorage.getItem(localKey);
-                    if (rawLocal) parsed = JSON.parse(rawLocal);
-                } catch (e) {}
-            }
-            sharedPassages = Array.isArray(parsed) ? parsed : [];
+function loadSharedPassagesState(examData) {
+    const localKey = `shared_passages_${examId}`;
+    if (Array.isArray(examData?.shared_passages)) {
+        sharedPassages = examData.shared_passages;
+        // อัปเดต localStorage ให้ตรงกับ Database เสมอ
+        localStorage.setItem(localKey, JSON.stringify(sharedPassages));
+    } else {
+        // กรณีข้อมูลเก่าเคยค้างใน localStorage ให้ดึงมาเตรียม sync ขึ้น DB
+        try {
+            const rawLocal = localStorage.getItem(localKey);
+            sharedPassages = rawLocal ? JSON.parse(rawLocal) : [];
+        } catch (e) {
+            sharedPassages = [];
         }
+    }
+}
 
-        async function persistSharedPassages(silent = true) {
-            localStorage.setItem(`shared_passages_${examId}`, JSON.stringify(sharedPassages));
-            try {
-                await mySupabase.from('exams').update({ shared_passages: sharedPassages }).eq('id', examId);
-            } catch (err) {
-                console.warn('Shared passages column fallback to localStorage:', err);
-            }
-            renderSharedPassagesPanel();
-            renderQuestionAccordions();
-            if (!silent) {
-                markAsModified();
-            }
-        }
+async function persistSharedPassages(silent = true) {
+    localStorage.setItem(`shared_passages_${examId}`, JSON.stringify(sharedPassages));
+    
+    const { error } = await mySupabase
+        .from('exams')
+        .update({ shared_passages: sharedPassages })
+        .eq('id', examId);
+
+    if (error) {
+        console.error('Supabase shared_passages error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'บันทึกโจทย์ร่วมลงระบบไม่สำเร็จ!',
+            html: `<div class="text-xs text-left">กรุณาตรวจสอบว่าเพิ่มคอลัมน์ <code>shared_passages</code> (jsonb) ในตาราง <code>exams</code> แล้วหรือยัง<br><code class="text-red-400 block mt-2 p-2 bg-slate-900 rounded">${escapeHtml(error.message)}</code></div>`
+        });
+        return false;
+    }
+
+    if (currentExamData) {
+        currentExamData.shared_passages = sharedPassages;
+    }
+
+    renderSharedPassagesPanel();
+    renderQuestionAccordions();
+    if (!silent) {
+        Swal.fire({ icon: 'success', title: 'บันทึกชุดโจทย์ร่วมลงระบบแล้ว!', timer: 1200, showConfirmButton: false });
+    }
+    return true;
+}
 
         function renderSharedPassagesPanel() {
             const card = document.getElementById('sharedPassagesCard');
@@ -1035,28 +1054,31 @@
             }
         }
 
-        async function deleteSharedPassage(passageId) {
-            const res = await Swal.fire({
-                title: 'ลบชุดโจทย์ร่วมนี้?',
-                text: 'ข้อสอบย่อยที่ผูกอยู่จะถูกปลดการเชื่อมโยง แต่ตัวข้อสอบจะไม่ถูกลบ',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ef4444',
-                confirmButtonText: 'ยืนยันลบ',
-                cancelButtonText: 'ยกเลิก'
-            });
-            if (!res.isConfirmed) return;
+async function deleteSharedPassage(passageId) {
+    const res = await Swal.fire({
+        title: 'ลบชุดโจทย์ร่วมนี้?',
+        text: 'ข้อสอบย่อยที่ผูกอยู่จะถูกปลดการเชื่อมโยง แต่ตัวข้อสอบจะไม่ถูกลบ',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'ยืนยันลบ',
+        cancelButtonText: 'ยกเลิก'
+    });
+    if (!res.isConfirmed) return;
 
-            sharedPassages = sharedPassages.filter(p => String(p.id) !== String(passageId));
-            cachedQuestions.forEach(q => {
-                if (String(q.shared_passage_id || '') === String(passageId)) {
-                    q.shared_passage_id = null;
-                    saveQuestionMetaItem(q.id, { shared_passage_id: null });
-                }
-            });
-            await persistSharedPassages(false);
-            await logAdminAction('ลบชุดโจทย์ร่วม', `ลบชุดโจทย์ร่วม ID: ${passageId}`);
+    sharedPassages = sharedPassages.filter(p => String(p.id) !== String(passageId));
+    
+    for (const q of cachedQuestions) {
+        if (String(q.shared_passage_id || '') === String(passageId)) {
+            q.shared_passage_id = null;
+            saveQuestionMetaItem(q.id, { shared_passage_id: null });
+            await mySupabase.from('questions').update({ shared_passage_id: null }).eq('id', q.id);
         }
+    }
+
+    await persistSharedPassages(false);
+    await logAdminAction('ลบชุดโจทย์ร่วม', `ลบชุดโจทย์ร่วม ID: ${passageId}`);
+}
 
         async function loadExamHeader() {
             const { data } = await mySupabase.from('exams').select('*').eq('id', examId).single();
@@ -2325,21 +2347,22 @@
 
             if (formValues) {
                 const fullPayload = { ...formValues };
-                const corePayload = {
-                    exam_id: formValues.exam_id,
-                    question_number: formValues.question_number,
-                    category_tag: formValues.category_tag,
-                    question_type: formValues.question_type,
-                    question_text: formValues.question_text,
-                    content: formValues.content,
-                    image_url: formValues.image_url,
-                    options: formValues.options,
-                    correct_answer: formValues.correct_answer,
-                    is_multiple_answers: formValues.is_multiple_answers,
-                    multiple_grading_mode: formValues.multiple_grading_mode,
-                    grading_type: formValues.grading_type,
-                    keywords: formValues.keywords
-                };
+const corePayload = {
+    exam_id: formValues.exam_id,
+    question_number: formValues.question_number,
+    category_tag: formValues.category_tag,
+    shared_passage_id: formValues.shared_passage_id || null, // <-- เพิ่มบรรทัดนี้
+    question_type: formValues.question_type,
+    question_text: formValues.question_text,
+    content: formValues.content,
+    image_url: formValues.image_url,
+    options: formValues.options,
+    correct_answer: formValues.correct_answer,
+    is_multiple_answers: formValues.is_multiple_answers,
+    multiple_grading_mode: formValues.multiple_grading_mode,
+    grading_type: formValues.grading_type,
+    keywords: formValues.keywords
+};
 
                 let savedRecordId = isEdit ? qData.id : null;
 
