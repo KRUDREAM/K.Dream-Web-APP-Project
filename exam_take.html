@@ -371,6 +371,24 @@
         }
         // ================================================================================
 
+        // จัดเรียงลำดับข้อตามเลขข้อ (1, 2, 3, ..., 10, 11) ไม่สลับข้อ
+        function sortQuestionsInOrder(list) {
+            return [...(list || [])].sort((a, b) => {
+                const strA = String(a?.question_number ?? '').trim();
+                const strB = String(b?.question_number ?? '').trim();
+                const numA = Number(strA);
+                const numB = Number(strB);
+
+                if (strA !== '' && strB !== '' && !Number.isNaN(numA) && !Number.isNaN(numB) && numA !== numB) {
+                    return numA - numB;
+                }
+                if (strA && strB && strA !== strB) {
+                    return strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+                }
+                return (Number(a?.id) || 0) - (Number(b?.id) || 0);
+            });
+        }
+
         function getQuestionMetaMap() {
             try {
                 const raw = localStorage.getItem(`question_meta_${examId}`);
@@ -992,7 +1010,7 @@
         }
 
         function getAnswerableQuestions() {
-            return currentQuestions.filter(q => !isPassageHeader(q));
+            return sortQuestionsInOrder(currentQuestions).filter(q => !isPassageHeader(q));
         }
 
         function buildSharedPassageBox(passageObj, childQuestions = [], compact = false) {
@@ -1271,7 +1289,7 @@
                         if (!row || String(row.exam_id) !== String(examId)) return;
                         const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
                         if (qs) {
-                            currentQuestions = qs.map(hydrateQuestionMeta);
+                            currentQuestions = sortQuestionsInOrder(qs.map(hydrateQuestionMeta));
                             renderQuestionsContainer();
                             updateExamProgress();
                         }
@@ -1363,7 +1381,7 @@
 
         async function loadQuestions() {
             const { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
-            currentQuestions = (qs || []).map(hydrateQuestionMeta);
+            currentQuestions = sortQuestionsInOrder((qs || []).map(hydrateQuestionMeta));
             const answerable = getAnswerableQuestions();
             if (currentStepIndex >= answerable.length) {
                 currentStepIndex = Math.max(0, answerable.length - 1);
@@ -1692,7 +1710,8 @@
             const prevBtn = document.getElementById('prevStepBtn');
             const nextBtn = document.getElementById('nextStepBtn');
 
-            const answerable = getAnswerableQuestions();
+            const orderedQuestions = sortQuestionsInOrder(currentQuestions);
+            const answerable = orderedQuestions.filter(q => !isPassageHeader(q));
 
             if (answerable.length === 0) {
                 container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">ยังไม่มีรายการโจทย์ในชุดข้อสอบนี้</div>`;
@@ -1763,7 +1782,7 @@
             let lastInlinePassageKey = null;
             let answerableCounter = 0;
 
-            currentQuestions.forEach((q) => {
+            orderedQuestions.forEach((q) => {
                 if (isPassageHeader(q)) {
                     const childList = answerable.filter(item => String(getParentIdFromQuestion(item)) === String(q.id).trim());
                     lastRenderedPassageId = String(q.id).trim();
@@ -1800,7 +1819,7 @@
                     htmlContent += `
                         <div class="pt-4 pb-2 flex justify-end">
                             <button onclick="confirmSubmitExam()" class="px-6 py-3.5 bg-gradient-to-r from-emerald-600/90 to-teal-600/90 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl backdrop-blur-md transition-all flex items-center gap-2.5">
-                                <i class="fas fa-paper-plane text-base"></i> ส่งข้อสอบ (เสร็จสิ้นทุกข้อ)
+                                <i class="fas fa-paper-plane text-base"></i> ส่งข้อสอบ (เสร็จสิ้นทุกข้อแล้ว)
                             </button>
                         </div>
                     `;
