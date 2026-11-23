@@ -65,7 +65,8 @@
         .math-prose ul { list-style-type: disc; padding-left: 1.35rem; margin: 0.35rem 0; }
         .math-prose ol { list-style-type: decimal; padding-left: 1.35rem; margin: 0.35rem 0; }
         .math-prose code { background: rgba(148, 163, 184, 0.18); padding: 0.1rem 0.35rem; border-radius: 0.35rem; font-size: 0.85em; }
-        .math-prose img { border-radius: 0.75rem; max-height: 340px; object-fit: contain; margin: 0.5rem auto; }
+        .math-prose img { border-radius: 0.75rem; max-height: 340px; object-fit: contain; margin: 0.5rem auto; cursor: zoom-in; transition: transform 0.2s ease; }
+        .math-prose img:hover { transform: scale(1.01); }
         .math-prose .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.25rem 0; margin: 0.35rem 0; }
         .math-prose .katex { font-size: 1.03em; }
 
@@ -113,10 +114,24 @@
 </head>
 <body class="bg-slate-50 dark:bg-darkbg min-h-screen text-slate-900 dark:text-slate-100 pb-20" oncontextmenu="return false;">
 
+    <!-- Modal ดูรูปภาพเต็มหน้าจอ (Image Lightbox) -->
+    <div id="imageLightboxModal" onclick="if (event.target === this || event.target.id === 'imageLightboxBackdrop') closeImageLightbox()" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 sm:p-8 cursor-zoom-out">
+        <button type="button" onclick="closeImageLightbox()" class="fixed top-4 right-4 z-[110] w-11 h-11 rounded-full bg-white/15 hover:bg-red-500 text-white border border-white/25 flex items-center justify-center text-lg shadow-xl transition-all cursor-pointer" title="ปิดหน้าต่างรูปภาพ (ESC)">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <div id="imageLightboxBackdrop" class="w-full h-full flex flex-col items-center justify-center gap-3">
+            <img id="imageLightboxImg" src="" alt="รูปภาพขยายเต็มหน้าจอ" onclick="event.stopPropagation()" class="max-w-[95vw] max-h-[82vh] object-contain rounded-2xl shadow-2xl border border-white/15 bg-white/5 cursor-default select-none" />
+            <div onclick="event.stopPropagation()" class="px-4 py-1.5 rounded-full bg-black/60 text-slate-200 text-xs font-medium border border-white/15 flex items-center gap-2">
+                <i class="fas fa-hand-pointer text-sky-400"></i> คลิกพื้นที่ว่างนอกกรอบภาพ หรือกดปุ่มกากบาท (✕) เพื่อปิด
+            </div>
+        </div>
+    </div>
+
     <!-- แผงภาพรวมข้อสอบ ลอยอยู่กึ่งกลางซ้าย พร้อมปุ่มซ่อน/แสดง -->
     <div id="leftFloatOverview" class="fixed left-3 top-1/2 -translate-y-1/2 z-40 hidden lg:flex items-center transition-all duration-300">
-        <div id="overviewCardBody" class="hitech-card rounded-2xl p-3.5 shadow-2xl backdrop-blur-md bg-white/95 dark:bg-darkbox/95 border border-sky-500/40 w-52 space-y-3 transition-all duration-300">
-            <div class="flex justify-between items-center pb-2.5 border-b border-slate-200 dark:border-slate-800">
+        <div id="overviewCardBody" class="hitech-card rounded-2xl p-3.5 shadow-2xl backdrop-blur-md bg-white/95 dark:bg-darkbox/95 border border-sky-500/40 w-56 space-y-2.5 transition-all duration-300">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
                 <div class="flex items-center gap-2">
                     <div class="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center text-[11px] font-bold">
                         <i class="fas fa-th-large"></i>
@@ -126,13 +141,21 @@
                 <span id="floatOverviewCount" class="text-[10px] font-bold text-sky-600 dark:text-sky-400">0/0</span>
             </div>
 
+            <!-- แสดงข้อปัจจุบันที่กำลังทำอยู่ -->
+            <div class="px-2.5 py-1.5 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-between text-[11px]">
+                <span class="text-slate-600 dark:text-slate-300 font-medium flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-sky-500 animate-ping"></span> กำลังอยู่ที่:
+                </span>
+                <span id="floatCurrentQuestionLabel" class="font-extrabold text-sky-600 dark:text-sky-400">ข้อ 1</span>
+            </div>
+
             <div class="flex items-center justify-between text-[10px] text-slate-500 font-medium px-1">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500 ring-2 ring-sky-300 inline-block"></span> ปัจจุบัน</span>
                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> ตอบ</span>
-                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700 inline-block"></span> ว่าง</span>
                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> ธง</span>
             </div>
 
-            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-56 overflow-y-auto pr-1 hide-scrollbar"></div>
+            <div id="overviewGridContainer" class="grid grid-cols-5 gap-1.5 max-h-56 overflow-y-auto p-1 hide-scrollbar"></div>
         </div>
 
         <button onclick="toggleOverviewSidebar()" id="toggleSidebarBtn" class="ml-1.5 w-6 h-12 bg-white dark:bg-darkbox border border-slate-200 dark:border-slate-800 rounded-r-xl shadow-md text-slate-500 hover:text-sky-500 flex items-center justify-center text-xs transition-all cursor-pointer" title="ซ่อน/แสดง แผงภาพรวม">
@@ -179,7 +202,7 @@
         </div>
     </nav>
 
-    <main class="max-w-[96rem] mx-auto px-4 pt-24 space-y-6 lg:pl-16">
+    <main class="max-w-[96rem] mx-auto px-4 pt-24 space-y-6 lg:pl-20">
         <div id="previewBanner" class="hidden p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex justify-between items-center text-xs font-bold text-indigo-600 dark:text-indigo-400">
             <span><i class="fas fa-eye mr-1.5"></i> โหมดดูตัวอย่างข้อสอบ (Preview Mode - คะแนนจะไม่ถูกบันทึก)</span>
             <button onclick="window.close()" class="px-3 py-1 bg-indigo-600 text-white rounded-lg">ปิดหน้าต่างนี้</button>
@@ -301,6 +324,52 @@
         let currentStepIndex = 0;
         let examRealtimeChannel = null;
         let activeAttemptRecordId = null;
+
+        // ==================== ระบบดูรูปภาพเต็มหน้าจอ (Image Lightbox) ====================
+        function openImageLightbox(src) {
+            if (!src) return;
+            const modal = document.getElementById('imageLightboxModal');
+            const img = document.getElementById('imageLightboxImg');
+            if (!modal || !img) return;
+            img.src = src;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeImageLightbox() {
+            const modal = document.getElementById('imageLightboxModal');
+            const img = document.getElementById('imageLightboxImg');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            if (img) img.src = '';
+        }
+
+        // รองรับคลิกที่รูปภาพใด ๆ ภายในเนื้อหาโจทย์ (เช่น รูปใน Markdown) เพื่อขยายเต็มจอด้วย
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.tagName === 'IMG' && e.target.closest('.math-prose')) {
+                openImageLightbox(e.target.src);
+            }
+        });
+
+        function buildExpandableImageBlock(imageUrl, maxHeightClass = 'max-h-72', borderClass = 'border-slate-200 dark:border-slate-700') {
+            if (!imageUrl) return '';
+            const safeUrl = escapeHtmlText(imageUrl);
+            return `
+                <div class="my-4 flex flex-col items-center">
+                    <div onclick="openImageLightbox('${safeUrl}')" class="group relative inline-block cursor-zoom-in rounded-xl overflow-hidden border ${borderClass} shadow-sm bg-white/40 dark:bg-slate-900/40" title="คลิกเพื่อขยายดูแบบเต็มหน้าจอ">
+                        <img src="${safeUrl}" class="${maxHeightClass} rounded-xl object-contain transition-transform duration-200 group-hover:scale-[1.01]" />
+                        <div class="absolute top-2 right-2 w-8 h-8 rounded-lg bg-slate-900/70 text-white flex items-center justify-center text-xs opacity-85 group-hover:opacity-100 group-hover:bg-sky-600 transition-all shadow">
+                            <i class="fas fa-expand"></i>
+                        </div>
+                    </div>
+                    <button type="button" onclick="openImageLightbox('${safeUrl}')" class="mt-1.5 text-[11px] font-semibold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1.5 cursor-pointer">
+                        <i class="fas fa-search-plus"></i> กดที่รูปภาพเพื่อขยายดูแบบเต็มหน้าจอ
+                    </button>
+                </div>
+            `;
+        }
+        // ================================================================================
 
         function getQuestionMetaMap() {
             try {
@@ -709,6 +778,13 @@
             if (e.button === 2 && !e.target.closest('.math-editable')) e.preventDefault();
         });
         document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const lb = document.getElementById('imageLightboxModal');
+                if (lb && !lb.classList.contains('hidden')) {
+                    closeImageLightbox();
+                    return;
+                }
+            }
             const isInMathEditable = !!(e.target && e.target.closest && e.target.closest('.math-editable'));
             if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p' || e.key === 'u' || (!isInMathEditable && (e.key === 'c' || e.key === 'a')) || e.key === 'i')) {
                 e.preventDefault();
@@ -738,7 +814,7 @@
                 cardBody.style.opacity = '1';
                 cardBody.style.transform = 'translateX(0)';
                 cardBody.style.pointerEvents = 'auto';
-                cardBody.style.width = '13rem';
+                cardBody.style.width = '14rem';
                 cardBody.style.padding = '0.875rem';
                 toggleIcon.className = 'fas fa-chevron-left';
                 container.style.left = '0.75rem';
@@ -893,11 +969,9 @@
             const parentId = getParentIdFromQuestion(q);
             if (!parentId) return null;
 
-            // 1. ค้นหาจาก exams.shared_passages / localStorage (ระบบโจทย์ร่วมหลัก)
             const fromExamPassages = sharedPassagesList.find(sp => String(sp.id).trim() === parentId);
             if (fromExamPassages) return fromExamPassages;
 
-            // 2. เผื่อกรณีเก็บเป็นแถวในตาราง questions
             return currentQuestions.find(item => String(item.id).trim() === parentId) || null;
         }
 
@@ -958,7 +1032,7 @@
                         <div class="text-xs text-slate-800 dark:text-slate-100 leading-relaxed math-prose">
                             ${renderedContent}
                         </div>
-                        ${passageObj.image_url ? `<div class="pt-1"><img src="${escapeHtmlText(passageObj.image_url)}" class="max-h-52 rounded-xl object-contain border border-teal-500/20 mx-auto" /></div>` : ''}
+                        ${passageObj.image_url ? buildExpandableImageBlock(passageObj.image_url, 'max-h-52', 'border-teal-500/25') : ''}
                     </div>
                 `;
             }
@@ -974,7 +1048,7 @@
                     <div class="text-sm sm:text-base text-slate-800 dark:text-slate-100 leading-loose math-prose">
                         ${renderedContent}
                     </div>
-                    ${passageObj.image_url ? `<div class="pt-2"><img src="${escapeHtmlText(passageObj.image_url)}" class="max-h-80 rounded-xl object-contain border border-teal-500/20 mx-auto" /></div>` : ''}
+                    ${passageObj.image_url ? buildExpandableImageBlock(passageObj.image_url, 'max-h-80', 'border-teal-500/25') : ''}
                 </div>
             `;
         }
@@ -1298,15 +1372,27 @@
             updateExamProgress();
         }
 
+        function setCurrentQuestionFocus(qId) {
+            const answerable = getAnswerableQuestions();
+            const idx = answerable.findIndex(q => String(q.id) === String(qId));
+            if (idx !== -1 && currentStepIndex !== idx) {
+                currentStepIndex = idx;
+                updateExamProgress();
+            }
+        }
+
         function scrollToQuestion(qId) {
             const answerable = getAnswerableQuestions();
+            const idx = answerable.findIndex(q => String(q.id) === String(qId));
+            if (idx !== -1) {
+                currentStepIndex = idx;
+            }
+
             if (currentViewMode === 'step') {
-                const idx = answerable.findIndex(q => String(q.id) === String(qId));
-                if (idx !== -1) {
-                    currentStepIndex = idx;
-                    renderQuestionsContainer();
-                }
+                renderQuestionsContainer();
+                updateExamProgress();
             } else {
+                updateExamProgress();
                 const box = document.getElementById(`q-box-${qId}`);
                 if (box) {
                     box.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1329,6 +1415,7 @@
                 scrollBtn.className = 'px-3 py-1.5 rounded-lg font-bold transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white';
             }
             renderQuestionsContainer();
+            updateExamProgress();
         }
 
         function nextStepQuestion() {
@@ -1336,6 +1423,7 @@
             if (currentStepIndex < answerable.length - 1) {
                 currentStepIndex++;
                 renderQuestionsContainer();
+                updateExamProgress();
             }
         }
 
@@ -1343,6 +1431,7 @@
             if (currentStepIndex > 0) {
                 currentStepIndex--;
                 renderQuestionsContainer();
+                updateExamProgress();
             }
         }
 
@@ -1383,6 +1472,17 @@
             const floatOverviewCount = document.getElementById('floatOverviewCount');
             if (floatOverviewCount) floatOverviewCount.textContent = `${answeredCount}/${total}`;
 
+            const currentActiveQ = answerable[currentStepIndex] || answerable[0];
+            const floatCurrentLabel = document.getElementById('floatCurrentQuestionLabel');
+            if (floatCurrentLabel) {
+                if (currentActiveQ) {
+                    const activeNum = currentActiveQ.question_number || (currentStepIndex + 1);
+                    floatCurrentLabel.textContent = `ข้อที่ ${activeNum}`;
+                } else {
+                    floatCurrentLabel.textContent = '-';
+                }
+            }
+
             const gridContainer = document.getElementById('overviewGridContainer');
             if (gridContainer && answerable.length > 0) {
                 gridContainer.innerHTML = answerable.map((q, idx) => {
@@ -1394,15 +1494,24 @@
                         else isAnswered = String(ans).trim() !== '';
                     }
                     const isFlagged = flaggedQuestions[q.id];
+                    const isCurrent = (idx === currentStepIndex);
 
                     let bgClass = 'bg-slate-100 dark:bg-darkinput text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-sky-400';
                     if (isAnswered) bgClass = 'bg-emerald-500 text-white border-emerald-600 shadow-sm';
                     if (isFlagged) bgClass = 'bg-amber-500 text-white border-amber-600 shadow-sm';
+                    if (isCurrent && !isAnswered && !isFlagged) {
+                        bgClass = 'bg-sky-600 text-white border-sky-500 shadow-md';
+                    }
+
+                    const currentRingClass = isCurrent
+                        ? 'ring-2 ring-sky-400 dark:ring-sky-300 ring-offset-1 ring-offset-white dark:ring-offset-darkbox scale-105 z-10 font-extrabold'
+                        : '';
 
                     return `
-                        <button onclick="scrollToQuestion('${q.id}')" class="h-8 rounded-lg font-bold text-[11px] border flex items-center justify-center transition-all relative ${bgClass}">
+                        <button onclick="scrollToQuestion('${q.id}')" title="${isCurrent ? `กำลังอยู่ที่ข้อ ${qNum}` : `ไปยังข้อ ${qNum}`}" class="h-8 rounded-lg font-bold text-[11px] border flex items-center justify-center transition-all relative ${bgClass} ${currentRingClass}">
                             ${qNum}
                             ${isFlagged && !isAnswered ? '<span class="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full border border-white"></span>' : ''}
+                            ${isCurrent ? '<span class="absolute -bottom-1 w-1.5 h-1.5 bg-sky-400 rounded-full"></span>' : ''}
                         </button>
                     `;
                 }).join('');
@@ -1440,7 +1549,7 @@
             if (!hasPdf) {
                 if (isEssay) {
                     return `
-                        <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white/70 dark:bg-darkinput/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800/80 space-y-5 shadow-sm relative">
+                        <div id="q-box-${q.id}" onclick="setCurrentQuestionFocus('${q.id}')" class="p-7 sm:p-8 bg-white/70 dark:bg-darkinput/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800/80 space-y-5 shadow-sm relative">
                             <div class="flex items-center justify-between">
                                 <span class="font-extrabold text-sm text-amber-600 dark:text-amber-400">ข้อที่ ${qNum}${stepSuffix} (ข้อสอบอัตนัย)</span>
                                 <div class="flex items-center gap-2">
@@ -1453,8 +1562,8 @@
                             <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-loose pt-1 math-prose">
                                 ${renderedQText}
                             </div>
-                            ${q.image_url ? `<div class="my-4"><img src="${escapeHtmlText(q.image_url)}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
-                            <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value); refreshEssayMathPreview('${q.id}');" rows="${isStepMode ? 6 : 5}" class="math-editable w-full p-4 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-800 rounded-xl text-sm leading-relaxed outline-none focus:border-sky-500" placeholder="พิมพ์คำตอบหรือสมการของคุณที่นี่ เช่น $x^2 + 2x + 1 = 0$...">${escapeHtmlText(currentEssayVal)}</textarea>
+                            ${q.image_url ? buildExpandableImageBlock(q.image_url, 'max-h-72') : ''}
+                            <textarea id="ans-${q.id}" onfocus="setCurrentQuestionFocus('${q.id}')" oninput="saveEssayAnswer('${q.id}', this.value); refreshEssayMathPreview('${q.id}');" rows="${isStepMode ? 6 : 5}" class="math-editable w-full p-4 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-800 rounded-xl text-sm leading-relaxed outline-none focus:border-sky-500" placeholder="พิมพ์คำตอบหรือสมการของคุณที่นี่ เช่น $x^2 + 2x + 1 = 0$...">${escapeHtmlText(currentEssayVal)}</textarea>
                             ${buildEssayMathToolbar(q.id, currentEssayVal)}
                         </div>
                     `;
@@ -1500,7 +1609,7 @@
                 }).join('');
 
                 return `
-                    <div id="q-box-${q.id}" class="p-7 sm:p-8 bg-white/70 dark:bg-darkinput/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800/80 space-y-6 shadow-sm">
+                    <div id="q-box-${q.id}" onclick="setCurrentQuestionFocus('${q.id}')" class="p-7 sm:p-8 bg-white/70 dark:bg-darkinput/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800/80 space-y-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <span class="font-extrabold text-sm sm:text-base text-sky-600 dark:text-sky-400">ข้อที่ ${qNum}${stepSuffix}</span>
@@ -1515,7 +1624,7 @@
                         <div class="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-loose math-prose">
                             ${renderedQText}
                         </div>
-                        ${q.image_url ? `<div class="my-4"><img src="${escapeHtmlText(q.image_url)}" class="max-h-72 rounded-xl object-contain border" /></div>` : ''}
+                        ${q.image_url ? buildExpandableImageBlock(q.image_url, 'max-h-72') : ''}
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2" id="options-container-${q.id}">
                             ${optionsHtml}
                         </div>
@@ -1525,7 +1634,7 @@
 
             if (isEssay) {
                 return `
-                    <div id="q-box-${q.id}" class="p-4 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 relative">
+                    <div id="q-box-${q.id}" onclick="setCurrentQuestionFocus('${q.id}')" class="p-4 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 relative">
                         <div class="flex items-center justify-between">
                             <span class="font-extrabold text-xs text-amber-600 dark:text-amber-400">ข้อ ${qNum}${stepSuffix} (อัตนัย)</span>
                             <div class="flex items-center gap-2">
@@ -1536,7 +1645,8 @@
                             </div>
                         </div>
                         <div class="text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm p-3 rounded-xl border leading-relaxed math-prose">${renderedQText}</div>
-                        <textarea id="ans-${q.id}" oninput="saveEssayAnswer('${q.id}', this.value); refreshEssayMathPreview('${q.id}');" rows="3" class="math-editable w-full p-3 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border rounded-xl text-xs outline-none leading-relaxed" placeholder="พิมพ์คำตอบหรือสมการของคุณที่นี่ เช่น $x^2$...">${escapeHtmlText(currentEssayVal)}</textarea>
+                        ${q.image_url ? buildExpandableImageBlock(q.image_url, 'max-h-52') : ''}
+                        <textarea id="ans-${q.id}" onfocus="setCurrentQuestionFocus('${q.id}')" oninput="saveEssayAnswer('${q.id}', this.value); refreshEssayMathPreview('${q.id}');" rows="3" class="math-editable w-full p-3 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border rounded-xl text-xs outline-none leading-relaxed" placeholder="พิมพ์คำตอบหรือสมการของคุณที่นี่ เช่น $x^2$...">${escapeHtmlText(currentEssayVal)}</textarea>
                         ${buildEssayMathToolbar(q.id, currentEssayVal)}
                     </div>
                 `;
@@ -1560,7 +1670,7 @@
             }).join('');
 
             return `
-                <div id="q-box-${q.id}" class="px-4 py-3 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div id="q-box-${q.id}" onclick="setCurrentQuestionFocus('${q.id}')" class="px-4 py-3 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
                     <div class="flex items-center gap-3.5">
                         <div class="flex flex-col">
                             <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400 w-16 shrink-0">ข้อ ${qNum}${isStepMode ? `/${totalStepCount}` : ''}</span>
@@ -1622,7 +1732,6 @@
                 }
 
                 let htmlContent = `<div class="space-y-6">`;
-                // แสดงโจทย์ร่วมขึ้นมาทุกข้อที่ต้องใช้โจทย์ร่วมนี้เสมอ
                 if (parentPassage) {
                     htmlContent += buildSharedPassageBox(parentPassage, passageChildren, hasPdf);
                 } else if (inlinePassage) {
@@ -1705,6 +1814,7 @@
         }
 
         function saveEssayAnswer(qId, val) {
+            setCurrentQuestionFocus(qId);
             if (!val || val.trim() === '') {
                 delete studentAnswers[qId];
             } else {
@@ -1757,6 +1867,7 @@
         }
 
         function selectAnswer(qId, cIdx, isMultiple) {
+            setCurrentQuestionFocus(qId);
             cIdx = String(cIdx);
             if (isMultiple) {
                 let currentArr = studentAnswers[qId];
@@ -1797,6 +1908,7 @@
         }
 
         function toggleFlag(qId) {
+            setCurrentQuestionFocus(qId);
             if (flaggedQuestions[qId]) {
                 delete flaggedQuestions[qId];
             } else {
