@@ -287,7 +287,7 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div>
                     <h3 class="font-bold text-base flex items-center gap-2"><i class="fas fa-list-ul text-purple-500"></i> เนื้อหาคำถาม & รายการตัวเลือก (Accordion View)</h3>
-                    <p id="accordionSubtitle" class="text-xs text-slate-400 mt-0.5">ขยายดูโจทย์ แนบรูปภาพ เพิ่มตัวเลือก และตั้งค่าคำถามได้</p>
+                    <p id="accordionSubtitle" class="text-xs text-slate-400 mt-0.5">รองรับปรนัย, อัตนัย, เติมคำตอบสั้น, Dropdown เติมคำ และลากคำไปเติมในช่องว่าง</p>
                 </div>
                 
                 <div class="flex items-center gap-2 w-full md:w-auto flex-wrap">
@@ -351,6 +351,24 @@
         let isCategoryManagerPopupOpen = false;
         let openCategoryDropdownIndex = null;
 
+        // ฟังก์ชันเรียงลำดับเลขข้อแบบ Natural Sort (เช่น 1, 2, 16, 16.1, 16.2, 17, A1, A2)
+        function compareQuestionLabels(a, b) {
+            const labelA = String(a?.question_number_label ?? a?.question_number ?? '');
+            const labelB = String(b?.question_number_label ?? b?.question_number ?? '');
+            return labelA.localeCompare(labelB, undefined, { numeric: true, sensitivity: 'base' });
+        }
+
+        function sortCachedQuestions() {
+            cachedQuestions.sort(compareQuestionLabels);
+        }
+
+        function extractNumericFallbackFromLabel(labelStr, defaultIndex = 1) {
+            const clean = String(labelStr || '').trim();
+            if (/^\d+$/.test(clean)) return parseInt(clean, 10);
+            const firstDigits = clean.match(/\d+/);
+            return firstDigits ? parseInt(firstDigits[0], 10) : defaultIndex;
+        }
+
         function getQuestionMetaMap() {
             try {
                 const raw = localStorage.getItem(`question_meta_${examId}`);
@@ -395,9 +413,23 @@
             return Array.from(set);
         }
 
+        function parseInteractiveConfigFromQuestion(q, meta = {}) {
+            let cfg = q.interactive_config || meta.interactive_config || null;
+            if (typeof cfg === 'string') {
+                try { cfg = JSON.parse(cfg); } catch (e) { cfg = null; }
+            }
+            if (!cfg && q.options && typeof q.options === 'object' && !Array.isArray(q.options) && q.options.__interactive_type) {
+                cfg = q.options;
+            }
+            return cfg || {};
+        }
+
         function hydrateQuestionWithFlags(q) {
             const metaMap = getQuestionMetaMap();
             const meta = metaMap[String(q.id)] || {};
+            const interactiveCfg = parseInteractiveConfigFromQuestion(q, meta);
+
+            const resolvedQType = interactiveCfg.__interactive_type || q.question_type || meta.question_type || 'multiple_choice';
             const modeStr = String(q.multiple_grading_mode || meta.multiple_grading_mode || '').toLowerCase();
             const isBonus = Boolean(
                 q.is_bonus_all ||
@@ -421,8 +453,16 @@
                 ? String(q.category_tag).trim()
                 : (meta.category_tag !== undefined && meta.category_tag !== null ? String(meta.category_tag).trim() : '');
 
+            const rawLabel = (meta.question_number_label !== undefined && meta.question_number_label !== null && String(meta.question_number_label).trim() !== '')
+                ? String(meta.question_number_label).trim()
+                : (q.question_number !== undefined && q.question_number !== null ? String(q.question_number).trim() : '');
+
             return {
                 ...q,
+                question_number: rawLabel || q.question_number,
+                question_number_label: rawLabel,
+                question_type: resolvedQType,
+                interactive_config: interactiveCfg,
                 category_tag: resolvedCategoryTag,
                 score: (q.score !== undefined && q.score !== null) ? Number(q.score) : (meta.score !== undefined ? Number(meta.score) : 1),
                 shared_passage_id: q.shared_passage_id || meta.shared_passage_id || null,
@@ -507,6 +547,22 @@
                 const tokenIdx = parseInt(idxStr, 10);
                 return mathTokens[tokenIdx] !== undefined ? mathTokens[tokenIdx] : '';
             });
+        }
+
+        // แปลงโจทย์ที่มี [[...]] ให้เห็นภาพตัวอย่างใน Accordion
+        function renderClozePreviewHtml(rawText, mode = 'dropdown') {
+            let slotIndex = 0;
+            const replaced = String(rawText || '').replace(/\[\[(.*?)\]\]/g, (_, inner) => {
+                slotIndex++;
+                const parts = inner.split('|').map(s => s.trim()).filter(Boolean);
+                const correctWord = parts[0] || '?';
+                if (mode === 'dropdown') {
+                    const optsPreview = parts.map((p, i) => i === 0 ? `✓ ${p}` : p).join(' / ');
+                    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 mx-1 rounded-lg bg-cyan-500/15 border border-cyan-500/40 text-cyan-700 dark:text-cyan-300 font-bold text-xs">[ช่อง ${slotIndex}: ${escapeHtml(optsPreview)}]</span>`;
+                }
+                return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 mx-1 rounded-lg border-2 border-dashed border-fuchsia-500/60 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300 font-bold text-xs">[ช่องวาง #${slotIndex}: ${escapeHtml(correctWord)}]</span>`;
+            });
+            return renderMarkdownSafe(replaced);
         }
 
         function openEditorImageModal(src) {
@@ -687,11 +743,30 @@
             }
         };
 
+        window.insertClozeBlankIntoQuestion = function() {
+            const qType = document.getElementById('qType')?.value || 'multiple_choice';
+            if (qType === 'dropdown') {
+                insertTextAtTextareaCursor('qText', ' [[คำตอบที่ถูก|ตัวลวงที่ 1|ตัวลวงที่ 2]] ');
+            } else if (qType === 'drag_drop') {
+                insertTextAtTextareaCursor('qText', ' [[คำศัพท์ที่ถูก]] ');
+            } else {
+                insertTextAtTextareaCursor('qText', ' ________ ');
+            }
+            const prev = document.getElementById('qTextMarkdownPreview');
+            if (prev) prev.classList.remove('hidden');
+            refreshMarkdownPreview('qText', 'qTextMarkdownPreview');
+        };
+
         window.refreshMarkdownPreview = function(textareaId, previewId) {
             const ta = document.getElementById(textareaId);
             const prev = document.getElementById(previewId);
             if (!ta || !prev) return;
-            prev.innerHTML = renderMarkdownSafe(ta.value);
+            const qType = (textareaId === 'qText') ? (document.getElementById('qType')?.value || '') : '';
+            if (qType === 'dropdown' || qType === 'drag_drop') {
+                prev.innerHTML = renderClozePreviewHtml(ta.value, qType);
+            } else {
+                prev.innerHTML = renderMarkdownSafe(ta.value);
+            }
         };
 
         window.toggleMarkdownPreviewPane = function(previewId) {
@@ -700,13 +775,17 @@
             prev.classList.toggle('hidden');
         };
 
-        function buildMarkdownTextareaBlock({ id, label, value, rows = 4, previewId, placeholder = 'พิมพ์ข้อความ รองรับ Markdown ตาราง และสูตรคณิตศาสตร์ $...$ หรือ $$...$$...' }) {
-            const hasPreviewContent = /(\$|\\\(|\\\[|!\[.*?\]\(.*?\)|\|.*\|)/.test(value || '');
+        function buildMarkdownTextareaBlock({ id, label, value, rows = 4, previewId, placeholder = 'พิมพ์ข้อความ รองรับ Markdown ตาราง และสูตรคณิตศาสตร์ $...$ หรือ $$...$$...', showClozeBtn = false }) {
+            const hasPreviewContent = /(\$|\\\(|\\\[|!\[.*?\]\(.*?\)|\|.*\||\[\[.*?\]\])/.test(value || '');
             return `
                 <div class="space-y-1.5" ondragover="event.preventDefault()" ondrop="handleEditorDropImage(event, '${id}', '${previewId}')">
                     <div class="flex justify-between items-center flex-wrap gap-2">
                         <label class="block text-xs font-bold">${escapeHtml(label)} <span class="text-[10px] text-sky-500 font-semibold">(Markdown + ตาราง + คณิตศาสตร์ $...$ / $$...$$ + รูปภาพ)</span></label>
                         <div class="flex items-center gap-1.5 flex-wrap">
+                            ${showClozeBtn ? `
+                            <button type="button" id="insertClozeSlotBtn" onclick="insertClozeBlankIntoQuestion()" class="hidden px-2.5 py-1 bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded-lg text-[10px] font-bold" title="แทรกช่องว่าง [[...]]">
+                                <i class="fas fa-square-plus mr-1"></i> แทรกช่องว่าง [[...]]
+                            </button>` : ''}
                             <button type="button" onclick="insertMathSnippetIntoTextarea('${id}', '${previewId}', '$x^2$')" class="px-2 py-1 bg-purple-600/15 hover:bg-purple-600/25 text-purple-600 dark:text-purple-300 border border-purple-500/30 rounded-lg text-[10px] font-bold" title="แทรกสูตร Inline">
                                 $x^2$
                             </button>
@@ -925,52 +1004,50 @@
             return '1, 2, 3, 4';
         }
 
-function loadSharedPassagesState(examData) {
-    const localKey = `shared_passages_${examId}`;
-    if (Array.isArray(examData?.shared_passages)) {
-        sharedPassages = examData.shared_passages;
-        // อัปเดต localStorage ให้ตรงกับ Database เสมอ
-        localStorage.setItem(localKey, JSON.stringify(sharedPassages));
-    } else {
-        // กรณีข้อมูลเก่าเคยค้างใน localStorage ให้ดึงมาเตรียม sync ขึ้น DB
-        try {
-            const rawLocal = localStorage.getItem(localKey);
-            sharedPassages = rawLocal ? JSON.parse(rawLocal) : [];
-        } catch (e) {
-            sharedPassages = [];
+        function loadSharedPassagesState(examData) {
+            const localKey = `shared_passages_${examId}`;
+            if (Array.isArray(examData?.shared_passages)) {
+                sharedPassages = examData.shared_passages;
+                localStorage.setItem(localKey, JSON.stringify(sharedPassages));
+            } else {
+                try {
+                    const rawLocal = localStorage.getItem(localKey);
+                    sharedPassages = rawLocal ? JSON.parse(rawLocal) : [];
+                } catch (e) {
+                    sharedPassages = [];
+                }
+            }
         }
-    }
-}
 
-async function persistSharedPassages(silent = true) {
-    localStorage.setItem(`shared_passages_${examId}`, JSON.stringify(sharedPassages));
-    
-    const { error } = await mySupabase
-        .from('exams')
-        .update({ shared_passages: sharedPassages })
-        .eq('id', examId);
+        async function persistSharedPassages(silent = true) {
+            localStorage.setItem(`shared_passages_${examId}`, JSON.stringify(sharedPassages));
+            
+            const { error } = await mySupabase
+                .from('exams')
+                .update({ shared_passages: sharedPassages })
+                .eq('id', examId);
 
-    if (error) {
-        console.error('Supabase shared_passages error:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'บันทึกโจทย์ร่วมลงระบบไม่สำเร็จ!',
-            html: `<div class="text-xs text-left">กรุณาตรวจสอบว่าเพิ่มคอลัมน์ <code>shared_passages</code> (jsonb) ในตาราง <code>exams</code> แล้วหรือยัง<br><code class="text-red-400 block mt-2 p-2 bg-slate-900 rounded">${escapeHtml(error.message)}</code></div>`
-        });
-        return false;
-    }
+            if (error) {
+                console.error('Supabase shared_passages error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'บันทึกโจทย์ร่วมลงระบบไม่สำเร็จ!',
+                    html: `<div class="text-xs text-left">กรุณาตรวจสอบว่าเพิ่มคอลัมน์ <code>shared_passages</code> (jsonb) ในตาราง <code>exams</code> แล้วหรือยัง<br><code class="text-red-400 block mt-2 p-2 bg-slate-900 rounded">${escapeHtml(error.message)}</code></div>`
+                });
+                return false;
+            }
 
-    if (currentExamData) {
-        currentExamData.shared_passages = sharedPassages;
-    }
+            if (currentExamData) {
+                currentExamData.shared_passages = sharedPassages;
+            }
 
-    renderSharedPassagesPanel();
-    renderQuestionAccordions();
-    if (!silent) {
-        Swal.fire({ icon: 'success', title: 'บันทึกชุดโจทย์ร่วมลงระบบแล้ว!', timer: 1200, showConfirmButton: false });
-    }
-    return true;
-}
+            renderSharedPassagesPanel();
+            renderQuestionAccordions();
+            if (!silent) {
+                Swal.fire({ icon: 'success', title: 'บันทึกชุดโจทย์ร่วมลงระบบแล้ว!', timer: 1200, showConfirmButton: false });
+            }
+            return true;
+        }
 
         function renderSharedPassagesPanel() {
             const card = document.getElementById('sharedPassagesCard');
@@ -1054,31 +1131,31 @@ async function persistSharedPassages(silent = true) {
             }
         }
 
-async function deleteSharedPassage(passageId) {
-    const res = await Swal.fire({
-        title: 'ลบชุดโจทย์ร่วมนี้?',
-        text: 'ข้อสอบย่อยที่ผูกอยู่จะถูกปลดการเชื่อมโยง แต่ตัวข้อสอบจะไม่ถูกลบ',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        confirmButtonText: 'ยืนยันลบ',
-        cancelButtonText: 'ยกเลิก'
-    });
-    if (!res.isConfirmed) return;
+        async function deleteSharedPassage(passageId) {
+            const res = await Swal.fire({
+                title: 'ลบชุดโจทย์ร่วมนี้?',
+                text: 'ข้อสอบย่อยที่ผูกอยู่จะถูกปลดการเชื่อมโยง แต่ตัวข้อสอบจะไม่ถูกลบ',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ยืนยันลบ',
+                cancelButtonText: 'ยกเลิก'
+            });
+            if (!res.isConfirmed) return;
 
-    sharedPassages = sharedPassages.filter(p => String(p.id) !== String(passageId));
-    
-    for (const q of cachedQuestions) {
-        if (String(q.shared_passage_id || '') === String(passageId)) {
-            q.shared_passage_id = null;
-            saveQuestionMetaItem(q.id, { shared_passage_id: null });
-            await mySupabase.from('questions').update({ shared_passage_id: null }).eq('id', q.id);
+            sharedPassages = sharedPassages.filter(p => String(p.id) !== String(passageId));
+            
+            for (const q of cachedQuestions) {
+                if (String(q.shared_passage_id || '') === String(passageId)) {
+                    q.shared_passage_id = null;
+                    saveQuestionMetaItem(q.id, { shared_passage_id: null });
+                    await mySupabase.from('questions').update({ shared_passage_id: null }).eq('id', q.id);
+                }
+            }
+
+            await persistSharedPassages(false);
+            await logAdminAction('ลบชุดโจทย์ร่วม', `ลบชุดโจทย์ร่วม ID: ${passageId}`);
         }
-    }
-
-    await persistSharedPassages(false);
-    await logAdminAction('ลบชุดโจทย์ร่วม', `ลบชุดโจทย์ร่วม ID: ${passageId}`);
-}
 
         async function loadExamHeader() {
             const { data } = await mySupabase.from('exams').select('*').eq('id', examId).single();
@@ -1104,11 +1181,6 @@ async function deleteSharedPassage(passageId) {
                 const subtitle = document.getElementById('choiceFormatSubtitle');
                 if (subtitle) {
                     subtitle.textContent = `ฝนเฉลย OMR | รูปแบบตัวเลือก: ${getChoiceFormatLabelText(data.choice_format)}`;
-                }
-
-                const accSub = document.getElementById('accordionSubtitle');
-                if (accSub) {
-                    accSub.textContent = 'ขยายดูโจทย์ พิมพ์ Markdown + ตาราง + สูตรคณิตศาสตร์ ($...$) แทรกรูปภาพ ผูกโจทย์ร่วม และตั้งค่าการให้คะแนนได้';
                 }
 
                 const pdfUploadCard = document.getElementById('pdfUploadCard');
@@ -1205,10 +1277,10 @@ async function deleteSharedPassage(passageId) {
                             <input type="text" value="${escapeHtml(item.name || '')}" onchange="updateCriteriaData(${idx}, 'name', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold outline-none" placeholder="เช่น ดีเยี่ยม / ผ่าน">
                         </td>
                         <td class="p-2.5">
-                            <input type="number" min="0" max="100" value="${item.min_pct !== undefined ? item.min_pct : 0}" onchange="updateCriteriaData(${idx}, 'min_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="0">
+                            <input type="number" step="any" min="0" max="100" value="${item.min_pct !== undefined ? item.min_pct : 0}" onchange="updateCriteriaData(${idx}, 'min_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="0">
                         </td>
                         <td class="p-2.5">
-                            <input type="number" min="0" max="100" value="${item.max_pct !== undefined ? item.max_pct : 100}" onchange="updateCriteriaData(${idx}, 'max_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="100">
+                            <input type="number" step="any" min="0" max="100" value="${item.max_pct !== undefined ? item.max_pct : 100}" onchange="updateCriteriaData(${idx}, 'max_pct', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono outline-none" placeholder="100">
                         </td>
                         <td class="p-2.5 text-center">
                             <button onclick="removeCriteriaRow(${idx})" class="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-600 hover:bg-red-500 hover:text-white transition-all"><i class="fas fa-trash text-xs"></i></button>
@@ -1283,11 +1355,11 @@ async function deleteSharedPassage(passageId) {
             return categories.map((catName, catIdx) => {
                 const assignedQuestions = cachedQuestions
                     .filter(q => String(q.category_tag || '').trim() === catName)
-                    .sort((a, b) => (Number(a.question_number) || 0) - (Number(b.question_number) || 0));
+                    .sort(compareQuestionLabels);
 
                 const unassignedToThis = cachedQuestions
                     .filter(q => String(q.category_tag || '').trim() !== catName)
-                    .sort((a, b) => (Number(a.question_number) || 0) - (Number(b.question_number) || 0));
+                    .sort(compareQuestionLabels);
 
                 const encodedCat = encodeURIComponent(catName);
                 const isDropdownOpen = openCategoryDropdownIndex === catIdx;
@@ -1297,8 +1369,8 @@ async function deleteSharedPassage(passageId) {
                         const qNum = q.question_number || '?';
                         return `
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 text-[11px] font-bold">
-                                ข้อ ${qNum}
-                                <button type="button" onclick="removeQuestionFromCategory('${q.id}', decodeURIComponent('${encodedCat}'))" class="ml-0.5 text-red-500 hover:text-red-600" title="นำข้อ ${qNum} ออกจากหมวดหมู่นี้">
+                                ข้อ ${escapeHtml(String(qNum))}
+                                <button type="button" onclick="removeQuestionFromCategory('${q.id}', decodeURIComponent('${encodedCat}'))" class="ml-0.5 text-red-500 hover:text-red-600" title="นำข้อ ${escapeHtml(String(qNum))} ออกจากหมวดหมู่นี้">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </span>
@@ -1316,7 +1388,7 @@ async function deleteSharedPassage(passageId) {
                             <label class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 cursor-pointer text-[11px]">
                                 <input type="checkbox" class="cat-assign-cb_${catIdx} mt-0.5 rounded" value="${escapeHtml(String(q.id))}">
                                 <span class="min-w-0 flex-1 break-words text-slate-800 dark:text-slate-200">
-                                    <strong>ข้อ ${qNum}</strong>${currentCatNote}${shortSnippet ? ` — <span class="text-slate-500 dark:text-slate-400">${escapeHtml(shortSnippet)}</span>` : ''}
+                                    <strong>ข้อ ${escapeHtml(String(qNum))}</strong>${currentCatNote}${shortSnippet ? ` — <span class="text-slate-500 dark:text-slate-400">${escapeHtml(shortSnippet)}</span>` : ''}
                                 </span>
                             </label>
                         `;
@@ -1468,7 +1540,7 @@ async function deleteSharedPassage(passageId) {
                 return `
                     <label class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 cursor-pointer text-xs">
                         <input type="checkbox" class="new-cat-q-cb mt-0.5 rounded" value="${escapeHtml(String(q.id))}">
-                        <span class="min-w-0 flex-1 font-bold text-slate-800 dark:text-slate-200 break-words">ข้อ ${qNum}${tagNote}</span>
+                        <span class="min-w-0 flex-1 font-bold text-slate-800 dark:text-slate-200 break-words">ข้อ ${escapeHtml(String(qNum))}${tagNote}</span>
                     </label>
                 `;
             }).join('');
@@ -1640,10 +1712,19 @@ async function deleteSharedPassage(passageId) {
         async function loadQuestions() {
             const { data: questions } = await mySupabase.from('questions').select('*').eq('exam_id', examId).order('question_number', { ascending: true });
             cachedQuestions = (questions || []).map(hydrateQuestionWithFlags);
+            sortCachedQuestions();
 
             refreshCategoryRelatedViews(true);
             renderSharedPassagesPanel();
             renderOmrGrid();
+        }
+
+        function getQuestionTypeDisplayBadge(qType) {
+            if (qType === 'essay') return { label: 'อัตนัย', color: 'amber', icon: 'fa-pen-nib' };
+            if (qType === 'fill_blank') return { label: 'เติมคำสั้น', color: 'emerald', icon: 'fa-keyboard' };
+            if (qType === 'dropdown') return { label: 'Dropdown เติมคำ', color: 'cyan', icon: 'fa-caret-square-down' };
+            if (qType === 'drag_drop') return { label: 'ลากคำเติมช่องว่าง', color: 'fuchsia', icon: 'fa-hand-pointer' };
+            return null;
         }
 
         function renderOmrGrid() {
@@ -1658,21 +1739,23 @@ async function deleteSharedPassage(passageId) {
             const formatType = currentExamData?.choice_format || 'num';
 
             container.innerHTML = cachedQuestions.map((q, idx) => {
-                const isEssay = q.question_type === 'essay';
-                const standardLabels = getChoiceLabels(formatType, q.options ? q.options.length : 4);
-                const opts = (q.options && q.options.length > 0) ? q.options : standardLabels;
-                const qNum = q.question_number || (idx+1);
+                const qType = q.question_type || 'multiple_choice';
+                const qNum = q.question_number || (idx + 1);
                 const qId = q.id;
+                const specialBadge = getQuestionTypeDisplayBadge(qType);
 
-                if (isEssay) {
+                if (specialBadge) {
                     return `
-                        <div class="p-3 bg-amber-500/10 dark:bg-amber-950/20 rounded-2xl border border-amber-500/30 flex items-center justify-between gap-2">
-                            <span class="font-extrabold text-sm text-amber-600 dark:text-amber-400">ข้อ ${qNum}</span>
-                            <span class="px-2.5 py-1 bg-amber-500 text-white font-bold text-xs rounded-lg"><i class="fas fa-pen-nib mr-1"></i>อัตนัย</span>
-                            <button onclick="toggleQuestionType('${qId}', 'multiple_choice')" class="text-xs text-slate-400 underline hover:text-sky-500">สลับ OMR</button>
+                        <div class="p-3 bg-${specialBadge.color}-500/10 dark:bg-${specialBadge.color}-950/20 rounded-2xl border border-${specialBadge.color}-500/30 flex items-center justify-between gap-2">
+                            <span class="font-extrabold text-sm text-${specialBadge.color}-600 dark:text-${specialBadge.color}-400">ข้อ ${escapeHtml(String(qNum))}</span>
+                            <span class="px-2.5 py-1 bg-${specialBadge.color}-600 text-white font-bold text-xs rounded-lg"><i class="fas ${specialBadge.icon} mr-1"></i>${specialBadge.label}</span>
+                            <button onclick="openQuestionModalById('${qId}')" class="text-xs text-slate-400 underline hover:text-sky-500">แก้ไข</button>
                         </div>
                     `;
                 }
+
+                const standardLabels = getChoiceLabels(formatType, Array.isArray(q.options) ? q.options.length : 4);
+                const opts = (Array.isArray(q.options) && q.options.length > 0) ? q.options : standardLabels;
 
                 const isBonusAll = !!q.is_bonus_all;
                 const isMultiple = !!q.is_multiple_answers;
@@ -1692,7 +1775,7 @@ async function deleteSharedPassage(passageId) {
                 return `
                     <div class="p-3 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
                         <div class="flex flex-col">
-                            <span class="font-extrabold text-sm text-slate-800 dark:text-slate-200">ข้อ ${qNum}</span>
+                            <span class="font-extrabold text-sm text-slate-800 dark:text-slate-200">ข้อ ${escapeHtml(String(qNum))}</span>
                             ${modeNote}
                         </div>
                         <div class="flex gap-1.5 overflow-x-auto py-1">${bubblesHtml}</div>
@@ -1721,11 +1804,17 @@ async function deleteSharedPassage(passageId) {
             const formatType = currentExamData?.choice_format || 'num';
 
             container.innerHTML = filtered.map((q, idx) => {
-                const isEssay = q.question_type === 'essay';
-                const standardLabels = getChoiceLabels(formatType, q.options ? q.options.length : 4);
-                const opts = (q.options && q.options.length > 0) ? q.options : standardLabels;
+                const qType = q.question_type || 'multiple_choice';
+                const isEssay = qType === 'essay';
+                const isFillBlank = qType === 'fill_blank';
+                const isDropdown = qType === 'dropdown';
+                const isDragDrop = qType === 'drag_drop';
+
+                const standardLabels = getChoiceLabels(formatType, Array.isArray(q.options) ? q.options.length : 4);
+                const opts = (Array.isArray(q.options) && q.options.length > 0) ? q.options : standardLabels;
                 const qScore = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
                 const isBonusAll = !!q.is_bonus_all;
+                const cfg = q.interactive_config || {};
 
                 const linkedPassage = q.shared_passage_id
                     ? sharedPassages.find(sp => String(sp.id) === String(q.shared_passage_id))
@@ -1742,6 +1831,50 @@ async function deleteSharedPassage(passageId) {
                         <div><i class="fas fa-pen-nib mr-1"></i> โหมดตรวจอัตนัย: ${q.grading_type === 'keyword' ? 'ตรวจด้วย Keyword อัตโนมัติ' : 'คุณครูตรวจเอง'} (${qScore} คะแนน)</div>
                         ${keywordsTag}
                        </div>`;
+                } else if (isFillBlank) {
+                    const acceptedList = Array.isArray(cfg.accepted_answers) ? cfg.accepted_answers : [];
+                    const unitTxt = cfg.unit ? ` | หน่วย: <span class="underline">${escapeHtml(cfg.unit)}</span>` : '';
+                    const matchModeLabel = cfg.match_mode === 'contains' ? 'มีคำตอบอยู่ในข้อความ' : 'ตรงตามเฉลย (ไม่สนตัวพิมพ์เล็ก/ใหญ่ และตัดช่องว่าง)';
+                    const ansBadges = acceptedList.length > 0
+                        ? acceptedList.map(a => `<span class="px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[11px] font-bold">${escapeHtml(a)}</span>`).join(' ')
+                        : '<span class="text-red-500">ยังไม่ได้กำหนดเฉลย</span>';
+                    optionsListHtml = `
+                        <div class="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-500/30 text-xs space-y-1.5">
+                            <div class="font-bold text-emerald-700 dark:text-emerald-300"><i class="fas fa-keyboard mr-1"></i> โจทย์เติมคำตอบสั้น (${qScore} คะแนน)${unitTxt}</div>
+                            <div class="text-[11px] text-slate-600 dark:text-slate-300">เงื่อนไขตรวจ: ${matchModeLabel}</div>
+                            <div class="flex items-center gap-1.5 flex-wrap pt-1">
+                                <span class="text-[11px] font-bold text-slate-500">เฉลยที่ยอมรับ:</span> ${ansBadges}
+                            </div>
+                        </div>
+                    `;
+                } else if (isDropdown) {
+                    const blanks = Array.isArray(cfg.blanks) ? cfg.blanks : [];
+                    const scoringTxt = cfg.scoring_mode === 'partial' ? 'ให้คะแนนตามสัดส่วนช่องที่ตอบถูก' : 'ต้องเลือกถูกครบทุกช่องจึงจะได้เต็ม';
+                    const blanksHtml = blanks.map((b, bIdx) => {
+                        const optsStr = (b.choices || []).map((c, ci) => ci === 0 ? `<b>✓ ${escapeHtml(c)}</b>` : escapeHtml(c)).join(' | ');
+                        return `<div class="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-cyan-500/30 text-[11px]">ช่องที่ ${bIdx + 1}: ${optsStr}</div>`;
+                    }).join('');
+                    optionsListHtml = `
+                        <div class="p-3 bg-cyan-50 dark:bg-cyan-950/30 rounded-xl border border-cyan-500/30 text-xs space-y-2">
+                            <div class="font-bold text-cyan-700 dark:text-cyan-300"><i class="fas fa-caret-square-down mr-1"></i> โจทย์ Dropdown เติมคำ (${blanks.length} ช่อง | ${qScore} คะแนน)</div>
+                            <div class="text-[11px] text-slate-600 dark:text-slate-300">เกณฑ์คะแนน: ${scoringTxt}</div>
+                            <div class="space-y-1">${blanksHtml || '<span class="text-red-500 text-[11px]">ไม่พบรูปแบบ [[เฉลย|ตัวลวง]] ในโจทย์</span>'}</div>
+                        </div>
+                    `;
+                } else if (isDragDrop) {
+                    const blanks = Array.isArray(cfg.blanks) ? cfg.blanks : [];
+                    const distractors = Array.isArray(cfg.distractors) ? cfg.distractors : [];
+                    const scoringTxt = cfg.scoring_mode === 'partial' ? 'ให้คะแนนตามสัดส่วนช่องที่วางถูก' : 'ต้องวางถูกครบทุกช่องจึงจะได้เต็ม';
+                    const blanksHtml = blanks.map((b, bIdx) => `<span class="px-2 py-0.5 rounded-md bg-fuchsia-600 text-white text-[11px] font-bold">ช่อง #${bIdx + 1}: ${escapeHtml(b.answer)}</span>`).join(' ');
+                    const distHtml = distractors.map(d => `<span class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px]">${escapeHtml(d)}</span>`).join(' ');
+                    optionsListHtml = `
+                        <div class="p-3 bg-fuchsia-50 dark:bg-fuchsia-950/30 rounded-xl border border-fuchsia-500/30 text-xs space-y-2">
+                            <div class="font-bold text-fuchsia-700 dark:text-fuchsia-300"><i class="fas fa-hand-pointer mr-1"></i> โจทย์ลากคำไปเติมในช่องว่าง (${blanks.length} ช่อง | ${qScore} คะแนน)</div>
+                            <div class="text-[11px] text-slate-600 dark:text-slate-300">เกณฑ์คะแนน: ${scoringTxt}</div>
+                            <div class="flex flex-wrap gap-1.5 items-center"><span class="text-[11px] font-bold text-slate-500">เฉลยตามลำดับช่อง:</span> ${blanksHtml || '<span class="text-red-500 text-[11px]">ไม่พบรูปแบบ [[คำศัพท์]] ในโจทย์</span>'}</div>
+                            ${distractors.length > 0 ? `<div class="flex flex-wrap gap-1.5 items-center"><span class="text-[11px] font-bold text-slate-500">คำลวงเพิ่มเติม:</span> ${distHtml}</div>` : ''}
+                        </div>
+                    `;
                 } else {
                     const correctArr = normalizeCorrectAnswerList(q.correct_answer);
                     const isMultiple = !!q.is_multiple_answers;
@@ -1777,6 +1910,11 @@ async function deleteSharedPassage(passageId) {
                 }
 
                 const qNum = q.question_number || (idx+1);
+                const encodedQNum = encodeURIComponent(String(qNum));
+                const typeBadgeObj = getQuestionTypeDisplayBadge(qType);
+                const typeBadgeHtml = typeBadgeObj
+                    ? `<span class="px-2 py-0.5 rounded bg-${typeBadgeObj.color}-500/15 text-${typeBadgeObj.color}-600 dark:text-${typeBadgeObj.color}-300 border border-${typeBadgeObj.color}-500/30 font-bold text-[10px]"><i class="fas ${typeBadgeObj.icon} mr-1"></i>${typeBadgeObj.label}</span>`
+                    : '';
                 const categoryBadge = q.category_tag ? `<span class="px-2 py-0.5 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 font-bold text-[10px] break-words max-w-xs">${escapeHtml(q.category_tag)}</span>` : '';
                 const bonusBadge = isBonusAll ? `<span class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 font-bold text-[10px]">🎁 แจกคะแนนฟรี</span>` : '';
                 const passageBadge = linkedPassage ? `<span class="px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-600 dark:text-teal-300 font-bold text-[10px]">🔗 ${escapeHtml(linkedPassage.title || 'โจทย์ร่วม')}</span>` : '';
@@ -1788,6 +1926,10 @@ async function deleteSharedPassage(passageId) {
                     ? `<span class="px-1.5 py-0.5 rounded bg-pink-100 dark:bg-pink-950/60 text-pink-600 dark:text-pink-300 font-bold text-[10px]"><i class="fas fa-image"></i> มีรูป</span>`
                     : '';
                 const qId = q.id;
+
+                const renderedQuestionBody = (isDropdown || isDragDrop)
+                    ? renderClozePreviewHtml(rawQText, qType)
+                    : renderMarkdownSafe(rawQText);
 
                 const passageBlockHtml = linkedPassage ? `
                     <div class="p-3 rounded-xl bg-teal-500/5 border border-teal-500/25 space-y-1">
@@ -1801,7 +1943,8 @@ async function deleteSharedPassage(passageId) {
                         <div onclick="toggleAccordion('acc-${qId}')" class="p-3.5 bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors gap-2">
                             <div class="flex items-center gap-2 font-bold text-xs flex-wrap min-w-0 pr-2">
                                 <i class="fas fa-chevron-down text-slate-400 transition-transform" id="icon-acc-${qId}"></i>
-                                <span class="text-sky-600 dark:text-sky-400 shrink-0">ข้อ ${qNum}:</span>
+                                <span class="text-sky-600 dark:text-sky-400 shrink-0">ข้อ ${escapeHtml(String(qNum))}:</span>
+                                ${typeBadgeHtml}
                                 ${scoreBadge}
                                 ${hasImgBadge}
                                 ${bonusBadge}
@@ -1811,7 +1954,7 @@ async function deleteSharedPassage(passageId) {
                             </div>
                             <div class="flex gap-1 shrink-0" onclick="event.stopPropagation()">
                                 <button onclick="openQuestionModalById('${qId}')" class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-bold"><i class="fas fa-pen mr-1"></i> แก้ไข</button>
-                                <button onclick="confirmDeleteQuestion('${qId}', ${qNum})" class="px-2.5 py-1 bg-red-100 dark:bg-red-950/50 text-red-600 rounded-lg text-xs font-bold"><i class="fas fa-trash"></i></button>
+                                <button onclick="confirmDeleteQuestion('${qId}', decodeURIComponent('${encodedQNum}'))" class="px-2.5 py-1 bg-red-100 dark:bg-red-950/50 text-red-600 rounded-lg text-xs font-bold"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
 
@@ -1820,7 +1963,7 @@ async function deleteSharedPassage(passageId) {
                             ${imgTag}
                             <div class="text-xs font-semibold text-slate-700 dark:text-slate-300 space-y-1">
                                 <strong class="block text-slate-500">คำถาม:</strong>
-                                <div onclick="handleMarkdownBodyClick(event)" class="prose dark:prose-invert max-w-none text-sm">${renderMarkdownSafe(rawQText)}</div>
+                                <div onclick="handleMarkdownBodyClick(event)" class="prose dark:prose-invert max-w-none text-sm">${renderedQuestionBody}</div>
                             </div>
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-bold text-slate-500">ตัวเลือก & เฉลยคำตอบ:</label>
@@ -1893,8 +2036,34 @@ async function deleteSharedPassage(passageId) {
         window.toggleQuestionTypeModal = function(val) {
             const mcSec = document.getElementById('mcSection');
             const esSec = document.getElementById('essaySection');
-            if (mcSec) mcSec.className = val === 'essay' ? 'hidden' : 'space-y-2 pt-2 border-t dark:border-slate-800';
+            const fbSec = document.getElementById('fillBlankSection');
+            const ddSec = document.getElementById('dropdownSection');
+            const dgSec = document.getElementById('dragDropSection');
+            const clozeBtn = document.getElementById('insertClozeSlotBtn');
+
+            if (mcSec) mcSec.className = val === 'multiple_choice' ? 'space-y-2 pt-2 border-t dark:border-slate-800' : 'hidden';
             if (esSec) esSec.className = val === 'essay' ? 'space-y-3 pt-2 border-t dark:border-slate-800' : 'hidden';
+            if (fbSec) fbSec.className = val === 'fill_blank' ? 'space-y-3 pt-2 border-t dark:border-slate-800' : 'hidden';
+            if (ddSec) ddSec.className = val === 'dropdown' ? 'space-y-3 pt-2 border-t dark:border-slate-800' : 'hidden';
+            if (dgSec) dgSec.className = val === 'drag_drop' ? 'space-y-3 pt-2 border-t dark:border-slate-800' : 'hidden';
+
+            if (clozeBtn) {
+                if (val === 'dropdown' || val === 'drag_drop') clozeBtn.classList.remove('hidden');
+                else clozeBtn.classList.add('hidden');
+            }
+            refreshMarkdownPreview('qText', 'qTextMarkdownPreview');
+        };
+
+        window.addFillBlankAcceptedAnswer = function(initialVal = '') {
+            const container = document.getElementById('fillBlankAnswersContainer');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-2 fb-ans-row';
+            div.innerHTML = `
+                <input class="fb-ans-input flex-1 px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-xs font-bold" value="${escapeHtml(initialVal)}" placeholder="พิมพ์คำตอบที่ยอมรับ เช่น 0.5 หรือ 1/2...">
+                <button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1.5"><i class="fas fa-times"></i></button>
+            `;
+            container.appendChild(div);
         };
 
         window.syncAnswerChoiceMode = function() {
@@ -2064,18 +2233,38 @@ async function deleteSharedPassage(passageId) {
             }
         };
 
+        function extractClozeBlanksFromText(rawText) {
+            const blanks = [];
+            const regex = /\[\[(.*?)\]\]/g;
+            let match;
+            while ((match = regex.exec(String(rawText || ''))) !== null) {
+                const parts = match[1].split('|').map(s => s.trim()).filter(Boolean);
+                if (parts.length > 0) {
+                    blanks.push({
+                        answer: parts[0],
+                        choices: parts
+                    });
+                }
+            }
+            return blanks;
+        }
+
         async function openQuestionModal(qData = null) {
             const isEdit = !!qData;
+            const currentQType = qData?.question_type || 'multiple_choice';
             const formatType = currentExamData?.choice_format || 'num';
-            const standardLabels = getChoiceLabels(formatType, qData?.options ? qData.options.length : 4);
+            const standardLabels = getChoiceLabels(formatType, Array.isArray(qData?.options) ? qData.options.length : 4);
 
-            let currentOpts = (qData?.options && qData.options.length > 0) ? qData.options : standardLabels;
+            let currentOpts = (Array.isArray(qData?.options) && qData.options.length > 0) ? qData.options : standardLabels;
             let currentKeywords = qData?.keywords || [];
+            const cfg = qData?.interactive_config || {};
+
             const isBonusAll = !!qData?.is_bonus_all;
             const isMultiple = !isBonusAll && !!qData?.is_multiple_answers;
             const isSingleMultiKey = !isBonusAll && !isMultiple && !!qData?.allow_multi_correct_keys;
             const gradingMode = ['partial', 'at_least_one', 'all'].includes(qData?.multiple_grading_mode) ? qData.multiple_grading_mode : 'all';
             const qScoreVal = qData?.score !== undefined && qData?.score !== null ? Number(qData.score) : 1;
+            const defaultQLabel = qData?.question_number ? String(qData.question_number) : String(cachedQuestions.length + 1);
 
             let selectedMode = 'single_one';
             if (isBonusAll) selectedMode = 'bonus_all';
@@ -2147,13 +2336,22 @@ async function deleteSharedPassage(passageId) {
                 </div>`;
             }).join('');
 
+            const fbAcceptedInit = (Array.isArray(cfg.accepted_answers) && cfg.accepted_answers.length > 0) ? cfg.accepted_answers : [''];
+            const fbAnswersHtml = fbAcceptedInit.map((ansStr, idx) => `
+                <div class="flex items-center gap-2 fb-ans-row">
+                    <input class="fb-ans-input flex-1 px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-xs font-bold" value="${escapeHtml(ansStr)}" placeholder="พิมพ์คำตอบที่ยอมรับ เช่น 0.5 หรือ 1/2...">
+                    ${idx > 0 ? `<button type="button" onclick="this.parentElement.remove()" class="text-red-500 px-1.5"><i class="fas fa-times"></i></button>` : ''}
+                </div>
+            `).join('');
+
             const questionTextBlock = buildMarkdownTextareaBlock({
                 id: 'qText',
                 label: 'คำถาม / ข้อความโจทย์',
                 value: qData?.question_text || qData?.content || '',
                 rows: 4,
                 previewId: 'qTextMarkdownPreview',
-                placeholder: 'พิมพ์โจทย์ด้วย Markdown / ตาราง / สูตรคณิตศาสตร์ $...$ หรือ $$...$$ หรือวาง/ลากรูปภาพแทรกตรงไหนก็ได้...'
+                placeholder: 'พิมพ์โจทย์ด้วย Markdown / ตาราง / สูตรคณิตศาสตร์ $...$ หรือ $$...$$ หรือวาง/ลากรูปภาพแทรกตรงไหนก็ได้...',
+                showClozeBtn: true
             });
 
             const existingMainImgUrl = qData?.image_url || '';
@@ -2194,23 +2392,29 @@ async function deleteSharedPassage(passageId) {
 
             const { value: formValues } = await Swal.fire({
                 title: isEdit ? `แก้ไขโจทย์ ข้อที่ ${qData.question_number}` : 'เพิ่มข้อสอบใหม่',
-                width: '720px',
+                width: '740px',
+                didOpen: () => {
+                    toggleQuestionTypeModal(currentQType);
+                },
                 html: `
                     <div class="space-y-3 text-left text-xs max-h-[75vh] overflow-y-auto pr-1">
-                        <div class="grid grid-cols-3 gap-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <div>
-                                <label class="block font-bold mb-1">ข้อที่</label>
-                                <input type="number" id="qNum" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800" value="${qData?.question_number || (cachedQuestions.length + 1)}">
+                                <label class="block font-bold mb-1">ข้อที่ (พิมพ์ได้อิสระ เช่น 16.1, A1)</label>
+                                <input type="text" id="qNum" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold text-sky-600 dark:text-sky-400" value="${escapeHtml(defaultQLabel)}" placeholder="เช่น 1, 16.1, A1">
                             </div>
                             <div>
-                                <label class="block font-bold mb-1">คะแนนข้อนี้</label>
-                                <input type="number" step="0.5" min="0" id="qScore" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-mono font-bold text-indigo-600 dark:text-indigo-400" value="${qScoreVal}">
+                                <label class="block font-bold mb-1">คะแนนข้อนี้ (ทศนิยมได้)</label>
+                                <input type="number" step="any" min="0" id="qScore" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-mono font-bold text-indigo-600 dark:text-indigo-400" value="${qScoreVal}">
                             </div>
                             <div>
                                 <label class="block font-bold mb-1">ประเภทข้อสอบ</label>
-                                <select id="qType" onchange="toggleQuestionTypeModal(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800">
-                                    <option value="multiple_choice" ${qData?.question_type !== 'essay' ? 'selected' : ''}>ปรนัย</option>
-                                    <option value="essay" ${qData?.question_type === 'essay' ? 'selected' : ''}>อัตนัย (ข้อเขียน)</option>
+                                <select id="qType" onchange="toggleQuestionTypeModal(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 font-bold">
+                                    <option value="multiple_choice" ${currentQType === 'multiple_choice' ? 'selected' : ''}>ปรนัย (ตัวเลือก)</option>
+                                    <option value="fill_blank" ${currentQType === 'fill_blank' ? 'selected' : ''}>เติมคำตอบสั้น (Short Answer)</option>
+                                    <option value="dropdown" ${currentQType === 'dropdown' ? 'selected' : ''}>Dropdown เติมคำในช่องว่าง</option>
+                                    <option value="drag_drop" ${currentQType === 'drag_drop' ? 'selected' : ''}>ลากคำไปเติมในช่องว่าง (Drag & Drop)</option>
+                                    <option value="essay" ${currentQType === 'essay' ? 'selected' : ''}>อัตนัย (ข้อเขียนยาว)</option>
                                 </select>
                             </div>
                         </div>
@@ -2227,7 +2431,8 @@ async function deleteSharedPassage(passageId) {
                         ${questionTextBlock}
                         ${imageUploadBlock}
 
-                        <div id="mcSection" class="${qData?.question_type === 'essay' ? 'hidden' : ''} space-y-2 pt-2 border-t dark:border-slate-800">
+                        <!-- 1. Section ปรนัย -->
+                        <div id="mcSection" class="${currentQType === 'multiple_choice' ? '' : 'hidden'} space-y-2 pt-2 border-t dark:border-slate-800">
                             <div class="p-3 bg-purple-500/10 rounded-xl border border-purple-500/30 space-y-2">
                                 <label class="block font-bold text-purple-600 dark:text-purple-400">รูปแบบการตอบและเฉลยปรนัย:</label>
                                 <select id="mcAnswerModeSelect" onchange="syncAnswerChoiceMode()" class="w-full px-3 py-1.5 border rounded-lg dark:bg-slate-800 font-bold text-xs">
@@ -2260,7 +2465,72 @@ async function deleteSharedPassage(passageId) {
                             </div>
                         </div>
 
-                        <div id="essaySection" class="${qData?.question_type === 'essay' ? '' : 'hidden'} space-y-3 pt-2 border-t dark:border-slate-800">
+                        <!-- 2. Section เติมคำตอบสั้น (Short Answer / Fill-in-the-blank) -->
+                        <div id="fillBlankSection" class="${currentQType === 'fill_blank' ? '' : 'hidden'} space-y-3 pt-2 border-t dark:border-slate-800">
+                            <div class="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/30 space-y-2.5">
+                                <div class="flex justify-between items-center">
+                                    <label class="font-bold text-emerald-700 dark:text-emerald-300"><i class="fas fa-keyboard mr-1"></i> เฉลยคำตอบสั้น (เพิ่มได้หลายรูปแบบที่ยอมรับ)</label>
+                                    <button type="button" onclick="addFillBlankAcceptedAnswer()" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold"><i class="fas fa-plus"></i> เพิ่มรูปแบบคำตอบ</button>
+                                </div>
+                                <div id="fillBlankAnswersContainer" class="space-y-1.5">
+                                    ${fbAnswersHtml}
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                    <div>
+                                        <label class="block font-bold mb-1">หน่วยด้านหลังช่องคำตอบ (ถ้ามี)</label>
+                                        <input id="fbUnitInput" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-xs" value="${escapeHtml(cfg.unit || '')}" placeholder="เช่น m/s, องศา, บาท">
+                                    </div>
+                                    <div>
+                                        <label class="block font-bold mb-1">รูปแบบการตรวจคำตอบ</label>
+                                        <select id="fbMatchModeSelect" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-xs font-bold">
+                                            <option value="exact" ${cfg.match_mode !== 'contains' ? 'selected' : ''}>ตรงตามเฉลย (ตัดช่องว่าง/ไม่สนตัวพิมพ์เล็กใหญ่)</option>
+                                            <option value="contains" ${cfg.match_mode === 'contains' ? 'selected' : ''}>มีคำเฉลยอยู่ในข้อความที่พิมพ์</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Section Dropdown เติมคำในช่องว่าง -->
+                        <div id="dropdownSection" class="${currentQType === 'dropdown' ? '' : 'hidden'} space-y-3 pt-2 border-t dark:border-slate-800">
+                            <div class="p-3 bg-cyan-500/10 rounded-xl border border-cyan-500/30 space-y-2">
+                                <div class="font-bold text-cyan-700 dark:text-cyan-300"><i class="fas fa-caret-square-down mr-1"></i> วิธีสร้างช่อง Dropdown ในข้อความโจทย์</div>
+                                <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                                    พิมพ์รูปแบบ <code class="px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded font-bold text-cyan-600">[[คำตอบที่ถูก|ตัวลวง 1|ตัวลวง 2]]</code> ลงในช่องโจทย์ด้านบน (ตัวแรกสุดคือเฉลย ระบบจะสลับลำดับตัวเลือกให้อัตโนมัติตอนนักเรียนสอบ)
+                                </p>
+                                <div>
+                                    <label class="block font-bold mb-1">เกณฑ์การให้คะแนนหลายช่องว่าง</label>
+                                    <select id="ddScoringModeSelect" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-xs font-bold">
+                                        <option value="partial" ${cfg.scoring_mode !== 'all' ? 'selected' : ''}>ให้คะแนนตามสัดส่วนช่องที่ตอบถูก (Partial Credit)</option>
+                                        <option value="all" ${cfg.scoring_mode === 'all' ? 'selected' : ''}>ต้องเลือกถูกครบทุกช่องจึงจะได้คะแนน</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4. Section ลากคำไปเติมในช่องว่าง (Drag & Drop) -->
+                        <div id="dragDropSection" class="${currentQType === 'drag_drop' ? '' : 'hidden'} space-y-3 pt-2 border-t dark:border-slate-800">
+                            <div class="p-3 bg-fuchsia-500/10 rounded-xl border border-fuchsia-500/30 space-y-2.5">
+                                <div class="font-bold text-fuchsia-700 dark:text-fuchsia-300"><i class="fas fa-hand-pointer mr-1"></i> วิธีสร้างช่องวางคำศัพท์ (Drag & Drop)</div>
+                                <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                                    ครอบคำที่ต้องการให้นักเรียนลากมาเติมด้วยวงเล็บก้ามปูคู่ เช่น <code class="px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded font-bold text-fuchsia-600">น้ำเดือดที่อุณหภูมิ [[100]] องศาเซลเซียส</code>
+                                </p>
+                                <div>
+                                    <label class="block font-bold mb-1">คำลวงเพิ่มเติมในคลังคำศัพท์ (คั่นด้วยเครื่องหมายจุลภาค , ถ้ามี)</label>
+                                    <input id="dgDistractorsInput" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-xs" value="${escapeHtml(Array.isArray(cfg.distractors) ? cfg.distractors.join(', ') : '')}" placeholder="เช่น 50, 80, 120">
+                                </div>
+                                <div>
+                                    <label class="block font-bold mb-1">เกณฑ์การให้คะแนนหลายช่องว่าง</label>
+                                    <select id="dgScoringModeSelect" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800 text-xs font-bold">
+                                        <option value="partial" ${cfg.scoring_mode !== 'all' ? 'selected' : ''}>ให้คะแนนตามสัดส่วนช่องที่วางถูก (Partial Credit)</option>
+                                        <option value="all" ${cfg.scoring_mode === 'all' ? 'selected' : ''}>ต้องวางถูกครบทุกช่องจึงจะได้คะแนน</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Section อัตนัย -->
+                        <div id="essaySection" class="${currentQType === 'essay' ? '' : 'hidden'} space-y-3 pt-2 border-t dark:border-slate-800">
                             <label class="block font-bold">โหมดการตรวจอัตนัย</label>
                             <select id="qGradingType" onchange="toggleGradingTypeSec(this.value)" class="w-full px-3 py-1.5 border rounded-xl dark:bg-slate-800">
                                 <option value="manual" ${qData?.grading_type !== 'keyword' ? 'selected' : ''}>คุณครูตรวจเอง (Manual Grading)</option>
@@ -2284,11 +2554,124 @@ async function deleteSharedPassage(passageId) {
                 preConfirm: () => {
                     const qType = document.getElementById('qType').value;
                     const txt = document.getElementById('qText').value;
-                    const scoreNum = Math.max(0, parseFloat(document.getElementById('qScore').value) || 0);
+                    const qLabelRaw = document.getElementById('qNum').value.trim() || String(cachedQuestions.length + 1);
+                    const scoreRaw = parseFloat(document.getElementById('qScore').value);
+                    const scoreNum = (!Number.isNaN(scoreRaw) && scoreRaw >= 0) ? scoreRaw : 1;
 
                     const selectVal = document.getElementById('qCategorySelect').value;
                     const customVal = document.getElementById('qCategoryTagCustom').value.trim();
                     const finalCategoryTag = selectVal === '__NEW__' ? customVal : (selectVal || customVal);
+                    const sharedPassageVal = document.getElementById('qSharedPassageId')?.value || null;
+
+                    if (qType === 'fill_blank') {
+                        const fbAnswers = Array.from(document.querySelectorAll('.fb-ans-input'))
+                            .map(inp => inp.value.trim())
+                            .filter(Boolean);
+                        if (fbAnswers.length === 0) {
+                            Swal.showValidationMessage('กรุณากรอกเฉลยคำตอบสั้นอย่างน้อย 1 คำตอบ');
+                            return false;
+                        }
+                        const interactiveConfig = {
+                            __interactive_type: 'fill_blank',
+                            accepted_answers: fbAnswers,
+                            unit: document.getElementById('fbUnitInput')?.value.trim() || '',
+                            match_mode: document.getElementById('fbMatchModeSelect')?.value || 'exact'
+                        };
+                        return {
+                            exam_id: examId,
+                            question_number: qLabelRaw,
+                            question_number_label: qLabelRaw,
+                            score: scoreNum,
+                            category_tag: finalCategoryTag,
+                            shared_passage_id: sharedPassageVal || null,
+                            question_type: 'fill_blank',
+                            question_text: txt,
+                            content: txt,
+                            image_url: document.getElementById('qImageUrl')?.value.trim() || null,
+                            options: interactiveConfig,
+                            interactive_config: interactiveConfig,
+                            correct_answer: JSON.stringify(fbAnswers),
+                            is_multiple_answers: false,
+                            allow_multi_correct_keys: false,
+                            is_bonus_all: false,
+                            multiple_grading_mode: 'all',
+                            grading_type: 'auto',
+                            keywords: []
+                        };
+                    }
+
+                    if (qType === 'dropdown') {
+                        const blanks = extractClozeBlanksFromText(txt);
+                        if (blanks.length === 0 || blanks.some(b => b.choices.length < 2)) {
+                            Swal.showValidationMessage('กรุณาใส่ [[คำตอบที่ถูก|ตัวลวง 1|...]] อย่างน้อย 1 ช่อง (ต้องมีอย่างน้อย 2 ตัวเลือกต่อช่อง)');
+                            return false;
+                        }
+                        const interactiveConfig = {
+                            __interactive_type: 'dropdown',
+                            blanks,
+                            scoring_mode: document.getElementById('ddScoringModeSelect')?.value || 'partial'
+                        };
+                        return {
+                            exam_id: examId,
+                            question_number: qLabelRaw,
+                            question_number_label: qLabelRaw,
+                            score: scoreNum,
+                            category_tag: finalCategoryTag,
+                            shared_passage_id: sharedPassageVal || null,
+                            question_type: 'dropdown',
+                            question_text: txt,
+                            content: txt,
+                            image_url: document.getElementById('qImageUrl')?.value.trim() || null,
+                            options: interactiveConfig,
+                            interactive_config: interactiveConfig,
+                            correct_answer: JSON.stringify(blanks.map(b => b.answer)),
+                            is_multiple_answers: false,
+                            allow_multi_correct_keys: false,
+                            is_bonus_all: false,
+                            multiple_grading_mode: 'all',
+                            grading_type: 'auto',
+                            keywords: []
+                        };
+                    }
+
+                    if (qType === 'drag_drop') {
+                        const blanks = extractClozeBlanksFromText(txt);
+                        if (blanks.length === 0) {
+                            Swal.showValidationMessage('กรุณาใส่ [[คำศัพท์ที่ถูก]] ในโจทย์อย่างน้อย 1 ช่อง');
+                            return false;
+                        }
+                        const distractorsRaw = document.getElementById('dgDistractorsInput')?.value || '';
+                        const distractors = distractorsRaw.split(',').map(s => s.trim()).filter(Boolean);
+                        const wordBank = Array.from(new Set([...blanks.map(b => b.answer), ...distractors]));
+                        const interactiveConfig = {
+                            __interactive_type: 'drag_drop',
+                            blanks,
+                            distractors,
+                            word_bank: wordBank,
+                            scoring_mode: document.getElementById('dgScoringModeSelect')?.value || 'partial'
+                        };
+                        return {
+                            exam_id: examId,
+                            question_number: qLabelRaw,
+                            question_number_label: qLabelRaw,
+                            score: scoreNum,
+                            category_tag: finalCategoryTag,
+                            shared_passage_id: sharedPassageVal || null,
+                            question_type: 'drag_drop',
+                            question_text: txt,
+                            content: txt,
+                            image_url: document.getElementById('qImageUrl')?.value.trim() || null,
+                            options: interactiveConfig,
+                            interactive_config: interactiveConfig,
+                            correct_answer: JSON.stringify(blanks.map(b => b.answer)),
+                            is_multiple_answers: false,
+                            allow_multi_correct_keys: false,
+                            is_bonus_all: false,
+                            multiple_grading_mode: 'all',
+                            grading_type: 'auto',
+                            keywords: []
+                        };
+                    }
 
                     const optInputs = document.querySelectorAll('.opt-text-input');
                     const optsParsed = Array.from(optInputs).map(inp => inp.value.trim()).filter(Boolean);
@@ -2321,11 +2704,10 @@ async function deleteSharedPassage(passageId) {
                         mode: row.querySelector('.kw-mode').value
                     })).filter(k => k.word !== '');
 
-                    const sharedPassageVal = document.getElementById('qSharedPassageId')?.value || null;
-
                     return {
                         exam_id: examId,
-                        question_number: parseInt(document.getElementById('qNum').value) || 1,
+                        question_number: qLabelRaw,
+                        question_number_label: qLabelRaw,
                         score: scoreNum,
                         category_tag: finalCategoryTag,
                         shared_passage_id: sharedPassageVal || null,
@@ -2334,6 +2716,7 @@ async function deleteSharedPassage(passageId) {
                         content: txt,
                         image_url: document.getElementById('qImageUrl')?.value.trim() || null,
                         options: finalOptions,
+                        interactive_config: null,
                         correct_answer: correctAnsValue,
                         is_multiple_answers: isMultiple,
                         allow_multi_correct_keys: isSingleMultiKey,
@@ -2346,45 +2729,52 @@ async function deleteSharedPassage(passageId) {
             });
 
             if (formValues) {
+                const numericFallback = extractNumericFallbackFromLabel(formValues.question_number, cachedQuestions.length + 1);
                 const fullPayload = { ...formValues };
-const corePayload = {
-    exam_id: formValues.exam_id,
-    question_number: formValues.question_number,
-    category_tag: formValues.category_tag,
-    shared_passage_id: formValues.shared_passage_id || null, // <-- เพิ่มบรรทัดนี้
-    question_type: formValues.question_type,
-    question_text: formValues.question_text,
-    content: formValues.content,
-    image_url: formValues.image_url,
-    options: formValues.options,
-    correct_answer: formValues.correct_answer,
-    is_multiple_answers: formValues.is_multiple_answers,
-    multiple_grading_mode: formValues.multiple_grading_mode,
-    grading_type: formValues.grading_type,
-    keywords: formValues.keywords
-};
+                delete fullPayload.question_number_label;
+                delete fullPayload.interactive_config;
+
+                const corePayloadWithIntNum = {
+                    exam_id: formValues.exam_id,
+                    question_number: numericFallback,
+                    category_tag: formValues.category_tag,
+                    shared_passage_id: formValues.shared_passage_id || null,
+                    question_type: formValues.question_type,
+                    question_text: formValues.question_text,
+                    content: formValues.content,
+                    image_url: formValues.image_url,
+                    options: formValues.options,
+                    correct_answer: formValues.correct_answer,
+                    is_multiple_answers: formValues.is_multiple_answers,
+                    multiple_grading_mode: formValues.multiple_grading_mode,
+                    grading_type: formValues.grading_type,
+                    keywords: formValues.keywords
+                };
 
                 let savedRecordId = isEdit ? qData.id : null;
 
                 if (isEdit) {
                     const { error } = await mySupabase.from('questions').update(fullPayload).eq('id', qData.id);
                     if (error) {
-                        await mySupabase.from('questions').update(corePayload).eq('id', qData.id);
+                        await mySupabase.from('questions').update(corePayloadWithIntNum).eq('id', qData.id);
                     }
-                    await logAdminAction('แก้ไขโจทย์', `แก้ไขข้อสอบข้อที่ ${formValues.question_number}`);
+                    await logAdminAction('แก้ไขโจทย์', `แก้ไขข้อสอบข้อที่ ${formValues.question_number_label}`);
                 } else {
                     const { data: insertedRows, error } = await mySupabase.from('questions').insert([fullPayload]).select('id');
                     if (error) {
-                        const fallbackRes = await mySupabase.from('questions').insert([corePayload]).select('id');
+                        const fallbackRes = await mySupabase.from('questions').insert([corePayloadWithIntNum]).select('id');
                         savedRecordId = fallbackRes.data?.[0]?.id || null;
                     } else {
                         savedRecordId = insertedRows?.[0]?.id || null;
                     }
-                    await logAdminAction('เพิ่มโจทย์ใหม่', `เพิ่มข้อสอบข้อที่ ${formValues.question_number}`);
+                    await logAdminAction('เพิ่มโจทย์ใหม่', `เพิ่มข้อสอบข้อที่ ${formValues.question_number_label}`);
                 }
 
                 if (savedRecordId) {
                     saveQuestionMetaItem(savedRecordId, {
+                        question_number_label: formValues.question_number_label,
+                        question_type: formValues.question_type,
+                        interactive_config: formValues.interactive_config || null,
                         category_tag: formValues.category_tag,
                         score: formValues.score,
                         shared_passage_id: formValues.shared_passage_id,
@@ -2583,10 +2973,13 @@ const corePayload = {
                         multiple_grading_mode: 'all'
                     });
                 }
-                const { data: createdRows } = await mySupabase.from('questions').insert(newItems).select('id');
-                if (createdRows && formValues.tag) {
-                    createdRows.forEach(r => saveQuestionMetaItem(r.id, { category_tag: formValues.tag }));
-                    saveCustomCategoryNames([...customCategoryNames, formValues.tag]);
+                const { data: createdRows } = await mySupabase.from('questions').insert(newItems).select('id, question_number');
+                if (createdRows) {
+                    createdRows.forEach(r => saveQuestionMetaItem(r.id, {
+                        question_number_label: String(r.question_number),
+                        category_tag: formValues.tag || ''
+                    }));
+                    if (formValues.tag) saveCustomCategoryNames([...customCategoryNames, formValues.tag]);
                 }
                 await logAdminAction('เจนกระดาษ OMR', `สร้างข้อสอบอัตโนมัติ ข้อที่ ${formValues.start} ถึง ${formValues.end}`);
                 markAsModified();
@@ -2602,16 +2995,54 @@ const corePayload = {
         function computeQuestionRegradeScore(q, userAns) {
             const hydrated = hydrateQuestionWithFlags(q);
             const qMaxScore = hydrated.score !== undefined && hydrated.score !== null ? Number(hydrated.score) : 1;
-            if ((hydrated.question_type || '').toLowerCase() === 'essay') {
-                return 0;
-            }
-            if (hydrated.is_bonus_all) {
-                return qMaxScore;
-            }
-            if (userAns === null || userAns === undefined || userAns === '') {
-                return 0;
+            const qType = (hydrated.question_type || '').toLowerCase();
+            const cfg = hydrated.interactive_config || {};
+
+            if (qType === 'essay') return 0;
+            if (hydrated.is_bonus_all) return qMaxScore;
+            if (userAns === null || userAns === undefined || userAns === '') return 0;
+
+            // 1. เติมคำตอบสั้น (fill_blank)
+            if (qType === 'fill_blank') {
+                const studentStr = String(userAns).trim().toLowerCase();
+                if (!studentStr) return 0;
+                const accepted = Array.isArray(cfg.accepted_answers)
+                    ? cfg.accepted_answers
+                    : normalizeCorrectAnswerList(hydrated.correct_answer);
+                const matchMode = cfg.match_mode || 'exact';
+                const isMatched = accepted.some(acc => {
+                    const cleanAcc = String(acc).trim().toLowerCase();
+                    if (!cleanAcc) return false;
+                    return matchMode === 'contains' ? studentStr.includes(cleanAcc) : studentStr === cleanAcc;
+                });
+                return isMatched ? qMaxScore : 0;
             }
 
+            // 2. Dropdown หรือ ลากคำเติมช่องว่าง (dropdown / drag_drop)
+            if (qType === 'dropdown' || qType === 'drag_drop') {
+                const blanks = Array.isArray(cfg.blanks) ? cfg.blanks : [];
+                if (blanks.length === 0) return 0;
+                let studentArr = userAns;
+                if (typeof studentArr === 'string') {
+                    try { studentArr = JSON.parse(studentArr); } catch (e) { studentArr = [studentArr]; }
+                }
+                if (!Array.isArray(studentArr)) return 0;
+
+                let correctCount = 0;
+                blanks.forEach((b, idx) => {
+                    const expected = String(b.answer || '').trim().toLowerCase();
+                    const actual = String(studentArr[idx] || '').trim().toLowerCase();
+                    if (expected && actual === expected) correctCount++;
+                });
+
+                const scoringMode = cfg.scoring_mode || 'partial';
+                if (scoringMode === 'all') {
+                    return correctCount === blanks.length ? qMaxScore : 0;
+                }
+                return Number(((qMaxScore * correctCount) / blanks.length).toFixed(4));
+            }
+
+            // 3. ปรนัย (multiple_choice)
             const correctArr = normalizeCorrectAnswerList(hydrated.correct_answer);
             if (correctArr.length === 0) return 0;
 
@@ -2637,7 +3068,7 @@ const corePayload = {
                     });
                     const rawPart = matchedCount / correctArr.length;
                     const penalty = userArr.length > correctArr.length ? (userArr.length - correctArr.length) * 0.2 : 0;
-                    return Number((qMaxScore * Math.max(0, rawPart - penalty)).toFixed(2));
+                    return Number((qMaxScore * Math.max(0, rawPart - penalty)).toFixed(4));
                 }
                 const isExactMatch = userArr.length === correctArr.length && userArr.every(val => correctArr.includes(val));
                 return isExactMatch ? qMaxScore : 0;
@@ -2668,6 +3099,9 @@ const corePayload = {
                 const persistedCorrect = q.is_bonus_all ? 'BONUS_ALL' : q.correct_answer;
 
                 saveQuestionMetaItem(q.id, {
+                    question_number_label: String(q.question_number_label || q.question_number || ''),
+                    question_type: q.question_type,
+                    interactive_config: q.interactive_config || null,
                     category_tag: q.category_tag || '',
                     score: qScoreVal,
                     shared_passage_id: q.shared_passage_id || null,
@@ -2750,7 +3184,7 @@ const corePayload = {
 
                     if (targetId) {
                         const { error: updateErr } = await mySupabase.from('exam_attempts').update({
-                            total_score: Math.round(recalculatedScore * 100) / 100
+                            total_score: Math.round(recalculatedScore * 1000) / 1000
                         }).eq(primaryKeyName, targetId);
 
                         if (updateErr) {
