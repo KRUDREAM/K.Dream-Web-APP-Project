@@ -139,7 +139,7 @@
                     <span class="hidden md:inline">ดาวน์โหลดข้อสอบ</span>
                 </button>
 
-                <button onclick="downloadSolutionSheet()" class="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-md shadow-emerald-500/20" title="ดาวน์โหลดไฟล์เฉลย">
+                <button id="navDownloadSolutionBtn" onclick="downloadSolutionSheet()" class="hidden px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-md shadow-emerald-500/20" title="ดาวน์โหลดไฟล์เฉลย">
                     <i class="fas fa-download"></i>
                     <span class="hidden sm:inline">ดาวน์โหลดเฉลย</span>
                 </button>
@@ -322,8 +322,8 @@
         </div>
 
         <!-- Filter & Review Controls -->
-        <div class="hitech-card p-4 sm:p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-            <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 dark:bg-darkinput p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div id="reviewControlsBar" class="hitech-card p-4 sm:p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <div id="answerFilterButtonsGroup" class="flex flex-wrap items-center gap-1.5 bg-slate-100 dark:bg-darkinput p-1 rounded-xl border border-slate-200 dark:border-slate-800">
                 <button onclick="setAnswerFilter('all')" id="filterBtnAll" class="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm">ทั้งหมด</button>
                 <button onclick="setAnswerFilter('wrong')" id="filterBtnWrong" class="px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:text-sky-600 rounded-lg text-xs font-bold transition-all">เฉพาะข้อที่ผิด</button>
                 <button onclick="setAnswerFilter('correct')" id="filterBtnCorrect" class="px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:text-sky-600 rounded-lg text-xs font-bold transition-all">เฉพาะข้อที่ถูก</button>
@@ -338,7 +338,7 @@
                     <i class="fas fa-file-alt"></i> ดาวน์โหลดข้อสอบ
                 </button>
 
-                <button onclick="downloadSolutionSheet()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-sm">
+                <button id="barDownloadSolutionBtn" onclick="downloadSolutionSheet()" class="hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-sm">
                     <i class="fas fa-file-download"></i> ดาวน์โหลดเฉลย
                 </button>
             </div>
@@ -383,6 +383,7 @@
         let attemptData = null;
         let examData = null;
         let questionsData = [];
+        let sharedPassagesMap = new Map();
         let parsedAnswers = {};
         let studentName = 'นักเรียน';
         let currentAnswerFilter = 'all';
@@ -396,6 +397,8 @@
         let computedWrongCount = 0;
         let activeGradingCriteria = [];
         let isGradingCriteriaEnabled = false;
+        let isSolutionRevealed = false;
+        let solutionLockReason = '';
         let peerCompareMode = 'all_attempts'; // 'all_attempts' | 'first_attempt'
         let rawSubmittedAttempts = [];
         let isMultiAttemptExam = false;
@@ -423,6 +426,103 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
+        }
+
+        function naturalSortQuestions(a, b) {
+            const numA = String(a?.question_number || '').trim();
+            const numB = String(b?.question_number || '').trim();
+            if (numA && numB) {
+                return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+            }
+            return (Number(a?.id) || 0) - (Number(b?.id) || 0);
+        }
+
+        function parseBooleanFlag(val) {
+            if (val === true || val === 1) return true;
+            if (typeof val === 'string') {
+                const low = val.trim().toLowerCase();
+                if (low === 'true' || low === '1' || low === 'yes' || low === 'open') return true;
+                if (low === 'false' || low === '0' || low === 'no' || low === 'closed') return false;
+            }
+            return null;
+        }
+
+        function resolveSolutionVisibilityState(exObj, targetExamId) {
+            let revealed = false;
+            let reason = 'ผู้สอนยังไม่เปิดให้ดูเฉลยสำหรับชุดข้อสอบนี้';
+
+            const flagCandidates = [
+                exObj?.show_solution,
+                exObj?.allow_solution,
+                exObj?.reveal_solution,
+                exObj?.show_answers,
+                exObj?.is_solution_visible,
+                exObj?.solution_visible
+            ];
+
+            let foundFlag = null;
+            for (const f of flagCandidates) {
+                const parsed = parseBooleanFlag(f);
+                if (parsed !== null) {
+                    foundFlag = parsed;
+                    break;
+                }
+            }
+
+            if (foundFlag === null && targetExamId) {
+                const localKeys = [
+                    `show_solution_${targetExamId}`,
+                    `allow_solution_${targetExamId}`,
+                    `reveal_solution_${targetExamId}`
+                ];
+                for (const lk of localKeys) {
+                    const parsed = parseBooleanFlag(localStorage.getItem(lk));
+                    if (parsed !== null) {
+                        foundFlag = parsed;
+                        break;
+                    }
+                }
+            }
+
+            if (foundFlag !== null) {
+                revealed = foundFlag;
+            }
+
+            // ตรวจสอบเวลาเปิดเฉลยอัตโนมัติ (ถ้ามีกำหนดไว้)
+            const releaseTimeRaw = exObj?.solution_release_time || exObj?.release_solution_at || exObj?.solution_available_at || null;
+            if (releaseTimeRaw) {
+                const releaseTs = new Date(releaseTimeRaw).getTime();
+                if (!isNaN(releaseTs)) {
+                    const nowTs = Date.now();
+                    if (nowTs >= releaseTs) {
+                        revealed = true;
+                    } else if (foundFlag !== true) {
+                        revealed = false;
+                        const dtText = new Date(releaseTs).toLocaleString('th-TH', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short'
+                        });
+                        reason = `เฉลยจะเปิดให้ดูอัตโนมัติในวันที่ ${dtText}`;
+                    }
+                }
+            }
+
+            isSolutionRevealed = Boolean(revealed);
+            solutionLockReason = reason;
+
+            const navBtn = document.getElementById('navDownloadSolutionBtn');
+            const barBtn = document.getElementById('barDownloadSolutionBtn');
+            const filterGroup = document.getElementById('answerFilterButtonsGroup');
+
+            if (isSolutionRevealed) {
+                if (navBtn) navBtn.classList.remove('hidden');
+                if (barBtn) barBtn.classList.remove('hidden');
+                if (filterGroup) filterGroup.classList.remove('hidden');
+            } else {
+                if (navBtn) navBtn.classList.add('hidden');
+                if (barBtn) barBtn.classList.add('hidden');
+                if (filterGroup) filterGroup.classList.add('hidden');
+            }
         }
 
         function resolveGradingCriteriaState(exObj, targetExamId) {
@@ -560,7 +660,6 @@
         }
 
         function goBackPortal() {
-            const sid = getParam(['student_id', 'id']) || localStorage.getItem('student_id') || localStorage.getItem('id');
             window.location.href = 'student.html';
         }
 
@@ -616,20 +715,6 @@
             }
         }
 
-        function toArray(val) {
-            if (val === null || val === undefined || val === '' || val === '-') return [];
-            if (Array.isArray(val)) return val.map(v => String(v).trim());
-            const s = String(val).trim();
-            if (s.startsWith('[') && s.endsWith(']')) {
-                try {
-                    const p = JSON.parse(s);
-                    if (Array.isArray(p)) return p.map(v => String(v).trim());
-                } catch (e) {}
-            }
-            if (s.includes(',')) return s.split(',').map(v => v.trim());
-            return [s];
-        }
-
         function getChoices(q) {
             let c = q.choices || q.options || [];
             if (typeof c === 'string') {
@@ -638,48 +723,237 @@
             return Array.isArray(c) ? c : [];
         }
 
-        function formatChoiceOrAnswer(val, choices = []) {
-            const arr = toArray(val);
-            if (arr.length === 0) return 'ไม่ได้ตอบ';
-            return arr.map(item => {
-                if (!isNaN(item) && item !== '') {
-                    const idx = Number(item);
-                    if (idx >= 0 && idx < choices.length) return String(choices[idx]);
-                }
-                const low = item.toLowerCase();
-                const mapIdx = { 'ก': 0, 'a': 0, 'ข': 1, 'b': 1, 'ค': 2, 'c': 2, 'ง': 3, 'd': 3 };
-                if (low in mapIdx && choices[mapIdx[low]] !== undefined) {
-                    return `${item.toUpperCase()} (${choices[mapIdx[low]]})`;
-                }
-                return item;
-            }).join(', ');
+        function getQuestionType(q) {
+            return String(q?.question_type || q?.type || 'single').trim().toLowerCase();
         }
 
-        function checkCorrect(q, userVal, choices = []) {
-            const uArr = toArray(userVal).map(v => v.toLowerCase());
-            const cArr = toArray(q.correct_answer).map(v => v.toLowerCase());
-            if (uArr.length === 0 || cArr.length === 0) return false;
+        function getQuestionMaxPoints(q) {
+            const pts = Number(q?.points ?? q?.score ?? 1);
+            return !isNaN(pts) && pts > 0 ? pts : 1;
+        }
 
-            const normToken = (tok) => {
+        function parseSlotAnswerArray(val) {
+            if (val === null || val === undefined || val === '' || val === '-') return [];
+            if (Array.isArray(val)) return val.map(v => String(v ?? '').trim());
+            const s = String(val).trim();
+            if (s.startsWith('[') && s.endsWith(']')) {
+                try {
+                    const p = JSON.parse(s);
+                    if (Array.isArray(p)) return p.map(v => String(v ?? '').trim());
+                } catch (e) {}
+            }
+            if (s.includes('|||')) return s.split('|||').map(v => v.trim());
+            if (s.includes(',')) return s.split(',').map(v => v.trim());
+            return [s];
+        }
+
+        function extractClozeSlotsFromQuestion(q) {
+            const rawText = String(q?.question_text || q?.question || '');
+            const matches = [...rawText.matchAll(/\[\[([^\]]+)\]\]/g)];
+            if (matches.length > 0) {
+                return matches.map((m) => {
+                    const parts = m[1].split('|').map(x => x.trim()).filter(Boolean);
+                    return {
+                        correct: parts[0] || '',
+                        options: parts
+                    };
+                });
+            }
+            const fallbackCorrect = parseSlotAnswerArray(q?.correct_answer);
+            return fallbackCorrect.map((ans) => ({ correct: ans, options: [ans] }));
+        }
+
+        function formatClozeQuestionTextForDisplay(rawText) {
+            if (!rawText) return '';
+            let slotIdx = 0;
+            return String(rawText).replace(/\[\[([^\]]+)\]\]/g, () => {
+                slotIdx++;
+                return ` **[ช่องที่ ${slotIdx}]** `;
+            });
+        }
+
+        function parseChoiceTokens(val, choices = []) {
+            if (val === null || val === undefined || val === '' || val === '-') return [];
+            let rawArr = [];
+            if (Array.isArray(val)) {
+                rawArr = val.map(v => String(v).trim());
+            } else {
+                const s = String(val).trim();
+                if (s.startsWith('[') && s.endsWith(']')) {
+                    try {
+                        const p = JSON.parse(s);
+                        if (Array.isArray(p)) rawArr = p.map(v => String(v).trim());
+                    } catch (e) {}
+                }
+                if (rawArr.length === 0) {
+                    rawArr = s.includes(',') ? s.split(',').map(v => v.trim()) : [s];
+                }
+            }
+
+            const letterMap = { 'ก': 0, 'a': 0, 'ข': 1, 'b': 1, 'ค': 2, 'c': 2, 'ง': 3, 'd': 3, 'จ': 4, 'e': 4 };
+            return rawArr.filter(Boolean).map((tok) => {
                 if (!isNaN(tok) && tok !== '') {
                     const idx = Number(tok);
-                    if (idx >= 0 && idx < choices.length) return String(choices[idx]).trim().toLowerCase();
+                    if (idx >= 0 && idx < choices.length) return idx;
                 }
-                const mapIdx = { 'ก': 0, 'a': 0, 'ข': 1, 'b': 1, 'ค': 2, 'c': 2, 'ง': 3, 'd': 3 };
-                if (tok in mapIdx && choices[mapIdx[tok]] !== undefined) {
-                    return String(choices[mapIdx[tok]]).trim().toLowerCase();
+                const low = tok.toLowerCase();
+                if (low in letterMap && letterMap[low] < choices.length) {
+                    return letterMap[low];
                 }
+                const textMatchIdx = choices.findIndex(c => String(c).trim().toLowerCase() === low);
+                if (textMatchIdx !== -1) return textMatchIdx;
                 return tok;
+            });
+        }
+
+        // ระบบตรวจคำตอบให้ตรงกับ admin_analytics_detail.html 100%
+        function gradeQuestion(q, rawUserVal) {
+            const qType = getQuestionType(q);
+            const maxPoints = getQuestionMaxPoints(q);
+            const choices = getChoices(q);
+            const correctRaw = String(q?.correct_answer ?? '').trim();
+
+            // 1. แจกคะแนนฟรีทุกกรณี (BONUS_ALL)
+            if (correctRaw.toUpperCase() === 'BONUS_ALL') {
+                const uDisplay = (rawUserVal === null || rawUserVal === undefined || rawUserVal === '' || rawUserVal === '-')
+                    ? 'ไม่ได้ตอบ (ได้คะแนนฟรี)'
+                    : formatChoiceOrAnswer(q, rawUserVal);
+                return {
+                    isCorrect: true,
+                    isPartial: false,
+                    isBonus: true,
+                    earnedPoints: maxPoints,
+                    maxPoints,
+                    userDisplay: uDisplay,
+                    correctDisplay: '🎁 แจกคะแนนฟรี (ทุกคำตอบได้คะแนนเต็ม)'
+                };
+            }
+
+            // 2. เติมคำตอบสั้น (fill_blank)
+            if (qType === 'fill_blank') {
+                const userStr = (rawUserVal === null || rawUserVal === undefined || rawUserVal === '-') ? '' : String(rawUserVal).trim();
+                const normUser = userStr.toLowerCase().replace(/\s+/g, '');
+                let acceptedList = [];
+                if (Array.isArray(q.accepted_answers) && q.accepted_answers.length > 0) {
+                    acceptedList = q.accepted_answers.map(a => String(a).trim()).filter(Boolean);
+                } else if (correctRaw) {
+                    acceptedList = [correctRaw];
+                }
+                const matchMode = String(q.blank_match_mode || 'exact').toLowerCase();
+                const unitText = q.unit ? ` ${String(q.unit).trim()}` : '';
+
+                let matched = false;
+                if (normUser !== '' && acceptedList.length > 0) {
+                    matched = acceptedList.some((acc) => {
+                        const normAcc = acc.toLowerCase().replace(/\s+/g, '');
+                        if (!normAcc) return false;
+                        if (matchMode === 'contains') {
+                            return normUser.includes(normAcc) || normAcc.includes(normUser);
+                        }
+                        return normUser === normAcc;
+                    });
+                }
+
+                return {
+                    isCorrect: matched,
+                    isPartial: false,
+                    isBonus: false,
+                    earnedPoints: matched ? maxPoints : 0,
+                    maxPoints,
+                    userDisplay: userStr ? `${userStr}${unitText}` : 'ไม่ได้ตอบ',
+                    correctDisplay: acceptedList.length > 0 ? `${acceptedList.join(' หรือ ')}${unitText}` : '-'
+                };
+            }
+
+            // 3. Dropdown หรือ Drag & Drop (รองรับ Partial Credit รายช่อง)
+            if (qType === 'dropdown' || qType === 'drag_drop') {
+                const slots = extractClozeSlotsFromQuestion(q);
+                const userSlots = parseSlotAnswerArray(rawUserVal);
+                const totalSlots = Math.max(slots.length, 1);
+                let correctSlotsCount = 0;
+
+                const userLines = [];
+                const correctLines = [];
+
+                slots.forEach((slot, sIdx) => {
+                    const uAns = userSlots[sIdx] !== undefined && userSlots[sIdx] !== '' ? String(userSlots[sIdx]).trim() : '';
+                    const cAns = String(slot.correct || '').trim();
+                    const slotOk = uAns !== '' && uAns.toLowerCase() === cAns.toLowerCase();
+                    if (slotOk) correctSlotsCount++;
+
+                    userLines.push(`ช่องที่ ${sIdx + 1}: ${uAns || 'ไม่ได้เลือก'}`);
+                    correctLines.push(`ช่องที่ ${sIdx + 1}: ${cAns || '-'}`);
+                });
+
+                const ratio = slots.length > 0 ? (correctSlotsCount / totalSlots) : 0;
+                const earned = Number((maxPoints * ratio).toFixed(2));
+                const fullCorrect = slots.length > 0 && correctSlotsCount === slots.length;
+                const partialCorrect = !fullCorrect && correctSlotsCount > 0;
+
+                return {
+                    isCorrect: fullCorrect,
+                    isPartial: partialCorrect,
+                    isBonus: false,
+                    earnedPoints: earned,
+                    maxPoints,
+                    userDisplay: userLines.length > 0 ? userLines.join(' | ') : 'ไม่ได้ตอบ',
+                    correctDisplay: correctLines.length > 0 ? correctLines.join(' | ') : '-'
+                };
+            }
+
+            // 4. ปรนัย (single / single_multi_key / multiple)
+            const uTokens = parseChoiceTokens(rawUserVal, choices);
+            const cTokens = parseChoiceTokens(q.correct_answer, choices);
+
+            const formatTokens = (toks) => {
+                if (!toks || toks.length === 0) return 'ไม่ได้ตอบ';
+                const thaiLetters = ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ'];
+                return toks.map((t) => {
+                    if (typeof t === 'number' && choices[t] !== undefined) {
+                        const prefix = thaiLetters[t] ? `${thaiLetters[t]}. ` : '';
+                        return `${prefix}${choices[t]}`;
+                    }
+                    return String(t);
+                }).join(', ');
             };
 
-            const nu = uArr.map(normToken);
-            const nc = cArr.map(normToken);
-            const qType = String(q.question_type || q.type || '').toLowerCase();
+            let isOk = false;
+            if (uTokens.length > 0 && cTokens.length > 0) {
+                const uSet = new Set(uTokens.map(x => String(x).toLowerCase()));
+                const cSet = new Set(cTokens.map(x => String(x).toLowerCase()));
 
-            if (qType.includes('at_least')) {
-                return nu.some(u => nc.some(c => c.replace(/\s+/g, '') === u.replace(/\s+/g, '') || c.includes(u) || u.includes(c)));
+                if (qType === 'multiple') {
+                    // ตอบถูกหลายข้อ: ต้องเลือกถูกครบทุกข้อและไม่เกิน
+                    isOk = uSet.size === cSet.size && [...cSet].every(c => uSet.has(c));
+                } else {
+                    // single หรือ single_multi_key (มีข้อถูกได้หลายข้อ แต่เลือกตอบข้อเดียว): ตอบข้อใดข้อหนึ่งในเฉลยถือว่าถูก
+                    isOk = [...uSet].some(u => cSet.has(u));
+                }
             }
-            return nu.some(u => nc.some(c => c.replace(/\s+/g, '') === u.replace(/\s+/g, '') || c.includes(u) || u.includes(c)));
+
+            const connector = (qType === 'single_multi_key' && cTokens.length > 1) ? ' (หรือ) ' : ', ';
+            const thaiLetters = ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ'];
+            const correctFormatted = cTokens.length > 0
+                ? cTokens.map(t => (typeof t === 'number' && choices[t] !== undefined) ? `${thaiLetters[t] ? thaiLetters[t] + '. ' : ''}${choices[t]}` : String(t)).join(connector)
+                : '-';
+
+            return {
+                isCorrect: isOk,
+                isPartial: false,
+                isBonus: false,
+                earnedPoints: isOk ? maxPoints : 0,
+                maxPoints,
+                userDisplay: formatTokens(uTokens),
+                correctDisplay: correctFormatted
+            };
+        }
+
+        function formatChoiceOrAnswer(q, val) {
+            const choices = getChoices(q);
+            const toks = parseChoiceTokens(val, choices);
+            if (!toks || toks.length === 0) return 'ไม่ได้ตอบ';
+            const thaiLetters = ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ'];
+            return toks.map(t => (typeof t === 'number' && choices[t] !== undefined) ? `${thaiLetters[t] ? thaiLetters[t] + '. ' : ''}${choices[t]}` : String(t)).join(', ');
         }
 
         function formatDurationText(att) {
@@ -889,14 +1163,27 @@
                 const { data: ex } = await mySupabase.from('exams').select('*').eq('id', targetExamId).maybeSingle();
                 examData = ex;
 
-                let { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', targetExamId).order('question_number', { ascending: true });
+                let { data: qs } = await mySupabase.from('questions').select('*').eq('exam_id', targetExamId);
                 if (!qs || qs.length === 0) {
                     const { data: qsAlt } = await mySupabase.from('exam_questions').select('*').eq('exam_id', targetExamId);
                     qs = qsAlt || [];
                 }
-                questionsData = qs || [];
+                questionsData = (qs || []).sort(naturalSortQuestions);
+
+                try {
+                    const { data: passages } = await mySupabase.from('shared_passages').select('*').eq('exam_id', targetExamId);
+                    sharedPassagesMap = new Map();
+                    (passages || []).forEach(p => {
+                        if (p && p.id !== undefined && p.id !== null) {
+                            sharedPassagesMap.set(String(p.id), p);
+                        }
+                    });
+                } catch (e) {
+                    sharedPassagesMap = new Map();
+                }
             }
 
+            resolveSolutionVisibilityState(examData, targetExamId);
             resolveGradingCriteriaState(examData, targetExamId);
 
             let rawAns = attemptData?.answer_saved || attemptData?.answers || attemptData?.user_answers || {};
@@ -909,19 +1196,25 @@
             const totalQuestions = questionsData.length;
 
             let correctCount = 0;
+            let calcEarnedSum = 0;
+            let calcMaxSum = 0;
             const catMap = {};
 
             questionsData.forEach((q, idx) => {
                 const qNum = q.question_number || (idx + 1);
-                const choices = getChoices(q);
                 const uVal = parsedAnswers[q.id] ?? parsedAnswers[String(q.id)] ?? parsedAnswers[qNum] ?? '-';
-                const ok = checkCorrect(q, uVal, choices);
-                if (ok) correctCount++;
+                const graded = gradeQuestion(q, uVal);
+
+                if (graded.isCorrect) correctCount++;
+                calcEarnedSum += graded.earnedPoints;
+                calcMaxSum += graded.maxPoints;
 
                 const catName = (q.category_tag && String(q.category_tag).trim() !== '') ? String(q.category_tag).trim() : 'ทั่วไป';
-                if (!catMap[catName]) catMap[catName] = { tag: catName, total: 0, correct: 0 };
+                if (!catMap[catName]) catMap[catName] = { tag: catName, total: 0, correct: 0, earnedPts: 0, maxPts: 0 };
                 catMap[catName].total++;
-                if (ok) catMap[catName].correct++;
+                if (graded.isCorrect) catMap[catName].correct++;
+                catMap[catName].earnedPts += graded.earnedPoints;
+                catMap[catName].maxPts += graded.maxPoints;
             });
 
             computedCorrectCount = correctCount;
@@ -931,8 +1224,8 @@
                 ? Number(attemptData.total_score)
                 : (attemptData?.score !== undefined && attemptData?.score !== null ? Number(attemptData.score) : null);
 
-            computedScore = dbScore !== null ? dbScore : correctCount;
-            computedMaxScore = totalQuestions > 0 ? totalQuestions : Number(attemptData?.max_score || 10);
+            computedScore = dbScore !== null ? Number(dbScore.toFixed(2)) : Number(calcEarnedSum.toFixed(2));
+            computedMaxScore = calcMaxSum > 0 ? Number(calcMaxSum.toFixed(2)) : (totalQuestions > 0 ? totalQuestions : Number(attemptData?.max_score || 10));
             const pct = computedMaxScore > 0 ? Math.round((computedScore / computedMaxScore) * 100) : 0;
 
             document.getElementById('navSubTitle').textContent = `${examTitle} • ${studentName}`;
@@ -954,7 +1247,7 @@
             renderPeerComparison(peerMetrics);
 
             latestCategoryStats = Object.values(catMap).map(c => {
-                const catPct = c.total > 0 ? Math.round((c.correct / c.total) * 100) : 0;
+                const catPct = c.maxPts > 0 ? Math.round((c.earnedPts / c.maxPts) * 100) : (c.total > 0 ? Math.round((c.correct / c.total) * 100) : 0);
                 const evalResult = evaluateCategoryCriterion(c.tag, catPct);
                 return {
                     ...c,
@@ -1216,18 +1509,35 @@
             const container = document.getElementById('questionsReviewContainer');
             if (!container) return;
 
+            // ตรวจสอบว่าผู้สอนเปิดเฉลยให้ดูหรือยัง
+            if (!isSolutionRevealed) {
+                container.innerHTML = `
+                    <div class="hitech-card p-8 sm:p-12 rounded-3xl text-center space-y-3 border-2 border-dashed border-amber-400/50 bg-amber-500/5">
+                        <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center text-2xl">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                            ยังไม่เปิดให้ดูเฉลยและรายละเอียดรายข้อ
+                        </h3>
+                        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-lg mx-auto leading-relaxed">
+                            ${escapeHtml(solutionLockReason || 'ผู้สอนยังไม่เปิดให้ดูเฉลยสำหรับชุดข้อสอบนี้')} คุณยังสามารถดูสรุปคะแนนรวม กราฟเปรียบเทียบค่าเฉลี่ย และผลรายหมวดหมู่ด้านบนได้ตามปกติ
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
             const selectedCat = document.getElementById('categoryFilterSelect')?.value || 'all';
 
             const filtered = questionsData.map((q, idx) => ({ q, idx })).filter(({ q, idx }) => {
                 const qNum = q.question_number || (idx + 1);
-                const choices = getChoices(q);
                 const uVal = parsedAnswers[q.id] ?? parsedAnswers[String(q.id)] ?? parsedAnswers[qNum] ?? '-';
-                const ok = checkCorrect(q, uVal, choices);
+                const graded = gradeQuestion(q, uVal);
                 const catName = (q.category_tag && String(q.category_tag).trim() !== '') ? String(q.category_tag).trim() : 'ทั่วไป';
 
                 if (selectedCat !== 'all' && catName !== selectedCat) return false;
-                if (currentAnswerFilter === 'correct' && !ok) return false;
-                if (currentAnswerFilter === 'wrong' && ok) return false;
+                if (currentAnswerFilter === 'correct' && !graded.isCorrect) return false;
+                if (currentAnswerFilter === 'wrong' && graded.isCorrect) return false;
                 return true;
             });
 
@@ -1242,39 +1552,69 @@
 
             container.innerHTML = filtered.map(({ q, idx }) => {
                 const qNum = q.question_number || (idx + 1);
+                const qType = getQuestionType(q);
                 const choices = getChoices(q);
                 const uVal = parsedAnswers[q.id] ?? parsedAnswers[String(q.id)] ?? parsedAnswers[qNum] ?? '-';
-                const ok = checkCorrect(q, uVal, choices);
-                const userText = formatChoiceOrAnswer(uVal, choices);
-                const correctText = formatChoiceOrAnswer(q.correct_answer, choices);
+                const graded = gradeQuestion(q, uVal);
                 const explanation = q.explanation || q.solution || '';
                 const catName = (q.category_tag && String(q.category_tag).trim() !== '') ? String(q.category_tag).trim() : 'ทั่วไป';
 
+                // ตรวจสอบโจทย์ร่วม (Shared Passage)
+                const passageObj = q.passage_id ? sharedPassagesMap.get(String(q.passage_id)) : null;
+                const passageHtml = passageObj ? `
+                    <div class="p-3.5 sm:p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/20 space-y-1.5">
+                        <div class="text-[11px] font-extrabold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                            <i class="fas fa-book-open"></i> ${escapeHtml(passageObj.title || 'บทความ / ข้อมูลประกอบโจทย์ร่วม')}
+                        </div>
+                        <div class="text-xs text-slate-700 dark:text-slate-300 prose dark:prose-invert max-w-none">
+                            ${renderMarkdownAndMath(passageObj.content || passageObj.passage_text || '')}
+                        </div>
+                    </div>
+                ` : '';
+
+                const rawQText = q.question_text || q.question || '';
+                const displayQText = (qType === 'dropdown' || qType === 'drag_drop')
+                    ? formatClozeQuestionTextForDisplay(rawQText)
+                    : rawQText;
+
+                const borderCls = graded.isCorrect
+                    ? 'border-l-emerald-500'
+                    : (graded.isPartial ? 'border-l-amber-500' : 'border-l-rose-500');
+
+                const statusBadge = graded.isCorrect
+                    ? `<span class="px-2.5 py-1 bg-emerald-500 text-white rounded-lg text-[10px] sm:text-xs font-extrabold"><i class="fas fa-check mr-1"></i> ${graded.isBonus ? 'แจกคะแนนฟรี' : 'ตอบถูก'} (${graded.earnedPoints}/${graded.maxPoints})</span>`
+                    : (graded.isPartial
+                        ? `<span class="px-2.5 py-1 bg-amber-500 text-white rounded-lg text-[10px] sm:text-xs font-extrabold"><i class="fas fa-adjust mr-1"></i> ได้บางส่วน (${graded.earnedPoints}/${graded.maxPoints})</span>`
+                        : `<span class="px-2.5 py-1 bg-rose-500 text-white rounded-lg text-[10px] sm:text-xs font-extrabold"><i class="fas fa-times mr-1"></i> ตอบผิด (0/${graded.maxPoints})</span>`);
+
+                const userAnswerColor = graded.isCorrect
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : (graded.isPartial ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400');
+
                 return `
-                    <div class="hitech-card border-l-4 ${ok ? 'border-l-emerald-500' : 'border-l-rose-500'} p-4 sm:p-6 rounded-2xl space-y-3">
+                    <div class="hitech-card border-l-4 ${borderCls} p-4 sm:p-6 rounded-2xl space-y-3">
                         <div class="flex justify-between items-center gap-2 flex-wrap">
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 flex-wrap">
                                 <span class="px-2.5 py-1 bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 rounded-xl text-xs font-extrabold">
-                                    ข้อที่ ${qNum}
+                                    ข้อที่ ${escapeHtml(qNum)}
                                 </span>
                                 <span class="px-2 py-0.5 bg-slate-100 dark:bg-darkinput text-slate-600 dark:text-slate-300 rounded-full text-[10px] font-bold">
                                     #${escapeHtml(catName)}
                                 </span>
                             </div>
-                            ${ok
-                                ? `<span class="px-2.5 py-1 bg-emerald-500 text-white rounded-lg text-[10px] sm:text-xs font-extrabold"><i class="fas fa-check mr-1"></i> ตอบถูก</span>`
-                                : `<span class="px-2.5 py-1 bg-rose-500 text-white rounded-lg text-[10px] sm:text-xs font-extrabold"><i class="fas fa-times mr-1"></i> ตอบผิด</span>`
-                            }
+                            ${statusBadge}
                         </div>
+
+                        ${passageHtml}
 
                         <div class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white prose dark:prose-invert max-w-none">
-                            ${renderMarkdownAndMath(q.question_text || q.question || '')}
+                            ${renderMarkdownAndMath(displayQText)}
                         </div>
 
-                        ${choices.length > 0 ? `
+                        ${choices.length > 0 && qType !== 'fill_blank' && qType !== 'dropdown' && qType !== 'drag_drop' ? `
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                                 ${choices.map((ch, cIdx) => {
-                                    const letter = ['ก', 'ข', 'ค', 'ง', 'จ'][cIdx] || (cIdx + 1);
+                                    const letter = ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ'][cIdx] || (cIdx + 1);
                                     return `
                                         <div class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 prose dark:prose-invert max-w-none">
                                             <span class="font-extrabold text-sky-600 dark:text-sky-400 mr-1.5">${letter}.</span> ${renderMarkdownAndMath(ch)}
@@ -1287,11 +1627,11 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
                             <div class="p-3 rounded-xl bg-slate-50 dark:bg-darkinput border border-slate-200 dark:border-slate-800">
                                 <span class="text-[10px] text-slate-400 block">คำตอบของคุณ</span>
-                                <span class="font-bold ${ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">${renderMarkdownAndMath(userText)}</span>
+                                <span class="font-bold ${userAnswerColor}">${renderMarkdownAndMath(graded.userDisplay)}</span>
                             </div>
                             <div class="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
                                 <span class="text-[10px] text-emerald-600 dark:text-emerald-400 block">เฉลยที่ถูกต้อง</span>
-                                <span class="font-extrabold text-emerald-700 dark:text-emerald-300">${renderMarkdownAndMath(correctText)}</span>
+                                <span class="font-extrabold text-emerald-700 dark:text-emerald-300">${renderMarkdownAndMath(graded.correctDisplay)}</span>
                             </div>
                         </div>
 
@@ -1359,17 +1699,34 @@
 
             const rowsHtml = questionsData.map((q, idx) => {
                 const qNum = q.question_number || (idx + 1);
+                const qType = getQuestionType(q);
                 const choices = getChoices(q);
                 const catName = (q.category_tag && String(q.category_tag).trim() !== '') ? String(q.category_tag).trim() : 'ทั่วไป';
+                const passageObj = q.passage_id ? sharedPassagesMap.get(String(q.passage_id)) : null;
+
+                const passageBlock = passageObj ? `
+                    <div class="passage">
+                        <strong>${escapeHtml(passageObj.title || 'บทความ / ข้อมูลประกอบ')}</strong>
+                        <div>${renderMarkdownAndMath(passageObj.content || passageObj.passage_text || '')}</div>
+                    </div>
+                ` : '';
+
+                const rawQText = q.question_text || q.question || '';
+                const displayQText = (qType === 'dropdown' || qType === 'drag_drop')
+                    ? formatClozeQuestionTextForDisplay(rawQText)
+                    : rawQText;
 
                 return `
                     <div class="card">
                         <div class="head">
-                            <strong>ข้อที่ ${qNum}</strong>
+                            <strong>ข้อที่ ${escapeHtml(qNum)}</strong>
                             <span class="cat">#${escapeHtml(catName)}</span>
                         </div>
-                        <div class="q-text">${renderMarkdownAndMath(q.question_text || q.question || '')}</div>
-                        ${choices.length > 0 ? `<div class="choices">${choices.map((c, i) => `<div class="choice-item"><strong>${['ก','ข','ค','ง','จ'][i] || (i+1)}.</strong> ${renderMarkdownAndMath(c)}</div>`).join('')}</div>` : `<div class="blank-box">คำตอบ: ________________________________________</div>`}
+                        ${passageBlock}
+                        <div class="q-text">${renderMarkdownAndMath(displayQText)}</div>
+                        ${choices.length > 0 && qType !== 'fill_blank' && qType !== 'dropdown' && qType !== 'drag_drop'
+                            ? `<div class="choices">${choices.map((c, i) => `<div class="choice-item"><strong>${['ก','ข','ค','ง','จ','ฉ'][i] || (i+1)}.</strong> ${renderMarkdownAndMath(c)}</div>`).join('')}</div>`
+                            : `<div class="blank-box">คำตอบ: ________________________________________</div>`}
                     </div>
                 `;
             }).join('');
@@ -1396,6 +1753,7 @@ window.MathJax = {
   .banner { background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; padding: 20px 24px; border-radius: 16px; margin-bottom: 16px; }
   .attach-bar { background: #e0f2fe; border: 1px solid #7dd3fc; color: #0369a1; padding: 10px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 16px; word-break: break-all; }
   .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 20px; margin-bottom: 14px; }
+  .passage { background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 10px; }
   .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .cat { font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: #f1f5f9; color: #475569; }
   .q-text { font-weight: 600; margin-bottom: 10px; }
@@ -1419,6 +1777,16 @@ window.MathJax = {
         }
 
         function downloadSolutionSheet() {
+            if (!isSolutionRevealed) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ยังไม่เปิดให้ดาวน์โหลดเฉลย',
+                    text: solutionLockReason || 'ผู้สอนยังไม่เปิดให้ดูเฉลยสำหรับชุดข้อสอบนี้',
+                    confirmButtonColor: '#0284c7'
+                });
+                return;
+            }
+
             if (!questionsData || questionsData.length === 0) {
                 Swal.fire({
                     icon: 'info',
@@ -1471,24 +1839,42 @@ window.MathJax = {
 
             const rowsHtml = questionsData.map((q, idx) => {
                 const qNum = q.question_number || (idx + 1);
+                const qType = getQuestionType(q);
                 const choices = getChoices(q);
                 const uVal = parsedAnswers[q.id] ?? parsedAnswers[String(q.id)] ?? parsedAnswers[qNum] ?? '-';
-                const ok = checkCorrect(q, uVal, choices);
-                const userText = formatChoiceOrAnswer(uVal, choices);
-                const correctText = formatChoiceOrAnswer(q.correct_answer, choices);
+                const graded = gradeQuestion(q, uVal);
                 const expHtml = renderMarkdownAndMath(q.explanation || q.solution || '-');
+                const passageObj = q.passage_id ? sharedPassagesMap.get(String(q.passage_id)) : null;
+
+                const passageBlock = passageObj ? `
+                    <div class="passage">
+                        <strong>${escapeHtml(passageObj.title || 'บทความ / ข้อมูลประกอบ')}</strong>
+                        <div>${renderMarkdownAndMath(passageObj.content || passageObj.passage_text || '')}</div>
+                    </div>
+                ` : '';
+
+                const rawQText = q.question_text || q.question || '';
+                const displayQText = (qType === 'dropdown' || qType === 'drag_drop')
+                    ? formatClozeQuestionTextForDisplay(rawQText)
+                    : rawQText;
+
+                const tagClass = graded.isCorrect ? 'ok' : (graded.isPartial ? 'partial' : 'no');
+                const tagText = graded.isCorrect ? `ตอบถูก (${graded.earnedPoints}/${graded.maxPoints})` : (graded.isPartial ? `ได้บางส่วน (${graded.earnedPoints}/${graded.maxPoints})` : `ตอบผิด (0/${graded.maxPoints})`);
 
                 return `
                     <div class="card">
                         <div class="head">
-                            <strong>ข้อที่ ${qNum}</strong>
-                            <span class="tag ${ok ? 'ok' : 'no'}">${ok ? 'ตอบถูก' : 'ตอบผิด'}</span>
+                            <strong>ข้อที่ ${escapeHtml(qNum)}</strong>
+                            <span class="tag ${tagClass}">${tagText}</span>
                         </div>
-                        <div class="q-text">${renderMarkdownAndMath(q.question_text || q.question || '')}</div>
-                        ${choices.length > 0 ? `<div class="choices">${choices.map((c, i) => `<div><strong>${['ก','ข','ค','ง','จ'][i] || (i+1)}.</strong> ${renderMarkdownAndMath(c)}</div>`).join('')}</div>` : ''}
+                        ${passageBlock}
+                        <div class="q-text">${renderMarkdownAndMath(displayQText)}</div>
+                        ${choices.length > 0 && qType !== 'fill_blank' && qType !== 'dropdown' && qType !== 'drag_drop'
+                            ? `<div class="choices">${choices.map((c, i) => `<div><strong>${['ก','ข','ค','ง','จ','ฉ'][i] || (i+1)}.</strong> ${renderMarkdownAndMath(c)}</div>`).join('')}</div>`
+                            : ''}
                         <div class="ans">
-                            <div><strong>คำตอบของคุณ:</strong> ${renderMarkdownAndMath(userText)}</div>
-                            <div><strong>เฉลยที่ถูกต้อง:</strong> ${renderMarkdownAndMath(correctText)}</div>
+                            <div><strong>คำตอบของคุณ:</strong> ${renderMarkdownAndMath(graded.userDisplay)}</div>
+                            <div><strong>เฉลยที่ถูกต้อง:</strong> ${renderMarkdownAndMath(graded.correctDisplay)}</div>
                         </div>
                         <div class="exp"><strong>เฉลยละเอียด:</strong><br>${expHtml}</div>
                     </div>
@@ -1514,9 +1900,11 @@ window.MathJax = {
   .stats, .cat-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 18px; margin-bottom: 18px; font-size: 13px; }
   .stats { display: flex; flex-wrap: wrap; gap: 16px; }
   .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 20px; margin-bottom: 14px; }
+  .passage { background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 10px; }
   .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .tag { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
   .tag.ok { background: #dcfce7; color: #15803d; }
+  .tag.partial { background: #fef3c7; color: #b45309; }
   .tag.no { background: #fee2e2; color: #b91c1c; }
   .q-text { font-weight: 600; margin-bottom: 10px; }
   .choices { background: #f1f5f9; padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 10px; }
