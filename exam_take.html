@@ -228,9 +228,9 @@
                         <p id="choiceFormatSubLabel" class="text-[11px] text-slate-400 mt-1">รูปแบบตัวเลือก: กำลังโหลด...</p>
                     </div>
 
-                    <div id="viewModeToggleContainer" class="hidden items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px]">
-                        <button onclick="switchViewMode('scroll')" id="modeScrollBtn" class="px-3 py-1.5 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm">เลื่อนลง</button>
-                        <button onclick="switchViewMode('step')" id="modeStepBtn" class="px-3 py-1.5 rounded-lg font-bold transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white">ทีละข้อ</button>
+                    <div id="viewModeToggleContainer" class="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px]">
+                        <button onclick="switchViewMode('step')" id="modeStepBtn" class="px-3 py-1.5 rounded-lg font-bold transition-all bg-sky-600 text-white shadow-sm">ทีละข้อ</button>
+                        <button onclick="switchViewMode('scroll')" id="modeScrollBtn" class="px-3 py-1.5 rounded-lg font-bold transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white">เลื่อนลง</button>
                     </div>
                 </div>
 
@@ -296,7 +296,8 @@
         let currentZoom = 1.0;
         let isZoomLocked = false;
 
-        let currentViewMode = 'scroll';
+        // ค่าเริ่มต้นเป็นแบบดูทีละข้อ ('step') สามารถสลับเป็น 'scroll' ได้
+        let currentViewMode = 'step';
         let currentStepIndex = 0;
         let examRealtimeChannel = null;
         let activeAttemptRecordId = null;
@@ -344,9 +345,20 @@
             );
             const isMultiple = !isBonus && !isSingleMultiKey && Boolean(q.is_multiple_answers);
 
-            const resolvedPassageId = (q.shared_passage_id !== undefined && q.shared_passage_id !== null && String(q.shared_passage_id).trim() !== '')
-                ? String(q.shared_passage_id).trim()
-                : (meta.shared_passage_id ? String(meta.shared_passage_id).trim() : null);
+            const rawPassageId =
+                q.shared_passage_id ??
+                q.parent_id ??
+                q.passage_id ??
+                q.group_id ??
+                q.parent_question_id ??
+                meta.shared_passage_id ??
+                meta.passage_id ??
+                meta.group_id ??
+                null;
+
+            const resolvedPassageId = (rawPassageId !== undefined && rawPassageId !== null && String(rawPassageId).trim() !== '')
+                ? String(rawPassageId).trim()
+                : null;
 
             return {
                 ...q,
@@ -873,7 +885,8 @@
 
         function getParentIdFromQuestion(q) {
             if (!q) return null;
-            return q.shared_passage_id || q.parent_id || q.passage_id || q.group_id || q.parent_question_id || null;
+            const raw = q.shared_passage_id ?? q.parent_id ?? q.passage_id ?? q.group_id ?? q.parent_question_id ?? null;
+            return (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : null;
         }
 
         function getParentPassage(q) {
@@ -881,11 +894,11 @@
             if (!parentId) return null;
 
             // 1. ค้นหาจาก exams.shared_passages / localStorage (ระบบโจทย์ร่วมหลัก)
-            const fromExamPassages = sharedPassagesList.find(sp => String(sp.id) === String(parentId));
+            const fromExamPassages = sharedPassagesList.find(sp => String(sp.id).trim() === parentId);
             if (fromExamPassages) return fromExamPassages;
 
             // 2. เผื่อกรณีเก็บเป็นแถวในตาราง questions
-            return currentQuestions.find(item => String(item.id) === String(parentId)) || null;
+            return currentQuestions.find(item => String(item.id).trim() === parentId) || null;
         }
 
         function getInlinePassageData(q) {
@@ -1118,7 +1131,10 @@
                 if (pdfCard) pdfCard.classList.remove('hidden');
                 if (rightCard) rightCard.className = 'lg:col-span-4 hitech-card p-6 rounded-3xl space-y-6';
                 if (answerCardTitle) answerCardTitle.innerHTML = `<i class="fas fa-list-check text-sky-500"></i> กระดาษคำตอบ`;
-                if (viewModeToggleContainer) viewModeToggleContainer.classList.add('hidden');
+                if (viewModeToggleContainer) {
+                    viewModeToggleContainer.classList.remove('hidden');
+                    viewModeToggleContainer.style.display = 'flex';
+                }
                 loadAndRenderPDF(exam.pdf_url);
                 initPdfZoomAndPanInteractions();
             } else {
@@ -1284,14 +1300,7 @@
 
         function scrollToQuestion(qId) {
             const answerable = getAnswerableQuestions();
-            if (currentExam?.pdf_url && currentExam.pdf_url.trim() !== '') {
-                const box = document.getElementById(`q-box-${qId}`);
-                if (box) {
-                    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    box.classList.add('ring-2', 'ring-sky-500');
-                    setTimeout(() => box.classList.remove('ring-2', 'ring-sky-500'), 1500);
-                }
-            } else if (currentViewMode === 'step') {
+            if (currentViewMode === 'step') {
                 const idx = answerable.findIndex(q => String(q.id) === String(qId));
                 if (idx !== -1) {
                     currentStepIndex = idx;
@@ -1518,7 +1527,7 @@
                 return `
                     <div id="q-box-${q.id}" class="p-4 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 relative">
                         <div class="flex items-center justify-between">
-                            <span class="font-extrabold text-xs text-amber-600 dark:text-amber-400">ข้อ ${qNum} (อัตนัย)</span>
+                            <span class="font-extrabold text-xs text-amber-600 dark:text-amber-400">ข้อ ${qNum}${stepSuffix} (อัตนัย)</span>
                             <div class="flex items-center gap-2">
                                 <span class="px-2 py-0.5 bg-amber-500 text-white font-bold text-[9px] rounded">เขียนตอบ</span>
                                 <button onclick="toggleFlag('${q.id}')" id="flag-btn-${q.id}" class="text-xs ${isFlagged ? 'text-amber-500 font-bold' : 'text-slate-400 hover:text-amber-500'}">
@@ -1554,7 +1563,7 @@
                 <div id="q-box-${q.id}" class="px-4 py-3 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
                     <div class="flex items-center gap-3.5">
                         <div class="flex flex-col">
-                            <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400 w-12 shrink-0">ข้อ ${qNum}</span>
+                            <span class="font-extrabold text-xs text-sky-600 dark:text-sky-400 w-16 shrink-0">ข้อ ${qNum}${isStepMode ? `/${totalStepCount}` : ''}</span>
                             ${isMultiple ? '<span class="text-[9px] text-indigo-500 font-bold">หลายคำตอบ</span>' : ''}
                         </div>
                         <div class="flex items-center gap-2.5" id="bubbles-container-${q.id}">${bubblesHtml}</div>
@@ -1585,8 +1594,8 @@
             const standardLabels = getChoiceLabels(formatType);
             const hasPdf = currentExam?.pdf_url && currentExam.pdf_url.trim() !== '';
 
-            // ==================== โหมดทีละข้อ (Step Mode) ====================
-            if (!hasPdf && currentViewMode === 'step') {
+            // ==================== โหมดทีละข้อ (Step Mode - ค่าเริ่มต้น) ====================
+            if (currentViewMode === 'step') {
                 if (currentStepIndex >= answerable.length) {
                     currentStepIndex = Math.max(0, answerable.length - 1);
                 }
@@ -1604,17 +1613,23 @@
 
                 let passageChildren = [];
                 if (parentPassage) {
-                    passageChildren = answerable.filter(item => String(getParentIdFromQuestion(item)) === String(parentPassage.id));
+                    passageChildren = answerable.filter(item => String(getParentIdFromQuestion(item)) === String(parentPassage.id).trim());
+                } else if (inlinePassage) {
+                    passageChildren = answerable.filter(item => {
+                        const inl = getInlinePassageData(item);
+                        return inl && inl.groupKey === inlinePassage.groupKey;
+                    });
                 }
 
                 let htmlContent = `<div class="space-y-6">`;
+                // แสดงโจทย์ร่วมขึ้นมาทุกข้อที่ต้องใช้โจทย์ร่วมนี้เสมอ
                 if (parentPassage) {
-                    htmlContent += buildSharedPassageBox(parentPassage, passageChildren, false);
+                    htmlContent += buildSharedPassageBox(parentPassage, passageChildren, hasPdf);
                 } else if (inlinePassage) {
-                    htmlContent += buildSharedPassageBox(inlinePassage, [], false);
+                    htmlContent += buildSharedPassageBox(inlinePassage, passageChildren, hasPdf);
                 }
 
-                htmlContent += buildSingleQuestionCardHtml(q, currentStepIndex, standardLabels, false, true, answerable.length);
+                htmlContent += buildSingleQuestionCardHtml(q, currentStepIndex, standardLabels, hasPdf, true, answerable.length);
 
                 if (isLastStep) {
                     htmlContent += `
@@ -1641,8 +1656,8 @@
 
             currentQuestions.forEach((q) => {
                 if (isPassageHeader(q)) {
-                    const childList = answerable.filter(item => String(getParentIdFromQuestion(item)) === String(q.id));
-                    lastRenderedPassageId = String(q.id);
+                    const childList = answerable.filter(item => String(getParentIdFromQuestion(item)) === String(q.id).trim());
+                    lastRenderedPassageId = String(q.id).trim();
                     lastInlinePassageKey = null;
                     htmlContent += buildSharedPassageBox(q, childList, hasPdf);
                     return;
@@ -1651,15 +1666,19 @@
                 const parentPassage = getParentPassage(q);
                 const inlinePassage = !parentPassage ? getInlinePassageData(q) : null;
 
-                if (parentPassage && String(parentPassage.id) !== lastRenderedPassageId) {
-                    const childList = answerable.filter(item => String(getParentIdFromQuestion(item)) === String(parentPassage.id));
-                    lastRenderedPassageId = String(parentPassage.id);
+                if (parentPassage && String(parentPassage.id).trim() !== lastRenderedPassageId) {
+                    const childList = answerable.filter(item => String(getParentIdFromQuestion(item)) === String(parentPassage.id).trim());
+                    lastRenderedPassageId = String(parentPassage.id).trim();
                     lastInlinePassageKey = null;
                     htmlContent += buildSharedPassageBox(parentPassage, childList, hasPdf);
                 } else if (inlinePassage && inlinePassage.groupKey !== lastInlinePassageKey) {
+                    const childList = answerable.filter(item => {
+                        const inl = getInlinePassageData(item);
+                        return inl && inl.groupKey === inlinePassage.groupKey;
+                    });
                     lastRenderedPassageId = null;
                     lastInlinePassageKey = inlinePassage.groupKey;
-                    htmlContent += buildSharedPassageBox(inlinePassage, [], hasPdf);
+                    htmlContent += buildSharedPassageBox(inlinePassage, childList, hasPdf);
                 } else if (!parentPassage && !inlinePassage) {
                     lastRenderedPassageId = null;
                     lastInlinePassageKey = null;
