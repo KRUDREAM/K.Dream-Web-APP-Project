@@ -105,6 +105,10 @@
                 <p id="headerExamDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words">กำลังดึงข้อมูลสถิติ...</p>
             </div>
             <div class="flex items-center gap-3 shrink-0 flex-wrap">
+                <button onclick="downloadCourseOverviewReport()" class="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer">
+                    <i class="fas fa-file-lines text-sm"></i>
+                    <span>เอกสารสรุปผลภาพรวมคอร์ส (PDF)</span>
+                </button>
                 <button onclick="openStudentListModal('in_progress')" class="p-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-2xl text-center transition-all cursor-pointer">
                     <div id="statActiveCountBanner" class="text-lg font-extrabold text-amber-600 dark:text-amber-400">0</div>
                     <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">Active (กำลังทำ) <i class="fas fa-chevron-right text-[9px]"></i></div>
@@ -184,7 +188,7 @@
                         <thead>
                             <tr class="bg-slate-100 dark:bg-slate-800/80 font-bold border-b dark:border-slate-700 text-[11px]">
                                 <th class="p-2 text-center w-12">อันดับ</th>
-                                <th class="p-2 w-auto">ชื่อ-นามสกุล</th>
+                                <th class="p-2 w-auto">ชื่อ / Username</th>
                                 <th class="p-2 text-center w-16">คะแนน</th>
                             </tr>
                         </thead>
@@ -196,7 +200,7 @@
             </div>
         </div>
 
-        <!-- New Deep Analytics Row: Category Mastery & Choice Distractor Breakdown -->
+        <!-- Deep Analytics Row: Category Mastery & Choice Distractor Breakdown -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-6 hitech-card p-6 rounded-3xl space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -280,17 +284,17 @@
                     </select>
                     <div class="relative w-full sm:w-64 shrink-0">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fas fa-search text-xs"></i></span>
-                        <input type="text" id="studentSearchInput" oninput="filterSubmissions()" placeholder="ค้นหาชื่อ, ชื่อเล่น หรือรหัสนักเรียน..." class="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none">
+                        <input type="text" id="studentSearchInput" oninput="filterSubmissions()" placeholder="ค้นหาชื่อ, Username หรือรหัสนักเรียน..." class="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-darkinput border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none">
                     </div>
                 </div>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs border-collapse table-fixed min-w-[750px]">
+                <table class="w-full text-left text-xs border-collapse table-fixed min-w-[780px]">
                     <thead>
                         <tr class="bg-slate-100 dark:bg-slate-800/80 font-bold border-b dark:border-slate-700">
                             <th class="p-3 w-12">ลำดับ</th>
                             <th class="p-3 w-28">รหัสนักเรียน</th>
-                            <th class="p-3 w-auto">ชื่อ-นามสกุล / ชื่อเล่น</th>
+                            <th class="p-3 w-auto">ชื่อ-นามสกุล / Username</th>
                             <th class="p-3 text-center w-32">สถานะ / ครั้งที่</th>
                             <th class="p-3 text-center w-20">คะแนน</th>
                             <th class="p-3 text-center w-28">เวลาที่ใช้</th>
@@ -407,7 +411,7 @@
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
+                .replace(/'/g, '&#039;');
         }
 
         function renderInlineMathHtml(rawText) {
@@ -560,6 +564,65 @@
             if (!cIds || cIds.length === 0) return true;
 
             return false;
+        }
+
+        // ================= การแก้ไขระบบดึงชื่อ / Username ให้ขึ้นครบทุกกรณี =================
+        function extractStudentIdentity(profileObj = {}, fallbackObj = {}, rawId = '') {
+            const p = profileObj || {};
+            const f = fallbackObj || {};
+
+            const username = String(
+                p.username || p.user_name || p.login_name ||
+                f.username || f.user_name || ''
+            ).trim();
+
+            const nickname = String(
+                p.nickname || p.nick_name || f.nickname || f.nick_name || ''
+            ).trim();
+
+            const pCombinedName = (
+                (p.first_name || p.name || p.full_name || p.display_name || '').trim() +
+                (p.last_name ? ' ' + String(p.last_name).trim() : '')
+            ).trim();
+
+            const fCombinedName = (
+                (f.first_name || f.name || f.full_name || f.display_name || f.student_name || '').trim() +
+                (f.last_name ? ' ' + String(f.last_name).trim() : '')
+            ).trim();
+
+            const emailRaw = String(p.email || f.email || '').trim();
+            const emailPrefix = emailRaw && emailRaw.includes('@') ? emailRaw.split('@')[0] : '';
+
+            let fullName = pCombinedName || fCombinedName || username || emailPrefix;
+            if (!fullName) {
+                const shortId = String(p.student_id || f.student_id_code || rawId || '').trim();
+                fullName = shortId ? `ผู้เรียน (${shortId.slice(0, 8)})` : 'ไม่ระบุชื่อ';
+            }
+
+            const studentIdCode = String(
+                p.student_id || p.code || f.student_id_code || f.student_code || username || '-'
+            ).trim();
+
+            return {
+                fullName,
+                username,
+                nickname,
+                studentIdCode,
+                email: emailRaw
+            };
+        }
+
+        function formatStudentShortLabel(meta) {
+            if (!meta) return 'ไม่ระบุชื่อ';
+            const base = meta.fullName || meta.username || 'ไม่ระบุชื่อ';
+            const extras = [];
+            if (meta.nickname && meta.nickname.toLowerCase() !== base.toLowerCase()) {
+                extras.push(meta.nickname);
+            }
+            if (meta.username && meta.username.toLowerCase() !== base.toLowerCase()) {
+                extras.push(`@${meta.username}`);
+            }
+            return extras.length > 0 ? `${base} (${extras.join(' • ')})` : base;
         }
 
         // ================= การเรียงข้อ 1, 2, 3... และระบบตรวจคำตอบมาตรฐานเดียวกับหน้าอื่นๆ =================
@@ -1121,11 +1184,14 @@
                 p.auth_id,
                 p.uid,
                 p.student_id,
-                p.profile_id
+                p.profile_id,
+                p.username,
+                p.email
             ];
             possibleKeys.forEach(k => {
                 if (k !== undefined && k !== null && String(k).trim() !== '') {
                     allStudentsMap[String(k).trim()] = p;
+                    allStudentsMap[String(k).trim().toLowerCase()] = p;
                 }
             });
         }
@@ -1138,11 +1204,14 @@
                 row.user_id,
                 row.auth_id,
                 row.profile_id,
+                row.username,
+                row.email,
                 row.id
             ];
             for (const k of keysToTry) {
-                if (k !== undefined && k !== null) {
-                    const found = allStudentsMap[String(k).trim()];
+                if (k !== undefined && k !== null && String(k).trim() !== '') {
+                    const cleanK = String(k).trim();
+                    const found = allStudentsMap[cleanK] || allStudentsMap[cleanK.toLowerCase()];
                     if (found) return found;
                 }
             }
@@ -1298,7 +1367,7 @@
                 const prof = findProfileByAnyId(att);
                 const canonicalId = prof
                     ? String(prof.id || prof.user_id || att.student_id || att.user_id || '').trim()
-                    : String(att.student_id || att.user_id || '').trim();
+                    : String(att.student_id || att.user_id || att.username || '').trim();
 
                 if (!canonicalId) return;
                 if (!grouped[canonicalId]) grouped[canonicalId] = [];
@@ -1349,26 +1418,22 @@
                 if (isAdminAccount(p) || isAdminAccount(fallbackObj)) return;
 
                 seenStudentIds.add(canonicalId);
-                [rawId, p.id, p.user_id, p.student_id].forEach(k => {
+                [rawId, p.id, p.user_id, p.student_id, p.username].forEach(k => {
                     if (k !== undefined && k !== null && String(k).trim() !== '') {
                         seenStudentIds.add(String(k).trim());
                     }
                 });
 
-                const nickname = (p.nickname || p.nick_name || fallbackObj.nickname || '').trim();
-                const fullName = (
-                    ((p.first_name || p.name || p.full_name || '').trim() + (p.last_name ? ' ' + p.last_name : '')).trim() ||
-                    ((fallbackObj.first_name || fallbackObj.name || fallbackObj.full_name || fallbackObj.student_name || '').trim() + (fallbackObj.last_name ? ' ' + fallbackObj.last_name : '')).trim() ||
-                    'ไม่ระบุชื่อ'
-                );
+                const identity = extractStudentIdentity(p, fallbackObj, canonicalId);
 
                 studentMasterList.push({
                     studentId: canonicalId,
-                    lookupKeys: [canonicalId, String(rawId || ''), String(p.id || ''), String(p.user_id || ''), String(p.student_id || '')].filter(Boolean),
+                    lookupKeys: [canonicalId, String(rawId || ''), String(p.id || ''), String(p.user_id || ''), String(p.student_id || ''), String(p.username || '')].filter(Boolean),
                     profile: p,
-                    fullName: fullName,
-                    nickname: nickname,
-                    studentIdCode: p.student_id || p.code || fallbackObj.student_id_code || fallbackObj.student_code || '-'
+                    fullName: identity.fullName,
+                    username: identity.username,
+                    nickname: identity.nickname,
+                    studentIdCode: identity.studentIdCode
                 });
             };
 
@@ -1389,7 +1454,7 @@
 
                 if (freeMode) {
                     allProfiles.forEach(p => {
-                        const rawId = p.id || p.user_id || p.student_id;
+                        const rawId = p.id || p.user_id || p.student_id || p.username;
                         pushStudentEntry(rawId, p, p);
                     });
                 }
@@ -1403,12 +1468,16 @@
                 const submittedAtVal = attObj ? (attObj.submission_time || attObj.submitted_at || attObj.created_at || attObj.updated_at) : null;
                 const spentMin = attObj ? calculateTimeSpentMinutes(attObj) : 0;
 
+                // หากในตัว attempt เองมี username / student_name ที่อัปเดตกว่าให้ผสานด้วย
+                const attIdentity = attObj ? extractStudentIdentity(studentMeta.profile, attObj, studentMeta.studentId) : studentMeta;
+
                 return {
                     rowKey: `${studentMeta.studentId}_${attObj ? attObj.id : 'none'}`,
                     studentId: studentMeta.studentId,
-                    studentIdCode: studentMeta.studentIdCode,
-                    fullName: studentMeta.fullName,
-                    nickname: studentMeta.nickname,
+                    studentIdCode: attIdentity.studentIdCode || studentMeta.studentIdCode,
+                    fullName: attIdentity.fullName || studentMeta.fullName,
+                    username: attIdentity.username || studentMeta.username,
+                    nickname: attIdentity.nickname || studentMeta.nickname,
                     hasAttempt: hasAttempt,
                     isSubmitted: isSubmitted,
                     isInProgress: isInProgress,
@@ -1539,10 +1608,11 @@
                     const currentSpentMin = statusType === 'in_progress' ? getLiveElapsedMinutes(r) : r.minutesSpent;
                     const clockText = formatDurationClock(currentSpentMin);
                     const attTag = r.attemptNumber > 0 ? ` • ครั้งที่ ${r.attemptNumber}/${r.totalAttempts}` : '';
+                    const labelStr = formatStudentShortLabel(r);
                     return `
                         <div class="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs gap-2">
                             <div class="min-w-0">
-                                <div class="font-bold text-slate-800 dark:text-slate-100 truncate">${idx + 1}. ${escapeHtml(r.fullName)}${r.nickname ? ' (' + escapeHtml(r.nickname) + ')' : ''}</div>
+                                <div class="font-bold text-slate-800 dark:text-slate-100 truncate">${idx + 1}. ${escapeHtml(labelStr)}</div>
                                 <div class="text-slate-500 font-mono text-[11px]">รหัส: ${escapeHtml(r.studentIdCode)}${attTag}</div>
                             </div>
                             <div class="text-right shrink-0 space-y-0.5">
@@ -1864,13 +1934,13 @@
                 const attemptTag = !isFirstOnly && row.attemptNumber > 0
                     ? ` <span class="text-[10px] text-sky-500 font-semibold">#${row.attemptNumber}</span>`
                     : '';
-                const displayName = escapeHtml(row.fullName) + (row.nickname ? ` (${escapeHtml(row.nickname)})` : '') + attemptTag;
+                const labelStr = formatStudentShortLabel(row);
 
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-2 text-center">${rankBadge}</td>
-                        <td class="p-2 font-medium truncate" title="${escapeHtml(row.fullName)}${row.nickname ? ' (' + escapeHtml(row.nickname) + ')' : ''}">
-                            <div class="truncate">${displayName}</div>
+                        <td class="p-2 font-medium truncate" title="${escapeHtml(labelStr)}">
+                            <div class="truncate">${escapeHtml(labelStr)}${attemptTag}</div>
                         </td>
                         <td class="p-2 text-center font-mono font-bold text-indigo-600 dark:text-indigo-400">${row.score}/${globalMaxScore}</td>
                     </tr>
@@ -2031,7 +2101,7 @@
             const scatterData = combinedStudentRows.filter(r => r.isSubmitted).map(r => ({
                 x: Number(r.minutesSpent.toFixed(1)),
                 y: r.score,
-                name: `${r.fullName || 'นักเรียน'}${r.attemptNumber > 0 ? ` (#${r.attemptNumber})` : ''}`,
+                name: `${formatStudentShortLabel(r)}${r.attemptNumber > 0 ? ` (#${r.attemptNumber})` : ''}`,
                 clock: formatDurationClock(r.minutesSpent)
             }));
 
@@ -2109,13 +2179,21 @@
                     ? `<button onclick="viewAttemptDetail('${escapeHtml(row.attempt.id)}', ${row.attemptNumber})" class="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white font-bold rounded-xl transition-all text-[11px] whitespace-nowrap"><i class="fas fa-search-plus mr-1"></i> ตรวจคำตอบ</button>`
                     : `<span class="text-slate-400 text-[11px]">-</span>`;
 
-                const displayName = escapeHtml(row.fullName) + (row.nickname ? ` <span class="text-sky-500 font-normal">(${escapeHtml(row.nickname)})</span>` : '');
+                const showNick = row.nickname && row.nickname.toLowerCase() !== row.fullName.toLowerCase();
+                const showUser = row.username && row.username.toLowerCase() !== row.fullName.toLowerCase();
+
+                const nameLineHtml = `
+                    <div class="truncate font-bold text-slate-800 dark:text-slate-100">
+                        ${escapeHtml(row.fullName)}${showNick ? ` <span class="text-sky-500 font-normal">(${escapeHtml(row.nickname)})</span>` : ''}
+                    </div>
+                    ${showUser ? `<div class="truncate font-mono text-[10px] text-slate-400">@${escapeHtml(row.username)}</div>` : ''}
+                `;
 
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td class="p-3 font-mono font-bold">${idx + 1}</td>
                         <td class="p-3 font-mono text-sky-600 truncate" title="${escapeHtml(row.studentIdCode)}"><div class="truncate">${escapeHtml(row.studentIdCode)}</div></td>
-                        <td class="p-3 font-bold truncate" title="${escapeHtml(row.fullName)}${row.nickname ? ' (' + escapeHtml(row.nickname) + ')' : ''}"><div class="truncate">${displayName}</div></td>
+                        <td class="p-3 truncate" title="${escapeHtml(formatStudentShortLabel(row))}">${nameLineHtml}</td>
                         <td class="p-3 text-center">${statusBadge}</td>
                         <td class="p-3 text-center">${scoreText}</td>
                         <td class="p-3 text-center">${timeText}</td>
@@ -2139,6 +2217,7 @@
 
                 const matchKeyword = !keyword ||
                     row.fullName.toLowerCase().includes(keyword) ||
+                    (row.username && row.username.toLowerCase().includes(keyword)) ||
                     (row.nickname && row.nickname.toLowerCase().includes(keyword)) ||
                     row.studentIdCode.toLowerCase().includes(keyword);
 
@@ -2159,6 +2238,300 @@
                 if (categoryPct >= min && categoryPct <= max) return crit.name;
             }
             return 'ผ่านเกณฑ์';
+        }
+
+        // ================= เอกสารสรุปผลการสอบภาพรวมของทั้งคอร์ส (Course Overview Report) =================
+        function downloadCourseOverviewReport() {
+            if (!currentExam) return;
+
+            const isFirstOnly = (document.getElementById('attemptModeSelect')?.value === 'first_attempt');
+            const modeLabel = isFirstOnly ? 'วิเคราะห์จาก First Attempt ของแต่ละคน' : 'วิเคราะห์จากทุก Attempt ที่ส่ง';
+            const unitText = isFirstOnly ? 'คน' : 'ครั้ง';
+
+            const freeMode = isFreeExam(currentExam, activeCourseIds);
+            const courseName = freeMode
+                ? 'โจทย์ฟรี / ข้อสอบสาธารณะ (เฉพาะนักเรียน)'
+                : (currentCourse ? (currentCourse.title || currentCourse.name || currentCourse.course_name || activeCourseIds.join(', ')) : activeCourseIds.join(', '));
+
+            const submittedRows = combinedStudentRows.filter(r => r.isSubmitted).sort((a, b) => b.score - a.score);
+            const submittedAttempts = submittedRows.map(r => r.attempt).filter(Boolean);
+            const inProgressCount = combinedStudentRows.filter(r => r.isInProgress).length;
+            const notStartedCount = combinedStudentRows.filter(r => !r.hasAttempt).length;
+
+            const scores = submittedRows.map(r => r.score);
+            const n = scores.length;
+            const meanVal = n > 0 ? (scores.reduce((a, b) => a + b, 0) / n) : 0;
+            const maxVal = n > 0 ? Math.max(...scores) : 0;
+            const minVal = n > 0 ? Math.min(...scores) : 0;
+
+            let medianVal = 0;
+            if (n > 0) {
+                const sortedS = [...scores].sort((a, b) => a - b);
+                const mid = Math.floor(n / 2);
+                medianVal = (n % 2 === 0) ? ((sortedS[mid - 1] + sortedS[mid]) / 2) : sortedS[mid];
+            }
+
+            const variance = n > 0 ? (scores.reduce((acc, s) => acc + Math.pow(s - meanVal, 2), 0) / n) : 0;
+            const sdVal = Math.sqrt(variance);
+
+            const times = submittedRows.map(r => r.minutesSpent);
+            const avgTimeVal = times.length > 0 ? (times.reduce((a, b) => a + b, 0) / times.length) : 0;
+
+            const sortedQs = sortQuestionsInOrder(activeQuestions);
+
+            // 1. สรุปคะแนนเฉลี่ยรายหมวดหมู่
+            const catMap = {};
+            sortedQs.forEach((rawQ, qIdx) => {
+                const q = hydrateQuestionDetailMeta(rawQ, examId);
+                const cat = (q.category_tag && q.category_tag.trim() !== '') ? q.category_tag.trim() : 'ทั่วไป';
+                const qMax = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
+                if (!catMap[cat]) catMap[cat] = { earnedSum: 0, maxSum: 0, qCount: 0, fullPerAttempt: 0 };
+                catMap[cat].qCount += 1;
+                catMap[cat].fullPerAttempt += qMax;
+
+                if (submittedAttempts.length > 0) {
+                    submittedAttempts.forEach(att => {
+                        const uAns = extractStudentAnswer(att, q, qIdx);
+                        catMap[cat].earnedSum += getQuestionScore(q, uAns, att, qIdx);
+                        catMap[cat].maxSum += qMax;
+                    });
+                }
+            });
+
+            const hasCriteria = currentExam.enable_grading_criteria && Array.isArray(currentExam.grading_criteria) && currentExam.grading_criteria.length > 0;
+            const categoryTableHtml = Object.entries(catMap).map(([cat, st]) => {
+                const avgEarned = n > 0 ? (st.earnedSum / n).toFixed(2) : '0.00';
+                const pct = st.maxSum > 0 ? ((st.earnedSum / st.maxSum) * 100).toFixed(1) : '0.0';
+                const evalLevel = evaluateCategoryCriteria(cat, parseFloat(pct));
+                return `
+                    <tr>
+                        <td><b>${escapeHtml(cat)}</b></td>
+                        <td style="text-align: center;">${st.qCount} ข้อ</td>
+                        <td style="text-align: center;">${avgEarned} / ${Number(st.fullPerAttempt.toFixed(2))}</td>
+                        <td style="text-align: center; font-weight: bold; color: #0284c7;">${pct}%</td>
+                        ${hasCriteria ? `<td style="text-align: center;">${escapeHtml(evalLevel || '-')}</td>` : ''}
+                    </tr>
+                `;
+            }).join('');
+
+            // 2. วิเคราะห์รายข้อ (เรียงข้อ 1 -> N)
+            const choiceLabels = getChoiceLabelsForExam(currentExam);
+            const itemAnalysisRowsHtml = sortedQs.map((rawQ, qIdx) => {
+                const q = hydrateQuestionDetailMeta(rawQ, examId);
+                const qNum = q.question_number ?? (qIdx + 1);
+                const cat = (q.category_tag && q.category_tag.trim() !== '') ? q.category_tag.trim() : 'ทั่วไป';
+                const qText = String(q.question_text || q.content || 'โจทย์คำถาม').replace(/\s+/g, ' ').trim();
+                const shortQ = qText.length > 65 ? qText.slice(0, 65) + '...' : qText;
+                const correctKey = getCorrectAnswer(q, currentExam);
+
+                let correctCnt = 0;
+                const wrongChoiceCounter = {};
+
+                if (n > 0) {
+                    if (q.is_bonus_all) {
+                        correctCnt = n;
+                    } else {
+                        submittedAttempts.forEach(att => {
+                            const uAns = extractStudentAnswer(att, q, qIdx);
+                            if (checkAnswerIsCorrect(q, uAns, att, qIdx)) {
+                                correctCnt++;
+                            } else {
+                                const arr = toCleanArray(uAns);
+                                if (arr.length === 0 || (arr.length === 1 && arr[0] === '-')) {
+                                    wrongChoiceCounter['ไม่ตอบ'] = (wrongChoiceCounter['ไม่ตอบ'] || 0) + 1;
+                                } else {
+                                    arr.forEach(tok => {
+                                        const cIdx = resolveChoiceIndex(tok, q, currentExam);
+                                        const lbl = cIdx !== null ? `ตัวเลือก ${choiceLabels[cIdx] || (cIdx + 1)}` : String(tok);
+                                        wrongChoiceCounter[lbl] = (wrongChoiceCounter[lbl] || 0) + 1;
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }
+
+                const incorrectCnt = Math.max(0, n - correctCnt);
+                const pIndex = n > 0 ? ((correctCnt / n) * 100) : 0;
+                let diffTag = '<span style="color:#64748b;">ไม่มีข้อมูล</span>';
+                if (n > 0) {
+                    if (pIndex >= 75) diffTag = '<span style="color:#10b981; font-weight:bold;">ง่าย</span>';
+                    else if (pIndex >= 40) diffTag = '<span style="color:#0284c7; font-weight:bold;">ปานกลาง</span>';
+                    else diffTag = '<span style="color:#ef4444; font-weight:bold;">ยาก (ควรทบทวน)</span>';
+                }
+
+                const topDistractorEntry = Object.entries(wrongChoiceCounter).sort((a, b) => b[1] - a[1])[0];
+                const topDistractorText = topDistractorEntry
+                    ? `${escapeHtml(topDistractorEntry[0])} (${topDistractorEntry[1]} ${unitText})`
+                    : '-';
+
+                return `
+                    <tr>
+                        <td style="text-align: center; font-weight: bold;">${escapeHtml(qNum)}</td>
+                        <td><span style="color:#64748b; font-size:10px;">[${escapeHtml(cat)}]</span> ${escapeHtml(shortQ)}</td>
+                        <td style="font-size:10px; color:#059669; font-weight:600;">${escapeHtml(correctKey)}</td>
+                        <td style="text-align: center; color:#10b981; font-weight:bold;">${correctCnt}</td>
+                        <td style="text-align: center; color:#ef4444; font-weight:bold;">${incorrectCnt}</td>
+                        <td style="text-align: center; font-weight:bold;">${pIndex.toFixed(1)}%</td>
+                        <td style="text-align: center;">${diffTag}</td>
+                        <td style="text-align: center; font-size:10px;">${topDistractorText}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 3. ตารางผลคะแนนรายบุคคลทั้งหมดในคอร์ส
+            let rank = 1;
+            const studentRankingRowsHtml = submittedRows.length === 0
+                ? `<tr><td colspan="7" style="text-align: center; padding: 14px; color: #94a3b8;">ยังไม่มีผู้ส่งข้อสอบ</td></tr>`
+                : submittedRows.map((row, idx) => {
+                    if (idx > 0 && row.score < submittedRows[idx - 1].score) rank = idx + 1;
+                    const pct = globalMaxScore > 0 ? ((row.score / globalMaxScore) * 100).toFixed(1) : '0.0';
+                    const userDisplay = row.username ? `@${escapeHtml(row.username)}` : '-';
+                    const attStr = row.attemptNumber > 0 ? `ครั้งที่ ${row.attemptNumber}` : '-';
+                    const subTimeStr = row.submittedAt ? new Date(row.submittedAt).toLocaleString('th-TH') : '-';
+                    return `
+                        <tr>
+                            <td style="text-align: center; font-weight: bold;">${rank}</td>
+                            <td style="font-family: monospace;">${escapeHtml(row.studentIdCode)}</td>
+                            <td><b>${escapeHtml(row.fullName)}</b>${row.nickname ? ` (${escapeHtml(row.nickname)})` : ''}</td>
+                            <td style="font-family: monospace; color:#475569;">${userDisplay}</td>
+                            <td style="text-align: center;">${attStr}</td>
+                            <td style="text-align: center; font-weight: bold; color:#4f46e5;">${row.score} / ${globalMaxScore} (${pct}%)</td>
+                            <td style="text-align: center; font-family: monospace;">${formatDurationClock(row.minutesSpent)}</td>
+                            <td style="text-align: center; font-size:10px; color:#64748b;">${escapeHtml(subTimeStr)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+            const generatedDateStr = new Date().toLocaleString('th-TH', {
+                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            const reportWin = window.open('', '_blank');
+            reportWin.document.write(`
+                <!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>เอกสารสรุปผลการสอบภาพรวม - ${escapeHtml(currentExam.title)}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+                    <style>
+                        * { box-sizing: border-box; }
+                        body { font-family: 'Prompt', sans-serif; padding: 28px; color: #1e293b; background: #ffffff; font-size: 12px; line-height: 1.5; }
+                        .header-banner { background: linear-gradient(135deg, #f0f9ff 0%, #eef2ff 100%); border: 1px solid #bae6fd; border-left: 6px solid #0284c7; padding: 18px 22px; border-radius: 14px; margin-bottom: 18px; }
+                        .header-banner h1 { margin: 0 0 6px 0; font-size: 19px; color: #0369a1; }
+                        .meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 16px; font-size: 11.5px; color: #334155; }
+                        .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+                        .stat-box { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 12px; padding: 10px 12px; text-align: center; }
+                        .stat-box .lbl { font-size: 10.5px; color: #64748b; font-weight: 600; }
+                        .stat-box .val { font-size: 16px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+                        h2 { font-size: 14px; color: #0f172a; border-bottom: 2px solid #e0f2fe; padding-bottom: 5px; margin: 22px 0 10px 0; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 11px; }
+                        th { background: #0284c7; color: #ffffff; padding: 8px 6px; font-weight: 700; text-align: left; border: 1px solid #0284c7; }
+                        td { padding: 7px 6px; border: 1px solid #e2e8f0; vertical-align: middle; }
+                        tr:nth-child(even) td { background: #f8fafc; }
+                        .footer-note { margin-top: 24px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 10.5px; color: #64748b; display: flex; justify-content: space-between; }
+                        @media print {
+                            body { padding: 12px; }
+                            .page-break { page-break-before: always; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header-banner">
+                        <h1>รายงานสรุปผลและวิเคราะห์การสอบภาพรวมประจำคอร์ส</h1>
+                        <div class="meta-grid">
+                            <div><b>ชุดข้อสอบ:</b> ${escapeHtml(currentExam.title)} (${escapeHtml(currentExam.exam_code || '-')})</div>
+                            <div><b>สังกัดคอร์ส:</b> ${escapeHtml(courseName)}</div>
+                            <div><b>รูปแบบการวิเคราะห์:</b> ${escapeHtml(modeLabel)}</div>
+                            <div><b>วันที่ออกรายงาน:</b> ${escapeHtml(generatedDateStr)}</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-cards">
+                        <div class="stat-box">
+                            <div class="lbl">จำนวนการส่งข้อสอบ</div>
+                            <div class="val" style="color:#059669;">${n} ${unitText}</div>
+                            <div style="font-size:10px; color:#64748b;">กำลังทำ ${inProgressCount} • ยังไม่ทำ ${notStartedCount}</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="lbl">คะแนนเฉลี่ย (Mean)</div>
+                            <div class="val" style="color:#4f46e5;">${meanVal.toFixed(2)} / ${globalMaxScore}</div>
+                            <div style="font-size:10px; color:#64748b;">คิดเป็น ${globalMaxScore > 0 ? ((meanVal / globalMaxScore) * 100).toFixed(1) : '0.0'}%</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="lbl">มัธยฐาน (Median) / SD</div>
+                            <div class="val" style="color:#7c3aed;">${medianVal.toFixed(2)} / ±${sdVal.toFixed(2)}</div>
+                            <div style="font-size:10px; color:#64748b;">สูงสุด ${maxVal} • ต่ำสุด ${minVal}</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="lbl">เวลาทำข้อสอบเฉลี่ย</div>
+                            <div class="val" style="color:#d97706;">${formatDurationClock(avgTimeVal)}</div>
+                            <div style="font-size:10px; color:#64748b;">จำนวนข้อสอบทั้งหมด ${sortedQs.length} ข้อ</div>
+                        </div>
+                    </div>
+
+                    <h2>1. สรุปคะแนนเฉลี่ยแยกตามหมวดหมู่ / บทเรียน</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>หมวดหมู่ / หัวข้อเนื้อหา</th>
+                                <th style="text-align: center; width: 80px;">จำนวนข้อ</th>
+                                <th style="text-align: center; width: 120px;">คะแนนเฉลี่ย</th>
+                                <th style="text-align: center; width: 90px;">ร้อยละ (%)</th>
+                                ${hasCriteria ? `<th style="text-align: center; width: 120px;">เกณฑ์ภาพรวม</th>` : ''}
+                            </tr>
+                        </thead>
+                        <tbody>${categoryTableHtml}</tbody>
+                    </table>
+
+                    <h2>2. ตารางวิเคราะห์ความยาก-ง่ายรายข้อ (เรียงข้อที่ 1 – ${sortedQs.length})</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center; width: 45px;">ข้อที่</th>
+                                <th>เนื้อหาคำถามย่อ</th>
+                                <th style="width: 130px;">เฉลย</th>
+                                <th style="text-align: center; width: 60px;">ตอบถูก</th>
+                                <th style="text-align: center; width: 60px;">ตอบผิด</th>
+                                <th style="text-align: center; width: 70px;">% ถูก</th>
+                                <th style="text-align: center; width: 100px;">ระดับความยาก</th>
+                                <th style="text-align: center; width: 125px;">ตัวลวงที่เลือกมากสุด</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemAnalysisRowsHtml}</tbody>
+                    </table>
+
+                    <div class="page-break"></div>
+                    <h2>3. สรุปอันดับคะแนนและรายชื่อผู้เข้าสอบทั้งหมด (${n} ${unitText})</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center; width: 50px;">อันดับ</th>
+                                <th style="width: 95px;">รหัสนักเรียน</th>
+                                <th>ชื่อ-นามสกุล / ชื่อเล่น</th>
+                                <th style="width: 110px;">Username</th>
+                                <th style="text-align: center; width: 65px;">ครั้งที่</th>
+                                <th style="text-align: center; width: 120px;">คะแนนที่ได้ (%)</th>
+                                <th style="text-align: center; width: 75px;">เวลาที่ใช้</th>
+                                <th style="text-align: center; width: 125px;">เวลาที่ส่ง</th>
+                            </tr>
+                        </thead>
+                        <tbody>${studentRankingRowsHtml}</tbody>
+                    </table>
+
+                    <div class="footer-note">
+                        <span>ระบบบริหารจัดการการเรียนรู้ (LMS) • เอกสารวิเคราะห์ผลการสอบเชิงลึก</span>
+                        <span>พิมพ์เมื่อ: ${escapeHtml(generatedDateStr)}</span>
+                    </div>
+
+                    <script>
+                        window.onload = function() { window.print(); }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            reportWin.document.close();
         }
 
         function downloadStudentReport(studentName, studentIdCode, score, maxScore, categoryStats) {
@@ -2199,7 +2572,7 @@
                     <div class="header-box">
                         <h2>ใบรายงานผลและวิเคราะห์ผลการสอบรายบุคคล</h2>
                         <p><b>ชื่อชุดข้อสอบ:</b> ${escapeHtml(currentExam ? currentExam.title : '-')}</p>
-                        <p><b>รหัสนักเรียน:</b> ${escapeHtml(studentIdCode)} | <b>ชื่อ-นามสกุล:</b> ${escapeHtml(studentName)}</p>
+                        <p><b>รหัสนักเรียน:</b> ${escapeHtml(studentIdCode)} | <b>ชื่อ-นามสกุล / Username:</b> ${escapeHtml(studentName)}</p>
                         <p><b>คะแนนรวมที่ได้:</b> <span style="color: #10b981; font-size: 16px; font-weight: bold;">${score} / ${maxScore}</span> คะแนน (${totalPct}%)</p>
                         ${hasCriteria && overallEval ? `<p><b>ผลการประเมินภาพรวม:</b> <span style="color: #0284c7; font-weight: bold;">${escapeHtml(overallEval)}</span></p>` : ''}
                     </div>
@@ -2233,9 +2606,10 @@
             }
 
             const profile = findProfileByAnyId(att) || {};
-            const name = ((profile.first_name || profile.name || profile.full_name || '').trim() +
-                (profile.last_name ? ' ' + profile.last_name : '')).trim() || att.student_name || 'นักเรียน';
-            const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
+            const identity = extractStudentIdentity(profile, att, att.student_id || att.user_id || '');
+            const displayLabel = formatStudentShortLabel(identity);
+            const studentIdCode = identity.studentIdCode;
+
             const sortedQs = sortQuestionsInOrder(activeQuestions);
             const score = calculateAttemptTotalScore(att, sortedQs);
             const maxScore = globalMaxScore;
@@ -2347,7 +2721,7 @@
                         <div class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex justify-between items-center gap-3 flex-wrap">
                             <div class="min-w-0 text-left space-y-0.5">
                                 <div class="font-extrabold text-sm text-sky-600 dark:text-sky-400 truncate">${escapeHtml(currentExam.title)}</div>
-                                <div class="text-slate-600 dark:text-slate-300 truncate">นักเรียน: <strong>${escapeHtml(name)} (${escapeHtml(studentIdCode)})</strong>${attemptNumber > 0 ? ` • ครั้งที่ ${attemptNumber}` : ''}</div>
+                                <div class="text-slate-600 dark:text-slate-300 truncate">นักเรียน: <strong>${escapeHtml(displayLabel)} (${escapeHtml(studentIdCode)})</strong>${attemptNumber > 0 ? ` • ครั้งที่ ${attemptNumber}` : ''}</div>
                                 <div class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">ถูกเต็ม ${correctCount} / ${sortedQs.length} ข้อ</div>
                             </div>
                             <div class="text-right shrink-0">
@@ -2360,7 +2734,7 @@
                             <div class="grid grid-cols-1 gap-2">${categorySummaryHtml}</div>
                         </div>
                         <div class="pt-1">
-                            <button onclick='downloadStudentReport(${JSON.stringify(name)}, ${JSON.stringify(studentIdCode)}, ${score}, ${maxScore}, ${JSON.stringify(categoryStats)})' class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all shadow-md text-xs flex items-center justify-center gap-2">
+                            <button onclick='downloadStudentReport(${JSON.stringify(displayLabel)}, ${JSON.stringify(studentIdCode)}, ${score}, ${maxScore}, ${JSON.stringify(categoryStats)})' class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all shadow-md text-xs flex items-center justify-center gap-2">
                                 <i class="fas fa-file-pdf"></i> ดาวน์โหลด / พิมพ์รายงานสรุปผลการสอบรายบุคคล (PDF)
                             </button>
                         </div>
