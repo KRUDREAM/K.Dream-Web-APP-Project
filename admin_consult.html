@@ -7,9 +7,11 @@
     <title>LMS | จัดการเวลา Consult</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
     
     <!-- INSTANT ADMIN AUTH GUARD -->
     <script>
@@ -508,6 +510,7 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let allAttemptsCache = [];
         let allExamsCache = [];
         let questionsByExamCache = {};
+        let examAnswersByAttemptCache = {};
         let displayedYear = new Date().getFullYear();
         let displayedMonth = new Date().getMonth();
         let selectedDateStr = toLocalDateKey(new Date());
@@ -524,7 +527,39 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderInlineMathHtml(rawText) {
+            const text = String(rawText || '');
+            if (!text.trim()) return '';
+            if (typeof katex === 'undefined' || typeof katex.renderToString !== 'function') {
+                return escapeHtml(text).replace(/\r?\n/g, '<br>');
+            }
+
+            const tokens = [];
+            const pushMath = (tex, displayMode) => {
+                const idx = tokens.length;
+                try {
+                    tokens.push(katex.renderToString(String(tex).trim(), {
+                        displayMode: !!displayMode,
+                        throwOnError: false,
+                        strict: false
+                    }));
+                } catch (_) {
+                    tokens.push(escapeHtml(tex));
+                }
+                return `@@MATH_${idx}@@`;
+            };
+
+            let protectedStr = text
+                .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => pushMath(expr, true))
+                .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => pushMath(expr, true))
+                .replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => pushMath(expr, false))
+                .replace(/(?<!\\)\$(?!\$)([^$\n]+?)(?<!\\)\$(?!\$)/g, (_, expr) => pushMath(expr, false));
+
+            let safeHtml = escapeHtml(protectedStr).replace(/\r?\n/g, '<br>');
+            return safeHtml.replace(/@@MATH_(\d+)@@/g, (_, idxStr) => tokens[parseInt(idxStr, 10)] ?? '');
         }
 
         function toLocalDateKey(dateInput) {
@@ -644,6 +679,9 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                     const eid = String(q.exam_id);
                     if (!questionsByExamCache[eid]) questionsByExamCache[eid] = [];
                     questionsByExamCache[eid].push(q);
+                });
+                Object.keys(questionsByExamCache).forEach(eid => {
+                    questionsByExamCache[eid] = sortQuestionsInOrder(questionsByExamCache[eid]);
                 });
             } catch (err) {
                 console.error("Load global profiles/attempts error:", err);
@@ -1577,65 +1615,198 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         });
 
         // ================= ระบบตรวจคำตอบและคำนวณคะแนนให้ตรงกับหน้า admin_analytics_detail.html =================
-        function isBonusAllQuestion(q) {
-            if (!q) return false;
-            const modeStr = String(q.multiple_grading_mode || q.grading_rule || q.grading_type || '').toLowerCase().trim();
-            const ansStr = String(q.correct_answer || q.answer || q.key || '').trim().toUpperCase();
-            return Boolean(q.is_bonus_all || modeStr === 'bonus_all' || ansStr === 'BONUS_ALL');
-        }
+        function sortQuestionsInOrder(list) {
+            return [...(list || [])].sort((a, b) => {
+                const strA = String(a?.question_number ?? '').trim();
+                const strB = String(b?.question_number ?? '').trim();
+                const numA = Number(strA);
+                const numB = Number(strB);
 
-        function formatSingleAnswerText(ansValue, examObj = null) {
-            if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
-            if (String(ansValue).trim().toUpperCase() === 'BONUS_ALL') return 'แจกคะแนนฟรี (ได้เต็มทุกคน)';
-
-            if (Array.isArray(ansValue)) {
-                return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
-            }
-
-            const strVal = String(ansValue).trim();
-            if (strVal.startsWith('[') && strVal.endsWith(']')) {
-                try {
-                    const parsed = JSON.parse(strVal);
-                    if (Array.isArray(parsed)) {
-                        return parsed.map(v => formatSingleAnswerText(v, examObj)).join(', ');
-                    }
-                } catch (e) {}
-            }
-
-            const formatType = (examObj && examObj.choice_format) ? examObj.choice_format : 'num';
-            let labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
-            if (formatType === 'th_num') labels = ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ', 'ช', 'ซ', 'ฌ', 'ญ'];
-            else if (formatType === 'upper') labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-            else if (formatType === 'lower') labels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
-
-            if (/^\d+$/.test(strVal)) {
-                const idx = Number(strVal);
-                if (idx >= 0 && idx < labels.length) {
-                    return labels[idx];
+                if (strA !== '' && strB !== '' && !Number.isNaN(numA) && !Number.isNaN(numB) && numA !== numB) {
+                    return numA - numB;
                 }
-            }
-            return strVal;
+                if (strA && strB && strA !== strB) {
+                    return strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+                }
+                return (Number(a?.id) || 0) - (Number(b?.id) || 0);
+            });
         }
 
-        function formatAnswerText(ansValue, examObj = null) {
-            if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
-            if (Array.isArray(ansValue)) {
-                return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
+        function isPassageHeaderQuestion(q) {
+            if (!q) return false;
+            return (
+                q.question_type === 'passage' ||
+                q.question_type === 'group' ||
+                q.question_type === 'shared' ||
+                q.question_type === 'context' ||
+                q.is_passage === true ||
+                q.is_shared_passage === true
+            );
+        }
+
+        function getQuestionMetaMapForExam(targetExamId) {
+            try {
+                const raw = localStorage.getItem(`question_meta_${targetExamId}`);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                return {};
             }
-            return formatSingleAnswerText(ansValue, examObj);
+        }
+
+        function hydrateQuestionDetailMeta(q, targetExamId) {
+            const metaMap = getQuestionMetaMapForExam(targetExamId || q?.exam_id);
+            const meta = metaMap[String(q.id)] || {};
+            const modeStr = String(q.multiple_grading_mode || meta.multiple_grading_mode || '').toLowerCase();
+            const isBonus = Boolean(
+                q.is_bonus_all ||
+                meta.is_bonus_all ||
+                modeStr === 'bonus_all' ||
+                String(q.correct_answer || '').trim().toUpperCase() === 'BONUS_ALL'
+            );
+            const isSingleMultiKey = !isBonus && Boolean(
+                q.allow_multi_correct_keys ||
+                meta.allow_multi_correct_keys ||
+                modeStr === 'single_multi_key'
+            );
+            const isMultiple = !isBonus && !isSingleMultiKey && Boolean(q.is_multiple_answers || q.question_type === 'multiple');
+
+            return {
+                ...q,
+                score: (q.score !== undefined && q.score !== null) ? Number(q.score) : (meta.score !== undefined ? Number(meta.score) : 1),
+                is_bonus_all: isBonus,
+                allow_multi_correct_keys: isSingleMultiKey,
+                is_multiple_answers: isMultiple,
+                multiple_grading_mode: isBonus ? 'bonus_all' : (isSingleMultiKey ? 'single_multi_key' : (q.multiple_grading_mode || meta.multiple_grading_mode || 'all'))
+            };
+        }
+
+        function isBonusAllQuestion(q, examId = null) {
+            if (!q) return false;
+            const hydrated = hydrateQuestionDetailMeta(q, examId || q.exam_id);
+            return Boolean(hydrated.is_bonus_all);
+        }
+
+        function getChoiceLabelsForExam(examObj) {
+            const formatType = examObj?.choice_format || 'num';
+            if (formatType === 'th_num') return ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ'];
+            if (formatType === 'upper') return ['A', 'B', 'C', 'D', 'E', 'F'];
+            if (formatType === 'lower') return ['a', 'b', 'c', 'd', 'e', 'f'];
+            return ['1', '2', '3', '4', '5', '6'];
+        }
+
+        function getOptionsListForQuestion(q, examObj) {
+            const standardLabels = getChoiceLabelsForExam(examObj);
+            let raw = q?.options !== undefined ? q.options : q?.choices;
+            if (typeof raw === 'string') {
+                try { raw = JSON.parse(raw); } catch (e) { raw = raw.split(',').map(s => s.trim()); }
+            }
+            const list = (Array.isArray(raw) && raw.length > 0) ? raw : standardLabels;
+            return Array.from(new Set(list.map(o => String(o).trim()))).filter(o => o !== '');
+        }
+
+        function resolveChoiceIndex(rawToken, q, examObj) {
+            if (rawToken === undefined || rawToken === null) return null;
+            const s = String(rawToken).trim();
+            if (s === '' || s === '-') return null;
+
+            const labels = getChoiceLabelsForExam(examObj);
+            const opts = getOptionsListForQuestion(q, examObj);
+
+            if (/^\d+$/.test(s)) {
+                const n = parseInt(s, 10);
+                if (n >= 0 && n < opts.length) return n;
+            }
+
+            const labelIdx = labels.findIndex(lbl => lbl.toLowerCase() === s.toLowerCase());
+            if (labelIdx !== -1 && labelIdx < opts.length) return labelIdx;
+
+            const optIdx = opts.findIndex(opt => opt.toLowerCase() === s.toLowerCase());
+            if (optIdx !== -1) return optIdx;
+
+            return null;
+        }
+
+        function normalizeAnswerTokens(rawVal, q, examObj) {
+            const arr = toCleanArray(rawVal);
+            return arr.map(tok => {
+                const idx = resolveChoiceIndex(tok, q, examObj);
+                return idx !== null ? `idx:${idx}` : `val:${String(tok).trim().toLowerCase()}`;
+            });
+        }
+
+        function formatChoiceDisplayWithLabel(val, q, examObj, isCorrectKey = false) {
+            const hydrated = hydrateQuestionDetailMeta(q, examObj?.id || q?.exam_id);
+            if (isCorrectKey && hydrated.is_bonus_all) {
+                return 'ฟรีคะแนน (ทุกตัวเลือกถูกต้อง)';
+            }
+            if (val === undefined || val === null || val === '-' || val === '') return 'ไม่ได้ตอบ';
+            if (Array.isArray(val) && val.length === 0) return 'ไม่ได้ตอบ';
+
+            const labels = getChoiceLabelsForExam(examObj);
+            const opts = getOptionsListForQuestion(q, examObj);
+
+            const mapSingle = (item) => {
+                const strItem = String(item).trim();
+                if (strItem === '' || strItem === '-') return 'ไม่ได้ตอบ';
+                const idx = resolveChoiceIndex(strItem, q, examObj);
+                if (idx !== null) {
+                    const label = labels[idx] || (idx + 1);
+                    const optText = opts[idx] || '';
+                    if (!optText || optText === label || optText === String(idx + 1) || optText === `ตัวเลือกที่ ${label}`) {
+                        return `ตัวเลือก ${label}`;
+                    }
+                    return `${label}. ${optText}`;
+                }
+                return strItem;
+            };
+
+            if (Array.isArray(val)) {
+                return val.map(mapSingle).join(' | ');
+            }
+            const cleanArr = toCleanArray(val);
+            if (cleanArr.length > 1) {
+                return cleanArr.map(mapSingle).join(' | ');
+            }
+            return mapSingle(val);
+        }
+
+        function formatAnswerText(ansValue, examObj = null, q = null) {
+            if (q) return formatChoiceDisplayWithLabel(ansValue, q, examObj, false);
+            if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
+            if (String(ansValue).trim().toUpperCase() === 'BONUS_ALL') return 'ฟรีคะแนน (ทุกตัวเลือกถูกต้อง)';
+            const arr = toCleanArray(ansValue);
+            return arr.length > 0 ? arr.join(', ') : '-';
         }
 
         function getCorrectAnswer(q, examObj = null) {
-            if (isBonusAllQuestion(q)) return 'แจกคะแนนฟรี (ได้เต็มทุกคน)';
-            const raw = q.correct_answer !== undefined ? q.correct_answer :
-                (q.answer !== undefined ? q.answer :
-                (q.key !== undefined ? q.key :
-                (q.solution !== undefined ? q.solution : '')));
-            return formatAnswerText(raw, examObj);
+            const hydrated = hydrateQuestionDetailMeta(q, examObj?.id || q?.exam_id);
+            if (hydrated.is_bonus_all) return 'ฟรีคะแนน (ทุกตัวเลือกถูกต้อง)';
+            const raw = hydrated.correct_answer !== undefined ? hydrated.correct_answer :
+                (hydrated.answer !== undefined ? hydrated.answer :
+                (hydrated.key !== undefined ? hydrated.key :
+                (hydrated.solution !== undefined ? hydrated.solution : '')));
+            return formatChoiceDisplayWithLabel(raw, hydrated, examObj, true);
         }
 
-        function extractStudentAnswer(att, q, index) {
+        function extractStudentAnswer(att, q, index, ansMap = null) {
             if (!att) return null;
+
+            const isEssay = (q.question_type || q.type || '').toLowerCase() === 'essay' || (q.question_type || q.type || '').toLowerCase() === 'subjective';
+            const attemptAnswersMap = ansMap || (att.id ? examAnswersByAttemptCache[String(att.id)] : null);
+            if (attemptAnswersMap && attemptAnswersMap[String(q.id)]) {
+                const row = attemptAnswersMap[String(q.id)];
+                if (isEssay && row.subjective_answer !== null && row.subjective_answer !== undefined && String(row.subjective_answer).trim() !== '') {
+                    return row.subjective_answer;
+                }
+                if (!isEssay && row.selected_option_index !== null && row.selected_option_index !== undefined && String(row.selected_option_index).trim() !== '') {
+                    try {
+                        const parsed = JSON.parse(row.selected_option_index);
+                        return Array.isArray(parsed) ? parsed : row.selected_option_index;
+                    } catch (_) {
+                        return row.selected_option_index;
+                    }
+                }
+            }
 
             let raw = att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses;
             if (!raw) return null;
@@ -1694,8 +1865,16 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             return [str];
         }
 
-        function extractEssayScore(att, q, index) {
+        function extractEssayScore(att, q, index, ansMap = null) {
             if (!att || !q) return null;
+            const attemptAnswersMap = ansMap || (att.id ? examAnswersByAttemptCache[String(att.id)] : null);
+            if (attemptAnswersMap && attemptAnswersMap[String(q.id)]) {
+                const row = attemptAnswersMap[String(q.id)];
+                if (row.score !== undefined && row.score !== null && !isNaN(Number(row.score))) {
+                    return Number(row.score);
+                }
+            }
+
             const scoreMaps = [att.essay_scores, att.question_scores, att.graded_scores];
             for (const map of scoreMaps) {
                 if (!map) continue;
@@ -1718,18 +1897,19 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             return null;
         }
 
-        function getQuestionScore(q, rawUserAns, att = null, index = 0, examObj = null) {
+        function getQuestionScore(q, rawUserAns, att = null, index = 0, examObj = null, ansMap = null) {
             if (!q) return 0;
-            const qType = (q.question_type || q.type || '').toLowerCase();
-            const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) :
-                (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
+            const hydrated = hydrateQuestionDetailMeta(q, examObj?.id || q.exam_id);
+            const qType = (hydrated.question_type || hydrated.type || '').toLowerCase();
+            const fullScore = hydrated.score !== undefined && hydrated.score !== null ? Number(hydrated.score) :
+                (hydrated.points !== undefined && hydrated.points !== null ? Number(hydrated.points) : 1);
 
             if (qType === 'essay' || qType === 'subjective') {
-                const graded = extractEssayScore(att, q, index);
+                const graded = extractEssayScore(att, hydrated, index, ansMap);
                 return graded !== null ? Math.min(Math.max(graded, 0), fullScore) : 0;
             }
 
-            if (isBonusAllQuestion(q)) {
+            if (hydrated.is_bonus_all) {
                 return fullScore;
             }
 
@@ -1737,95 +1917,98 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 return 0;
             }
 
-            const correctRaw = q.correct_answer !== undefined ? q.correct_answer :
-                (q.answer !== undefined ? q.answer :
-                (q.key !== undefined ? q.key :
-                (q.solution !== undefined ? q.solution : '')));
+            const correctRaw = hydrated.correct_answer !== undefined ? hydrated.correct_answer :
+                (hydrated.answer !== undefined ? hydrated.answer :
+                (hydrated.key !== undefined ? hydrated.key :
+                (hydrated.solution !== undefined ? hydrated.solution : '')));
 
             if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
                 return 0;
             }
-
-            const correctArr = toCleanArray(correctRaw);
-            const userArr = toCleanArray(rawUserAns);
-
-            if (userArr.length === 0) return 0;
-
-            const rawRule = q.multiple_grading_mode || q.grading_rule || q.multiple_grading_rule || q.rule || q.grading_type ||
-                (examObj && (examObj.multiple_grading_mode || examObj.grading_rule || examObj.multiple_grading_rule)) || '';
-            const gradingRule = String(rawRule).toLowerCase().trim();
-
-            const isSingleMultiKey = Boolean(q.allow_multi_correct_keys || gradingRule === 'single_multi_key');
-            const isAtLeastOneRule = isSingleMultiKey || gradingRule.includes('at_least') || gradingRule.includes('one') || gradingRule.includes('once') || gradingRule === 'subset';
-
-            if (isAtLeastOneRule || (correctArr.length > 1 && gradingRule !== 'all' && gradingRule !== 'exact')) {
-                const matchedAny = userArr.some(u => correctArr.some(c => String(u).toLowerCase() === String(c).toLowerCase()));
-                return matchedAny ? fullScore : 0;
-            }
-
-            if (gradingRule === 'partial') {
-                const correctMatches = userArr.filter(u => correctArr.includes(u)).length;
-                const wrongChoices = userArr.filter(u => !correctArr.includes(u)).length;
-                const netCorrect = Math.max(0, correctMatches - wrongChoices);
-                const ratio = netCorrect / correctArr.length;
-                return Number((fullScore * ratio).toFixed(2));
-            }
-
-            if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
-                if (correctArr.length !== userArr.length) return 0;
-                const exactMatch = userArr.every(u => correctArr.includes(u)) && correctArr.every(c => userArr.includes(c));
-                return exactMatch ? fullScore : 0;
-            }
-
-            const singleCorrect = correctArr[0] || '';
-            const singleUser = userArr[0] || '';
-
-            if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
+            if (String(correctRaw).trim().toUpperCase() === 'BONUS_ALL') {
                 return fullScore;
             }
 
-            return 0;
+            const correctNorm = Array.from(new Set(normalizeAnswerTokens(correctRaw, hydrated, examObj)));
+            const userNorm = Array.from(new Set(normalizeAnswerTokens(rawUserAns, hydrated, examObj)));
+
+            if (correctNorm.length === 0 || userNorm.length === 0) return 0;
+
+            if (hydrated.allow_multi_correct_keys) {
+                const matchedAny = userNorm.some(u => correctNorm.includes(u));
+                return matchedAny ? fullScore : 0;
+            }
+
+            const gradingMode = String(hydrated.multiple_grading_mode || examObj?.multiple_grading_mode || 'all').toLowerCase().trim();
+
+            if (hydrated.is_multiple_answers) {
+                if (gradingMode === 'at_least_one' || gradingMode === 'subset') {
+                    return userNorm.some(u => correctNorm.includes(u)) ? fullScore : 0;
+                }
+                if (gradingMode === 'partial') {
+                    const matched = userNorm.filter(u => correctNorm.includes(u)).length;
+                    const extraWrong = Math.max(0, userNorm.length - matched);
+                    const ratio = Math.max(0, (matched / correctNorm.length) - (extraWrong * 0.2));
+                    return Number((fullScore * ratio).toFixed(2));
+                }
+                const exactMatch = correctNorm.length === userNorm.length && userNorm.every(u => correctNorm.includes(u));
+                return exactMatch ? fullScore : 0;
+            }
+
+            if (correctNorm.length > 1) {
+                return userNorm.some(u => correctNorm.includes(u)) ? fullScore : 0;
+            }
+
+            return userNorm[0] === correctNorm[0] ? fullScore : 0;
         }
 
-        function calculateAttemptTotalScore(att, questionsList, examObj = null) {
+        function calculateAttemptTotalScore(att, questionsList, examObj = null, ansMap = null) {
             if (!att || !Array.isArray(questionsList)) return 0;
+            const activeQs = questionsList.filter(q => !isPassageHeaderQuestion(q));
+            const attemptAnswersMap = ansMap || (att.id ? examAnswersByAttemptCache[String(att.id)] : null);
 
-            const hasAnswersPayload = Boolean(att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses);
-            if (!hasAnswersPayload && questionsList.length > 0) {
+            const hasAnswersPayload = Boolean(
+                (attemptAnswersMap && Object.keys(attemptAnswersMap).length > 0) ||
+                att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses
+            );
+            if (!hasAnswersPayload && activeQs.length > 0) {
                 if (att.total_score !== undefined && att.total_score !== null && !isNaN(att.total_score)) return Number(att.total_score);
                 if (att.score !== undefined && att.score !== null && !isNaN(att.score)) return Number(att.score);
             }
 
             let totalScore = 0;
-            questionsList.forEach((q, index) => {
-                const studentAns = extractStudentAnswer(att, q, index);
-                totalScore += getQuestionScore(q, studentAns, att, index, examObj);
+            activeQs.forEach((q, index) => {
+                const studentAns = extractStudentAnswer(att, q, index, attemptAnswersMap);
+                totalScore += getQuestionScore(q, studentAns, att, index, examObj, attemptAnswersMap);
             });
 
             return Number(totalScore.toFixed(2));
         }
 
-        function computeAttemptScoreFromQuestions(att, questions, examObj = null) {
+        function computeAttemptScoreFromQuestions(att, questions, examObj = null, ansMap = null) {
             const fallbackScore = (att && att.total_score !== undefined && att.total_score !== null && !isNaN(att.total_score))
                 ? Number(att.total_score)
                 : ((att && att.score !== undefined && att.score !== null && !isNaN(att.score)) ? Number(att.score) : 0);
 
-            if (!Array.isArray(questions) || questions.length === 0) {
+            const activeQs = sortQuestionsInOrder(questions || []).filter(q => !isPassageHeaderQuestion(q));
+            if (activeQs.length === 0) {
                 return { score: fallbackScore, maxScore: 0, correctCount: 0, totalQuestions: 0 };
             }
 
-            const score = calculateAttemptTotalScore(att, questions, examObj);
+            const attemptAnswersMap = ansMap || (att && att.id ? examAnswersByAttemptCache[String(att.id)] : null);
+            const score = calculateAttemptTotalScore(att, activeQs, examObj, attemptAnswersMap);
             let maxScore = 0;
             let correctCount = 0;
 
-            questions.forEach((q, idx) => {
+            activeQs.forEach((rawQ, idx) => {
+                const q = hydrateQuestionDetailMeta(rawQ, examObj?.id || rawQ.exam_id);
                 const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) :
                     (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
                 maxScore += fullScore;
 
-                const rawUserAns = extractStudentAnswer(att, q, idx);
-                const earned = getQuestionScore(q, rawUserAns, att, idx, examObj);
-                if (isBonusAllQuestion(q) || earned >= fullScore) {
+                const rawUserAns = extractStudentAnswer(att, q, idx, attemptAnswersMap);
+                const earned = getQuestionScore(q, rawUserAns, att, idx, examObj, attemptAnswersMap);
+                if (q.is_bonus_all || earned >= fullScore) {
                     correctCount += 1;
                 }
             });
@@ -1834,7 +2017,7 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 score: score,
                 maxScore: Number(maxScore.toFixed(2)),
                 correctCount,
-                totalQuestions: questions.length
+                totalQuestions: activeQs.length
             };
         }
 
@@ -1859,16 +2042,33 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 .select('*')
                 .eq('exam_id', examId)
                 .order('question_number', { ascending: true });
-            questionsByExamCache[key] = data || [];
+            questionsByExamCache[key] = sortQuestionsInOrder(data || []);
             return questionsByExamCache[key];
+        }
+
+        async function ensureAttemptAnswersLoaded(attemptId) {
+            if (!attemptId) return {};
+            const key = String(attemptId);
+            if (examAnswersByAttemptCache[key]) return examAnswersByAttemptCache[key];
+            const { data } = await mySupabase
+                .from('exam_answers')
+                .select('*')
+                .eq('attempt_id', attemptId);
+            const map = {};
+            (data || []).forEach(r => {
+                map[String(r.question_id)] = r;
+            });
+            examAnswersByAttemptCache[key] = map;
+            return map;
         }
 
         function getAttemptScore(att) {
             const examId = String(att.exam_id || '');
             const qs = questionsByExamCache[examId];
             const examObj = allExamsCache.find(e => String(e.id) === examId) || null;
+            const ansMap = att.id ? examAnswersByAttemptCache[String(att.id)] : null;
             if (qs && qs.length > 0) {
-                return computeAttemptScoreFromQuestions(att, qs, examObj).score;
+                return computeAttemptScoreFromQuestions(att, qs, examObj, ansMap).score;
             }
             if (att.total_score !== undefined && att.total_score !== null && !isNaN(att.total_score)) return Number(att.total_score);
             if (att.score !== undefined && att.score !== null && !isNaN(att.score)) return Number(att.score);
@@ -1904,7 +2104,11 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             }
 
             const uniqueExamIds = [...new Set(studentAttempts.map(a => String(a.exam_id)).filter(Boolean))];
-            await Promise.all(uniqueExamIds.map(eid => ensureExamQuestionsLoaded(eid)));
+            const attemptIds = studentAttempts.map(a => a.id).filter(Boolean);
+            await Promise.all([
+                ...uniqueExamIds.map(eid => ensureExamQuestionsLoaded(eid)),
+                ...attemptIds.map(aid => ensureAttemptAnswersLoaded(aid))
+            ]);
 
             let enrolledCourses = [];
             try {
@@ -1983,7 +2187,8 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                     const exam = allExamsCache.find(e => String(e.id) === String(att.exam_id)) || null;
                     const examTitle = exam ? exam.title : `ข้อสอบรหัส: ${att.exam_id}`;
                     const qs = questionsByExamCache[String(att.exam_id)] || [];
-                    const calc = computeAttemptScoreFromQuestions(att, qs, exam);
+                    const ansMap = att.id ? examAnswersByAttemptCache[String(att.id)] : null;
+                    const calc = computeAttemptScoreFromQuestions(att, qs, exam, ansMap);
                     const scoreText = calc.maxScore > 0 ? `${calc.score} / ${calc.maxScore} คะแนน` : `${calc.score} คะแนน`;
                     const pctText = calc.maxScore > 0 ? ` (${((calc.score / calc.maxScore) * 100).toFixed(1)}%)` : '';
                     const submitTime = att.submission_time || att.submitted_at || att.created_at;
@@ -2018,15 +2223,18 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         async function viewStudentExamDetailInModal(studentId, examId, attemptId = '') {
             Swal.fire({ title: 'กำลังโหลดรายละเอียดข้อสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            const att = attemptId
-                ? allAttemptsCache.find(a => String(a.id) === String(attemptId))
-                : allAttemptsCache.find(a => String(a.student_id || a.user_id) === String(studentId) && String(a.exam_id) === String(examId));
+            const matchingAttempts = allAttemptsCache.filter(a => String(a.student_id || a.user_id) === String(studentId) && String(a.exam_id) === String(examId));
+            const att = (attemptId ? matchingAttempts.find(a => String(a.id) === String(attemptId)) : null) || matchingAttempts[matchingAttempts.length - 1] || null;
             const exam = allExamsCache.find(e => String(e.id) === String(examId)) || null;
             const profile = allProfilesMap[studentId];
             const name = getStudentName(profile, studentId);
             const studentIdCode = (profile && profile.student_id) ? profile.student_id : '-';
 
-            const questions = await ensureExamQuestionsLoaded(examId);
+            const [rawQuestions, ansMap] = await Promise.all([
+                ensureExamQuestionsLoaded(examId),
+                att && att.id ? ensureAttemptAnswersLoaded(att.id) : Promise.resolve({})
+            ]);
+            const questions = sortQuestionsInOrder(rawQuestions || []).filter(q => !isPassageHeaderQuestion(q));
             Swal.close();
 
             if (!questions || questions.length === 0) {
@@ -2034,20 +2242,27 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 return;
             }
 
-            const calc = computeAttemptScoreFromQuestions(att, questions, exam);
+            const calc = computeAttemptScoreFromQuestions(att, questions, exam, ansMap);
             const score = calc.score;
             const maxScore = calc.maxScore;
 
             const categoryStats = {};
-            const questionsHtml = questions.map((q, index) => {
-                const rawUserAns = extractStudentAnswer(att, q, index);
-                const userAnsFormatted = formatAnswerText(rawUserAns, exam);
-                const correctAnsFormatted = getCorrectAnswer(q, exam);
-
-                const isBonus = isBonusAllQuestion(q);
+            const questionsHtml = questions.map((rawQ, index) => {
+                const q = hydrateQuestionDetailMeta(rawQ, examId);
+                const rawUserAns = extractStudentAnswer(att, q, index, ansMap);
+                const isBonus = q.is_bonus_all;
                 const isEssay = (q.question_type || q.type || '').toLowerCase() === 'essay' || (q.question_type || q.type || '').toLowerCase() === 'subjective';
-                const isMultiple = (q.question_type || q.type || '').toLowerCase() === 'multiple' || !!q.is_multiple_answers;
-                const qEarnedScore = getQuestionScore(q, rawUserAns, att, index, exam);
+                const isMultiple = q.is_multiple_answers;
+                const isSingleMultiKey = q.allow_multi_correct_keys;
+
+                const userAnsFormatted = isEssay
+                    ? (rawUserAns && rawUserAns !== '-' ? String(rawUserAns) : 'ไม่ได้เขียนคำตอบ')
+                    : formatChoiceDisplayWithLabel(rawUserAns, q, exam, false);
+                const correctAnsFormatted = isEssay
+                    ? (q.correct_answer || q.solution || 'ตรวจให้คะแนนโดยผู้สอน')
+                    : getCorrectAnswer(q, exam);
+
+                const qEarnedScore = getQuestionScore(q, rawUserAns, att, index, exam, ansMap);
                 const qMaxScore = q.score !== undefined && q.score !== null ? Number(q.score) :
                     (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
                 const isCorrect = isBonus || qEarnedScore >= qMaxScore;
@@ -2058,21 +2273,58 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 categoryStats[catTag].total += qMaxScore;
                 categoryStats[catTag].correct += qEarnedScore;
 
-                let statusText = isCorrect
-                    ? `✅ ถูกต้อง (${qEarnedScore}/${qMaxScore})`
-                    : (isPartial ? `⚠️ ถูกบางส่วน (${qEarnedScore}/${qMaxScore})` : `❌ ตอบผิด (${qEarnedScore}/${qMaxScore})`);
-                if (isBonus) statusText = `🎁 แจกคะแนนฟรี (${qEarnedScore}/${qMaxScore})`;
-                else if (isEssay) statusText = `✍️ อัตนัย (${qEarnedScore}/${qMaxScore})`;
+                let statusBadge = '';
+                if (isEssay) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 font-extrabold text-[11px]">✍️ อัตนัย (${qEarnedScore}/${qMaxScore})</span>`;
+                } else if (isBonus) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-300 font-extrabold text-[11px]">🎁 แจกคะแนนฟรี (${qEarnedScore}/${qMaxScore})</span>`;
+                } else if (isCorrect) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-[11px]">✅ ถูกต้อง (+${qEarnedScore}/${qMaxScore})</span>`;
+                } else if (isPartial) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-extrabold text-[11px]">⚠️ ถูกบางส่วน (+${qEarnedScore}/${qMaxScore})</span>`;
+                } else {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 font-extrabold text-[11px]">❌ ผิด (0/${qMaxScore})</span>`;
+                }
+
+                let modeBadges = '';
+                if (isBonus) {
+                    modeBadges += `<span class="px-2 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-300 rounded font-bold text-[10px]">🎁 ข้อฟรี</span>`;
+                } else if (isSingleMultiKey) {
+                    modeBadges += `<span class="px-2 py-0.5 bg-teal-500/20 text-teal-600 dark:text-teal-300 rounded font-bold text-[10px]">หลายเฉลยที่ถูก</span>`;
+                } else if (isMultiple) {
+                    modeBadges += `<span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-500 rounded font-bold text-[10px]">ตอบได้หลายตัวเลือก</span>`;
+                }
+
+                const borderStyle = isEssay
+                    ? 'border-amber-500/40'
+                    : (isCorrect ? 'border-emerald-500/40' : (isPartial ? 'border-indigo-500/40' : 'border-rose-500/40'));
+
+                const qTextHtml = renderInlineMathHtml(q.question_text || q.content || 'โจทย์คำถาม');
+                const userAnsHtml = renderInlineMathHtml(userAnsFormatted);
+                const correctAnsHtml = renderInlineMathHtml(correctAnsFormatted);
 
                 return `
-                    <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isEssay ? 'border-amber-500/40' : (isCorrect ? 'border-emerald-500/40' : (isPartial ? 'border-indigo-500/40' : 'border-rose-500/40'))} space-y-1.5 text-xs text-left">
-                        <div class="flex justify-between font-extrabold gap-2">
-                            <span class="text-slate-800 dark:text-slate-100 break-words">ข้อที่ ${q.question_number ?? (index + 1)} [${escapeHtml(catTag)}]: ${escapeHtml(q.question_text || q.content || 'โจทย์คำถาม')}</span>
-                            <span class="${isEssay ? 'text-amber-500' : (isCorrect ? 'text-emerald-500' : (isPartial ? 'text-indigo-500' : 'text-rose-500'))} shrink-0">${statusText}</span>
+                    <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border ${borderStyle} space-y-2 text-xs text-left">
+                        <div class="flex justify-between items-start gap-2 flex-wrap">
+                            <div class="font-extrabold text-slate-900 dark:text-slate-100 leading-relaxed flex-1 min-w-0">
+                                <span class="text-sky-600 dark:text-sky-400 mr-1">ข้อที่ ${q.question_number ?? (index + 1)} [${escapeHtml(catTag)}]:</span>
+                                <span>${qTextHtml}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                ${modeBadges}
+                                ${statusBadge}
+                            </div>
                         </div>
-                        <div class="text-[11px] text-slate-500 dark:text-slate-400 break-words">
-                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(userAnsFormatted)}</span> | เฉลย: <span class="font-bold text-emerald-600">${escapeHtml(correctAnsFormatted)}</span>
-                            ${isMultiple ? '<span class="ml-2 px-1.5 py-0.5 bg-indigo-500/20 text-indigo-500 rounded font-semibold text-[10px]">หลายตัวเลือก</span>' : ''}
+                        ${q.image_url ? `<div class="pt-1"><img src="${escapeHtml(q.image_url)}" class="max-h-36 rounded-xl border border-slate-200 dark:border-slate-700 object-contain" /></div>` : ''}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                            <div class="p-2.5 rounded-xl bg-white dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800">
+                                <span class="text-slate-400 block font-semibold mb-0.5">นักเรียนตอบ:</span>
+                                <span class="font-bold ${isEssay ? 'text-slate-800 dark:text-slate-200' : (isCorrect ? 'text-emerald-600 dark:text-emerald-400' : (isPartial ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600 dark:text-rose-400'))}">${userAnsHtml}</span>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-500/25">
+                                <span class="text-emerald-600/80 dark:text-emerald-400/80 block font-semibold mb-0.5">เฉลยที่ถูกต้อง:</span>
+                                <span class="font-bold text-emerald-700 dark:text-emerald-300">${correctAnsHtml}</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2091,19 +2343,22 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             }).join('');
 
             const isDark = document.documentElement.classList.contains('dark');
+            const totalPct = maxScore > 0 ? ((score / maxScore) * 100).toFixed(1) : '0.0';
 
             const detailModalHtml = `
-                <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1 text-xs">
-                    <div class="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 flex justify-between items-center gap-2">
-                        <div class="min-w-0 text-left">
-                            <div class="font-extrabold text-sky-600 dark:text-sky-400 truncate">${exam ? escapeHtml(exam.title) : 'ชุดข้อสอบ'}</div>
-                            <div class="text-slate-500 truncate">นักเรียน: <strong>${escapeHtml(name)} (${escapeHtml(studentIdCode)})</strong> (ถูกเต็ม ${calc.correctCount} / ${calc.totalQuestions} ข้อ)</div>
+                <div class="space-y-4 max-h-[72vh] overflow-y-auto pr-1 text-xs">
+                    <div class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex justify-between items-center gap-3 flex-wrap">
+                        <div class="min-w-0 text-left space-y-0.5">
+                            <div class="font-extrabold text-sm text-sky-600 dark:text-sky-400 truncate">${exam ? escapeHtml(exam.title) : 'ชุดข้อสอบ'}</div>
+                            <div class="text-slate-600 dark:text-slate-300 truncate">นักเรียน: <strong>${escapeHtml(name)} (${escapeHtml(studentIdCode)})</strong></div>
+                            <div class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">ถูกเต็ม ${calc.correctCount} / ${calc.totalQuestions} ข้อ</div>
                         </div>
                         <div class="flex items-center gap-3 shrink-0">
-                            <div class="text-right font-extrabold text-indigo-600 dark:text-indigo-400 text-sm">
-                                ${score} / ${maxScore} คะแนน
+                            <div class="text-right">
+                                <div class="font-extrabold text-indigo-600 dark:text-indigo-400 text-base">${score} / ${maxScore} คะแนน</div>
+                                <div class="text-[11px] font-bold text-amber-500">คิดเป็น ${totalPct}%</div>
                             </div>
-                            <button onclick="printSingleExamAttemptReport('${studentId}', '${examId}', '${attemptId}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1 shrink-0">
+                            <button onclick="printSingleExamAttemptReport('${studentId}', '${examId}', '${att?.id || attemptId}')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 shrink-0">
                                 <i class="fas fa-print"></i> ปริ้นท์ใบสรุป
                             </button>
                         </div>
@@ -2112,7 +2367,7 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                         <div class="font-bold text-slate-700 dark:text-slate-300">📊 สรุปผลคะแนน${hasCriteria ? 'และเกณฑ์การประเมิน' : ''}แยกตามหมวดหมู่:</div>
                         <div class="grid grid-cols-1 gap-2">${categorySummaryHtml}</div>
                     </div>
-                    <div class="space-y-2 pt-1">
+                    <div class="space-y-2.5 pt-1">
                         ${questionsHtml}
                     </div>
                 </div>
@@ -2121,7 +2376,7 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             Swal.fire({
                 title: '📋 ตรวจสอบผลการตอบรายข้อ (ตรงกับ Analytics Detail)',
                 html: detailModalHtml,
-                width: '750px',
+                width: '780px',
                 confirmButtonText: 'ปิดหน้าต่างตรวจรายข้อ',
                 confirmButtonColor: '#0284c7',
                 background: isDark ? '#090d16' : '#ffffff',
@@ -2130,18 +2385,21 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         }
 
         function printSingleExamAttemptReport(studentId, examId, attemptId = '') {
-            const att = attemptId
-                ? allAttemptsCache.find(a => String(a.id) === String(attemptId))
-                : allAttemptsCache.find(a => String(a.student_id || a.user_id) === String(studentId) && String(a.exam_id) === String(examId));
+            const matchingAttempts = allAttemptsCache.filter(a => String(a.student_id || a.user_id) === String(studentId) && String(a.exam_id) === String(examId));
+            const att = (attemptId ? matchingAttempts.find(a => String(a.id) === String(attemptId)) : null) || matchingAttempts[matchingAttempts.length - 1] || null;
             const exam = allExamsCache.find(e => String(e.id) === String(examId)) || null;
             const profile = allProfilesMap[studentId];
             const name = getStudentName(profile, studentId);
             const studentIdCode = (profile && profile.student_id) ? profile.student_id : '-';
 
-            ensureExamQuestionsLoaded(examId).then((questions) => {
-                if (!questions) return;
+            Promise.all([
+                ensureExamQuestionsLoaded(examId),
+                att && att.id ? ensureAttemptAnswersLoaded(att.id) : Promise.resolve({})
+            ]).then(([rawQuestions, ansMap]) => {
+                const questions = sortQuestionsInOrder(rawQuestions || []).filter(q => !isPassageHeaderQuestion(q));
+                if (!questions || questions.length === 0) return;
 
-                const calc = computeAttemptScoreFromQuestions(att, questions, exam);
+                const calc = computeAttemptScoreFromQuestions(att, questions, exam, ansMap);
                 const score = calc.score;
                 const maxScore = calc.maxScore;
                 const totalPct = maxScore > 0 ? ((score / maxScore) * 100).toFixed(1) : '0.0';
@@ -2151,9 +2409,10 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 const dateStr = submitTime ? new Date(submitTime).toLocaleDateString('th-TH') : '-';
 
                 const categoryStats = {};
-                questions.forEach((q, idx) => {
-                    const rawUserAns = extractStudentAnswer(att, q, idx);
-                    const qEarned = getQuestionScore(q, rawUserAns, att, idx, exam);
+                questions.forEach((rawQ, idx) => {
+                    const q = hydrateQuestionDetailMeta(rawQ, examId);
+                    const rawUserAns = extractStudentAnswer(att, q, idx, ansMap);
+                    const qEarned = getQuestionScore(q, rawUserAns, att, idx, exam, ansMap);
                     const qMax = q.score !== undefined && q.score !== null ? Number(q.score) :
                         (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
                     const catTag = q.category_tag && q.category_tag.trim() !== '' ? q.category_tag : 'ทั่วไป';
@@ -2217,12 +2476,18 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                             <tr><th>ข้อที่</th><th>หมวดหมู่</th><th>โจทย์คำถาม</th><th>นักเรียนตอบ</th><th>เฉลย</th><th>ผลลัพธ์</th></tr>
                 `);
 
-                questions.forEach((q, index) => {
-                    const rawUserAns = extractStudentAnswer(att, q, index);
-                    const displayedUserAns = formatAnswerText(rawUserAns, exam);
-                    const displayedCorrectAns = getCorrectAnswer(q, exam);
-                    const isBonus = isBonusAllQuestion(q);
-                    const qEarned = getQuestionScore(q, rawUserAns, att, index, exam);
+                questions.forEach((rawQ, index) => {
+                    const q = hydrateQuestionDetailMeta(rawQ, examId);
+                    const rawUserAns = extractStudentAnswer(att, q, index, ansMap);
+                    const isEssay = (q.question_type || q.type || '').toLowerCase() === 'essay' || (q.question_type || q.type || '').toLowerCase() === 'subjective';
+                    const displayedUserAns = isEssay
+                        ? (rawUserAns && rawUserAns !== '-' ? String(rawUserAns) : 'ไม่ได้เขียนคำตอบ')
+                        : formatChoiceDisplayWithLabel(rawUserAns, q, exam, false);
+                    const displayedCorrectAns = isEssay
+                        ? (q.correct_answer || q.solution || 'ตรวจให้คะแนนโดยผู้สอน')
+                        : getCorrectAnswer(q, exam);
+                    const isBonus = q.is_bonus_all;
+                    const qEarned = getQuestionScore(q, rawUserAns, att, index, exam, ansMap);
                     const qMax = q.score !== undefined && q.score !== null ? Number(q.score) :
                         (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
                     const isCorrect = isBonus || qEarned >= qMax;
@@ -2290,7 +2555,8 @@ const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 const exam = allExamsCache.find(e => String(e.id) === String(att.exam_id)) || null;
                 const examTitle = exam ? exam.title : `ข้อสอบรหัส: ${att.exam_id}`;
                 const qs = questionsByExamCache[String(att.exam_id)] || [];
-                const calc = computeAttemptScoreFromQuestions(att, qs, exam);
+                const ansMap = att.id ? examAnswersByAttemptCache[String(att.id)] : null;
+                const calc = computeAttemptScoreFromQuestions(att, qs, exam, ansMap);
                 const scoreLabel = calc.maxScore > 0 ? `${calc.score} / ${calc.maxScore} คะแนน` : `${calc.score} คะแนน`;
                 const submitTime = att.submission_time || att.submitted_at || att.created_at;
                 const dateStr = submitTime ? new Date(submitTime).toLocaleDateString('th-TH') : '-';
