@@ -7,10 +7,12 @@
     <title>LMS | เจาะลึกสถิติรายข้อสอบ</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 
     <script>
         (function () {
@@ -153,17 +155,19 @@
             </div>
         </div>
 
-        <!-- Charts Layout -->
+        <!-- Primary Charts: Item Difficulty (Sorted 1 -> N) & Ranking -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-8 hitech-card p-6 rounded-3xl space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 id="diffChartTitle" class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2 truncate">
                         <i class="fas fa-chart-bar text-sky-500 shrink-0"></i> สถิติความยาก-ง่ายรายข้อ (จำนวนผู้ตอบผิด)
                     </h3>
-                    <select id="diffMetricSelect" onchange="renderDifficultyChart()" class="px-3.5 py-1.5 bg-slate-100 dark:bg-darkinput font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-sky-600 dark:text-sky-400 shrink-0">
-                        <option value="correct">จำนวนผู้ตอบถูก (คน)</option>
-                        <option value="incorrect" selected>จำนวนผู้ตอบผิด (คน)</option>
-                    </select>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <select id="diffMetricSelect" onchange="renderDifficultyChart()" class="px-3.5 py-1.5 bg-slate-100 dark:bg-darkinput font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-sky-600 dark:text-sky-400">
+                            <option value="correct">จำนวนผู้ตอบถูก</option>
+                            <option value="incorrect" selected>จำนวนผู้ตอบผิด</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="relative h-64 w-full"><canvas id="questionDifficultyChart"></canvas></div>
             </div>
@@ -189,6 +193,34 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- New Deep Analytics Row: Category Mastery & Choice Distractor Breakdown -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-6 hitech-card p-6 rounded-3xl space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2 truncate">
+                        <i class="fas fa-layer-group text-cyan-500 shrink-0"></i> คะแนนเฉลี่ยแยกตามหมวดหมู่ / บทเรียน (%)
+                    </h3>
+                    <span class="text-[11px] text-slate-400 font-semibold shrink-0">เทียบจุดแข็ง-จุดอ่อนรายบท</span>
+                </div>
+                <div class="relative h-64 w-full"><canvas id="categoryMasteryChart"></canvas></div>
+            </div>
+
+            <div class="lg:col-span-6 hitech-card p-6 rounded-3xl space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2 truncate">
+                        <i class="fas fa-diagram-project text-rose-500 shrink-0"></i> วิเคราะห์ตัวลวงรายข้อ (Choice Breakdown)
+                    </h3>
+                    <select id="distractorQuestionSelect" onchange="renderDistractorChart()" class="px-3 py-1.5 bg-slate-100 dark:bg-darkinput font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-rose-600 dark:text-rose-400 max-w-[210px] truncate">
+                        <option value="">เลือกข้อสอบ...</option>
+                    </select>
+                </div>
+                <div id="distractorQuestionPreview" class="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-200/70 dark:border-slate-800 truncate">
+                    กำลังโหลดรายการข้อสอบ...
+                </div>
+                <div class="relative h-52 w-full"><canvas id="distractorChart"></canvas></div>
             </div>
         </div>
 
@@ -289,7 +321,9 @@
         let currentCourse = null;
         let activeCourseIds = [];
         let allQuestions = [];
+        let activeQuestions = [];
         let allAttempts = [];
+        let examAnswersByAttemptCache = {};
         let allProfiles = [];
         let courseStudents = [];
         let allStudentsMap = {};
@@ -300,6 +334,8 @@
         let globalMaxScore = 10;
 
         let diffChartInstance = null;
+        let categoryChartInstance = null;
+        let distractorChartInstance = null;
         let distChartInstance = null;
         let spreadChartInstance = null;
         let timeSpentChartInstance = null;
@@ -365,13 +401,45 @@
         }
 
         function escapeHtml(text) {
-            if (!text) return '';
+            if (text === undefined || text === null) return '';
             return String(text)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderInlineMathHtml(rawText) {
+            const text = String(rawText || '');
+            if (!text.trim()) return '';
+            if (typeof katex === 'undefined' || typeof katex.renderToString !== 'function') {
+                return escapeHtml(text).replace(/\r?\n/g, '<br>');
+            }
+
+            const tokens = [];
+            const pushMath = (tex, displayMode) => {
+                const idx = tokens.length;
+                try {
+                    tokens.push(katex.renderToString(String(tex).trim(), {
+                        displayMode: !!displayMode,
+                        throwOnError: false,
+                        strict: false
+                    }));
+                } catch (_) {
+                    tokens.push(escapeHtml(tex));
+                }
+                return `@@MATH_${idx}@@`;
+            };
+
+            let protectedStr = text
+                .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => pushMath(expr, true))
+                .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => pushMath(expr, true))
+                .replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => pushMath(expr, false))
+                .replace(/(?<!\\)\$(?!\$)([^$\n]+?)(?<!\\)\$(?!\$)/g, (_, expr) => pushMath(expr, false));
+
+            let safeHtml = escapeHtml(protectedStr).replace(/\r?\n/g, '<br>');
+            return safeHtml.replace(/@@MATH_(\d+)@@/g, (_, idxStr) => tokens[parseInt(idxStr, 10)] ?? '');
         }
 
         function formatDurationClock(minutesVal) {
@@ -494,11 +562,76 @@
             return false;
         }
 
+        // ================= การเรียงข้อ 1, 2, 3... และระบบตรวจคำตอบมาตรฐานเดียวกับหน้าอื่นๆ =================
+        function sortQuestionsInOrder(list) {
+            return [...(list || [])].sort((a, b) => {
+                const strA = String(a?.question_number ?? '').trim();
+                const strB = String(b?.question_number ?? '').trim();
+                const numA = Number(strA);
+                const numB = Number(strB);
+
+                if (strA !== '' && strB !== '' && !Number.isNaN(numA) && !Number.isNaN(numB) && numA !== numB) {
+                    return numA - numB;
+                }
+                if (strA && strB && strA !== strB) {
+                    return strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+                }
+                return (Number(a?.id) || 0) - (Number(b?.id) || 0);
+            });
+        }
+
+        function isPassageHeaderQuestion(q) {
+            if (!q) return false;
+            return (
+                q.question_type === 'passage' ||
+                q.question_type === 'group' ||
+                q.question_type === 'shared' ||
+                q.question_type === 'context' ||
+                q.is_passage === true ||
+                q.is_shared_passage === true
+            );
+        }
+
+        function getQuestionMetaMapForExam(targetExamId) {
+            try {
+                const raw = localStorage.getItem(`question_meta_${targetExamId}`);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function hydrateQuestionDetailMeta(q, targetExamId = examId) {
+            const metaMap = getQuestionMetaMapForExam(targetExamId || q?.exam_id);
+            const meta = metaMap[String(q.id)] || {};
+            const modeStr = String(q.multiple_grading_mode || meta.multiple_grading_mode || '').toLowerCase();
+            const isBonus = Boolean(
+                q.is_bonus_all ||
+                meta.is_bonus_all ||
+                modeStr === 'bonus_all' ||
+                String(q.correct_answer || '').trim().toUpperCase() === 'BONUS_ALL'
+            );
+            const isSingleMultiKey = !isBonus && Boolean(
+                q.allow_multi_correct_keys ||
+                meta.allow_multi_correct_keys ||
+                modeStr === 'single_multi_key'
+            );
+            const isMultiple = !isBonus && !isSingleMultiKey && Boolean(q.is_multiple_answers || q.question_type === 'multiple');
+
+            return {
+                ...q,
+                score: (q.score !== undefined && q.score !== null) ? Number(q.score) : (meta.score !== undefined ? Number(meta.score) : 1),
+                is_bonus_all: isBonus,
+                allow_multi_correct_keys: isSingleMultiKey,
+                is_multiple_answers: isMultiple,
+                multiple_grading_mode: isBonus ? 'bonus_all' : (isSingleMultiKey ? 'single_multi_key' : (q.multiple_grading_mode || meta.multiple_grading_mode || 'all'))
+            };
+        }
+
         function isBonusAllQuestion(q) {
             if (!q) return false;
-            const modeStr = String(q.multiple_grading_mode || q.grading_rule || q.grading_type || '').toLowerCase().trim();
-            const ansStr = String(q.correct_answer || q.answer || q.key || '').trim().toUpperCase();
-            return Boolean(q.is_bonus_all || modeStr === 'bonus_all' || ansStr === 'BONUS_ALL');
+            const hydrated = hydrateQuestionDetailMeta(q, examId);
+            return Boolean(hydrated.is_bonus_all);
         }
 
         function isAttemptSubmitted(att) {
@@ -506,58 +639,119 @@
             return Boolean(att.status === 'submitted' || att.status === 'completed' || att.submitted_at || att.submission_time);
         }
 
-        function formatSingleAnswerText(ansValue, examObj = null) {
-            if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
-            if (String(ansValue).trim().toUpperCase() === 'BONUS_ALL') return 'แจกคะแนนฟรี (ได้เต็มทุกคน)';
-
-            if (Array.isArray(ansValue)) {
-                return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
-            }
-
-            const strVal = String(ansValue).trim();
-            if (strVal.startsWith('[') && strVal.endsWith(']')) {
-                try {
-                    const parsed = JSON.parse(strVal);
-                    if (Array.isArray(parsed)) {
-                        return parsed.map(v => formatSingleAnswerText(v, examObj)).join(', ');
-                    }
-                } catch (e) {}
-            }
-
-            const formatType = (examObj && examObj.choice_format) ? examObj.choice_format : 'num';
-            let labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
-            if (formatType === 'th_num') labels = ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ', 'ช', 'ซ', 'ฌ', 'ญ'];
-            else if (formatType === 'upper') labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-            else if (formatType === 'lower') labels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
-
-            if (/^\d+$/.test(strVal)) {
-                const idx = Number(strVal);
-                if (idx >= 0 && idx < labels.length) {
-                    return labels[idx];
-                }
-            }
-            return strVal;
+        function getChoiceLabelsForExam(examObj) {
+            const formatType = examObj?.choice_format || 'num';
+            if (formatType === 'th_num') return ['ก', 'ข', 'ค', 'ง', 'จ', 'ฉ', 'ช', 'ซ', 'ฌ', 'ญ'];
+            if (formatType === 'upper') return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+            if (formatType === 'lower') return ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+            return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
         }
 
-        function formatAnswerText(ansValue, examObj = null) {
-            if (ansValue === undefined || ansValue === null || ansValue === '') return '-';
-            if (Array.isArray(ansValue)) {
-                return ansValue.map(v => formatSingleAnswerText(v, examObj)).join(', ');
+        function getOptionsListForQuestion(q, examObj) {
+            const standardLabels = getChoiceLabelsForExam(examObj).slice(0, 6);
+            let raw = q?.options !== undefined ? q.options : q?.choices;
+            if (typeof raw === 'string') {
+                try { raw = JSON.parse(raw); } catch (e) { raw = raw.split(',').map(s => s.trim()); }
             }
-            return formatSingleAnswerText(ansValue, examObj);
+            const list = (Array.isArray(raw) && raw.length > 0) ? raw : standardLabels;
+            return Array.from(new Set(list.map(o => String(o).trim()))).filter(o => o !== '');
+        }
+
+        function resolveChoiceIndex(rawToken, q, examObj) {
+            if (rawToken === undefined || rawToken === null) return null;
+            const s = String(rawToken).trim();
+            if (s === '' || s === '-') return null;
+
+            const labels = getChoiceLabelsForExam(examObj);
+            const opts = getOptionsListForQuestion(q, examObj);
+
+            if (/^\d+$/.test(s)) {
+                const n = parseInt(s, 10);
+                if (n >= 0 && n < opts.length) return n;
+            }
+
+            const labelIdx = labels.findIndex(lbl => lbl.toLowerCase() === s.toLowerCase());
+            if (labelIdx !== -1 && labelIdx < opts.length) return labelIdx;
+
+            const optIdx = opts.findIndex(opt => opt.toLowerCase() === s.toLowerCase());
+            if (optIdx !== -1) return optIdx;
+
+            return null;
+        }
+
+        function normalizeAnswerTokens(rawVal, q, examObj) {
+            const arr = toCleanArray(rawVal);
+            return arr.map(tok => {
+                const idx = resolveChoiceIndex(tok, q, examObj);
+                return idx !== null ? `idx:${idx}` : `val:${String(tok).trim().toLowerCase()}`;
+            });
+        }
+
+        function formatChoiceDisplayWithLabel(val, q, examObj, isCorrectKey = false) {
+            const hydrated = hydrateQuestionDetailMeta(q, examObj?.id || examId);
+            if (isCorrectKey && hydrated.is_bonus_all) {
+                return 'ฟรีคะแนน (ทุกตัวเลือกถูกต้อง)';
+            }
+            if (val === undefined || val === null || val === '-' || val === '') return 'ไม่ได้ตอบ';
+            if (Array.isArray(val) && val.length === 0) return 'ไม่ได้ตอบ';
+
+            const labels = getChoiceLabelsForExam(examObj);
+            const opts = getOptionsListForQuestion(q, examObj);
+
+            const mapSingle = (item) => {
+                const strItem = String(item).trim();
+                if (strItem === '' || strItem === '-') return 'ไม่ได้ตอบ';
+                const idx = resolveChoiceIndex(strItem, q, examObj);
+                if (idx !== null) {
+                    const label = labels[idx] || (idx + 1);
+                    const optText = opts[idx] || '';
+                    if (!optText || optText === label || optText === String(idx + 1) || optText === `ตัวเลือกที่ ${label}`) {
+                        return `ตัวเลือก ${label}`;
+                    }
+                    return `${label}. ${optText}`;
+                }
+                return strItem;
+            };
+
+            if (Array.isArray(val)) {
+                return val.map(mapSingle).join(' | ');
+            }
+            const cleanArr = toCleanArray(val);
+            if (cleanArr.length > 1) {
+                return cleanArr.map(mapSingle).join(' | ');
+            }
+            return mapSingle(val);
         }
 
         function getCorrectAnswer(q, examObj = null) {
-            if (isBonusAllQuestion(q)) return 'แจกคะแนนฟรี (ได้เต็มทุกคน)';
-            const raw = q.correct_answer !== undefined ? q.correct_answer :
-                (q.answer !== undefined ? q.answer :
-                (q.key !== undefined ? q.key :
-                (q.solution !== undefined ? q.solution : '')));
-            return formatAnswerText(raw, examObj);
+            const hydrated = hydrateQuestionDetailMeta(q, examObj?.id || examId);
+            if (hydrated.is_bonus_all) return 'ฟรีคะแนน (ทุกตัวเลือกถูกต้อง)';
+            const raw = hydrated.correct_answer !== undefined ? hydrated.correct_answer :
+                (hydrated.answer !== undefined ? hydrated.answer :
+                (hydrated.key !== undefined ? hydrated.key :
+                (hydrated.solution !== undefined ? hydrated.solution : '')));
+            return formatChoiceDisplayWithLabel(raw, hydrated, examObj, true);
         }
 
-        function extractStudentAnswer(att, q, index) {
+        function extractStudentAnswer(att, q, index, ansMap = null) {
             if (!att) return null;
+
+            const isEssay = (q.question_type || q.type || '').toLowerCase() === 'essay' || (q.question_type || q.type || '').toLowerCase() === 'subjective';
+            const attemptAnswersMap = ansMap || (att.id ? examAnswersByAttemptCache[String(att.id)] : null);
+            if (attemptAnswersMap && attemptAnswersMap[String(q.id)]) {
+                const row = attemptAnswersMap[String(q.id)];
+                if (isEssay && row.subjective_answer !== null && row.subjective_answer !== undefined && String(row.subjective_answer).trim() !== '') {
+                    return row.subjective_answer;
+                }
+                if (!isEssay && row.selected_option_index !== null && row.selected_option_index !== undefined && String(row.selected_option_index).trim() !== '') {
+                    try {
+                        const parsed = JSON.parse(row.selected_option_index);
+                        return Array.isArray(parsed) ? parsed : row.selected_option_index;
+                    } catch (_) {
+                        return row.selected_option_index;
+                    }
+                }
+            }
 
             let raw = att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses;
             if (!raw) return null;
@@ -616,8 +810,16 @@
             return [str];
         }
 
-        function extractEssayScore(att, q, index) {
+        function extractEssayScore(att, q, index, ansMap = null) {
             if (!att || !q) return null;
+            const attemptAnswersMap = ansMap || (att.id ? examAnswersByAttemptCache[String(att.id)] : null);
+            if (attemptAnswersMap && attemptAnswersMap[String(q.id)]) {
+                const row = attemptAnswersMap[String(q.id)];
+                if (row.score !== undefined && row.score !== null && !isNaN(Number(row.score))) {
+                    return Number(row.score);
+                }
+            }
+
             const scoreMaps = [att.essay_scores, att.question_scores, att.graded_scores];
             for (const map of scoreMaps) {
                 if (!map) continue;
@@ -640,18 +842,19 @@
             return null;
         }
 
-        function getQuestionScore(q, rawUserAns, att = null, index = 0) {
+        function getQuestionScore(q, rawUserAns, att = null, index = 0, ansMap = null) {
             if (!q) return 0;
-            const qType = (q.question_type || q.type || '').toLowerCase();
-            const fullScore = q.score !== undefined && q.score !== null ? Number(q.score) :
-                (q.points !== undefined && q.points !== null ? Number(q.points) : 1);
+            const hydrated = hydrateQuestionDetailMeta(q, examId);
+            const qType = (hydrated.question_type || hydrated.type || '').toLowerCase();
+            const fullScore = hydrated.score !== undefined && hydrated.score !== null ? Number(hydrated.score) :
+                (hydrated.points !== undefined && hydrated.points !== null ? Number(hydrated.points) : 1);
 
             if (qType === 'essay' || qType === 'subjective') {
-                const graded = extractEssayScore(att, q, index);
+                const graded = extractEssayScore(att, hydrated, index, ansMap);
                 return graded !== null ? Math.min(Math.max(graded, 0), fullScore) : 0;
             }
 
-            if (isBonusAllQuestion(q)) {
+            if (hydrated.is_bonus_all) {
                 return fullScore;
             }
 
@@ -659,74 +862,76 @@
                 return 0;
             }
 
-            const correctRaw = q.correct_answer !== undefined ? q.correct_answer :
-                (q.answer !== undefined ? q.answer :
-                (q.key !== undefined ? q.key :
-                (q.solution !== undefined ? q.solution : '')));
+            const correctRaw = hydrated.correct_answer !== undefined ? hydrated.correct_answer :
+                (hydrated.answer !== undefined ? hydrated.answer :
+                (hydrated.key !== undefined ? hydrated.key :
+                (hydrated.solution !== undefined ? hydrated.solution : '')));
 
             if (correctRaw === undefined || correctRaw === null || correctRaw === '') {
                 return 0;
             }
-
-            const correctArr = toCleanArray(correctRaw);
-            const userArr = toCleanArray(rawUserAns);
-
-            if (userArr.length === 0) return 0;
-
-            const rawRule = q.multiple_grading_mode || q.grading_rule || q.multiple_grading_rule || q.rule || q.grading_type ||
-                (currentExam && (currentExam.multiple_grading_mode || currentExam.grading_rule || currentExam.multiple_grading_rule)) || '';
-            const gradingRule = String(rawRule).toLowerCase().trim();
-
-            const isSingleMultiKey = Boolean(q.allow_multi_correct_keys || gradingRule === 'single_multi_key');
-            const isAtLeastOneRule = isSingleMultiKey || gradingRule.includes('at_least') || gradingRule.includes('one') || gradingRule.includes('once') || gradingRule === 'subset';
-
-            if (isAtLeastOneRule || (correctArr.length > 1 && gradingRule !== 'all' && gradingRule !== 'exact')) {
-                const matchedAny = userArr.some(u => correctArr.some(c => String(u).toLowerCase() === String(c).toLowerCase()));
-                return matchedAny ? fullScore : 0;
-            }
-
-            if (gradingRule === 'partial') {
-                const correctMatches = userArr.filter(u => correctArr.includes(u)).length;
-                const wrongChoices = userArr.filter(u => !correctArr.includes(u)).length;
-                const netCorrect = Math.max(0, correctMatches - wrongChoices);
-                const ratio = netCorrect / correctArr.length;
-                return Number((fullScore * ratio).toFixed(2));
-            }
-
-            if (qType === 'multiple' || correctArr.length > 1 || userArr.length > 1) {
-                if (correctArr.length !== userArr.length) return 0;
-                const exactMatch = userArr.every(u => correctArr.includes(u)) && correctArr.every(c => userArr.includes(c));
-                return exactMatch ? fullScore : 0;
-            }
-
-            const singleCorrect = correctArr[0] || '';
-            const singleUser = userArr[0] || '';
-
-            if (singleCorrect === singleUser || singleCorrect.toLowerCase() === singleUser.toLowerCase()) {
+            if (String(correctRaw).trim().toUpperCase() === 'BONUS_ALL') {
                 return fullScore;
             }
 
-            return 0;
+            const correctNorm = Array.from(new Set(normalizeAnswerTokens(correctRaw, hydrated, currentExam)));
+            const userNorm = Array.from(new Set(normalizeAnswerTokens(rawUserAns, hydrated, currentExam)));
+
+            if (correctNorm.length === 0 || userNorm.length === 0) return 0;
+
+            if (hydrated.allow_multi_correct_keys) {
+                const matchedAny = userNorm.some(u => correctNorm.includes(u));
+                return matchedAny ? fullScore : 0;
+            }
+
+            const gradingMode = String(hydrated.multiple_grading_mode || currentExam?.multiple_grading_mode || 'all').toLowerCase().trim();
+
+            if (hydrated.is_multiple_answers) {
+                if (gradingMode === 'at_least_one' || gradingMode === 'subset') {
+                    return userNorm.some(u => correctNorm.includes(u)) ? fullScore : 0;
+                }
+                if (gradingMode === 'partial') {
+                    const matched = userNorm.filter(u => correctNorm.includes(u)).length;
+                    const extraWrong = Math.max(0, userNorm.length - matched);
+                    const ratio = Math.max(0, (matched / correctNorm.length) - (extraWrong * 0.2));
+                    return Number((fullScore * ratio).toFixed(2));
+                }
+                const exactMatch = correctNorm.length === userNorm.length && userNorm.every(u => correctNorm.includes(u));
+                return exactMatch ? fullScore : 0;
+            }
+
+            if (correctNorm.length > 1) {
+                return userNorm.some(u => correctNorm.includes(u)) ? fullScore : 0;
+            }
+
+            return userNorm[0] === correctNorm[0] ? fullScore : 0;
         }
 
         function checkAnswerIsCorrect(q, rawUserAns, att = null, index = 0) {
-            if (isBonusAllQuestion(q)) return true;
-            return getQuestionScore(q, rawUserAns, att, index) > 0;
+            const hydrated = hydrateQuestionDetailMeta(q, examId);
+            if (hydrated.is_bonus_all) return true;
+            const fullScore = hydrated.score !== undefined && hydrated.score !== null ? Number(hydrated.score) : 1;
+            return getQuestionScore(hydrated, rawUserAns, att, index) >= fullScore;
         }
 
         function calculateAttemptTotalScore(att, questionsList) {
             if (!att || !Array.isArray(questionsList)) return 0;
+            const targetQs = questionsList.filter(q => !isPassageHeaderQuestion(q));
+            const attemptAnswersMap = att.id ? examAnswersByAttemptCache[String(att.id)] : null;
 
-            const hasAnswersPayload = Boolean(att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses);
-            if (!hasAnswersPayload && questionsList.length > 0) {
+            const hasAnswersPayload = Boolean(
+                (attemptAnswersMap && Object.keys(attemptAnswersMap).length > 0) ||
+                att.answer_saved || att.answers || att.user_answers || att.student_answers || att.responses
+            );
+            if (!hasAnswersPayload && targetQs.length > 0) {
                 if (att.total_score !== undefined && att.total_score !== null && !isNaN(att.total_score)) return Number(att.total_score);
                 if (att.score !== undefined && att.score !== null && !isNaN(att.score)) return Number(att.score);
             }
 
             let totalScore = 0;
-            questionsList.forEach((q, index) => {
-                const studentAns = extractStudentAnswer(att, q, index);
-                totalScore += getQuestionScore(q, studentAns, att, index);
+            targetQs.forEach((q, index) => {
+                const studentAns = extractStudentAnswer(att, q, index, attemptAnswersMap);
+                totalScore += getQuestionScore(q, studentAns, att, index, attemptAnswersMap);
             });
 
             return Number(totalScore.toFixed(2));
@@ -777,6 +982,29 @@
             return 0;
         }
 
+        async function loadExamAnswersForAttempts(attemptsList) {
+            const ids = (attemptsList || []).map(a => a.id).filter(Boolean);
+            if (ids.length === 0) {
+                examAnswersByAttemptCache = {};
+                return;
+            }
+            try {
+                const { data } = await mySupabase
+                    .from('exam_answers')
+                    .select('*')
+                    .in('attempt_id', ids);
+                const grouped = {};
+                (data || []).forEach(r => {
+                    const aid = String(r.attempt_id);
+                    if (!grouped[aid]) grouped[aid] = {};
+                    grouped[aid][String(r.question_id)] = r;
+                });
+                examAnswersByAttemptCache = grouped;
+            } catch (e) {
+                console.warn('exam_answers batch load error:', e);
+            }
+        }
+
         async function checkAndAutoSubmitExpiredAttempts() {
             if (!currentExam) return;
             const examDurationMinutes = Number(currentExam.duration || currentExam.time_limit || currentExam.exam_duration || 30);
@@ -796,7 +1024,7 @@
                     }
 
                     if (isExpired) {
-                        const totalScore = calculateAttemptTotalScore(att, allQuestions);
+                        const totalScore = calculateAttemptTotalScore(att, activeQuestions);
                         const nowIso = new Date().toISOString();
 
                         const updatePayload = {
@@ -921,6 +1149,30 @@
             return null;
         }
 
+        function populateDistractorQuestionDropdown() {
+            const sel = document.getElementById('distractorQuestionSelect');
+            if (!sel) return;
+            const prevVal = sel.value;
+
+            if (activeQuestions.length === 0) {
+                sel.innerHTML = `<option value="">ไม่มีข้อคำถาม</option>`;
+                return;
+            }
+
+            sel.innerHTML = activeQuestions.map((q, idx) => {
+                const qNum = q.question_number ?? (idx + 1);
+                const shortText = String(q.question_text || q.content || 'โจทย์คำถาม').replace(/\s+/g, ' ').trim();
+                const preview = shortText.length > 35 ? shortText.slice(0, 35) + '...' : shortText;
+                return `<option value="${idx}">ข้อ ${qNum}: ${escapeHtml(preview)}</option>`;
+            }).join('');
+
+            if (prevVal !== '' && Number(prevVal) >= 0 && Number(prevVal) < activeQuestions.length) {
+                sel.value = prevVal;
+            } else {
+                sel.value = '0';
+            }
+        }
+
         async function initAnalytics() {
             if (!examId) {
                 Swal.fire('ไม่พบรหัสข้อสอบ', 'กรุณากลับไปเลือกชุดข้อสอบใหม่', 'error').then(() => window.location.replace('admin_exams.html'));
@@ -945,16 +1197,20 @@
                     loadCourseInfo(activeCourseIds)
                 ]);
 
-                allQuestions = qRes.data || [];
+                allQuestions = sortQuestionsInOrder(qRes.data || []);
+                activeQuestions = allQuestions.filter(q => !isPassageHeaderQuestion(q));
                 allAttempts = attRes.data || [];
                 allProfiles = profRes.data || [];
                 currentCourse = Array.isArray(coursesData) && coursesData.length > 0 ? coursesData[0] : null;
+
+                await loadExamAnswersForAttempts(allAttempts);
 
                 allStudentsMap = {};
                 allProfiles.forEach(registerProfileToMap);
 
                 courseStudents = await loadCourseEnrollments(activeCourseIds, coursesData || []);
 
+                populateDistractorQuestionDropdown();
                 await checkAndAutoSubmitExpiredAttempts();
                 setupRealtimeSubscription();
                 startLiveInProgressClock();
@@ -1018,6 +1274,7 @@
                         const attRes = await mySupabase.from('exam_attempts').select('*').eq('exam_id', examId);
                         if (attRes.data) {
                             allAttempts = attRes.data;
+                            await loadExamAnswersForAttempts(allAttempts);
                             await checkAndAutoSubmitExpiredAttempts();
                             computeAndRenderStats();
                         }
@@ -1048,7 +1305,6 @@
                 grouped[canonicalId].push(att);
             });
 
-            // เรียงลำดับ attempt ของแต่ละคนจากครั้งที่ 1 -> ครั้งล่าสุด และติดหมายเลข attemptNumber
             const numberedByStudent = {};
             Object.entries(grouped).forEach(([sId, list]) => {
                 const sortedAsc = [...list].sort((a, b) => getAttemptOrderTime(a) - getAttemptOrderTime(b));
@@ -1143,7 +1399,7 @@
                 const hasAttempt = !!attObj;
                 const isSubmitted = hasAttempt && isAttemptSubmitted(attObj);
                 const isInProgress = hasAttempt && !isSubmitted;
-                const score = isSubmitted ? calculateAttemptTotalScore(attObj, allQuestions) : 0;
+                const score = isSubmitted ? calculateAttemptTotalScore(attObj, activeQuestions) : 0;
                 const submittedAtVal = attObj ? (attObj.submission_time || attObj.submitted_at || attObj.created_at || attObj.updated_at) : null;
                 const spentMin = attObj ? calculateTimeSpentMinutes(attObj) : 0;
 
@@ -1185,8 +1441,6 @@
                     const firstItem = matchedList[0];
                     rows.push(buildRowFromAttempt(studentMeta, firstItem.attempt, 1, matchedList.length));
                 } else {
-                    // โหมดทุก attempt: ถ้ามีหลายครั้ง ให้แสดงทุกครั้งที่ส่งแล้ว
-                    // และถ้ามีอันที่ยัง In Progress ให้แสดงด้วย (หากมีครั้งที่ส่งแล้วด้วย จะแสดงทุก attempt)
                     matchedList.forEach(item => {
                         rows.push(buildRowFromAttempt(studentMeta, item.attempt, item.attemptNumber, matchedList.length));
                     });
@@ -1227,7 +1481,11 @@
 
             globalScores = submittedRows.map(r => r.score);
             globalTimes = combinedStudentRows.filter(r => r.hasAttempt).map(r => r.minutesSpent);
-            globalMaxScore = allQuestions.reduce((sum, q) => sum + (q.score !== undefined && q.score !== null ? Number(q.score) : 1), 0) || 10;
+            globalMaxScore = activeQuestions.reduce((sum, rawQ) => {
+                const q = hydrateQuestionDetailMeta(rawQ, examId);
+                return sum + (q.score !== undefined && q.score !== null ? Number(q.score) : 1);
+            }, 0) || 10;
+            globalMaxScore = Number(globalMaxScore.toFixed(2));
 
             const sumScore = globalScores.reduce((acc, curr) => acc + curr, 0);
             const avgScore = submittedRows.length > 0 ? (sumScore / submittedRows.length).toFixed(1) : '0.0';
@@ -1253,6 +1511,8 @@
 
             renderDifficultyChart();
             renderCompactRankingTable();
+            renderCategoryMasteryChart();
+            renderDistractorChart();
             renderScoreSpreadChart();
             renderScoreDistributionChart(globalScores, globalMaxScore);
             renderTimeSpentChart();
@@ -1321,11 +1581,13 @@
             }
 
             const submittedAttempts = combinedStudentRows.filter(r => r.isSubmitted && r.attempt).map(r => r.attempt);
+            const sortedQs = sortQuestionsInOrder(activeQuestions);
 
-            const labels = allQuestions.map((q, idx) => `ข้อ ${q.question_number || (idx + 1)}`);
-            const counts = allQuestions.map((q, qIdx) => {
+            const labels = sortedQs.map((q, idx) => `ข้อ ${q.question_number ?? (idx + 1)}`);
+            const counts = sortedQs.map((rawQ, qIdx) => {
+                const q = hydrateQuestionDetailMeta(rawQ, examId);
                 if (submittedAttempts.length === 0) return 0;
-                if (isBonusAllQuestion(q)) {
+                if (q.is_bonus_all) {
                     return metric === 'correct' ? submittedAttempts.length : 0;
                 }
                 let correctCount = 0;
@@ -1354,9 +1616,218 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    onClick: (_, elements) => {
+                        if (elements && elements.length > 0) {
+                            const clickedIdx = elements[0].index;
+                            const sel = document.getElementById('distractorQuestionSelect');
+                            if (sel) {
+                                sel.value = String(clickedIdx);
+                                renderDistractorChart();
+                            }
+                        }
+                    },
                     plugins: {
                         legend: { display: false },
-                        tooltip: { callbacks: { label: c => ` จำนวน: ${c.raw} ${unitText}` } }
+                        tooltip: {
+                            callbacks: {
+                                label: c => ` จำนวน: ${c.raw} ${unitText} (คลิกเพื่อดูตัวลวง)`
+                            }
+                        }
+                    },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        function renderCategoryMasteryChart() {
+            const canvasEl = document.getElementById('categoryMasteryChart');
+            if (!canvasEl) return;
+            const ctx = canvasEl.getContext('2d');
+
+            const submittedAttempts = combinedStudentRows.filter(r => r.isSubmitted && r.attempt).map(r => r.attempt);
+            const sortedQs = sortQuestionsInOrder(activeQuestions);
+
+            const catMap = {};
+            sortedQs.forEach((rawQ, qIdx) => {
+                const q = hydrateQuestionDetailMeta(rawQ, examId);
+                const cat = (q.category_tag && q.category_tag.trim() !== '') ? q.category_tag.trim() : 'ทั่วไป';
+                const qMax = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
+
+                if (!catMap[cat]) catMap[cat] = { earnedSum: 0, maxSum: 0, qCount: 0 };
+                catMap[cat].qCount += 1;
+
+                if (submittedAttempts.length > 0) {
+                    submittedAttempts.forEach(att => {
+                        const uAns = extractStudentAnswer(att, q, qIdx);
+                        catMap[cat].earnedSum += getQuestionScore(q, uAns, att, qIdx);
+                        catMap[cat].maxSum += qMax;
+                    });
+                } else {
+                    catMap[cat].maxSum += qMax;
+                }
+            });
+
+            const categories = Object.keys(catMap);
+            const avgPcts = categories.map(cat => {
+                if (submittedAttempts.length === 0 || catMap[cat].maxSum <= 0) return 0;
+                return Number(((catMap[cat].earnedSum / catMap[cat].maxSum) * 100).toFixed(1));
+            });
+
+            const barColors = avgPcts.map(pct => {
+                if (pct >= 75) return '#10b981';
+                if (pct >= 50) return '#06b6d4';
+                return '#f43f5e';
+            });
+
+            if (categoryChartInstance) categoryChartInstance.destroy();
+            categoryChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categories.length > 0 ? categories : ['ไม่มีหมวดหมู่'],
+                    datasets: [{
+                        label: 'คะแนนเฉลี่ย (%)',
+                        data: categories.length > 0 ? avgPcts : [0],
+                        backgroundColor: categories.length > 0 ? barColors : ['#94a3b8'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: c => {
+                                    const catName = categories[c.dataIndex];
+                                    const qCnt = catName && catMap[catName] ? catMap[catName].qCount : 0;
+                                    return ` เฉลี่ย ${c.raw}% (${qCnt} ข้อ)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { beginAtZero: true, max: 100, ticks: { callback: v => `${v}%` } }
+                    }
+                }
+            });
+        }
+
+        function renderDistractorChart() {
+            const canvasEl = document.getElementById('distractorChart');
+            const selEl = document.getElementById('distractorQuestionSelect');
+            const previewEl = document.getElementById('distractorQuestionPreview');
+            if (!canvasEl || !selEl) return;
+
+            const sortedQs = sortQuestionsInOrder(activeQuestions);
+            const qIdx = parseInt(selEl.value, 10);
+            const rawQ = !Number.isNaN(qIdx) && sortedQs[qIdx] ? sortedQs[qIdx] : sortedQs[0];
+
+            if (!rawQ) {
+                if (previewEl) previewEl.textContent = 'ไม่พบคำถามสำหรับวิเคราะห์ตัวลวง';
+                return;
+            }
+
+            const q = hydrateQuestionDetailMeta(rawQ, examId);
+            const qNum = q.question_number ?? (qIdx + 1);
+            const qType = (q.question_type || q.type || '').toLowerCase();
+            const isEssay = qType === 'essay' || qType === 'subjective';
+
+            if (previewEl) {
+                const rawPrompt = String(q.question_text || q.content || 'โจทย์คำถาม').replace(/\s+/g, ' ').trim();
+                const correctLabel = getCorrectAnswer(q, currentExam);
+                previewEl.innerHTML = `<span class="font-bold text-sky-600 dark:text-sky-400">ข้อ ${escapeHtml(qNum)}:</span> ${escapeHtml(rawPrompt)} <span class="ml-2 text-emerald-600 dark:text-emerald-400 font-bold">(เฉลย: ${escapeHtml(correctLabel)})</span>`;
+            }
+
+            const submittedAttempts = combinedStudentRows.filter(r => r.isSubmitted && r.attempt).map(r => r.attempt);
+            const labels = getChoiceLabelsForExam(currentExam);
+            const opts = getOptionsListForQuestion(q, currentExam);
+
+            let barLabels = [];
+            let barData = [];
+            let barColors = [];
+
+            if (isEssay) {
+                let answered = 0;
+                let blank = 0;
+                submittedAttempts.forEach(att => {
+                    const uAns = extractStudentAnswer(att, q, qIdx);
+                    if (uAns && String(uAns).trim() !== '' && String(uAns).trim() !== '-') answered++;
+                    else blank++;
+                });
+                barLabels = ['เขียนตอบแล้ว', 'ไม่ได้ตอบ'];
+                barData = [answered, blank];
+                barColors = ['#0284c7', '#94a3b8'];
+            } else {
+                const choiceCounts = new Array(opts.length).fill(0);
+                let unansweredCount = 0;
+
+                const correctRaw = q.correct_answer !== undefined ? q.correct_answer :
+                    (q.answer !== undefined ? q.answer : (q.key !== undefined ? q.key : ''));
+                const correctTokens = normalizeAnswerTokens(correctRaw, q, currentExam);
+
+                submittedAttempts.forEach(att => {
+                    const uAns = extractStudentAnswer(att, q, qIdx);
+                    const arr = toCleanArray(uAns);
+                    if (arr.length === 0 || (arr.length === 1 && arr[0] === '-')) {
+                        unansweredCount++;
+                        return;
+                    }
+                    arr.forEach(tok => {
+                        const idx = resolveChoiceIndex(tok, q, currentExam);
+                        if (idx !== null && idx < choiceCounts.length) {
+                            choiceCounts[idx]++;
+                        }
+                    });
+                });
+
+                opts.forEach((optText, i) => {
+                    const lbl = labels[i] || (i + 1);
+                    const shortOpt = optText && optText !== lbl && optText !== String(i + 1)
+                        ? ` (${optText.length > 18 ? optText.slice(0, 18) + '...' : optText})`
+                        : '';
+                    const isKey = q.is_bonus_all || correctTokens.includes(`idx:${i}`);
+                    barLabels.push(`${lbl}${shortOpt}${isKey ? ' ✓' : ''}`);
+                    barData.push(choiceCounts[i]);
+                    barColors.push(isKey ? '#10b981' : '#f43f5e');
+                });
+
+                if (unansweredCount > 0) {
+                    barLabels.push('ไม่ตอบ');
+                    barData.push(unansweredCount);
+                    barColors.push('#94a3b8');
+                }
+            }
+
+            const unitText = (document.getElementById('attemptModeSelect')?.value === 'first_attempt') ? 'คน' : 'ครั้ง';
+            const ctx = canvasEl.getContext('2d');
+            if (distractorChartInstance) distractorChartInstance.destroy();
+            distractorChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: barLabels,
+                    datasets: [{
+                        label: `จำนวนที่เลือก (${unitText})`,
+                        data: barData,
+                        backgroundColor: barColors,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: c => {
+                                    const total = submittedAttempts.length || 1;
+                                    const pct = ((Number(c.raw) / total) * 100).toFixed(1);
+                                    return ` เลือก ${c.raw} ${unitText} (${pct}%)`;
+                                }
+                            }
+                        }
                     },
                     scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
                 }
@@ -1427,20 +1898,21 @@
                 });
                 dataValues = buckets;
             } else {
+                const maxInt = Math.ceil(globalMaxScore);
                 const freqMap = {};
-                for (let i = 0; i <= globalMaxScore; i++) freqMap[i] = 0;
+                for (let i = 0; i <= maxInt; i++) freqMap[i] = 0;
                 globalScores.forEach(s => {
-                    const rounded = Math.min(Math.max(Math.round(s), 0), globalMaxScore);
+                    const rounded = Math.min(Math.max(Math.round(s), 0), maxInt);
                     freqMap[rounded] = (freqMap[rounded] || 0) + 1;
                 });
-                for (let i = 0; i <= globalMaxScore; i++) {
+                for (let i = 0; i <= maxInt; i++) {
                     labels.push(`${i} คะแนน`);
                     dataValues.push(freqMap[i]);
                 }
             }
 
             const avgScoreVal = globalScores.length > 0 ? (globalScores.reduce((a, b) => a + b, 0) / globalScores.length) : 0;
-            const avgIndex = metric === 'percent' ? Math.min(Math.floor((avgScoreVal / globalMaxScore) * 10.0), 9) : Math.min(Math.round(avgScoreVal), globalMaxScore);
+            const avgIndex = metric === 'percent' ? Math.min(Math.floor((avgScoreVal / globalMaxScore) * 10.0), 9) : Math.min(Math.round(avgScoreVal), Math.ceil(globalMaxScore));
 
             if (spreadChartInstance) spreadChartInstance.destroy();
             spreadChartInstance = new Chart(ctx, {
@@ -1697,7 +2169,7 @@
                 return `
                     <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
                         <td style="padding: 8px;"><b>${escapeHtml(cat)}</b></td>
-                        <td style="padding: 8px; text-align: center;">${stat.correct} / ${stat.total}</td>
+                        <td style="padding: 8px; text-align: center;">${Number(stat.correct.toFixed(2))} / ${Number(stat.total.toFixed(2))}</td>
                         <td style="padding: 8px; text-align: center; font-weight: bold; color: #0284c7;">${pct}%</td>
                         ${hasCriteria ? `<td style="padding: 8px; text-align: center;">${escapeHtml(evalLevel || '-')}</td>` : ''}
                     </tr>
@@ -1756,47 +2228,98 @@
             const att = allAttempts.find(a => String(a.id) === String(attemptId));
             if (!att) return;
 
+            if (att.id && !examAnswersByAttemptCache[String(att.id)]) {
+                await loadExamAnswersForAttempts([att]);
+            }
+
             const profile = findProfileByAnyId(att) || {};
             const name = ((profile.first_name || profile.name || profile.full_name || '').trim() +
                 (profile.last_name ? ' ' + profile.last_name : '')).trim() || att.student_name || 'นักเรียน';
             const studentIdCode = profile.student_id || profile.code || att.student_id_code || '-';
-            const score = calculateAttemptTotalScore(att, allQuestions);
+            const sortedQs = sortQuestionsInOrder(activeQuestions);
+            const score = calculateAttemptTotalScore(att, sortedQs);
             const maxScore = globalMaxScore;
 
+            let correctCount = 0;
             const categoryStats = {};
-            const questionsHtml = allQuestions.map((q, index) => {
+            const questionsHtml = sortedQs.map((rawQ, index) => {
+                const q = hydrateQuestionDetailMeta(rawQ, examId);
                 const rawUserAns = extractStudentAnswer(att, q, index);
-                const userAnsFormatted = formatAnswerText(rawUserAns, currentExam);
-                const correctAnsFormatted = getCorrectAnswer(q, currentExam);
+                const isBonus = q.is_bonus_all;
+                const isEssay = (q.question_type || q.type || '').toLowerCase() === 'essay' || (q.question_type || q.type || '').toLowerCase() === 'subjective';
+                const isMultiple = q.is_multiple_answers;
+                const isSingleMultiKey = q.allow_multi_correct_keys;
 
-                const isBonus = isBonusAllQuestion(q);
-                const isEssay = (q.question_type || q.type || '').toLowerCase() === 'essay';
-                const isMultiple = (q.question_type || q.type || '').toLowerCase() === 'multiple' || !!q.is_multiple_answers;
+                const userAnsFormatted = isEssay
+                    ? (rawUserAns && rawUserAns !== '-' ? String(rawUserAns) : 'ไม่ได้เขียนคำตอบ')
+                    : formatChoiceDisplayWithLabel(rawUserAns, q, currentExam, false);
+                const correctAnsFormatted = isEssay
+                    ? (q.correct_answer || q.solution || 'ตรวจให้คะแนนโดยผู้สอน')
+                    : getCorrectAnswer(q, currentExam);
+
                 const qEarnedScore = getQuestionScore(q, rawUserAns, att, index);
                 const qMaxScore = q.score !== undefined && q.score !== null ? Number(q.score) : 1;
                 const isCorrect = isBonus || qEarnedScore >= qMaxScore;
                 const isPartial = !isBonus && qEarnedScore > 0 && qEarnedScore < qMaxScore;
+                if (isCorrect) correctCount++;
 
                 const catTag = q.category_tag && q.category_tag.trim() !== '' ? q.category_tag : 'ทั่วไป';
                 if (!categoryStats[catTag]) categoryStats[catTag] = { total: 0, correct: 0 };
                 categoryStats[catTag].total += qMaxScore;
                 categoryStats[catTag].correct += qEarnedScore;
 
-                let statusText = isCorrect ? `✅ ถูกต้อง (${qEarnedScore}/${qMaxScore})` : (isPartial ? `⚠️ ถูกบางส่วน (${qEarnedScore}/${qMaxScore})` : `❌ ตอบผิด (${qEarnedScore}/${qMaxScore})`);
-                if (isBonus) statusText = `🎁 แจกคะแนนฟรี (${qEarnedScore}/${qMaxScore})`;
-                else if (isEssay) statusText = `✍️ อัตนัย (${qEarnedScore}/${qMaxScore})`;
+                let statusBadge = '';
+                if (isEssay) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 font-extrabold text-[11px]">✍️ อัตนัย (${qEarnedScore}/${qMaxScore})</span>`;
+                } else if (isBonus) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-300 font-extrabold text-[11px]">🎁 แจกคะแนนฟรี (${qEarnedScore}/${qMaxScore})</span>`;
+                } else if (isCorrect) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-[11px]">✅ ถูกต้อง (+${qEarnedScore}/${qMaxScore})</span>`;
+                } else if (isPartial) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-extrabold text-[11px]">⚠️ ถูกบางส่วน (+${qEarnedScore}/${qMaxScore})</span>`;
+                } else {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 font-extrabold text-[11px]">❌ ผิด (0/${qMaxScore})</span>`;
+                }
+
+                let modeBadges = '';
+                if (isBonus) {
+                    modeBadges += `<span class="px-2 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-300 rounded font-bold text-[10px]">🎁 ข้อฟรี</span>`;
+                } else if (isSingleMultiKey) {
+                    modeBadges += `<span class="px-2 py-0.5 bg-teal-500/20 text-teal-600 dark:text-teal-300 rounded font-bold text-[10px]">หลายเฉลยที่ถูก</span>`;
+                } else if (isMultiple) {
+                    modeBadges += `<span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-500 rounded font-bold text-[10px]">ตอบได้หลายตัวเลือก</span>`;
+                }
+
+                const borderStyle = isEssay
+                    ? 'border-amber-500/40'
+                    : (isCorrect ? 'border-emerald-500/40' : (isPartial ? 'border-indigo-500/40' : 'border-rose-500/40'));
+
+                const qTextHtml = renderInlineMathHtml(q.question_text || q.content || 'โจทย์คำถาม');
+                const userAnsHtml = renderInlineMathHtml(userAnsFormatted);
+                const correctAnsHtml = renderInlineMathHtml(correctAnsFormatted);
 
                 return `
-                    <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border ${isEssay ? 'border-amber-500/40' : (isCorrect ? 'border-emerald-500/40' : (isPartial ? 'border-indigo-500/40' : 'border-rose-500/40'))} space-y-1.5 text-xs text-left">
-                        <div class="flex justify-between font-extrabold gap-2">
-                            <span class="text-slate-800 dark:text-slate-100 break-words">ข้อที่ ${q.question_number || (index + 1)} [${escapeHtml(catTag)}]: ${escapeHtml(q.question_text || q.content || 'โจทย์คำถาม')}</span>
-                            <span class="${isEssay ? 'text-amber-500' : (isCorrect ? 'text-emerald-500' : (isPartial ? 'text-indigo-500' : 'text-rose-500'))} shrink-0">
-                                ${statusText}
-                            </span>
+                    <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border ${borderStyle} space-y-2 text-xs text-left">
+                        <div class="flex justify-between items-start gap-2 flex-wrap">
+                            <div class="font-extrabold text-slate-900 dark:text-slate-100 leading-relaxed flex-1 min-w-0">
+                                <span class="text-sky-600 dark:text-sky-400 mr-1">ข้อที่ ${q.question_number ?? (index + 1)} [${escapeHtml(catTag)}]:</span>
+                                <span>${qTextHtml}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                ${modeBadges}
+                                ${statusBadge}
+                            </div>
                         </div>
-                        <div class="text-[11px] text-slate-500 dark:text-slate-400 break-words">
-                            นักเรียนตอบ: <span class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(userAnsFormatted)}</span> | เฉลย: <span class="font-bold text-emerald-600">${escapeHtml(correctAnsFormatted)}</span>
-                            ${isMultiple ? '<span class="ml-2 px-1.5 py-0.5 bg-indigo-500/20 text-indigo-500 rounded font-semibold text-[10px]">หลายตัวเลือก</span>' : ''}
+                        ${q.image_url ? `<div class="pt-1"><img src="${escapeHtml(q.image_url)}" class="max-h-36 rounded-xl border border-slate-200 dark:border-slate-700 object-contain" /></div>` : ''}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                            <div class="p-2.5 rounded-xl bg-white dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800">
+                                <span class="text-slate-400 block font-semibold mb-0.5">นักเรียนตอบ:</span>
+                                <span class="font-bold ${isEssay ? 'text-slate-800 dark:text-slate-200' : (isCorrect ? 'text-emerald-600 dark:text-emerald-400' : (isPartial ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600 dark:text-rose-400'))}">${userAnsHtml}</span>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-500/25">
+                                <span class="text-emerald-600/80 dark:text-emerald-400/80 block font-semibold mb-0.5">เฉลยที่ถูกต้อง:</span>
+                                <span class="font-bold text-emerald-700 dark:text-emerald-300">${correctAnsHtml}</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1809,38 +2332,42 @@
                 return `
                     <div class="p-2.5 bg-sky-500/5 border border-sky-500/20 rounded-xl flex justify-between items-center text-[11px] gap-2">
                         <div class="truncate"><b>หมวด:</b> ${escapeHtml(cat)}</div>
-                        <div class="shrink-0">คะแนน: <b>${stat.correct}/${stat.total}</b> (<span class="text-sky-600 font-bold">${pct}%</span>)${hasCriteria && levelName ? ` -> ระดับ: <span class="font-bold text-purple-600 dark:text-purple-400">${escapeHtml(levelName)}</span>` : ''}</div>
+                        <div class="shrink-0">คะแนน: <b>${Number(stat.correct.toFixed(2))}/${Number(stat.total.toFixed(2))}</b> (<span class="text-sky-600 font-bold">${pct}%</span>)${hasCriteria && levelName ? ` -> ระดับ: <span class="font-bold text-purple-600 dark:text-purple-400">${escapeHtml(levelName)}</span>` : ''}</div>
                     </div>
                 `;
             }).join('');
 
             const isDark = document.documentElement.classList.contains('dark');
+            const totalPct = maxScore > 0 ? ((score / maxScore) * 100).toFixed(1) : '0.0';
+
             Swal.fire({
                 title: `📋 ตรวจสอบผลการตอบรายข้อ${attemptNumber > 0 ? ` (ครั้งที่ ${attemptNumber})` : ''}`,
                 html: `
-                    <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1 text-xs">
-                        <div class="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 flex justify-between items-center gap-2">
-                            <div class="min-w-0">
-                                <div class="font-extrabold text-sky-600 dark:text-sky-400 truncate">${escapeHtml(currentExam.title)}</div>
-                                <div class="text-slate-500 truncate">นักเรียน: <strong>${escapeHtml(name)} (${escapeHtml(studentIdCode)})</strong>${attemptNumber > 0 ? ` • ครั้งที่ ${attemptNumber}` : ''}</div>
+                    <div class="space-y-4 max-h-[72vh] overflow-y-auto pr-1 text-xs">
+                        <div class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex justify-between items-center gap-3 flex-wrap">
+                            <div class="min-w-0 text-left space-y-0.5">
+                                <div class="font-extrabold text-sm text-sky-600 dark:text-sky-400 truncate">${escapeHtml(currentExam.title)}</div>
+                                <div class="text-slate-600 dark:text-slate-300 truncate">นักเรียน: <strong>${escapeHtml(name)} (${escapeHtml(studentIdCode)})</strong>${attemptNumber > 0 ? ` • ครั้งที่ ${attemptNumber}` : ''}</div>
+                                <div class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">ถูกเต็ม ${correctCount} / ${sortedQs.length} ข้อ</div>
                             </div>
-                            <div class="text-right font-extrabold text-indigo-600 dark:text-indigo-400 text-sm shrink-0">
-                                ${score} / ${maxScore} คะแนน
+                            <div class="text-right shrink-0">
+                                <div class="font-extrabold text-indigo-600 dark:text-indigo-400 text-base">${score} / ${maxScore} คะแนน</div>
+                                <div class="text-[11px] font-bold text-amber-500">คิดเป็น ${totalPct}%</div>
                             </div>
                         </div>
-                        <div class="space-y-2">
+                        <div class="space-y-2 text-left">
                             <div class="font-bold text-slate-700 dark:text-slate-300">📊 สรุปผลคะแนน${hasCriteria ? 'และเกณฑ์การประเมิน' : ''}แยกตามหมวดหมู่:</div>
                             <div class="grid grid-cols-1 gap-2">${categorySummaryHtml}</div>
                         </div>
-                        <div class="pt-2">
-                            <button onclick='downloadStudentReport(${JSON.stringify(name)}, ${JSON.stringify(studentIdCode)}, ${score}, ${maxScore}, ${JSON.stringify(categoryStats)})' class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all shadow-md text-xs flex items-center justify-center gap-2">
+                        <div class="pt-1">
+                            <button onclick='downloadStudentReport(${JSON.stringify(name)}, ${JSON.stringify(studentIdCode)}, ${score}, ${maxScore}, ${JSON.stringify(categoryStats)})' class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all shadow-md text-xs flex items-center justify-center gap-2">
                                 <i class="fas fa-file-pdf"></i> ดาวน์โหลด / พิมพ์รายงานสรุปผลการสอบรายบุคคล (PDF)
                             </button>
                         </div>
-                        <div class="space-y-2 pt-2">${questionsHtml}</div>
+                        <div class="space-y-2.5 pt-1">${questionsHtml}</div>
                     </div>
                 `,
-                width: '750px',
+                width: '780px',
                 confirmButtonText: 'ปิดหน้าต่าง',
                 confirmButtonColor: '#0284c7',
                 background: isDark ? '#090d16' : '#ffffff',
