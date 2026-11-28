@@ -522,17 +522,38 @@
             }
         }
 
-        function resolveSolutionVisibilityState(exObj, targetExamId) {
+function resolveSolutionVisibilityState(exObj, targetExamId) {
+            // 1. ลอง Debug ดูใน Console (กด F12) ว่าในตาราง exams มีคอลัมน์ชื่ออะไรบ้าง
+            console.log('🔍 [DEBUG] examData ที่โหลดได้:', exObj);
+            console.log('🔍 [DEBUG] targetExamId:', targetExamId);
+
             let revealed = false;
             let reason = 'ผู้สอนยังไม่เปิดให้ดูเฉลยสำหรับชุดข้อสอบนี้';
 
+            // 2. ขยายชื่อคอลัมน์ที่อาจเป็นไปได้ในตาราง exams (รวมถึง nested object เช่น settings / config)
+            const settingsObj = (exObj?.settings && typeof exObj.settings === 'object') ? exObj.settings
+                              : (exObj?.config && typeof exObj.config === 'object') ? exObj.config
+                              : {};
+
             const flagCandidates = [
                 exObj?.show_solution,
+                exObj?.is_show_solution,
+                exObj?.show_solutions,
                 exObj?.allow_solution,
+                exObj?.allow_solutions,
                 exObj?.reveal_solution,
                 exObj?.show_answers,
+                exObj?.show_answer,
+                exObj?.show_key,
                 exObj?.is_solution_visible,
-                exObj?.solution_visible
+                exObj?.solution_visible,
+                exObj?.enable_solution,
+                exObj?.open_solution,
+                // เช็กใน settings / config เผื่อเก็บเป็น JSON
+                settingsObj?.show_solution,
+                settingsObj?.allow_solution,
+                settingsObj?.show_answers,
+                settingsObj?.reveal_solution
             ];
 
             let foundFlag = null;
@@ -544,11 +565,15 @@
                 }
             }
 
+            // 3. เช็กใน localStorage (เผื่อหน้าแอดมินเซฟลง localStorage)
             if (foundFlag === null && targetExamId) {
                 const localKeys = [
                     `show_solution_${targetExamId}`,
+                    `is_show_solution_${targetExamId}`,
                     `allow_solution_${targetExamId}`,
-                    `reveal_solution_${targetExamId}`
+                    `reveal_solution_${targetExamId}`,
+                    `show_answers_${targetExamId}`,
+                    `open_solution_${targetExamId}`
                 ];
                 for (const lk of localKeys) {
                     const parsed = parseBooleanFlag(localStorage.getItem(lk));
@@ -559,11 +584,30 @@
                 }
             }
 
+            // 4. เช็กจาก lms_core.js (หากมีฟังก์ชันหรือตัวแปรกลางเก็บสถานะชุดข้อสอบ)
+            if (foundFlag === null && typeof window.LMS_CORE !== 'undefined' && targetExamId) {
+                try {
+                    const coreExam = window.LMS_CORE.getExamById?.(targetExamId);
+                    if (coreExam) {
+                        const coreFlag = parseBooleanFlag(coreExam.show_solution ?? coreExam.allow_solution ?? coreExam.show_answers);
+                        if (coreFlag !== null) foundFlag = coreFlag;
+                    }
+                } catch (e) {}
+            }
+
             if (foundFlag !== null) {
                 revealed = foundFlag;
             }
 
-            const releaseTimeRaw = exObj?.solution_release_time || exObj?.release_solution_at || exObj?.solution_available_at || null;
+            // 5. เช็กเวลาเปิดเฉลยอัตโนมัติ (รองรับทั้ง snake_case และ camelCase)
+            const releaseTimeRaw = exObj?.solution_release_time
+                || exObj?.solution_release_at
+                || exObj?.release_solution_at
+                || exObj?.solution_available_at
+                || exObj?.open_solution_at
+                || settingsObj?.solution_release_time
+                || null;
+
             if (releaseTimeRaw) {
                 const releaseTs = new Date(releaseTimeRaw).getTime();
                 if (!isNaN(releaseTs)) {
@@ -604,7 +648,6 @@
                 if (lockedText) lockedText.textContent = `${reason} (แสดงเฉพาะโจทย์และคำตอบของคุณ)`;
             }
         }
-
         function resolveGradingCriteriaState(exObj, targetExamId) {
             let criteriaList = [];
             let enabled = false;
